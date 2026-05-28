@@ -10,22 +10,26 @@ function makeClient() {
   if (!connectionString) {
     throw new Error('DATABASE_URL is not set');
   }
-  // Pooler do Supabase usa TLS com cert que não valida na cadeia padrão do Node. O `pg`
-  // verifica por padrão, e o `sslmode` da URL sobrescreve o `ssl` da config — então
-  // removemos o `sslmode` e desligamos a verificação aqui. Postgres local não usa TLS.
+
+  // Em runtimes serverless, confiar em `sslmode=no-verify` na URL é mais previsível
+  // do que depender de flags `ssl` no adapter.
   const isLocal = /@(localhost|127\.0\.0\.1)/.test(connectionString);
   const queryIndex = connectionString.indexOf('?');
-  let cleanedConnectionString = connectionString;
+  let adaptedConnectionString = connectionString;
   if (queryIndex !== -1) {
     const params = new URLSearchParams(connectionString.slice(queryIndex + 1));
-    params.delete('sslmode');
+    if (isLocal) {
+      params.delete('sslmode');
+    } else {
+      params.set('sslmode', 'no-verify');
+    }
     const query = params.toString();
-    cleanedConnectionString = connectionString.slice(0, queryIndex) + (query ? `?${query}` : '');
+    adaptedConnectionString = connectionString.slice(0, queryIndex) + (query ? `?${query}` : '');
+  } else if (!isLocal) {
+    adaptedConnectionString = `${connectionString}?sslmode=no-verify`;
   }
-  const adapter = new PrismaPg({
-    connectionString: cleanedConnectionString,
-    ...(isLocal ? {} : { ssl: { rejectUnauthorized: false } }),
-  });
+
+  const adapter = new PrismaPg({ connectionString: adaptedConnectionString });
   return new PrismaClient({
     adapter,
     log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],

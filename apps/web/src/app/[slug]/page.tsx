@@ -23,6 +23,8 @@ const RESERVED_SLUGS = new Set([
   'admin',
 ]);
 
+const FILE_LIKE_SLUG = /\.[a-z0-9]+$/i;
+
 function formatBRL(cents: number): string {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(cents / 100);
 }
@@ -41,7 +43,7 @@ function minutesToHHMM(minutes: number): string {
 }
 
 async function loadTenant(slug: string) {
-  if (RESERVED_SLUGS.has(slug)) return null;
+  if (RESERVED_SLUGS.has(slug) || FILE_LIKE_SLUG.test(slug)) return null;
   return prisma.tenant.findUnique({
     where: { slug },
     include: {
@@ -65,11 +67,7 @@ export async function generateMetadata({
   };
 }
 
-export default async function TenantPublicPage({
-  params,
-}: {
-  params: Promise<{ slug: string }>;
-}) {
+export default async function TenantPublicPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const tenant = await loadTenant(slug);
   if (!tenant) notFound();
@@ -87,11 +85,11 @@ export default async function TenantPublicPage({
     : null;
 
   return (
-    <main className="min-h-screen bg-muted/20">
+    <main className="bg-muted/20 min-h-screen">
       <div className="mx-auto max-w-2xl space-y-8 px-4 py-12">
         <header className="space-y-2 text-center">
           <h1 className="font-serif text-4xl font-semibold tracking-[-0.01em]">{tenant.name}</h1>
-          <p className="text-sm text-muted-foreground">Agende pelo WhatsApp em segundos.</p>
+          <p className="text-muted-foreground text-sm">Agende pelo WhatsApp em segundos.</p>
         </header>
 
         {waLink && (
@@ -108,20 +106,20 @@ export default async function TenantPublicPage({
         <section className="space-y-3">
           <h2 className="font-serif text-xl font-semibold">Serviços</h2>
           {tenant.services.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Nenhum serviço cadastrado ainda.</p>
+            <p className="text-muted-foreground text-sm">Nenhum serviço cadastrado ainda.</p>
           ) : (
             <ul className="space-y-2">
               {tenant.services.map((s) => (
                 <li
                   key={s.id}
-                  className="flex items-start justify-between gap-3 rounded-lg border bg-card p-4 shadow-sm"
+                  className="bg-card flex items-start justify-between gap-3 rounded-lg border p-4 shadow-sm"
                 >
                   <div>
                     <div className="font-medium">{s.name}</div>
                     {s.description && (
-                      <div className="text-sm text-muted-foreground">{s.description}</div>
+                      <div className="text-muted-foreground text-sm">{s.description}</div>
                     )}
-                    <div className="text-xs text-muted-foreground">
+                    <div className="text-muted-foreground text-xs">
                       {formatDuration(s.durationMinutes)}
                     </div>
                   </div>
@@ -137,7 +135,7 @@ export default async function TenantPublicPage({
             <Calendar className="h-5 w-5" />
             Horários de atendimento
           </h2>
-          <ul className="overflow-hidden rounded-lg border bg-card shadow-sm">
+          <ul className="bg-card overflow-hidden rounded-lg border shadow-sm">
             {dayOrder.map((wd) => {
               const blocks = byDay.get(wd) ?? [];
               return (
@@ -161,7 +159,7 @@ export default async function TenantPublicPage({
           </ul>
         </section>
 
-        <footer className="pt-4 text-center text-xs text-muted-foreground">
+        <footer className="text-muted-foreground pt-4 text-center text-xs">
           Powered by Demandaê
         </footer>
       </div>
