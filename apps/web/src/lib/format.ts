@@ -20,6 +20,17 @@ export function minutesToHHMM(minutes: number): string {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
+// Formata uma string de dígitos como moeda BRL para uso em input (ex.: "5000" -> "50,00").
+// Trata o valor como centavos: o usuário digita da direita pra esquerda.
+export function maskBRLInput(raw: string): string {
+  const digits = raw.replace(/\D/g, '');
+  if (!digits) return '';
+  const cents = Number(digits);
+  const reais = Math.floor(cents / 100);
+  const centavos = String(cents % 100).padStart(2, '0');
+  return `${reais.toLocaleString('pt-BR')},${centavos}`;
+}
+
 export function hhmmToMinutes(hhmm: string): number | null {
   const match = /^(\d{1,2}):(\d{2})$/.exec(hhmm.trim());
   if (!match) return null;

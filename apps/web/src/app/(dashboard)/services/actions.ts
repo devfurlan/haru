@@ -12,7 +12,8 @@ export type ServiceActionResult = { error: string } | { ok: true };
 const priceSchema = z
   .string()
   .min(1, 'Informe um preço')
-  .transform((v) => Number(v.replace(',', '.')))
+  // Aceita formato BR ("1.234,56") removendo separador de milhar antes de trocar a vírgula decimal.
+  .transform((v) => Number(v.replace(/\./g, '').replace(',', '.')))
   .refine((n) => Number.isFinite(n) && n >= 0, { message: 'Preço inválido' });
 
 const durationSchema = z

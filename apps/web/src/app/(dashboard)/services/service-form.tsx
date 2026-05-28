@@ -1,11 +1,12 @@
 'use client';
 
-import { useActionState, useEffect } from 'react';
+import { useActionState, useEffect, useState } from 'react';
 import { useFormStatus } from 'react-dom';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { maskBRLInput } from '@/lib/format';
 
 import { createService, updateService, type ServiceActionResult } from './actions';
 
@@ -46,6 +47,10 @@ export function ServiceForm({ defaults, onSuccess, onCancel }: ServiceFormProps)
     undefined,
   );
 
+  const [price, setPrice] = useState(() =>
+    defaults?.priceCents !== undefined ? maskBRLInput(String(defaults.priceCents)) : '',
+  );
+
   useEffect(() => {
     if (state && 'ok' in state) {
       onSuccess?.();
@@ -84,7 +89,7 @@ export function ServiceForm({ defaults, onSuccess, onCancel }: ServiceFormProps)
             type="number"
             min={1}
             max={480}
-            step={5}
+            step={1}
             defaultValue={defaults?.durationMinutes ?? 30}
             required
           />
@@ -96,10 +101,9 @@ export function ServiceForm({ defaults, onSuccess, onCancel }: ServiceFormProps)
             id="priceReais"
             name="priceReais"
             type="text"
-            inputMode="decimal"
-            defaultValue={
-              defaults?.priceCents !== undefined ? (defaults.priceCents / 100).toFixed(2) : ''
-            }
+            inputMode="numeric"
+            value={price}
+            onChange={(e) => setPrice(maskBRLInput(e.target.value))}
             placeholder="50,00"
             required
           />
