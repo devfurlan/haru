@@ -1,9 +1,10 @@
 import { prisma } from '@haru/database';
-import { CalendarCheck, Scissors } from 'lucide-react';
+import { CalendarCheck, MessageCircleWarning, Scissors } from 'lucide-react';
 import Link from 'next/link';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { requireUserAndTenant } from '@/lib/auth';
+import { isWhatsappConnected } from '@/lib/whatsapp-status';
 
 function formatWhen(date: Date, timezone: string): string {
   return new Intl.DateTimeFormat('pt-BR', {
@@ -46,12 +47,29 @@ export default async function DashboardPage() {
     }),
   ]);
 
+  const whatsappConnected = isWhatsappConnected(tenant);
+
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       <div>
         <h1 className="font-serif text-2xl font-semibold tracking-tight">Olá, {tenant.name}</h1>
         <p className="text-sm text-muted-foreground">Visão rápida do seu estabelecimento.</p>
       </div>
+
+      {!whatsappConnected && (
+        <Link href="/settings" className="block">
+          <div className="flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 p-4 text-amber-900 transition-colors hover:bg-amber-100 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-100 dark:hover:bg-amber-950/60">
+            <MessageCircleWarning className="mt-0.5 h-5 w-5 shrink-0" />
+            <div className="text-sm">
+              <p className="font-semibold">Seu WhatsApp ainda não está conectado</p>
+              <p className="text-amber-800 dark:text-amber-200/80">
+                Enquanto não conectar, o bot não recebe nem responde mensagens dos seus clientes.
+                Clique aqui para configurar em Configurações.
+              </p>
+            </div>
+          </div>
+        </Link>
+      )}
 
       <div className="grid gap-4 sm:grid-cols-2">
         <StatCard

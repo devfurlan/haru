@@ -1,5 +1,6 @@
 'use client';
 
+import { CheckCircle2, ChevronDown, Copy, XCircle } from 'lucide-react';
 import { useActionState, useState, useTransition } from 'react';
 import { useFormStatus } from 'react-dom';
 
@@ -7,12 +8,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { BOT_WEBHOOK_URL } from '@/lib/whatsapp-status';
 
-import {
-  connectWhatsapp,
-  disconnectWhatsapp,
-  type WhatsappActionResult,
-} from './actions';
+import { connectWhatsapp, disconnectWhatsapp, type WhatsappActionResult } from './actions';
 
 interface WhatsappCardProps {
   phoneNumberId: string | null;
@@ -27,6 +25,96 @@ function SubmitButton({ editing }: { editing: boolean }) {
     <Button type="submit" disabled={pending}>
       {pending ? 'Salvando…' : editing ? 'Salvar conexão' : 'Conectar'}
     </Button>
+  );
+}
+
+function CopyField({ value }: { value: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <div className="flex items-center gap-2">
+      <code className="flex-1 break-all rounded bg-muted px-2 py-1 text-xs">{value}</code>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="shrink-0"
+        onClick={() => {
+          navigator.clipboard.writeText(value).then(() => {
+            setCopied(true);
+            setTimeout(() => setCopied(false), 1500);
+          });
+        }}
+      >
+        <Copy className="mr-1 h-3 w-3" />
+        {copied ? 'Copiado' : 'Copiar'}
+      </Button>
+    </div>
+  );
+}
+
+function MetaGuide() {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="rounded-lg border bg-muted/30">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center justify-between p-3 text-left text-sm font-medium"
+      >
+        Como obter esses dados na Meta (passo a passo)
+        <ChevronDown className={`h-4 w-4 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div className="space-y-4 border-t p-4 text-sm">
+          <p className="text-muted-foreground">
+            Você precisa de um app no{' '}
+            <a
+              href="https://developers.facebook.com/apps"
+              target="_blank"
+              rel="noreferrer"
+              className="underline underline-offset-2"
+            >
+              Meta for Developers
+            </a>{' '}
+            com o produto <strong>WhatsApp</strong> adicionado. Depois siga os passos:
+          </p>
+
+          <ol className="space-y-3">
+            <li>
+              <p className="font-medium">1. Configure o webhook</p>
+              <p className="text-muted-foreground">
+                No app: <strong>WhatsApp → Configuração (Configuration)</strong>. No campo{' '}
+                <strong>Callback URL</strong>, cole exatamente:
+              </p>
+              <div className="mt-1.5">
+                <CopyField value={BOT_WEBHOOK_URL} />
+              </div>
+              <p className="mt-1.5 text-muted-foreground">
+                No campo <strong>Verify token</strong>, use o token que você definiu (ou peça ao
+                suporte do Demandaê). Clique em <strong>Verificar e salvar</strong>.
+              </p>
+            </li>
+            <li>
+              <p className="font-medium">2. Assine o evento de mensagens</p>
+              <p className="text-muted-foreground">
+                Ainda em Configuração, em <strong>Webhook fields</strong>, marque{' '}
+                <strong>messages</strong> como inscrito (Subscribe). Sem isso a Meta nunca envia as
+                mensagens dos clientes.
+              </p>
+            </li>
+            <li>
+              <p className="font-medium">3. Pegue os IDs e o token</p>
+              <p className="text-muted-foreground">
+                Em <strong>WhatsApp → Configuração da API (API Setup)</strong> você encontra o{' '}
+                <strong>phone_number_id</strong> (debaixo do número) e o{' '}
+                <strong>access token</strong> temporário (24h, bom para teste). Copie e cole nos
+                campos abaixo.
+              </p>
+            </li>
+          </ol>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -52,10 +140,23 @@ export function WhatsappCard({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>WhatsApp Business</CardTitle>
+        <div className="flex items-center justify-between gap-2">
+          <CardTitle>WhatsApp Business</CardTitle>
+          {connected ? (
+            <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800 dark:bg-green-950/50 dark:text-green-300">
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              Conectado
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-950/50 dark:text-amber-300">
+              <XCircle className="h-3.5 w-3.5" />
+              Não conectado
+            </span>
+          )}
+        </div>
         <CardDescription>
-          Conecte o número que você configurou no Meta for Developers. O bot vai responder pelo
-          phone_number_id informado.
+          Conecte o número de WhatsApp do seu estabelecimento para o bot atender seus clientes.
+          {!connected && ' Enquanto não conectar, nenhuma mensagem é recebida ou respondida.'}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -92,73 +193,87 @@ export function WhatsappCard({
         )}
 
         {showForm && (
-          <form action={formAction} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="phoneNumberId">phone_number_id</Label>
-              <Input
-                id="phoneNumberId"
-                name="phoneNumberId"
-                defaultValue={phoneNumberId ?? ''}
-                placeholder="123456789012345"
-                required
-              />
-              <p className="text-xs text-muted-foreground">
-                Em Meta for Developers → WhatsApp → API Setup, debaixo do número.
-              </p>
-            </div>
+          <>
+            <MetaGuide />
 
-            <div className="space-y-2">
-              <Label htmlFor="businessAccountId">business_account_id (opcional)</Label>
-              <Input
-                id="businessAccountId"
-                name="businessAccountId"
-                defaultValue={businessAccountId ?? ''}
-                placeholder="123456789012345"
-              />
-            </div>
+            <form action={formAction} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="phoneNumberId">ID do número de telefone (phone_number_id)</Label>
+                <Input
+                  id="phoneNumberId"
+                  name="phoneNumberId"
+                  defaultValue={phoneNumberId ?? ''}
+                  placeholder="123456789012345"
+                  required
+                />
+                <p className="text-xs text-muted-foreground">
+                  É um número longo (15+ dígitos), <strong>não</strong> é o telefone do WhatsApp.
+                  Na Meta: WhatsApp → Configuração da API, logo abaixo do número selecionado.
+                </p>
+              </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="displayPhone">Telefone público (E.164, opcional)</Label>
-              <Input
-                id="displayPhone"
-                name="displayPhone"
-                defaultValue={displayPhone ?? ''}
-                placeholder="5511987654321"
-              />
-              <p className="text-xs text-muted-foreground">
-                Usado no link <code>wa.me/...</code> da página pública. Só dígitos, sem +,
-                espaços ou parênteses.
-              </p>
-            </div>
+              <div className="space-y-2">
+                <Label htmlFor="accessToken">Token de acesso (access_token)</Label>
+                <Input
+                  id="accessToken"
+                  name="accessToken"
+                  type="password"
+                  placeholder="EAAB…"
+                  required
+                />
+                <p className="text-xs text-muted-foreground">
+                  É o que autoriza o bot a enviar mensagens pelo seu número. Começa com{' '}
+                  <code>EAA</code>. Para testar, use o token temporário (24h) que aparece em
+                  Configuração da API. Em produção, gere um token permanente de um System User com a
+                  permissão <code>whatsapp_business_messaging</code>.
+                </p>
+              </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="accessToken">access_token</Label>
-              <Input
-                id="accessToken"
-                name="accessToken"
-                type="password"
-                placeholder="EAAB…"
-                required
-              />
-              <p className="text-xs text-muted-foreground">
-                Token de System User com permissão whatsapp_business_messaging. Em dev você pode
-                usar o token temporário de 24h do API Setup.
-              </p>
-            </div>
+              <div className="space-y-2">
+                <Label htmlFor="businessAccountId">
+                  ID da conta WhatsApp Business (business_account_id) — opcional
+                </Label>
+                <Input
+                  id="businessAccountId"
+                  name="businessAccountId"
+                  defaultValue={businessAccountId ?? ''}
+                  placeholder="123456789012345"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Também aparece em Configuração da API (campo WhatsApp Business Account ID). Não é
+                  obrigatório para o bot funcionar.
+                </p>
+              </div>
 
-            {state && 'error' in state && (
-              <p className="text-sm text-destructive">{state.error}</p>
-            )}
+              <div className="space-y-2">
+                <Label htmlFor="displayPhone">Telefone público — opcional</Label>
+                <Input
+                  id="displayPhone"
+                  name="displayPhone"
+                  defaultValue={displayPhone ?? ''}
+                  placeholder="5511987654321"
+                />
+                <p className="text-xs text-muted-foreground">
+                  O número que aparece para os clientes, usado no link <code>wa.me/...</code> da sua
+                  página pública. Só dígitos, com DDI e DDD, sem +, espaços ou parênteses (ex.:
+                  5519936195726).
+                </p>
+              </div>
 
-            <div className="flex gap-2">
-              <SubmitButton editing={connected} />
-              {connected && (
-                <Button type="button" variant="ghost" onClick={() => setShowForm(false)}>
-                  Cancelar
-                </Button>
+              {state && 'error' in state && (
+                <p className="text-sm text-destructive">{state.error}</p>
               )}
-            </div>
-          </form>
+
+              <div className="flex gap-2">
+                <SubmitButton editing={connected} />
+                {connected && (
+                  <Button type="button" variant="ghost" onClick={() => setShowForm(false)}>
+                    Cancelar
+                  </Button>
+                )}
+              </div>
+            </form>
+          </>
         )}
       </CardContent>
     </Card>
