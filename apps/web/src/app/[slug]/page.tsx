@@ -10,6 +10,10 @@ const WEEKDAY_NAMES = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sext
 
 // Slugs reservados — não bater com rotas conhecidas
 const RESERVED_SLUGS = new Set([
+  'robots',
+  'robots.txt',
+  'sitemap',
+  'sitemap.xml',
   'login',
   'signup',
   'dashboard',
