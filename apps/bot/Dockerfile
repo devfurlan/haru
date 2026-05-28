@@ -1,6 +1,6 @@
 # Multi-stage build para o bot — alvo Railway
 FROM node:20-alpine AS base
-RUN corepack enable && corepack prepare pnpm@9.12.3 --activate
+RUN corepack enable && corepack prepare pnpm@11.4.0 --activate
 WORKDIR /app
 
 # --- deps stage: instala dependências do monorepo ---
@@ -24,7 +24,7 @@ RUN pnpm --filter bot build
 FROM node:20-alpine AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
-RUN corepack enable && corepack prepare pnpm@9.12.3 --activate
+RUN corepack enable && corepack prepare pnpm@11.4.0 --activate
 COPY --from=build /app/apps/bot/dist ./apps/bot/dist
 COPY --from=build /app/apps/bot/package.json ./apps/bot/
 COPY --from=build /app/packages ./packages
@@ -33,4 +33,4 @@ COPY --from=build /app/package.json ./package.json
 COPY --from=build /app/pnpm-workspace.yaml ./pnpm-workspace.yaml
 
 EXPOSE 3001
-CMD ["node", "apps/bot/dist/index.mjs"]
+CMD ["node", "apps/bot/dist/index.js"]
