@@ -37,6 +37,9 @@
     "typecheck": {
       "dependsOn": ["^build"]
     },
+    "@haru/database#build": {
+      "cache": false
+    },
     "@haru/database#generate": {
       "cache": false
     }

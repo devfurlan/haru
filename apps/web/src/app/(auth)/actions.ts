@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
 
-import { prisma } from '@haru/database';
+import { Prisma, prisma } from '@haru/database';
 
 import { createClient } from '@/lib/supabase/server';
 import { uniqueSlug } from '@/lib/slug';
@@ -41,7 +41,7 @@ export async function signUp(_prev: ActionResult, formData: FormData): Promise<A
   }
 
   try {
-    await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const tenant = await tx.tenant.create({
         data: { name: businessName, slug: uniqueSlug(businessName) },
       });

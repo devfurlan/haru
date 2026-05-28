@@ -1,0 +1,18 @@
+# deps e artefatos de build — reinstalados/rebuildados dentro da imagem
+**/node_modules
+**/dist
+**/.next
+**/.turbo
+
+# vcs
+.git
+.gitignore
+
+# segredos locais (Railway injeta envs em runtime)
+**/.env
+**/.env.local
+!**/.env.example
+
+# logs / misc
+**/*.log
+.DS_Store
