@@ -10,12 +10,20 @@ function makeClient() {
   if (!connectionString) {
     throw new Error('DATABASE_URL is not set');
   }
-  // node-postgres valida o certificado por padrão e o pooler do Supabase não valida
-  // na cadeia padrão do Node; mantemos a conexão criptografada mas sem verificar a
-  // cadeia. Postgres local (supabase CLI) não usa SSL, então só ativa pra host remoto.
+  // Pooler do Supabase usa TLS com cert que não valida na cadeia padrão do Node. O `pg`
+  // verifica por padrão, e o `sslmode` da URL sobrescreve o `ssl` da config — então
+  // removemos o `sslmode` e desligamos a verificação aqui. Postgres local não usa TLS.
   const isLocal = /@(localhost|127\.0\.0\.1)/.test(connectionString);
+  const queryIndex = connectionString.indexOf('?');
+  let cleanedConnectionString = connectionString;
+  if (queryIndex !== -1) {
+    const params = new URLSearchParams(connectionString.slice(queryIndex + 1));
+    params.delete('sslmode');
+    const query = params.toString();
+    cleanedConnectionString = connectionString.slice(0, queryIndex) + (query ? `?${query}` : '');
+  }
   const adapter = new PrismaPg({
-    connectionString,
+    connectionString: cleanedConnectionString,
     ...(isLocal ? {} : { ssl: { rejectUnauthorized: false } }),
   });
   return new PrismaClient({
