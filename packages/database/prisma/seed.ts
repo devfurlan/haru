@@ -16,7 +16,7 @@ function required(name: string): string {
 async function ensureAuthUser(): Promise<string> {
   const supabase = createClient(
     required('SUPABASE_URL'),
-    required('SUPABASE_SERVICE_ROLE_KEY'),
+    required('SUPABASE_SECRET_KEY'),
     { auth: { autoRefreshToken: false, persistSession: false } },
   );
 

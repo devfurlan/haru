@@ -23,8 +23,8 @@ export const env = {
   get SUPABASE_URL() {
     return required('SUPABASE_URL');
   },
-  get SUPABASE_SERVICE_ROLE_KEY() {
-    return required('SUPABASE_SERVICE_ROLE_KEY');
+  get SUPABASE_SECRET_KEY() {
+    return required('SUPABASE_SECRET_KEY');
   },
   get BOT_INTERNAL_TOKEN() {
     return required('BOT_INTERNAL_TOKEN');

@@ -8,7 +8,7 @@ let _client: ReturnType<typeof createClient> | null = null;
 
 function client() {
   if (!_client) {
-    _client = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
+    _client = createClient(env.SUPABASE_URL, env.SUPABASE_SECRET_KEY, {
       auth: { autoRefreshToken: false, persistSession: false },
     });
   }
