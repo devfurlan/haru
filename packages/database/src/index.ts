@@ -14,19 +14,22 @@ function makeClient() {
   // Em runtimes serverless, confiar em `sslmode=no-verify` na URL é mais previsível
   // do que depender de flags `ssl` no adapter.
   const isLocal = /@(localhost|127\.0\.0\.1)/.test(connectionString);
-  const queryIndex = connectionString.indexOf('?');
   let adaptedConnectionString = connectionString;
-  if (queryIndex !== -1) {
-    const params = new URLSearchParams(connectionString.slice(queryIndex + 1));
+  try {
+    const parsed = new URL(connectionString);
     if (isLocal) {
-      params.delete('sslmode');
+      parsed.searchParams.delete('sslmode');
     } else {
-      params.set('sslmode', 'no-verify');
+      parsed.searchParams.set('sslmode', 'no-verify');
     }
-    const query = params.toString();
-    adaptedConnectionString = connectionString.slice(0, queryIndex) + (query ? `?${query}` : '');
-  } else if (!isLocal) {
-    adaptedConnectionString = `${connectionString}?sslmode=no-verify`;
+    adaptedConnectionString = parsed.toString();
+  } catch {
+    if (isLocal) {
+      adaptedConnectionString = connectionString.replace(/([?&])sslmode=[^&]*&?/i, '$1');
+      adaptedConnectionString = adaptedConnectionString.replace(/[?&]$/, '');
+    } else if (!/([?&])sslmode=/i.test(connectionString)) {
+      adaptedConnectionString = `${connectionString}${connectionString.includes('?') ? '&' : '?'}sslmode=no-verify`;
+    }
   }
 
   const adapter = new PrismaPg({ connectionString: adaptedConnectionString });
