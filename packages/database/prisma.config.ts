@@ -15,6 +15,10 @@ export default defineConfig({
     path: 'prisma/migrations',
   },
   datasource: {
+    // Runtime (app via pg adapter) usa DATABASE_URL = transaction pooler (6543, ?pgbouncer=true).
     url: process.env.DATABASE_URL,
+    // `prisma migrate`/`db push` usam directUrl = session pooler (5432), que suporta
+    // advisory lock e DDL (o transaction pooler não). Em dev local, aponta pro mesmo Postgres.
+    directUrl: process.env.DIRECT_URL ?? process.env.DATABASE_URL,
   },
 });
