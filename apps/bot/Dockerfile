@@ -34,4 +34,7 @@ COPY --from=build /app/package.json ./package.json
 COPY --from=build /app/pnpm-workspace.yaml ./pnpm-workspace.yaml
 
 EXPOSE 3001
-CMD ["node", "apps/bot/dist/index.js"]
+# A cada start, aplica migrations pendentes (idempotente, com advisory lock) e
+# então sobe o bot. DATABASE_URL é injetada pelo Railway em runtime; prisma lê o
+# schema/datasource via packages/database/prisma.config.ts.
+CMD ["sh", "-c", "pnpm --filter @haru/database exec prisma migrate deploy && node apps/bot/dist/index.js"]

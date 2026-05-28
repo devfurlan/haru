@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev --turbopack --port 4361",
     "build": "next build",
+    "vercel-build": "pnpm --filter @haru/database exec prisma generate && pnpm --filter @haru/database exec prisma migrate deploy && next build",
     "start": "next start --port 4361",
     "lint": "next lint",
     "typecheck": "tsc --noEmit"
