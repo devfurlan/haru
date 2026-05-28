@@ -1,0 +1,142 @@
+# For detailed configuration reference documentation, visit:
+# https://supabase.com/docs/guides/local-development/cli/config
+project_id = "haru"
+
+[api]
+enabled = true
+port = 54361
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[api.tls]
+enabled = false
+
+[db]
+port = 54362
+shadow_port = 54360
+health_timeout = "2m"
+major_version = 17
+
+[db.pooler]
+enabled = false
+port = 54369
+pool_mode = "transaction"
+default_pool_size = 20
+max_client_conn = 100
+
+[db.migrations]
+# Não usado — usamos `prisma migrate` em `packages/database`. Schema é
+# gerenciado pelo Prisma e não pelos arquivos SQL do Supabase CLI.
+enabled = false
+schema_paths = []
+
+[db.seed]
+enabled = true
+sql_paths = ["./seed.sql"]
+
+[realtime]
+enabled = true
+
+[studio]
+enabled = true
+port = 54363
+api_url = "http://127.0.0.1"
+openai_api_key = "env(OPENAI_API_KEY)"
+
+# Servidor SMTP fake — emails de signup/recuperação caem aqui em dev em vez de
+# serem enviados de verdade. Acessar pelo web em http://127.0.0.1:54364.
+[inbucket]
+enabled = true
+port = 54364
+
+[storage]
+enabled = true
+file_size_limit = "50MiB"
+
+[storage.buckets.bot-media]
+# Bucket usado pelo bot pra armazenar áudios/imagens recebidos via WhatsApp.
+public = false
+file_size_limit = "25MiB"
+allowed_mime_types = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "audio/ogg",
+  "audio/mpeg",
+  "audio/mp4",
+  "audio/wav",
+  "audio/webm",
+  "application/pdf",
+]
+
+[storage.buckets.tenant-assets]
+# Logos, fotos de capa etc. que os tenants podem subir.
+public = true
+file_size_limit = "5MiB"
+allowed_mime_types = ["image/jpeg", "image/png", "image/webp", "image/svg+xml"]
+
+[storage.s3_protocol]
+enabled = true
+
+[auth]
+enabled = true
+site_url = "http://localhost:4361"
+additional_redirect_urls = [
+  "http://localhost:4361/auth/callback",
+  "http://localhost:3001/auth/callback",
+]
+jwt_expiry = 3600
+enable_refresh_token_rotation = true
+refresh_token_reuse_interval = 10
+enable_signup = true
+enable_anonymous_sign_ins = false
+enable_manual_linking = false
+minimum_password_length = 8
+password_requirements = ""
+
+[auth.rate_limit]
+email_sent = 100
+sms_sent = 30
+anonymous_users = 30
+token_refresh = 150
+sign_in_sign_ups = 30
+token_verifications = 30
+web3 = 30
+
+[auth.email]
+enable_signup = true
+double_confirm_changes = true
+# Crucial em dev: signup cria sessão imediata sem precisar confirmar o email.
+# O fluxo de signUp() na web depende disso pra criar o Tenant em uma transação.
+enable_confirmations = false
+secure_password_change = false
+max_frequency = "1s"
+otp_length = 6
+otp_expiry = 3600
+
+[auth.sms]
+enable_signup = false
+enable_confirmations = false
+
+[auth.mfa]
+max_enrolled_factors = 10
+
+[auth.mfa.totp]
+enroll_enabled = false
+verify_enabled = false
+
+[auth.mfa.phone]
+enroll_enabled = false
+verify_enabled = false
+
+[edge_runtime]
+enabled = false
+policy = "per_worker"
+inspector_port = 8083
+deno_version = 2
+
+[analytics]
+enabled = false
+port = 54367
+backend = "postgres"

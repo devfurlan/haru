@@ -1,0 +1,35 @@
+{
+  "name": "haru",
+  "private": true,
+  "version": "0.0.0",
+  "description": "WhatsApp scheduling & payments platform for service businesses (barbershops, clinics, podiatrists, etc.)",
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "dev:local": "pnpm supabase:start && turbo dev",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "format": "prettier --write \"**/*.{ts,tsx,md,json}\"",
+    "db:generate": "pnpm --filter @haru/database generate",
+    "db:migrate": "pnpm --filter @haru/database migrate",
+    "db:push": "pnpm --filter @haru/database push",
+    "db:studio": "pnpm --filter @haru/database studio",
+    "db:seed": "pnpm --filter @haru/database seed",
+    "db:local:setup": "pnpm db:generate && pnpm db:push && pnpm db:seed",
+    "supabase:start": "npx supabase start",
+    "supabase:stop": "npx supabase stop",
+    "supabase:status": "npx supabase status",
+    "supabase:reset": "npx supabase stop --no-backup && npx supabase start && pnpm db:local:setup"
+  },
+  "devDependencies": {
+    "prettier": "^3.3.3",
+    "supabase": "^2.76.12",
+    "turbo": "^2.3.3",
+    "typescript": "^5.6.3"
+  },
+  "engines": {
+    "node": ">=20",
+    "pnpm": ">=9"
+  },
+  "packageManager": "pnpm@11.4.0"
+}

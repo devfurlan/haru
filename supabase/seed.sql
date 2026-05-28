@@ -1,0 +1,4 @@
+-- Seed local opcional, executado por `supabase db reset`.
+-- Em haru o schema é gerenciado pelo Prisma (`packages/database`), então este
+-- arquivo serve apenas para popular dados de teste em nível SQL quando
+-- necessário. Deixe vazio por padrão — criar tenants via signup na web.

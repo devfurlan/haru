@@ -1,0 +1,175 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// --- Domain models (esqueleto inicial — expandir conforme o produto evolui) ---
+
+model Tenant {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  /// Fuso usado pra interpretar horários do estabelecimento (ex: "America/Sao_Paulo").
+  timezone  String   @default("America/Sao_Paulo")
+
+  // WhatsApp Cloud API — credenciais por tenant (onboard via Embedded Signup).
+  // O bot resolve qual tenant atende um webhook por whatsappPhoneNumberId.
+  whatsappPhoneNumberId     String? @unique
+  whatsappBusinessAccountId String?
+  /// Token de acesso do tenant (criptografar at rest em produção).
+  whatsappAccessToken       String?
+  /// Telefone E.164 do WhatsApp (sem +) usado em links públicos wa.me/...
+  /// É diferente do whatsappPhoneNumberId (ID interno da Meta).
+  whatsappDisplayPhone      String?
+
+  /// URL opcional para POST quando agendamentos são criados/cancelados. Aceita
+  /// webhooks de Discord, Slack, Zapier, n8n, etc. Para Discord: o body inclui
+  /// um campo `content` com o resumo formatado.
+  notificationWebhookUrl String?
+  /// Horas antes do horário marcado para o bot enviar lembrete via WhatsApp.
+  /// 0 = lembretes desativados.
+  reminderHoursBefore    Int     @default(24)
+  /// Templates aprovados na Meta. Quando definidos, mensagens são enviadas via
+  /// template em vez de freeform — escapam da regra das 24h. Todos esperam
+  /// 3 variáveis no body: {{1}}=nome do cliente, {{2}}=data/hora formatada,
+  /// {{3}}=nome do serviço.
+  reminderTemplateName       String?
+  reminderTemplateLanguage   String? @default("pt_BR")
+  cancelTemplateName         String?
+  cancelTemplateLanguage     String? @default("pt_BR")
+  rescheduleTemplateName     String?
+  rescheduleTemplateLanguage String? @default("pt_BR")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users          User[]
+  services       Service[]
+  appointments   Appointment[]
+  contacts       Contact[]
+  conversations  Conversation[]
+  scheduleBlocks ScheduleBlock[]
+}
+
+model User {
+  id        String   @id @default(cuid())
+  // Vinculado ao auth.users do Supabase
+  authId    String   @unique
+  email     String   @unique
+  name      String?
+  role      UserRole @default(OWNER)
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum UserRole {
+  OWNER
+  STAFF
+}
+
+model Service {
+  id              String   @id @default(cuid())
+  tenantId        String
+  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name            String
+  description     String?
+  durationMinutes Int
+  priceCents      Int
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  appointments    Appointment[]
+}
+
+/// Janela de atendimento de um Tenant em um dia da semana. Múltiplos blocos no
+/// mesmo dia representam expediente partido (ex: 08:00-12:00 e 14:00-18:00).
+/// Ausência de blocos para um weekday = fechado naquele dia.
+model ScheduleBlock {
+  id          String   @id @default(cuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  /// 0 = domingo, 6 = sábado (igual `Date#getDay()`).
+  weekday     Int
+  /// Minutos desde a meia-noite (ex: 480 = 08:00).
+  startMinute Int
+  endMinute   Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([tenantId, weekday])
+}
+
+model Contact {
+  id          String   @id @default(cuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  phone       String
+  name        String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  conversations Conversation[]
+  appointments  Appointment[]
+
+  @@unique([tenantId, phone])
+}
+
+model Conversation {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  contactId String
+  contact   Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  messages  Message[]
+}
+
+model Message {
+  id             String        @id @default(cuid())
+  conversationId String
+  conversation   Conversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  direction      MessageDirection
+  waMessageId    String?       @unique
+  body           String
+  createdAt      DateTime      @default(now())
+}
+
+enum MessageDirection {
+  INBOUND
+  OUTBOUND
+}
+
+model Appointment {
+  id             String            @id @default(cuid())
+  tenantId       String
+  tenant         Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  contactId      String
+  contact        Contact           @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  serviceId      String
+  service        Service           @relation(fields: [serviceId], references: [id])
+  startsAt       DateTime
+  endsAt         DateTime
+  status         AppointmentStatus @default(PENDING)
+  /// Marca de quando o lembrete via WhatsApp foi enviado. null = ainda não.
+  reminderSentAt DateTime?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  @@index([tenantId, startsAt])
+}
+
+enum AppointmentStatus {
+  PENDING
+  CONFIRMED
+  CANCELED
+  COMPLETED
+  NO_SHOW
+}
