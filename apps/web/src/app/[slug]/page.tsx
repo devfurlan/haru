@@ -90,13 +90,13 @@ export default async function TenantPublicPage({
     <main className="min-h-screen bg-muted/20">
       <div className="mx-auto max-w-2xl space-y-8 px-4 py-12">
         <header className="space-y-2 text-center">
-          <h1 className="text-3xl font-bold">{tenant.name}</h1>
+          <h1 className="font-serif text-4xl font-semibold tracking-[-0.01em]">{tenant.name}</h1>
           <p className="text-sm text-muted-foreground">Agende pelo WhatsApp em segundos.</p>
         </header>
 
         {waLink && (
           <div className="flex justify-center">
-            <Button asChild size="lg" className="bg-emerald-600 hover:bg-emerald-700">
+            <Button asChild variant="coral" size="pill">
               <a href={waLink} target="_blank" rel="noopener noreferrer">
                 <MessageCircle className="h-5 w-5" />
                 Agendar pelo WhatsApp
@@ -106,7 +106,7 @@ export default async function TenantPublicPage({
         )}
 
         <section className="space-y-3">
-          <h2 className="text-lg font-semibold">Serviços</h2>
+          <h2 className="font-serif text-xl font-semibold">Serviços</h2>
           {tenant.services.length === 0 ? (
             <p className="text-sm text-muted-foreground">Nenhum serviço cadastrado ainda.</p>
           ) : (
@@ -133,7 +133,7 @@ export default async function TenantPublicPage({
         </section>
 
         <section className="space-y-3">
-          <h2 className="flex items-center gap-2 text-lg font-semibold">
+          <h2 className="flex items-center gap-2 font-serif text-xl font-semibold">
             <Calendar className="h-5 w-5" />
             Horários de atendimento
           </h2>
@@ -162,7 +162,7 @@ export default async function TenantPublicPage({
         </section>
 
         <footer className="pt-4 text-center text-xs text-muted-foreground">
-          Powered by haru
+          Powered by Demandaê
         </footer>
       </div>
     </main>

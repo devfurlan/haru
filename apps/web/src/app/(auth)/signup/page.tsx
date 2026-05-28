@@ -13,7 +13,7 @@ export default async function SignupPage() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-2xl">Criar conta</CardTitle>
+        <CardTitle className="font-serif text-2xl">Criar conta</CardTitle>
         <CardDescription>
           Cadastre seu estabelecimento e comece a receber agendamentos pelo WhatsApp.
         </CardDescription>

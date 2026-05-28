@@ -49,7 +49,7 @@ export default async function DashboardPage() {
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Olá, {tenant.name}</h1>
+        <h1 className="font-serif text-2xl font-semibold tracking-tight">Olá, {tenant.name}</h1>
         <p className="text-sm text-muted-foreground">Visão rápida do seu estabelecimento.</p>
       </div>
 

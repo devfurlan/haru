@@ -13,7 +13,7 @@ export default async function LoginPage() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-2xl">Entrar</CardTitle>
+        <CardTitle className="font-serif text-2xl">Entrar</CardTitle>
         <CardDescription>Acesse o painel do seu estabelecimento.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">

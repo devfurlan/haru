@@ -10,7 +10,7 @@ export default async function SettingsPage() {
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Configurações</h1>
+        <h1 className="font-serif text-2xl font-semibold tracking-tight">Configurações</h1>
         <p className="text-sm text-muted-foreground">Dados do estabelecimento e integrações.</p>
       </div>
 

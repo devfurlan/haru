@@ -1,58 +1,156 @@
 @import 'tailwindcss';
 
-@layer base {
-  :root {
-    --background: 0 0% 100%;
-    --foreground: 240 10% 3.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 240 10% 3.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 3.9%;
-    --primary: 240 5.9% 10%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 240 4.8% 95.9%;
-    --secondary-foreground: 240 5.9% 10%;
-    --muted: 240 4.8% 95.9%;
-    --muted-foreground: 240 3.8% 46.1%;
-    --accent: 240 4.8% 95.9%;
-    --accent-foreground: 240 5.9% 10%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 5.9% 90%;
-    --input: 240 5.9% 90%;
-    --ring: 240 5.9% 10%;
-    --radius: 0.5rem;
-  }
+/*
+ * Design system "Demandaê" — paleta cream/verde/coral + tipografia Fraunces +
+ * Hanken Grotesk. Os tokens semânticos (shadcn) apontam pra paleta da marca, então
+ * dashboard, auth e páginas públicas herdam o visual automaticamente.
+ */
 
-  .dark {
-    --background: 240 10% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 240 10% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 240 10% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 240 5.9% 10%;
-    --secondary: 240 3.7% 15.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 240 3.7% 15.9%;
-    --muted-foreground: 240 5% 64.9%;
-    --accent: 240 3.7% 15.9%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 3.7% 15.9%;
-    --input: 240 3.7% 15.9%;
-    --ring: 240 4.9% 83.9%;
+:root {
+  /* Paleta crua da marca */
+  --brand-cream: #faf5ea;
+  --brand-cream-2: #f2eadb;
+  --brand-paper: #fffdf8;
+  --brand-ink: #0f1f18;
+  --brand-ink-soft: #27392f;
+  --brand-green: #0e7a45;
+  --brand-green-bright: #2fd37a;
+  --brand-green-deep: #0a3324;
+  --brand-coral: #ff5a36;
+  --brand-coral-soft: #ff7b5c;
+
+  /* Tokens semânticos (shadcn) mapeados na marca */
+  --background: var(--brand-cream);
+  --foreground: var(--brand-ink);
+  --card: var(--brand-paper);
+  --card-foreground: var(--brand-ink);
+  --popover: var(--brand-paper);
+  --popover-foreground: var(--brand-ink);
+  --primary: var(--brand-green);
+  --primary-foreground: #f3fbf5;
+  --secondary: var(--brand-cream-2);
+  --secondary-foreground: var(--brand-ink);
+  --muted: var(--brand-cream-2);
+  --muted-foreground: #51635a;
+  --accent: #e6f4ec;
+  --accent-foreground: var(--brand-green-deep);
+  --destructive: #e5484d;
+  --destructive-foreground: #ffffff;
+  --border: rgba(15, 31, 24, 0.12);
+  --input: rgba(15, 31, 24, 0.16);
+  --ring: var(--brand-green);
+  --radius: 0.75rem;
+
+  /* Sombras da marca */
+  --shadow-sm: 0 1px 2px rgba(10, 51, 36, 0.08);
+  --shadow-soft: 0 18px 40px -18px rgba(10, 51, 36, 0.35);
+  --shadow-coral: 0 14px 30px -10px rgba(255, 90, 54, 0.5);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  /* Cores da marca expostas como utilities (bg-coral, text-green-bright, ...) */
+  --color-cream: var(--brand-cream);
+  --color-cream-2: var(--brand-cream-2);
+  --color-paper: var(--brand-paper);
+  --color-ink: var(--brand-ink);
+  --color-ink-soft: var(--brand-ink-soft);
+  --color-green: var(--brand-green);
+  --color-green-bright: var(--brand-green-bright);
+  --color-green-deep: var(--brand-green-deep);
+  --color-coral: var(--brand-coral);
+  --color-coral-soft: var(--brand-coral-soft);
+
+  --font-sans: var(--font-hanken), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-fraunces), ui-serif, Georgia, 'Times New Roman', serif;
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 6px);
+  --radius-2xl: calc(var(--radius) + 12px);
+}
+
+@theme {
+  --shadow-soft: 0 18px 40px -18px rgba(10, 51, 36, 0.35);
+  --shadow-coral: 0 14px 30px -10px rgba(255, 90, 54, 0.5);
+
+  --animate-rise: rise 0.55s cubic-bezier(0.2, 0.8, 0.3, 1) forwards;
+  --animate-pulse-ring: pulse-ring 2s infinite;
+  --animate-blink: blink 1.2s infinite;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes pulse-ring {
+  0% {
+    box-shadow: 0 0 0 0 rgba(47, 211, 122, 0.55);
+  }
+  70% {
+    box-shadow: 0 0 0 9px rgba(47, 211, 122, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(47, 211, 122, 0);
+  }
+}
+
+@keyframes blink {
+  0%,
+  60%,
+  100% {
+    opacity: 0.3;
+  }
+  30% {
+    opacity: 1;
   }
 }
 
 @layer base {
   * {
-    border-color: hsl(var(--border));
+    border-color: var(--border);
+  }
+  /* Tailwind v4 removeu o cursor: pointer padrão de botões no Preflight. */
+  button:not(:disabled),
+  [role='button']:not(:disabled) {
+    cursor: pointer;
   }
   body {
-    background-color: hsl(var(--background));
-    color: hsl(var(--foreground));
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-hanken), ui-sans-serif, system-ui, sans-serif;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  ::selection {
+    background-color: var(--brand-coral);
+    color: #ffffff;
   }
 }

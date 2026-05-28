@@ -49,7 +49,7 @@ export default async function ReschedulePage({ params }: PageProps) {
         >
           ← Agendamentos
         </Link>
-        <h1 className="mt-2 text-2xl font-bold">Remarcar</h1>
+        <h1 className="mt-2 font-serif text-2xl font-semibold tracking-tight">Remarcar</h1>
       </div>
 
       <Card>

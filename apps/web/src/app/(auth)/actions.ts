@@ -11,6 +11,26 @@ import { uniqueSlug } from '@/lib/slug';
 
 export type ActionResult = { error: string } | undefined;
 
+function traduzErroSignUp(error: { code?: string; message?: string }): string {
+  switch (error.code) {
+    case 'user_already_exists':
+    case 'email_exists':
+      return 'Este email já está cadastrado.';
+    case 'weak_password':
+      return 'Senha muito fraca. Use ao menos 8 caracteres.';
+    case 'over_email_send_rate_limit':
+    case 'over_request_rate_limit':
+      return 'Muitas tentativas. Tente novamente em alguns minutos.';
+    case 'signup_disabled':
+      return 'O cadastro está temporariamente desativado.';
+    default:
+      if (error.message && /already registered|already exists/i.test(error.message)) {
+        return 'Este email já está cadastrado.';
+      }
+      return 'Falha ao criar conta';
+  }
+}
+
 const signUpSchema = z.object({
   email: z.string().email('Email inválido'),
   password: z.string().min(8, 'Senha deve ter ao menos 8 caracteres'),
@@ -37,7 +57,7 @@ export async function signUp(_prev: ActionResult, formData: FormData): Promise<A
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signUp({ email, password });
   if (error || !data.user) {
-    return { error: error?.message ?? 'Falha ao criar conta' };
+    return { error: error ? traduzErroSignUp(error) : 'Falha ao criar conta' };
   }
 
   try {

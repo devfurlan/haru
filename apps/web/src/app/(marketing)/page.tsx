@@ -1,25 +1,21 @@
-import Link from 'next/link';
-
-import { Button } from '@/components/ui/button';
+import { Differentiators } from '@/components/marketing/differentiators';
+import { Features } from '@/components/marketing/features';
+import { FinalCta } from '@/components/marketing/final-cta';
+import { ForWho } from '@/components/marketing/for-who';
+import { Hero } from '@/components/marketing/hero';
+import { HowItWorks } from '@/components/marketing/how-it-works';
+import { Roadmap } from '@/components/marketing/roadmap';
 
 export default function HomePage() {
   return (
-    <main className="flex flex-1 flex-col items-center justify-center gap-6 p-8">
-      <div className="max-w-md space-y-4 text-center">
-        <h1 className="text-4xl font-bold">haru</h1>
-        <p className="text-muted-foreground">
-          Agendamento e pagamentos pelo WhatsApp para barbearias, clínicas, podólogas e outros
-          negócios de serviço.
-        </p>
-      </div>
-      <div className="flex gap-2">
-        <Button asChild>
-          <Link href="/signup">Criar conta</Link>
-        </Button>
-        <Button asChild variant="outline">
-          <Link href="/login">Entrar</Link>
-        </Button>
-      </div>
-    </main>
+    <>
+      <Hero />
+      <ForWho />
+      <Differentiators />
+      <Features />
+      <HowItWorks />
+      <Roadmap />
+      <FinalCta />
+    </>
   );
 }
