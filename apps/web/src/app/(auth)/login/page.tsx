@@ -21,7 +21,7 @@ export default async function LoginPage() {
         <p className="text-center text-sm text-muted-foreground">
           Ainda não usa o Demandaê?{' '}
           <Link
-            href="/interesse"
+            href="/"
             className="font-medium text-foreground underline-offset-4 hover:underline"
           >
             Quero conhecer

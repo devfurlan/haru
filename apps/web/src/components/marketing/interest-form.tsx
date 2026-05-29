@@ -3,11 +3,10 @@
 import { useActionState } from 'react';
 import { useFormStatus } from 'react-dom';
 
+import { submitInterest, type InterestResult } from '@/app/(marketing)/actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-
-import { submitInterest, type InterestResult } from './actions';
 
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -62,7 +61,13 @@ export function InterestForm() {
       </div>
       <div className="space-y-2">
         <Label htmlFor="email">Email (opcional)</Label>
-        <Input id="email" name="email" type="email" autoComplete="email" placeholder="voce@exemplo.com" />
+        <Input
+          id="email"
+          name="email"
+          type="email"
+          autoComplete="email"
+          placeholder="voce@exemplo.com"
+        />
       </div>
       {state && !state.ok && <p className="text-sm text-destructive">{state.error}</p>}
       <SubmitButton />
