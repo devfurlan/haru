@@ -4,6 +4,7 @@ import Link from 'next/link';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { requireUserAndTenant } from '@/lib/auth';
+import { formatPhoneBR } from '@/lib/format';
 import { isWhatsappConnected } from '@/lib/whatsapp-status';
 
 function formatWhen(date: Date, timezone: string): string {
@@ -103,7 +104,7 @@ export default async function DashboardPage() {
                 <li key={appt.id} className="flex items-center justify-between py-2 text-sm">
                   <span className="font-medium">{formatWhen(appt.startsAt, tenant.timezone)}</span>
                   <span className="flex-1 px-3 text-muted-foreground">
-                    {appt.service.name} · {appt.contact.name ?? appt.contact.phone}
+                    {appt.service.name} · {appt.contact.name ?? formatPhoneBR(appt.contact.phone)}
                   </span>
                 </li>
               ))}

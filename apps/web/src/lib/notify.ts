@@ -1,5 +1,7 @@
 import { prisma } from '@haru/database';
 
+import { formatPhoneBR } from '@/lib/format';
+
 type AppointmentEventName =
   | 'appointment.created'
   | 'appointment.canceled'
@@ -67,7 +69,7 @@ async function dispatchAppointmentEvent(appointmentId: string, event: Appointmen
         `${HEADER[event](appt.tenant.name)}\n` +
         `📅 ${when}\n` +
         `✂️ ${appt.service.name}\n` +
-        `👤 ${appt.contact.name ?? appt.contact.phone}`,
+        `👤 ${appt.contact.name ?? formatPhoneBR(appt.contact.phone)}`,
     };
 
     const res = await fetch(appt.tenant.notificationWebhookUrl, {

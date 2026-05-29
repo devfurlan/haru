@@ -31,6 +31,20 @@ export function maskBRLInput(raw: string): string {
   return `${reais.toLocaleString('pt-BR')},${centavos}`;
 }
 
+// Formata um telefone E.164 brasileiro (ex.: "5511914092346") para exibição
+// humana: "(11) 91409-2346". Aceita celular (13 díg) e fixo (12 díg). Se não
+// reconhecer o formato, retorna o valor original sem alterar.
+export function formatPhoneBR(phone: string | null | undefined): string {
+  if (!phone) return '';
+  const digits = phone.replace(/\D/g, '');
+  const national = digits.startsWith('55') ? digits.slice(2) : digits;
+  const ddd = national.slice(0, 2);
+  const rest = national.slice(2);
+  if (rest.length === 9) return `(${ddd}) ${rest.slice(0, 5)}-${rest.slice(5)}`;
+  if (rest.length === 8) return `(${ddd}) ${rest.slice(0, 4)}-${rest.slice(4)}`;
+  return phone;
+}
+
 export function hhmmToMinutes(hhmm: string): number | null {
   const match = /^(\d{1,2}):(\d{2})$/.exec(hhmm.trim());
   if (!match) return null;

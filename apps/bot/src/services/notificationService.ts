@@ -1,4 +1,5 @@
 import { Sentry } from '../instrument.js';
+import { formatPhoneBR } from '../lib/format.js';
 import prisma from '../lib/prisma.js';
 
 interface AppointmentEventData {
@@ -74,7 +75,7 @@ async function dispatchAppointmentEvent(appointmentId: string, event: Appointmen
         `${header}\n` +
         `📅 ${when}\n` +
         `✂️ ${appt.service.name}\n` +
-        `👤 ${appt.contact.name ?? appt.contact.phone}`,
+        `👤 ${appt.contact.name ?? formatPhoneBR(appt.contact.phone)}`,
     };
 
     const res = await fetch(appt.tenant.notificationWebhookUrl, {

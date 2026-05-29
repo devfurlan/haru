@@ -3,6 +3,7 @@ import Link from 'next/link';
 
 import { requireUserAndTenant } from '@/lib/auth';
 import { cn } from '@/lib/utils';
+import { formatPhoneBR } from '@/lib/format';
 import { formatFullDateTime, formatRelativeShort } from '@/lib/relative-time';
 
 interface PageProps {
@@ -67,7 +68,7 @@ export default async function ConversationsPage({ searchParams }: PageProps) {
                       <div className="min-w-0 flex-1">
                         <div className="flex items-baseline justify-between gap-2">
                           <span className="truncate text-sm font-medium">
-                            {conv.contact.name || conv.contact.phone}
+                            {conv.contact.name || formatPhoneBR(conv.contact.phone)}
                           </span>
                           {lastMsg && (
                             <span className="shrink-0 text-xs text-muted-foreground">
@@ -103,10 +104,12 @@ export default async function ConversationsPage({ searchParams }: PageProps) {
           <>
             <header className="border-b bg-card px-6 py-3">
               <div className="text-sm font-semibold">
-                {selectedConv.contact.name || selectedConv.contact.phone}
+                {selectedConv.contact.name || formatPhoneBR(selectedConv.contact.phone)}
               </div>
               {selectedConv.contact.name && (
-                <div className="text-xs text-muted-foreground">{selectedConv.contact.phone}</div>
+                <div className="text-xs text-muted-foreground">
+                  {formatPhoneBR(selectedConv.contact.phone)}
+                </div>
               )}
             </header>
             <div className="flex-1 space-y-2 overflow-y-auto p-6">

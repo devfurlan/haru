@@ -104,3 +104,4 @@ Defined in [supabase/config.toml](supabase/config.toml):
 - ESLint uses `only-warn` (no errors) — `pnpm lint` will not fail the build on style.
 - `ScheduleBlock.weekday`: `0 = Sunday`, `6 = Saturday` (matches `Date#getDay()`). `startMinute`/`endMinute` are minutes since midnight.
 - Times stored as `DateTime` (UTC) in Postgres; tenant-local interpretation uses `Tenant.timezone` (default `America/Sao_Paulo`).
+- **Telefones**: armazenados no banco em E.164 sem máscara (ex.: `5511914092346`). Na UI exibida ao usuário final — em TODOS os apps — SEMPRE formatar para humano BR: `(11) 91409-2346`. Use `formatPhoneBR` de [apps/web/src/lib/format.ts](apps/web/src/lib/format.ts) / [apps/bot/src/lib/format.ts](apps/bot/src/lib/format.ts). Exceções (mantêm bruto): valores consumidos por máquina (payloads de webhook, links `wa.me/`, recipient de envio).

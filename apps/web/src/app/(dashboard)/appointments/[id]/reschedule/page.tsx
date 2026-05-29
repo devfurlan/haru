@@ -5,6 +5,7 @@ import { prisma } from '@haru/database';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { requireUserAndTenant } from '@/lib/auth';
+import { formatPhoneBR } from '@/lib/format';
 
 import { RescheduleForm } from './reschedule-form';
 
@@ -56,7 +57,7 @@ export default async function ReschedulePage({ params }: PageProps) {
         <CardHeader>
           <CardTitle>{appointment.service.name}</CardTitle>
           <CardDescription>
-            {appointment.contact.name ?? appointment.contact.phone} ·{' '}
+            {appointment.contact.name ?? formatPhoneBR(appointment.contact.phone)} ·{' '}
             {formatDuration(appointment.service.durationMinutes)}
           </CardDescription>
         </CardHeader>

@@ -3,6 +3,7 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
+import { formatPhoneBR } from '@/lib/format';
 import { cn } from '@/lib/utils';
 
 export interface CalendarAppointment {
@@ -242,7 +243,7 @@ export function AppointmentsCalendar({ appointments, timezone, today }: Appointm
                   <p className="font-medium text-foreground">{appt.serviceName}</p>
                   <p className="text-muted-foreground">
                     {appt.contactName ? `${appt.contactName} · ` : ''}
-                    {appt.contactPhone}
+                    {formatPhoneBR(appt.contactPhone)}
                   </p>
                 </div>
                 <time

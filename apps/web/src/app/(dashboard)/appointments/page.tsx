@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { requireUserAndTenant } from '@/lib/auth';
+import { formatPhoneBR } from '@/lib/format';
 import { cn } from '@/lib/utils';
 
 import { AppointmentActions } from './appointment-actions';
@@ -174,7 +175,7 @@ export default async function AppointmentsPage({ searchParams }: PageProps) {
                 </div>
                 <div className="text-sm text-muted-foreground">
                   {appt.contact.name ? `${appt.contact.name} · ` : ''}
-                  {appt.contact.phone}
+                  {formatPhoneBR(appt.contact.phone)}
                 </div>
               </div>
 
