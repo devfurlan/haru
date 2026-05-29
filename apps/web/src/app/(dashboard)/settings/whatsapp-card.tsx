@@ -231,7 +231,7 @@ export function WhatsappCard({
 
               <div className="space-y-2">
                 <Label htmlFor="businessAccountId">
-                  ID da conta WhatsApp Business (business_account_id) — opcional
+                  ID da conta WhatsApp Business (WABA ID) — opcional
                 </Label>
                 <Input
                   id="businessAccountId"
@@ -240,8 +240,11 @@ export function WhatsappCard({
                   placeholder="123456789012345"
                 />
                 <p className="text-xs text-muted-foreground">
-                  Também aparece em Configuração da API (campo WhatsApp Business Account ID). Não é
-                  obrigatório para o bot funcionar.
+                  É o ID da <strong>conta WhatsApp Business</strong>, que agrupa os seus números.{' '}
+                  <strong>Não confunda</strong> com o ID do Aplicativo (App ID) nem com o
+                  phone_number_id. Na Meta: WhatsApp → Configuração da API, no topo, campo{' '}
+                  <strong>WhatsApp Business Account ID</strong>. Não é obrigatório para o bot
+                  funcionar — pode deixar em branco.
                 </p>
               </div>
 
