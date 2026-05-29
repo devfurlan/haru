@@ -71,6 +71,8 @@ model User {
   tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  conversationReads ConversationRead[]
 }
 
 enum UserRole {
@@ -135,22 +137,40 @@ model Conversation {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  messages  Message[]
+  messages Message[]
+  reads    ConversationRead[]
 }
 
 model Message {
-  id             String        @id @default(cuid())
+  id             String           @id @default(cuid())
   conversationId String
-  conversation   Conversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  conversation   Conversation     @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   direction      MessageDirection
-  waMessageId    String?       @unique
+  waMessageId    String?          @unique
   body           String
-  createdAt      DateTime      @default(now())
+  createdAt      DateTime         @default(now())
+
+  @@index([conversationId, direction, createdAt])
 }
 
 enum MessageDirection {
   INBOUND
   OUTBOUND
+}
+
+/// Marca de leitura por usuário: cada usuário do tenant tem seu próprio estado
+/// de "lida" por conversa. Conversa não-lida = existe Message INBOUND com
+/// createdAt > lastReadAt (ou sem registro de leitura).
+model ConversationRead {
+  userId         String
+  conversationId String
+  lastReadAt     DateTime @default(now()) @updatedAt
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@id([userId, conversationId])
+  @@index([conversationId])
 }
 
 model Appointment {
