@@ -25,6 +25,9 @@ export async function updateSession(request: NextRequest) {
     },
   );
 
-  await supabase.auth.getUser();
+  // getSession() lê e renova a sessão a partir do cookie localmente, sem round-trip
+  // ao Auth server do Supabase (ao contrário de getUser()). A validação real do token
+  // acontece nos server components via requireUserAndTenant(); aqui só mantemos o cookie fresco.
+  await supabase.auth.getSession();
   return response;
 }

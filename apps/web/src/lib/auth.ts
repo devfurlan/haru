@@ -1,3 +1,4 @@
+import { cache } from 'react';
 import { redirect } from 'next/navigation';
 
 import { prisma } from '@haru/database';
@@ -7,17 +8,24 @@ import { createClient } from './supabase/server';
 
 export type CurrentUser = User & { tenant: Tenant };
 
-/** Auth.user do Supabase (sem o User do Postgres). */
-export async function getAuthUser() {
+/**
+ * Auth.user do Supabase (sem o User do Postgres).
+ * Envolto em `cache()` para deduplicar a chamada dentro de um mesmo render
+ * (layout + página chamam isto no mesmo request).
+ */
+export const getAuthUser = cache(async () => {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   return user;
-}
+});
 
-/** User do Postgres + Tenant, ou `null` se não houver sessão / sem User vinculado. */
-export async function getCurrentUserAndTenant(): Promise<CurrentUser | null> {
+/**
+ * User do Postgres + Tenant, ou `null` se não houver sessão / sem User vinculado.
+ * `cache()` evita refazer auth + query quando layout e página chamam no mesmo request.
+ */
+export const getCurrentUserAndTenant = cache(async (): Promise<CurrentUser | null> => {
   const authUser = await getAuthUser();
   if (!authUser) return null;
 
@@ -26,7 +34,7 @@ export async function getCurrentUserAndTenant(): Promise<CurrentUser | null> {
     include: { tenant: true },
   });
   return user;
-}
+});
 
 /** Variante que redireciona pra /login se não estiver autenticado. */
 export async function requireUserAndTenant(): Promise<CurrentUser> {
