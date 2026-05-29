@@ -8,7 +8,7 @@ export function MarketingFooter() {
   return (
     <footer className="bg-ink py-10 text-cream/60">
       <Container className="flex flex-wrap items-center justify-between gap-5">
-        <Logo variant="wordmark" color="cream" className="text-xl text-cream" />
+        <Logo pulse className="text-xl text-cream" />
         <p className="text-[0.85rem]">
           Agendamento por WhatsApp com atendente de IA · © {new Date().getFullYear()} Demandaê
         </p>
