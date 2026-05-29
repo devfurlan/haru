@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { prisma } from '@haru/database';
 
 import { requireUserAndTenant } from '@/lib/auth';
+import { createClient } from '@/lib/supabase/server';
 
 // Slugs reservados — não podem ser usados como slug de tenant (conflitam com
 // rotas conhecidas em apps/web).
@@ -42,6 +43,11 @@ const tenantSchema = z.object({
     .regex(/^[a-z0-9-]+$/, 'Slug aceita só minúsculas, dígitos e hífen')
     .refine((v) => !RESERVED_SLUGS.has(v), { message: 'Esse slug é reservado pelo sistema' }),
   timezone: z.string().refine(isValidTimezone, { message: 'Fuso horário inválido' }),
+  address: z
+    .string()
+    .max(200, 'Endereço muito longo')
+    .optional()
+    .transform((v) => (v && v.trim() ? v.trim() : null)),
 });
 
 export type TenantActionResult = { error: string } | { ok: true };
@@ -56,6 +62,7 @@ export async function updateTenant(
     name: formData.get('name'),
     slug: formData.get('slug'),
     timezone: formData.get('timezone'),
+    address: formData.get('address'),
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? 'Dados inválidos' };
@@ -76,6 +83,151 @@ export async function updateTenant(
   // Slug mudou? Revalida a página pública também
   revalidatePath('/settings');
   revalidatePath(`/${parsed.data.slug}`);
+  return { ok: true };
+}
+
+// --- Logo do estabelecimento ---------------------------------------------
+// O upload em si acontece no cliente (canvas redimensiona pra quadrada e envia
+// direto pro bucket público tenant-assets). Estas actions só persistem/limpam a
+// URL no Tenant, sempre prefixando o path pelo tenant.id pra evitar que um
+// tenant grave URL de asset de outro.
+
+const LOGO_URL_PREFIX = '/storage/v1/object/public/tenant-assets/';
+
+const logoSchema = z.object({
+  // Path dentro do bucket, ex: "<tenantId>/logo-<timestamp>.webp"
+  path: z
+    .string()
+    .min(1, 'Caminho da logo ausente')
+    .max(300)
+    .regex(/^[a-zA-Z0-9/_.-]+$/, 'Caminho inválido'),
+});
+
+export async function saveTenantLogo(
+  _prev: TenantActionResult | undefined,
+  formData: FormData,
+): Promise<TenantActionResult> {
+  const { tenant } = await requireUserAndTenant();
+
+  const parsed = logoSchema.safeParse({ path: formData.get('path') });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? 'Dados inválidos' };
+  }
+
+  // Garante que o path pertence a este tenant (cliente envia o path retornado
+  // pelo upload, mas não confiamos cegamente).
+  if (!parsed.data.path.startsWith(`${tenant.id}/`)) {
+    return { error: 'Caminho da logo não pertence a este estabelecimento' };
+  }
+
+  const base = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? '').replace(/\/$/, '');
+  const logoUrl = `${base}${LOGO_URL_PREFIX}${parsed.data.path}`;
+
+  await prisma.tenant.update({
+    where: { id: tenant.id },
+    data: { logoUrl },
+  });
+
+  revalidatePath('/settings');
+  revalidatePath(`/${tenant.slug}`);
+  return { ok: true };
+}
+
+export async function removeTenantLogo(): Promise<TenantActionResult> {
+  const { tenant } = await requireUserAndTenant();
+
+  // Apaga o arquivo no Storage (best-effort) e zera a URL.
+  if (tenant.logoUrl) {
+    const marker = LOGO_URL_PREFIX;
+    const idx = tenant.logoUrl.indexOf(marker);
+    if (idx !== -1) {
+      const path = tenant.logoUrl.slice(idx + marker.length);
+      if (path.startsWith(`${tenant.id}/`)) {
+        const supabase = await createClient();
+        await supabase.storage.from('tenant-assets').remove([path]);
+      }
+    }
+  }
+
+  await prisma.tenant.update({
+    where: { id: tenant.id },
+    data: { logoUrl: null },
+  });
+
+  revalidatePath('/settings');
+  revalidatePath(`/${tenant.slug}`);
+  return { ok: true };
+}
+
+// --- Perfil do usuário ----------------------------------------------------
+
+const profileSchema = z.object({
+  name: z
+    .string()
+    .max(80, 'Nome muito longo')
+    .optional()
+    .transform((v) => (v && v.trim() ? v.trim() : null)),
+});
+
+export type ProfileActionResult = { error: string } | { ok: true };
+
+export async function updateProfile(
+  _prev: ProfileActionResult | undefined,
+  formData: FormData,
+): Promise<ProfileActionResult> {
+  const user = await requireUserAndTenant();
+
+  const parsed = profileSchema.safeParse({ name: formData.get('name') });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? 'Dados inválidos' };
+  }
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { name: parsed.data.name },
+  });
+
+  revalidatePath('/settings');
+  // Layout do dashboard exibe o nome do usuário na sidebar
+  revalidatePath('/', 'layout');
+  return { ok: true };
+}
+
+// --- Troca de senha (Supabase Auth) ---------------------------------------
+
+const passwordSchema = z
+  .object({
+    password: z.string().min(8, 'A senha deve ter ao menos 8 caracteres').max(72),
+    confirm: z.string(),
+  })
+  .refine((d) => d.password === d.confirm, {
+    path: ['confirm'],
+    message: 'As senhas não coincidem',
+  });
+
+export type PasswordActionResult = { error: string } | { ok: true };
+
+export async function changePassword(
+  _prev: PasswordActionResult | undefined,
+  formData: FormData,
+): Promise<PasswordActionResult> {
+  // Garante sessão válida antes de tocar no Auth
+  await requireUserAndTenant();
+
+  const parsed = passwordSchema.safeParse({
+    password: formData.get('password'),
+    confirm: formData.get('confirm'),
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? 'Dados inválidos' };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.auth.updateUser({ password: parsed.data.password });
+  if (error) {
+    return { error: error.message };
+  }
+
   return { ok: true };
 }
 

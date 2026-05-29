@@ -15,6 +15,12 @@ model Tenant {
   /// Fuso usado pra interpretar horários do estabelecimento (ex: "America/Sao_Paulo").
   timezone  String   @default("America/Sao_Paulo")
 
+  /// URL pública da logo do estabelecimento (bucket tenant-assets). Imagem
+  /// quadrada padronizada — usada na página pública e no painel.
+  logoUrl   String?
+  /// Endereço físico exibido pro cliente (texto livre, opcional).
+  address   String?
+
   // WhatsApp Cloud API — credenciais por tenant (onboard via Embedded Signup).
   // O bot resolve qual tenant atende um webhook por whatsappPhoneNumberId.
   whatsappPhoneNumberId     String? @unique

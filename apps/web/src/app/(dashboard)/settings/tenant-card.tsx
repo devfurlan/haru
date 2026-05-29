@@ -9,11 +9,15 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
 import { updateTenant, type TenantActionResult } from './actions';
+import { LogoUploader } from './logo-uploader';
 
 interface TenantCardProps {
+  tenantId: string;
   name: string;
   slug: string;
   timezone: string;
+  address: string | null;
+  logoUrl: string | null;
 }
 
 // Subset comum de timezones brasileiros. Usuário pode digitar qualquer IANA
@@ -41,7 +45,7 @@ function SubmitButton() {
   );
 }
 
-export function TenantCard({ name, slug, timezone }: TenantCardProps) {
+export function TenantCard({ tenantId, name, slug, timezone, address, logoUrl }: TenantCardProps) {
   const [state, formAction] = useActionState<TenantActionResult | undefined, FormData>(
     updateTenant,
     undefined,
@@ -61,7 +65,9 @@ export function TenantCard({ name, slug, timezone }: TenantCardProps) {
           links antigos.
         </CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-6">
+        <LogoUploader tenantId={tenantId} logoUrl={logoUrl} />
+
         <form action={formAction} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="name">Nome</Label>
@@ -100,6 +106,19 @@ export function TenantCard({ name, slug, timezone }: TenantCardProps) {
             </select>
             <p className="text-xs text-muted-foreground">
               Usado pra formatar datas pro cliente e pro lembrete.
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="address">Endereço — opcional</Label>
+            <Input
+              id="address"
+              name="address"
+              defaultValue={address ?? ''}
+              placeholder="Rua Exemplo, 123 — Centro, Cidade/UF"
+            />
+            <p className="text-xs text-muted-foreground">
+              Aparece pro cliente na sua página pública.
             </p>
           </div>
 
