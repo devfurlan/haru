@@ -5,7 +5,7 @@ const diffs = [
   {
     n: '01',
     h: 'Zero fricção',
-    p: 'O cliente agenda no mesmo WhatsApp que já usa, falando normal. Sem baixar nada.',
+    p: 'Seu cliente agenda pelo WhatsApp dele, do jeito que já usa. Sem app novo, sem baixar nada.',
   },
   {
     n: '02',
