@@ -7,6 +7,7 @@ import {
   MessagesSquare,
   Scissors,
   Settings,
+  Users,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -16,6 +17,7 @@ import { cn } from '@/lib/utils';
 const items = [
   { href: '/dashboard', label: 'Visão geral', icon: LayoutDashboard },
   { href: '/appointments', label: 'Agendamentos', icon: CalendarCheck },
+  { href: '/clients', label: 'Clientes', icon: Users },
   { href: '/conversations', label: 'Conversas', icon: MessagesSquare },
   { href: '/schedule', label: 'Horários', icon: CalendarClock },
   { href: '/services', label: 'Serviços', icon: Scissors },

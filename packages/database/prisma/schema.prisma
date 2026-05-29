@@ -119,6 +119,12 @@ model Contact {
   tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   phone       String
   name        String?
+  email       String?
+  /// Data de nascimento. Guardada como meia-noite UTC; a parte de hora é ignorada.
+  birthDate   DateTime?
+  /// Marca quando o cliente confirmou o cadastro básico via bot. null = ainda não.
+  /// É o sinal usado pelo gate de agendamento (NÃO confiar em `name`, que o profile do WhatsApp autopreenche).
+  profileCompletedAt DateTime?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

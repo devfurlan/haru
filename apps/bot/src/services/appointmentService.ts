@@ -20,6 +20,22 @@ export type BookAppointmentResult =
 export async function bookAppointment(
   args: BookAppointmentArgs,
 ): Promise<BookAppointmentResult> {
+  // Gate de cadastro: só agenda depois que o cliente confirmou o cadastro básico
+  // pelo bot (profileCompletedAt setado por save_customer_profile). NÃO usamos
+  // `name` porque o profile do WhatsApp o autopreenche e nunca dispararia o gate.
+  const contact = await prisma.contact.findFirst({
+    where: { id: args.contactId, tenantId: args.tenantId },
+    select: { profileCompletedAt: true },
+  });
+  if (!contact || !contact.profileCompletedAt) {
+    return {
+      ok: false,
+      reason:
+        'cadastro incompleto — confirme o nome (e ofereça email e data de nascimento, que são ' +
+        'opcionais) e chame save_customer_profile antes de agendar',
+    };
+  }
+
   const startsAt = new Date(args.startsAtIso);
   if (Number.isNaN(startsAt.getTime())) {
     return { ok: false, reason: 'starts_at inválido (use ISO 8601 com timezone)' };

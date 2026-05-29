@@ -11,9 +11,12 @@ export async function getOrCreateConversation(
   phone: string,
   contactName?: string,
 ): Promise<{ contactId: string; conversationId: string }> {
+  // Não sobrescrevemos `name` em mensagens seguintes: depois que o cliente
+  // confirma o nome via save_customer_profile, o profile name do WhatsApp não
+  // deve revertê-lo. Usamos o profile só pra popular o nome na criação.
   const contact = await prisma.contact.upsert({
     where: { tenantId_phone: { tenantId, phone } },
-    update: contactName ? { name: contactName } : {},
+    update: {},
     create: { tenantId, phone, name: contactName ?? null },
   });
 

@@ -45,6 +45,17 @@ export function formatPhoneBR(phone: string | null | undefined): string {
   return phone;
 }
 
+// Formata uma data sem hora (ex.: data de nascimento). A data é guardada como
+// meia-noite UTC; usamos timeZone 'UTC' pra não recuar um dia no fuso local.
+export function formatDateOnly(date: Date): string {
+  return new Intl.DateTimeFormat('pt-BR', {
+    timeZone: 'UTC',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(date);
+}
+
 export function hhmmToMinutes(hhmm: string): number | null {
   const match = /^(\d{1,2}):(\d{2})$/.exec(hhmm.trim());
   if (!match) return null;

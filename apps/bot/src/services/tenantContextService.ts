@@ -28,6 +28,16 @@ function formatAppointmentDate(date: Date, timezone: string): string {
   }).format(date);
 }
 
+// birthDate é guardada como meia-noite UTC — formatar com timeZone UTC pra não recuar um dia.
+function formatBirthDate(date: Date): string {
+  return new Intl.DateTimeFormat('pt-BR', {
+    timeZone: 'UTC',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(date);
+}
+
 /**
  * Monta o snapshot do tenant (serviços, horários, agendamentos próximos) que vai
  * no `primerContext` da primeira chamada à Responses API. Como a Responses API
@@ -123,9 +133,33 @@ export async function buildTenantContext(
   }
   lines.push('');
 
-  // Agendamentos DESTE contato — pra LLM saber qual ID passar pro
-  // cancel_appointment se o cliente pedir cancelamento.
+  // Cadastro DESTE contato + agendamentos dele.
   if (contactId) {
+    const contact = await prisma.contact.findUnique({
+      where: { id: contactId },
+      select: { name: true, phone: true, email: true, birthDate: true, profileCompletedAt: true },
+    });
+
+    lines.push('## Cadastro do cliente');
+    lines.push(`Telefone: ${contact?.phone ?? '(desconhecido)'} (já temos — não peça)`);
+    lines.push(`Nome: ${contact?.name ?? '(não informado)'}`);
+    lines.push(`Email: ${contact?.email ?? '(não informado)'}`);
+    lines.push(
+      `Data de nascimento: ${contact?.birthDate ? formatBirthDate(contact.birthDate) : '(não informado)'}`,
+    );
+    if (contact?.profileCompletedAt) {
+      lines.push(
+        'Status: cadastro confirmado. Se o nome estiver correto, NÃO confirme de novo — siga direto.',
+      );
+    } else {
+      lines.push(
+        'Status: cadastro ainda NÃO confirmado. Antes de agendar, confirme o nome (se já houver, ' +
+          'pergunte "posso te chamar de X?") e ofereça email e data de nascimento (OPCIONAIS, pode ' +
+          'pular). Depois chame save_customer_profile.',
+      );
+    }
+    lines.push('');
+
     const contactAppts = await prisma.appointment.findMany({
       where: {
         tenantId,

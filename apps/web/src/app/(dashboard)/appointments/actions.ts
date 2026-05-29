@@ -25,6 +25,8 @@ async function changeStatus(
   });
   revalidatePath('/appointments');
   revalidatePath('/dashboard');
+  // A tela de detalhe do cliente também lista esses agendamentos.
+  revalidatePath('/clients/[id]', 'page');
   return result.count > 0;
 }
 

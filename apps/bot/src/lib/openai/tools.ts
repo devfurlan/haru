@@ -5,6 +5,7 @@ import {
   cancelAppointmentForContact,
   rescheduleAppointmentForContact,
 } from '../../services/appointmentService.js';
+import { saveCustomerProfile } from '../../services/contactService.js';
 
 export interface ToolContext {
   tenantId: string;
@@ -12,6 +13,37 @@ export interface ToolContext {
 }
 
 export const TOOLS: FunctionTool[] = [
+  {
+    type: 'function',
+    name: 'save_customer_profile',
+    description:
+      'Salva o cadastro básico do cliente. Use ANTES de agendar pela primeira vez, depois de ' +
+      'confirmar o nome e oferecer (sem insistir) email e data de nascimento. O telefone já é ' +
+      'conhecido automaticamente — NÃO peça. Email e data de nascimento são OPCIONAIS: se o ' +
+      'cliente não quiser informar, mande string vazia "" no campo.',
+    strict: true,
+    parameters: {
+      type: 'object',
+      properties: {
+        name: {
+          type: 'string',
+          description: 'Nome do cliente (obrigatório). Confirme o nome do perfil antes de salvar.',
+        },
+        email: {
+          type: 'string',
+          description: 'Email do cliente, ou "" se não informado (opcional).',
+        },
+        birth_date: {
+          type: 'string',
+          description:
+            'Data de nascimento no formato YYYY-MM-DD (ex: 1990-07-25), ou "" se não informada ' +
+            '(opcional).',
+        },
+      },
+      required: ['name', 'email', 'birth_date'],
+      additionalProperties: false,
+    },
+  },
   {
     type: 'function',
     name: 'book_appointment',
@@ -90,6 +122,17 @@ export async function executeTool(
   name: string,
   args: Record<string, unknown>,
 ): Promise<string> {
+  if (name === 'save_customer_profile') {
+    const result = await saveCustomerProfile({
+      tenantId: ctx.tenantId,
+      contactId: ctx.contactId,
+      name: String(args.name ?? ''),
+      email: String(args.email ?? ''),
+      birthDate: String(args.birth_date ?? ''),
+    });
+    return JSON.stringify(result);
+  }
+
   if (name === 'book_appointment') {
     const result = await bookAppointment({
       tenantId: ctx.tenantId,
