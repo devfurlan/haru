@@ -1,13 +1,14 @@
 import Link from 'next/link';
 
+import { Logo } from '@/components/logo';
+
 import { Container } from './container';
-import { MarketingLogo } from './marketing-logo';
 
 export function MarketingFooter() {
   return (
     <footer className="bg-ink py-10 text-cream/60">
       <Container className="flex flex-wrap items-center justify-between gap-5">
-        <MarketingLogo className="text-xl text-cream" />
+        <Logo variant="wordmark" color="cream" className="text-xl text-cream" />
         <p className="text-[0.85rem]">
           Agendamento por WhatsApp com atendente de IA · © {new Date().getFullYear()} Demandaê
         </p>

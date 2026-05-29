@@ -1,7 +1,7 @@
 import Link from 'next/link';
 
 import { DashboardNav } from '@/components/dashboard-nav';
-import { MarketingLogo } from '@/components/marketing/marketing-logo';
+import { Logo } from '@/components/logo';
 import { SignOutButton } from '@/components/sign-out-button';
 import { requireUserAndTenant } from '@/lib/auth';
 
@@ -13,7 +13,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
       <aside className="hidden w-64 shrink-0 flex-col border-r bg-muted/30 md:flex">
         <div className="border-b px-4 py-4">
           <Link href="/" aria-label="Demandaê" className="mb-3 block">
-            <MarketingLogo dot className="text-lg" />
+            <Logo pulse size="sm" />
           </Link>
           <div className="text-sm font-semibold">{tenant.name}</div>
           <div className="truncate text-xs text-muted-foreground">{name ?? email}</div>

@@ -2,8 +2,9 @@ import Link from 'next/link';
 
 import { Button } from '@/components/ui/button';
 
+import { Logo } from '@/components/logo';
+
 import { Container } from './container';
-import { MarketingLogo } from './marketing-logo';
 
 const links = [
   { href: '/#diferenciais', label: 'Diferenciais' },
@@ -17,7 +18,7 @@ export function MarketingNav() {
     <nav className="sticky top-0 z-50 border-b border-border bg-cream/80 backdrop-blur-md">
       <Container className="flex h-[70px] items-center justify-between">
         <Link href="/" aria-label="Demandaê">
-          <MarketingLogo dot />
+          <Logo pulse />
         </Link>
         <div className="hidden gap-8 text-[0.95rem] font-semibold md:flex">
           {links.map((l) => (
