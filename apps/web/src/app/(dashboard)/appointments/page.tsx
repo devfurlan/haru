@@ -8,6 +8,7 @@ import { requireUserAndTenant } from '@/lib/auth';
 import { cn } from '@/lib/utils';
 
 import { AppointmentActions } from './appointment-actions';
+import { AppointmentsCalendar, type CalendarAppointment } from './appointments-calendar';
 
 type Tab = 'upcoming' | 'past' | 'all';
 
@@ -72,6 +73,43 @@ export default async function AppointmentsPage({ searchParams }: PageProps) {
     take: 200,
   });
 
+  // Janela ampla (±12 meses) para o calendário ter dados ao navegar entre meses.
+  const calendarFrom = new Date(now);
+  calendarFrom.setMonth(calendarFrom.getMonth() - 12);
+  const calendarTo = new Date(now);
+  calendarTo.setMonth(calendarTo.getMonth() + 12);
+
+  const calendarRows = await prisma.appointment.findMany({
+    where: {
+      tenantId: tenant.id,
+      startsAt: { gte: calendarFrom, lte: calendarTo },
+      status: { notIn: ['CANCELED'] },
+    },
+    include: {
+      service: { select: { name: true } },
+      contact: { select: { name: true, phone: true } },
+    },
+    orderBy: { startsAt: 'asc' },
+  });
+
+  const calendarAppointments: CalendarAppointment[] = calendarRows.map((appt) => ({
+    id: appt.id,
+    startsAt: appt.startsAt.toISOString(),
+    endsAt: appt.endsAt.toISOString(),
+    status: appt.status,
+    serviceName: appt.service.name,
+    contactName: appt.contact.name,
+    contactPhone: appt.contact.phone,
+  }));
+
+  // "Hoje" no fuso do tenant (YYYY-MM-DD), para destacar o dia corrente.
+  const todayLocal = new Intl.DateTimeFormat('en-CA', {
+    timeZone: tenant.timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(now);
+
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       <div className="flex items-start justify-between gap-4">
@@ -88,6 +126,12 @@ export default async function AppointmentsPage({ searchParams }: PageProps) {
           </Link>
         </Button>
       </div>
+
+      <AppointmentsCalendar
+        appointments={calendarAppointments}
+        timezone={tenant.timezone}
+        today={todayLocal}
+      />
 
       <div className="flex gap-2 border-b">
         <Tab href="/appointments" label="Próximos" active={tab === 'upcoming'} />

@@ -1,7 +1,7 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 
 import { Sentry } from '../instrument.js';
-import { sendMenu } from '../flows/menu.js';
+import { sendMenu, sendServices } from '../flows/menu.js';
 import { handleSchedulingFlow } from '../flows/scheduling.js';
 import { env } from '../lib/env.js';
 import { debounceMessage } from '../lib/messageDebouncer.js';
@@ -218,8 +218,7 @@ async function routeMessage(
         });
       }
       case 'services':
-        // TODO: handler de listagem de serviços
-        return sendMenu(tenantId, phoneNumberId, phone, contactName);
+        return sendServices(tenantId, phoneNumberId, phone, contactName);
       case 'support':
         // TODO: handoff humano
         return sendMenu(tenantId, phoneNumberId, phone, contactName);

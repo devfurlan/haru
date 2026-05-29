@@ -1,17 +1,7 @@
+import { formatBRL, formatDuration } from '../lib/format.js';
 import prisma from '../lib/prisma.js';
 
 const WEEKDAY_NAMES = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
-
-function formatBRL(cents: number): string {
-  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(cents / 100);
-}
-
-function formatDuration(minutes: number): string {
-  if (minutes < 60) return `${minutes}min`;
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  return m === 0 ? `${h}h` : `${h}h${m}min`;
-}
 
 function minutesToHHMM(minutes: number): string {
   const h = Math.floor(minutes / 60);
