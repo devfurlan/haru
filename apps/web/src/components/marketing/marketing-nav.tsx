@@ -28,7 +28,7 @@ export function MarketingNav() {
           ))}
         </div>
         <Button asChild variant="coral" className="h-11 rounded-full px-6">
-          <Link href="/signup">Começar agora</Link>
+          <Link href="/interesse">Começar agora</Link>
         </Button>
       </Container>
     </nav>

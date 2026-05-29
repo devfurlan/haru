@@ -23,7 +23,7 @@ export function FinalCta() {
         </p>
         <div className="flex flex-wrap items-center justify-center gap-3.5">
           <Button asChild variant="coral" size="pill">
-            <Link href="/signup">Conectar meu WhatsApp →</Link>
+            <Link href="/interesse">Conectar meu WhatsApp →</Link>
           </Button>
           <Button
             asChild

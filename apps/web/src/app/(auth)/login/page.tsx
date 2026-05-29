@@ -19,9 +19,12 @@ export default async function LoginPage() {
       <CardContent className="space-y-4">
         <LoginForm />
         <p className="text-center text-sm text-muted-foreground">
-          Não tem conta?{' '}
-          <Link href="/signup" className="font-medium text-foreground underline-offset-4 hover:underline">
-            Criar agora
+          Ainda não usa o Demandaê?{' '}
+          <Link
+            href="/interesse"
+            className="font-medium text-foreground underline-offset-4 hover:underline"
+          >
+            Quero conhecer
           </Link>
         </p>
       </CardContent>

@@ -97,6 +97,7 @@ Defined in [supabase/config.toml](supabase/config.toml):
 
 ## Conventions
 
+- **Sempre responder ao usuário, criar planos, resumos e toda comunicação em português (PT-BR).**
 - Code comments and product copy in PT-BR; identifiers in English (`Tenant`, `Appointment`, `scheduleBlocks`).
 - Prettier: single quotes, semicolons, trailing commas, 100-col, 2-space indent, `prettier-plugin-tailwindcss` enabled.
 - Node ≥ 20, pnpm ≥ 9 (enforced by `engines`). `.nvmrc` pins 20.

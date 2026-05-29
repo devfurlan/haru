@@ -173,3 +173,16 @@ enum AppointmentStatus {
   COMPLETED
   NO_SHOW
 }
+
+/// Pré-cadastro de interesse vindo da landing (signup público está desativado).
+model Lead {
+  id           String   @id @default(cuid())
+  name         String
+  businessName String
+  whatsapp     String
+  email        String?
+  message      String?
+  createdAt    DateTime @default(now())
+
+  @@index([createdAt])
+}
