@@ -21,6 +21,13 @@ model Tenant {
   /// Endereço físico exibido pro cliente (texto livre, opcional).
   address   String?
 
+  /// Agendamento direto pela página pública (/[slug]). Quando false, a página só
+  /// mostra serviços/horários e o botão de WhatsApp (sem formulário de booking).
+  publicBookingEnabled      Boolean                   @default(true)
+  /// Status com que um agendamento feito pela página pública entra: PENDING exige
+  /// o dono confirmar no painel; CONFIRMED já reserva o horário na hora.
+  publicBookingConfirmation PublicBookingConfirmation @default(PENDING)
+
   // WhatsApp Cloud API — credenciais por tenant (onboard via Embedded Signup).
   // O bot resolve qual tenant atende um webhook por whatsappPhoneNumberId.
   whatsappPhoneNumberId     String? @unique
@@ -204,6 +211,14 @@ enum AppointmentStatus {
   CANCELED
   COMPLETED
   NO_SHOW
+}
+
+/// Status inicial de um agendamento feito pela página pública. Subconjunto de
+/// AppointmentStatus (só os estados válidos na criação) — enum próprio pra impedir
+/// gravar CANCELED/COMPLETED/NO_SHOW como default.
+enum PublicBookingConfirmation {
+  PENDING
+  CONFIRMED
 }
 
 /// Pré-cadastro de interesse vindo da landing (signup público está desativado).
