@@ -2,59 +2,54 @@ import { Calendar, MessageCircle } from 'lucide-react';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 
-import { prisma } from '@haru/database';
+import { formatBRL, formatDuration, minutesToHHMM } from '@/lib/format';
 
 import { Button } from '@/components/ui/button';
 
+import { loadPublicTenant } from './_tenant';
+import { PublicBooking } from './public-booking';
+
 const WEEKDAY_NAMES = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
 
-// Slugs reservados — não bater com rotas conhecidas
-const RESERVED_SLUGS = new Set([
-  'robots',
-  'robots.txt',
-  'sitemap',
-  'sitemap.xml',
-  'login',
-  'signup',
-  'dashboard',
-  'appointments',
-  'conversations',
-  'schedule',
-  'services',
-  'settings',
-  'blog',
-  'api',
-  'admin',
-]);
+// Quantos dias adiante oferecer no agendamento online (só os com expediente entram).
+const BOOKING_HORIZON_DAYS = 14;
 
-const FILE_LIKE_SLUG = /\.[a-z0-9]+$/i;
+/**
+ * Próximos dias (a partir de hoje, no fuso do tenant) que têm ao menos um
+ * ScheduleBlock no weekday, rotulados "sáb., 30/05". Calculado no servidor pra
+ * usar o fuso do tenant — nunca o do browser do cliente.
+ */
+function buildBookingDays(
+  timezone: string,
+  blocks: { weekday: number }[],
+): { value: string; label: string }[] {
+  const openWeekdays = new Set(blocks.map((b) => b.weekday));
+  if (openWeekdays.size === 0) return [];
 
-function formatBRL(cents: number): string {
-  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(cents / 100);
-}
-
-function formatDuration(minutes: number): string {
-  if (minutes < 60) return `${minutes} min`;
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  return m === 0 ? `${h}h` : `${h}h ${m}min`;
-}
-
-function minutesToHHMM(minutes: number): string {
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-}
-
-async function loadTenant(slug: string) {
-  if (RESERVED_SLUGS.has(slug) || FILE_LIKE_SLUG.test(slug)) return null;
-  return prisma.tenant.findUnique({
-    where: { slug },
-    include: {
-      services: { where: { active: true }, orderBy: { name: 'asc' } },
-      scheduleBlocks: { orderBy: [{ weekday: 'asc' }, { startMinute: 'asc' }] },
-    },
+  const isoFmt = new Intl.DateTimeFormat('en-CA', {
+    timeZone: timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
   });
+  const labelFmt = new Intl.DateTimeFormat('pt-BR', {
+    timeZone: timezone,
+    weekday: 'short',
+    day: '2-digit',
+    month: '2-digit',
+  });
+  const weekdayFmt = new Intl.DateTimeFormat('en-US', { timeZone: timezone, weekday: 'short' });
+  const WD: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+
+  const days: { value: string; label: string }[] = [];
+  const now = Date.now();
+  for (let i = 0; i < BOOKING_HORIZON_DAYS; i++) {
+    const date = new Date(now + i * 24 * 60 * 60 * 1000);
+    const weekday = WD[weekdayFmt.format(date).slice(0, 3)] ?? 0;
+    if (!openWeekdays.has(weekday)) continue;
+    days.push({ value: isoFmt.format(date), label: labelFmt.format(date) });
+  }
+  return days;
 }
 
 export async function generateMetadata({
@@ -63,17 +58,17 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const tenant = await loadTenant(slug);
+  const tenant = await loadPublicTenant(slug);
   if (!tenant) return { title: 'Não encontrado' };
   return {
     title: tenant.name,
-    description: `Agende pelo WhatsApp em ${tenant.name}.`,
+    description: `Agende online ou pelo WhatsApp em ${tenant.name}.`,
   };
 }
 
 export default async function TenantPublicPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const tenant = await loadTenant(slug);
+  const tenant = await loadPublicTenant(slug);
   if (!tenant) notFound();
 
   // Agrupa horários por weekday
@@ -88,17 +83,42 @@ export default async function TenantPublicPage({ params }: { params: Promise<{ s
     ? `https://wa.me/${tenant.whatsappDisplayPhone}?text=${encodeURIComponent('Olá! Quero agendar um horário.')}`
     : null;
 
+  // Agendamento online: só mostra se ligado, com serviços e pelo menos um dia
+  // com expediente nos próximos dias.
+  const bookingDays = buildBookingDays(tenant.timezone, tenant.scheduleBlocks);
+  const showBooking =
+    tenant.publicBookingEnabled && tenant.services.length > 0 && bookingDays.length > 0;
+
   return (
     <main className="bg-muted/20 min-h-screen">
       <div className="mx-auto max-w-2xl space-y-8 px-4 py-12">
         <header className="space-y-2 text-center">
           <h1 className="font-serif text-4xl font-semibold tracking-[-0.01em]">{tenant.name}</h1>
-          <p className="text-muted-foreground text-sm">Agende pelo WhatsApp em segundos.</p>
+          <p className="text-muted-foreground text-sm">
+            {showBooking ? 'Agende seu horário em segundos.' : 'Agende pelo WhatsApp em segundos.'}
+          </p>
         </header>
 
+        {showBooking && (
+          <PublicBooking
+            slug={tenant.slug}
+            services={tenant.services.map((s) => ({
+              id: s.id,
+              name: s.name,
+              description: s.description,
+              durationMinutes: s.durationMinutes,
+              priceCents: s.priceCents,
+            }))}
+            days={bookingDays}
+          />
+        )}
+
         {waLink && (
-          <div className="flex justify-center">
-            <Button asChild variant="coral" size="pill">
+          <div className="flex flex-col items-center gap-2">
+            {showBooking && (
+              <p className="text-muted-foreground text-xs">Prefere conversar?</p>
+            )}
+            <Button asChild variant={showBooking ? 'outline' : 'coral'} size="pill">
               <a href={waLink} target="_blank" rel="noopener noreferrer">
                 <MessageCircle className="h-5 w-5" />
                 Agendar pelo WhatsApp

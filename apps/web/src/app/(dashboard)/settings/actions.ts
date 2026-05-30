@@ -409,3 +409,40 @@ export async function updateNotifications(
   revalidatePath('/settings');
   return { ok: true };
 }
+
+// --- Agendamento online (página pública /[slug]) --------------------------
+
+const publicBookingSchema = z.object({
+  // Checkbox: presente ("on") = ligado; ausente = desligado.
+  enabled: z.preprocess((v) => v === 'on' || v === 'true', z.boolean()),
+  confirmation: z.enum(['PENDING', 'CONFIRMED']),
+});
+
+export type PublicBookingActionResult = { error: string } | { ok: true };
+
+export async function updatePublicBooking(
+  _prev: PublicBookingActionResult | undefined,
+  formData: FormData,
+): Promise<PublicBookingActionResult> {
+  const { tenant } = await requireUserAndTenant();
+
+  const parsed = publicBookingSchema.safeParse({
+    enabled: formData.get('enabled'),
+    confirmation: formData.get('confirmation'),
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? 'Dados inválidos' };
+  }
+
+  await prisma.tenant.update({
+    where: { id: tenant.id },
+    data: {
+      publicBookingEnabled: parsed.data.enabled,
+      publicBookingConfirmation: parsed.data.confirmation,
+    },
+  });
+
+  revalidatePath('/settings');
+  revalidatePath(`/${tenant.slug}`);
+  return { ok: true };
+}

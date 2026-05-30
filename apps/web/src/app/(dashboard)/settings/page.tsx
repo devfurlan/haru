@@ -1,6 +1,7 @@
 import { requireUserAndTenant } from '@/lib/auth';
 
 import { NotificationsCard } from './notifications-card';
+import { PublicBookingCard } from './public-booking-card';
 import { WhatsappCard } from './whatsapp-card';
 
 export default async function SettingsPage() {
@@ -18,6 +19,12 @@ export default async function SettingsPage() {
         businessAccountId={tenant.whatsappBusinessAccountId}
         displayPhone={tenant.whatsappDisplayPhone}
         hasAccessToken={Boolean(tenant.whatsappAccessToken)}
+      />
+
+      <PublicBookingCard
+        slug={tenant.slug}
+        publicBookingEnabled={tenant.publicBookingEnabled}
+        publicBookingConfirmation={tenant.publicBookingConfirmation}
       />
 
       <NotificationsCard
