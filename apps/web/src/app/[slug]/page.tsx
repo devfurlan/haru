@@ -164,7 +164,15 @@ export default async function TenantPublicPage({ params }: { params: Promise<{ s
         </section>
 
         <footer className="text-muted-foreground pt-4 text-center text-xs">
-          Powered by Demandaê
+          Powered by{' '}
+          <a
+            href={process.env.NEXT_PUBLIC_APP_URL || 'https://www.demandae.com'}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-foreground font-medium underline-offset-4 hover:underline"
+          >
+            Demandaê
+          </a>
         </footer>
       </div>
     </main>
