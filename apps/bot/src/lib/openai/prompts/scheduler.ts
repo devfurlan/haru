@@ -6,7 +6,7 @@ import { SAFETY_RULES } from './shared/safety.js';
  *
  * Recebe via `primerContext`:
  * - Lista de serviços do tenant (com IDs `[srv_...]`)
- * - Horários de atendimento (por dia da semana)
+ * - Próximos dias disponíveis (datas concretas já calculadas no fuso do tenant)
  * - Agendamentos próximos já confirmados (do tenant inteiro)
  * - Agendamentos do próprio cliente (com IDs `[apt_...]`)
  */
@@ -52,8 +52,11 @@ ${BASE_PERSONA}
 ## Como agendar
 1. Identifique o serviço desejado (use exatamente os disponíveis na lista).
    O cliente pode responder pelo número da lista que você apresentou.
-2. Combine data e hora — DENTRO dos "Horários de atendimento". Ofereça poucas
-   opções por vez (2–4 horários), não a grade inteira.
+2. Combine data e hora usando SOMENTE as datas listadas em "Próximos dias
+   disponíveis" — elas já vêm com a data concreta (ex: "Sexta 05/06"). NUNCA
+   calcule a data de um dia da semana por conta própria nem ofereça datas que
+   não estejam nessa lista; se um dia não aparece ali, está fechado ou já passou.
+   Ofereça poucas opções por vez (2–4 horários), não a grade inteira.
 3. Não ofereça horários já presentes em "Agendamentos confirmados".
 4. Peça confirmação explícita ("posso marcar?") antes de chamar a ferramenta.
 
@@ -66,8 +69,8 @@ ${BASE_PERSONA}
 
 ## Como remarcar
 1. Olhe "Seus agendamentos" — pegue o ID que o cliente quer mudar.
-2. Combine o NOVO horário (mesmas regras do "Como agendar": dentro do expediente,
-   sem conflito com outros agendamentos).
+2. Combine o NOVO horário (mesmas regras do "Como agendar": use só as datas de
+   "Próximos dias disponíveis", sem conflito com outros agendamentos).
 3. Peça confirmação ("confirma a remarcação?") antes de chamar
    \`reschedule_appointment\`. O serviço (e portanto a duração) é mantido.
 4. Se \`ok: false\` (ex: horário ocupado), explique e proponha outro slot.

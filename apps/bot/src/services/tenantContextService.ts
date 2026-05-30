@@ -17,6 +17,36 @@ function formatNowInTimezone(timezone: string): string {
   }).format(new Date());
 }
 
+/**
+ * Retorna a data civil (ano/mês/dia + weekday) que `instant` representa NO fuso
+ * `timezone`. Usado pra ancorar a lista de "próximos dias" no calendário local
+ * do tenant — sem isso o cálculo de dias usaria o fuso do servidor (UTC) e
+ * poderia pular/repetir um dia perto da virada.
+ */
+function civilDateInTimezone(
+  instant: Date,
+  timezone: string,
+): { year: number; month: number; day: number; weekday: number } {
+  // en-CA dá ISO (YYYY-MM-DD) e é estável pra parsear.
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    weekday: 'short',
+  }).formatToParts(instant);
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? '';
+  const weekdayMap: Record<string, number> = {
+    Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6,
+  };
+  return {
+    year: Number(get('year')),
+    month: Number(get('month')),
+    day: Number(get('day')),
+    weekday: weekdayMap[get('weekday')] ?? 0,
+  };
+}
+
 function formatAppointmentDate(date: Date, timezone: string): string {
   return new Intl.DateTimeFormat('pt-BR', {
     timeZone: timezone,
@@ -84,25 +114,40 @@ export async function buildTenantContext(
   }
   lines.push('');
 
-  lines.push('## Horários de atendimento (toda semana)');
-  // Agrupa blocos por weekday
+  // Agrupa blocos por weekday (0=domingo … 6=sábado)
   const byDay = new Map<number, { startMinute: number; endMinute: number }[]>();
   for (let i = 0; i < 7; i++) byDay.set(i, []);
   for (const b of tenant.scheduleBlocks) {
     byDay.get(b.weekday)!.push({ startMinute: b.startMinute, endMinute: b.endMinute });
   }
-  // Imprime começando pela segunda
-  const order = [1, 2, 3, 4, 5, 6, 0];
-  for (const wd of order) {
-    const blocks = byDay.get(wd) ?? [];
-    if (blocks.length === 0) {
-      lines.push(`- ${WEEKDAY_NAMES[wd]}: fechado`);
-    } else {
-      const ranges = blocks
-        .map((b) => `${minutesToHHMM(b.startMinute)}–${minutesToHHMM(b.endMinute)}`)
-        .join(', ');
-      lines.push(`- ${WEEKDAY_NAMES[wd]}: ${ranges}`);
-    }
+
+  // Lista os PRÓXIMOS dias com a data civil concreta no fuso do tenant. O LLM é
+  // ruim em aritmética de calendário ("hoje é sábado, então sexta é dia X") e
+  // chegava a oferecer datas já passadas. Entregando as datas prontas, ele só
+  // copia — nunca calcula. Dias fechados/passados simplesmente não aparecem.
+  const HORIZON_DAYS = 14;
+  const today = civilDateInTimezone(new Date(), tenant.timezone);
+  // Meio-dia UTC do dia civil de hoje: longe o suficiente das viradas pra somar
+  // dias com aritmética de UTC sem cair em DST (o Brasil não usa, mas é seguro).
+  const cursor = new Date(Date.UTC(today.year, today.month - 1, today.day, 12, 0, 0));
+
+  lines.push('## Próximos dias disponíveis (ofereça SOMENTE estas datas)');
+  let openDays = 0;
+  for (let i = 0; i < HORIZON_DAYS; i++) {
+    const d = new Date(cursor.getTime() + i * 24 * 60 * 60 * 1000);
+    const civil = civilDateInTimezone(d, tenant.timezone);
+    const blocks = byDay.get(civil.weekday) ?? [];
+    if (blocks.length === 0) continue; // dia fechado: não lista
+    const dd = String(civil.day).padStart(2, '0');
+    const mm = String(civil.month).padStart(2, '0');
+    const ranges = blocks
+      .map((b) => `${minutesToHHMM(b.startMinute)}–${minutesToHHMM(b.endMinute)}`)
+      .join(', ');
+    lines.push(`- ${WEEKDAY_NAMES[civil.weekday]} ${dd}/${mm}: ${ranges}`);
+    openDays++;
+  }
+  if (openDays === 0) {
+    lines.push('(nenhum dia de atendimento configurado — peça pro cliente aguardar)');
   }
   lines.push('');
 
