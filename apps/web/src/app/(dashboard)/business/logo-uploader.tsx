@@ -6,7 +6,7 @@ import { useRef, useState, useTransition } from 'react';
 import { Button } from '@/components/ui/button';
 import { createClient } from '@/lib/supabase/client';
 
-import { removeTenantLogo, saveTenantLogo } from './actions';
+import { removeTenantLogo, saveTenantLogo } from '../settings/actions';
 
 interface LogoUploaderProps {
   tenantId: string;
@@ -106,12 +106,12 @@ export function LogoUploader({ tenantId, logoUrl }: LogoUploaderProps) {
     <div className="space-y-2">
       <span className="text-sm font-medium">Logo</span>
       <div className="flex items-center gap-4">
-        <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-lg border bg-muted">
+        <div className="bg-muted flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-lg border">
           {preview ? (
             // eslint-disable-next-line @next/next/no-img-element -- URL externa (Supabase Storage), tamanho fixo
             <img src={preview} alt="Logo" className="h-full w-full object-cover" />
           ) : (
-            <ImageIcon className="h-7 w-7 text-muted-foreground" />
+            <ImageIcon className="text-muted-foreground h-7 w-7" />
           )}
         </div>
 
@@ -166,12 +166,12 @@ export function LogoUploader({ tenantId, logoUrl }: LogoUploaderProps) {
               </Button>
             )}
           </div>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-muted-foreground text-xs">
             JPG, PNG ou WebP até 5 MB. Recortamos no centro pra ficar quadrada (512×512).
           </p>
         </div>
       </div>
-      {error && <p className="text-sm text-destructive">{error}</p>}
+      {error && <p className="text-destructive text-sm">{error}</p>}
     </div>
   );
 }

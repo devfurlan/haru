@@ -1,36 +1,17 @@
 import { requireUserAndTenant } from '@/lib/auth';
 
 import { NotificationsCard } from './notifications-card';
-import { PasswordCard } from './password-card';
-import { ProfileCard } from './profile-card';
-import { TenantCard } from './tenant-card';
 import { WhatsappCard } from './whatsapp-card';
 
 export default async function SettingsPage() {
-  const user = await requireUserAndTenant();
-  const { tenant } = user;
+  const { tenant } = await requireUserAndTenant();
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <div>
         <h1 className="font-serif text-2xl font-semibold tracking-tight">Configurações</h1>
-        <p className="text-sm text-muted-foreground">
-          Seu perfil, dados do estabelecimento e integrações.
-        </p>
+        <p className="text-muted-foreground text-sm">Integrações e notificações.</p>
       </div>
-
-      <ProfileCard name={user.name} email={user.email} />
-
-      <PasswordCard />
-
-      <TenantCard
-        tenantId={tenant.id}
-        name={tenant.name}
-        slug={tenant.slug}
-        timezone={tenant.timezone}
-        address={tenant.address}
-        logoUrl={tenant.logoUrl}
-      />
 
       <WhatsappCard
         phoneNumberId={tenant.whatsappPhoneNumberId}

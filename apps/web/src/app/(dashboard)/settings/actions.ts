@@ -80,8 +80,10 @@ export async function updateTenant(
     throw err;
   }
 
-  // Slug mudou? Revalida a página pública também
-  revalidatePath('/settings');
+  // Slug mudou? Revalida a página pública também. O nome aparece na sidebar
+  // (layout do dashboard), então revalida o layout inteiro.
+  revalidatePath('/business');
+  revalidatePath('/', 'layout');
   revalidatePath(`/${parsed.data.slug}`);
   return { ok: true };
 }
@@ -128,7 +130,9 @@ export async function saveTenantLogo(
     data: { logoUrl },
   });
 
-  revalidatePath('/settings');
+  // A logo aparece na sidebar (layout do dashboard) e na página pública.
+  revalidatePath('/business');
+  revalidatePath('/', 'layout');
   revalidatePath(`/${tenant.slug}`);
   return { ok: true };
 }
@@ -154,7 +158,9 @@ export async function removeTenantLogo(): Promise<TenantActionResult> {
     data: { logoUrl: null },
   });
 
-  revalidatePath('/settings');
+  // A logo aparece na sidebar (layout do dashboard) e na página pública.
+  revalidatePath('/business');
+  revalidatePath('/', 'layout');
   revalidatePath(`/${tenant.slug}`);
   return { ok: true };
 }
@@ -187,7 +193,7 @@ export async function updateProfile(
     data: { name: parsed.data.name },
   });
 
-  revalidatePath('/settings');
+  revalidatePath('/account');
   // Layout do dashboard exibe o nome do usuário na sidebar
   revalidatePath('/', 'layout');
   return { ok: true };

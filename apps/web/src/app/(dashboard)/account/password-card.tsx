@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
-import { changePassword, type PasswordActionResult } from './actions';
+import { changePassword, type PasswordActionResult } from '../settings/actions';
 
 function SubmitButton() {
   const { pending } = useFormStatus();

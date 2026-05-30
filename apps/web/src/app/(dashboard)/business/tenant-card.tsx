@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
-import { updateTenant, type TenantActionResult } from './actions';
+import { updateTenant, type TenantActionResult } from '../settings/actions';
 import { LogoUploader } from './logo-uploader';
 
 interface TenantCardProps {
@@ -76,16 +76,10 @@ export function TenantCard({ tenantId, name, slug, timezone, address, logoUrl }:
 
           <div className="space-y-2">
             <Label htmlFor="slug">Slug</Label>
-            <Input
-              id="slug"
-              name="slug"
-              defaultValue={slug}
-              pattern="[a-z0-9-]+"
-              required
-            />
-            <p className="text-xs text-muted-foreground">
-              Aceita minúsculas, dígitos e hífen. Não pode coincidir com rotas do sistema
-              (login, dashboard, services etc.).
+            <Input id="slug" name="slug" defaultValue={slug} pattern="[a-z0-9-]+" required />
+            <p className="text-muted-foreground text-xs">
+              Aceita minúsculas, dígitos e hífen. Não pode coincidir com rotas do sistema (login,
+              dashboard, services etc.).
             </p>
           </div>
 
@@ -96,7 +90,7 @@ export function TenantCard({ tenantId, name, slug, timezone, address, logoUrl }:
               name="timezone"
               defaultValue={timezone}
               required
-              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              className="border-input focus-visible:ring-ring flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1"
             >
               {tzOptions.map((tz) => (
                 <option key={tz} value={tz}>
@@ -104,7 +98,7 @@ export function TenantCard({ tenantId, name, slug, timezone, address, logoUrl }:
                 </option>
               ))}
             </select>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-muted-foreground text-xs">
               Usado pra formatar datas pro cliente e pro lembrete.
             </p>
           </div>
@@ -117,14 +111,12 @@ export function TenantCard({ tenantId, name, slug, timezone, address, logoUrl }:
               defaultValue={address ?? ''}
               placeholder="Rua Exemplo, 123 — Centro, Cidade/UF"
             />
-            <p className="text-xs text-muted-foreground">
+            <p className="text-muted-foreground text-xs">
               Aparece pro cliente na sua página pública.
             </p>
           </div>
 
-          {state && 'error' in state && (
-            <p className="text-sm text-destructive">{state.error}</p>
-          )}
+          {state && 'error' in state && <p className="text-destructive text-sm">{state.error}</p>}
           {state && 'ok' in state && <p className="text-sm text-emerald-600">Salvo.</p>}
 
           <SubmitButton />
