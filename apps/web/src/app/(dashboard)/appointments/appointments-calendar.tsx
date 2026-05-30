@@ -29,7 +29,7 @@ const STATUS_DOT: Record<string, string> = {
   PENDING: 'bg-amber-500',
   CONFIRMED: 'bg-emerald-500',
   CANCELED: 'bg-zinc-400',
-  COMPLETED: 'bg-blue-500',
+  COMPLETED: 'bg-green-500',
   NO_SHOW: 'bg-rose-500',
 };
 
