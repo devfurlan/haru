@@ -45,6 +45,27 @@ export function formatPhoneBR(phone: string | null | undefined): string {
   return phone;
 }
 
+// Mascara o que o usuário digita num input de telefone BR, progressivamente:
+// "11"        -> "(11"
+// "1191409"   -> "(11) 91409"
+// "11914092346" -> "(11) 91409-2346"
+// Aceita celular (11 díg nacionais) e fixo (10). Ignora DDI 55 inicial pra não
+// duplicar quando o valor vem do banco em E.164. O server action normaliza
+// depois via normalizePhoneBR, então enviar o valor mascarado é seguro.
+export function maskPhoneBRInput(raw: string): string {
+  let digits = raw.replace(/\D/g, '');
+  if (digits.startsWith('55') && digits.length > 11) digits = digits.slice(2);
+  digits = digits.slice(0, 11);
+  if (digits.length === 0) return '';
+  if (digits.length <= 2) return `(${digits}`;
+  const ddd = digits.slice(0, 2);
+  const rest = digits.slice(2);
+  // 9 dígitos = celular (5+4); 8 = fixo (4+4); enquanto digita, quebra em 5+4.
+  const split = rest.length > 8 ? 5 : 4;
+  if (rest.length <= split) return `(${ddd}) ${rest}`;
+  return `(${ddd}) ${rest.slice(0, split)}-${rest.slice(split)}`;
+}
+
 // Formata uma data sem hora (ex.: data de nascimento). A data é guardada como
 // meia-noite UTC; usamos timeZone 'UTC' pra não recuar um dia no fuso local.
 export function formatDateOnly(date: Date): string {

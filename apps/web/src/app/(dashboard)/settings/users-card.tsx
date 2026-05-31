@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { formatPhoneBR } from '@/lib/format';
+import { formatPhoneBR, maskPhoneBRInput } from '@/lib/format';
 
 import {
   deleteUser,
@@ -82,6 +82,32 @@ function CopyLink({ url }: { url: string }) {
       <Copy className="mr-1 h-3 w-3" />
       {copied ? 'Copiado' : 'Copiar link'}
     </Button>
+  );
+}
+
+// Input de telefone que aplica a máscara BR enquanto o usuário digita. Mantém o
+// estado de exibição internamente; envia o valor mascarado pelo `name` (o server
+// action normaliza pra E.164 via normalizePhoneBR).
+function PhoneInput({
+  id,
+  defaultValue = '',
+}: {
+  id: string;
+  defaultValue?: string;
+}) {
+  const [value, setValue] = useState(() => maskPhoneBRInput(defaultValue));
+  return (
+    <Input
+      id={id}
+      name="phone"
+      type="tel"
+      inputMode="numeric"
+      autoComplete="tel"
+      placeholder="(11) 91409-2346"
+      value={value}
+      onChange={(e) => setValue(maskPhoneBRInput(e.target.value))}
+      required
+    />
   );
 }
 
@@ -157,7 +183,7 @@ function InviteDialog({ open, onClose }: { open: boolean; onClose: () => void })
             </div>
             <div className="space-y-2">
               <Label htmlFor="invite-phone">WhatsApp</Label>
-              <Input id="invite-phone" name="phone" placeholder="(11) 91409-2346" required />
+              <PhoneInput id="invite-phone" />
               <p className="text-xs text-muted-foreground">Para onde o convite será enviado.</p>
             </div>
             {state && 'error' in state && (
@@ -210,13 +236,7 @@ function EditDialog({
           </div>
           <div className="space-y-2">
             <Label htmlFor="edit-phone">WhatsApp</Label>
-            <Input
-              id="edit-phone"
-              name="phone"
-              defaultValue={user.phone ? formatPhoneBR(user.phone) : ''}
-              placeholder="(11) 91409-2346"
-              required
-            />
+            <PhoneInput id="edit-phone" defaultValue={user.phone ?? ''} />
           </div>
           <div className="space-y-2">
             <Label htmlFor="edit-role">Papel</Label>
