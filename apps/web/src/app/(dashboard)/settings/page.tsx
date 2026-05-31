@@ -1,14 +1,17 @@
 import { prisma } from '@haru/database';
 
 import { requireAdmin } from '@/lib/auth';
+import { getBaseUrl } from '@/lib/base-url';
 
 import { NotificationsCard } from './notifications-card';
+import { PaymentsCard } from './payments-card';
 import { PublicBookingCard } from './public-booking-card';
 import { UsersCard, type UserRow } from './users-card';
 import { WhatsappCard } from './whatsapp-card';
 
 export default async function SettingsPage() {
   const { id: currentUserId, tenant } = await requireAdmin();
+  const webhookBaseUrl = await getBaseUrl();
 
   const users = await prisma.user.findMany({
     where: { tenantId: tenant.id },
@@ -36,6 +39,18 @@ export default async function SettingsPage() {
         slug={tenant.slug}
         publicBookingEnabled={tenant.publicBookingEnabled}
         publicBookingConfirmation={tenant.publicBookingConfirmation}
+      />
+
+      <PaymentsCard
+        provider={tenant.paymentProvider}
+        sandbox={tenant.paymentSandbox}
+        hasCredential={Boolean(
+          tenant.paymentAsaasApiKeyEnc ||
+            tenant.paymentMercadoPagoTokenEnc ||
+            tenant.paymentPagBankTokenEnc ||
+            tenant.paymentPagarmeApiKeyEnc,
+        )}
+        webhookBaseUrl={webhookBaseUrl}
       />
 
       <NotificationsCard

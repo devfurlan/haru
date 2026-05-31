@@ -7,8 +7,11 @@ import {
   CheckCircle2,
   ChevronRight,
   Clock,
+  Copy,
+  CreditCard,
   PartyPopper,
   Phone,
+  QrCode,
   User as UserIcon,
 } from 'lucide-react';
 import { useActionState, useEffect, useMemo, useRef, useState, useTransition } from 'react';
@@ -28,6 +31,7 @@ import {
   getAvailableSlots,
   lookupContact,
 } from './actions';
+import { createPaymentForAppointment } from './payments-actions';
 
 interface ServiceOption {
   id: string;
@@ -607,7 +611,19 @@ function StepResumo({
 // Tela de sucesso
 // ---------------------------------------------------------------------------
 
-function SuccessScreen({ confirmed, summary }: { confirmed: boolean; summary: string }) {
+function SuccessScreen({
+  confirmed,
+  summary,
+  slug,
+  appointmentId,
+  paymentAvailable,
+}: {
+  confirmed: boolean;
+  summary: string;
+  slug: string;
+  appointmentId: string;
+  paymentAvailable: boolean;
+}) {
   return (
     <div className="space-y-5 text-center">
       <div className="flex justify-center">
@@ -630,6 +646,126 @@ function SuccessScreen({ confirmed, summary }: { confirmed: boolean; summary: st
       <p className="bg-card text-foreground whitespace-pre-line rounded-xl border p-4 text-left text-sm">
         {summary}
       </p>
+
+      {paymentAvailable ? (
+        <PaymentBlock slug={slug} appointmentId={appointmentId} />
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * Bloco de pagamento opcional na tela de sucesso. Gera a cobrança sob demanda
+ * (Pix mostra QR + copia-e-cola; cartão abre o checkout hospedado do gateway).
+ * Não bloqueia a agenda — pagamento é opcional.
+ */
+function PaymentBlock({ slug, appointmentId }: { slug: string; appointmentId: string }) {
+  const [paying, startPaying] = useTransition();
+  const [pix, setPix] = useState<{ qrCode: string | null; copyPaste: string | null } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  function pay(method: 'PIX' | 'CREDIT_CARD') {
+    if (paying) return;
+    setError(null);
+    startPaying(async () => {
+      const result = await createPaymentForAppointment(slug, appointmentId, method);
+      if ('error' in result) {
+        setError(result.error);
+        return;
+      }
+      if (method === 'PIX') {
+        setPix({ qrCode: result.pixQrCode, copyPaste: result.pixCopyPaste });
+      } else if (result.checkoutUrl) {
+        window.open(result.checkoutUrl, '_blank', 'noopener,noreferrer');
+      } else {
+        setError('Não foi possível abrir o pagamento. Tente novamente.');
+      }
+    });
+  }
+
+  return (
+    <div className="bg-card space-y-4 rounded-xl border p-4 text-left">
+      <div>
+        <p className="text-foreground text-sm font-medium">Pagamento</p>
+        <p className="text-muted-foreground text-xs">
+          Opcional — você pode pagar agora ou no dia do atendimento.
+        </p>
+      </div>
+
+      {pix ? (
+        <div className="space-y-3">
+          {pix.qrCode ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={pix.qrCode}
+              alt="QR Code do Pix"
+              className="mx-auto h-48 w-48 rounded-lg border bg-white p-2"
+            />
+          ) : null}
+          {pix.copyPaste ? (
+            <div className="space-y-1">
+              <Label className="text-muted-foreground text-xs">Pix copia e cola</Label>
+              <div className="flex items-center gap-2">
+                <code className="bg-muted flex-1 break-all rounded px-2 py-1 text-xs">
+                  {pix.copyPaste}
+                </code>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="shrink-0"
+                  onClick={() => {
+                    if (!pix.copyPaste) return;
+                    navigator.clipboard.writeText(pix.copyPaste).then(() => {
+                      setCopied(true);
+                      setTimeout(() => setCopied(false), 1500);
+                    });
+                  }}
+                >
+                  <Copy className="mr-1 h-3 w-3" />
+                  {copied ? 'Copiado' : 'Copiar'}
+                </Button>
+              </div>
+            </div>
+          ) : null}
+          <p className="text-muted-foreground text-xs">
+            Após o pagamento, a confirmação chega automaticamente. Você já pode fechar esta tela.
+          </p>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <Button
+            type="button"
+            variant="coral"
+            className="flex-1"
+            disabled={paying}
+            onClick={() => pay('PIX')}
+          >
+            <QrCode className="mr-2 h-4 w-4" />
+            {paying ? 'Gerando…' : 'Pagar com Pix'}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            className="flex-1"
+            disabled={paying}
+            onClick={() => pay('CREDIT_CARD')}
+          >
+            <CreditCard className="mr-2 h-4 w-4" />
+            Pagar com cartão
+          </Button>
+        </div>
+      )}
+
+      {error ? (
+        <p
+          role="alert"
+          className="border-destructive/40 bg-destructive/5 text-destructive rounded-lg border p-3 text-sm"
+        >
+          {error}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -856,7 +992,13 @@ export function PublicBooking({ slug, services, days }: PublicBookingProps) {
       ) : null}
 
       {step === 'done' && state && 'ok' in state && state.ok ? (
-        <SuccessScreen confirmed={state.status === 'CONFIRMED'} summary={state.summary} />
+        <SuccessScreen
+          confirmed={state.status === 'CONFIRMED'}
+          summary={state.summary}
+          slug={slug}
+          appointmentId={state.appointmentId}
+          paymentAvailable={state.paymentAvailable}
+        />
       ) : null}
     </div>
   );

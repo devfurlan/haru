@@ -61,6 +61,23 @@ model Tenant {
   inviteTemplateName         String?
   inviteTemplateLanguage     String? @default("pt_BR")
 
+  // --- Pagamentos -------------------------------------------------------------
+  /// Gateway de pagamento ativo. null = pagamentos desativados (sem botão "Pagar"
+  /// na página pública). Só a credencial do provider ativo é usada.
+  paymentProvider PaymentProvider?
+  /// Quando true, usa as URLs de sandbox do gateway (testes). false = produção.
+  paymentSandbox  Boolean         @default(false)
+
+  /// Credenciais criptografadas at rest (AES-256-GCM, formato "iv:tag:ct" em base64).
+  /// Um campo por gateway — só o do provider ativo é preenchido por vez.
+  paymentAsaasApiKeyEnc      String?
+  paymentMercadoPagoTokenEnc String?
+  paymentPagBankTokenEnc     String?
+  paymentPagarmeApiKeyEnc    String?
+  /// Token compartilhado validado no header do webhook do gateway (Asaas:
+  /// "asaas-access-token"). Criptografado igual às credenciais.
+  paymentWebhookTokenEnc     String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -70,6 +87,7 @@ model Tenant {
   contacts       Contact[]
   conversations  Conversation[]
   scheduleBlocks ScheduleBlock[]
+  payments       Payment[]
 }
 
 model User {
@@ -224,6 +242,8 @@ model Appointment {
   createdAt      DateTime          @default(now())
   updatedAt      DateTime          @updatedAt
 
+  payments Payment[]
+
   @@index([tenantId, startsAt])
 }
 
@@ -241,6 +261,69 @@ enum AppointmentStatus {
 enum PublicBookingConfirmation {
   PENDING
   CONFIRMED
+}
+
+/// Cobrança de um agendamento via gateway de pagamento. Relação 1:N com Appointment
+/// (re-tentativas geram registros novos preservando histórico); a "cobrança ativa" é
+/// a PENDING mais recente não expirada. Pagamento é opcional e NÃO altera o status do
+/// Appointment — confirmação de agenda e de pagamento são independentes.
+model Payment {
+  id            String          @id @default(cuid())
+  tenantId      String
+  tenant        Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  appointmentId String
+  appointment   Appointment     @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+
+  provider PaymentProvider
+  method   PaymentMethod   @default(UNDEFINED)
+  status   PaymentStatus   @default(PENDING)
+
+  /// Snapshot do Service.priceCents no momento da cobrança — o preço do serviço pode
+  /// mudar depois; a cobrança preserva o valor cobrado de fato.
+  amountCents Int
+
+  /// ID da cobrança no gateway (ex.: Asaas "pay_xxx"). Único por provider.
+  externalId   String?
+  /// URL do checkout/fatura hospedada (Asaas invoiceUrl) — usada pra cartão e fallback.
+  checkoutUrl  String?
+  /// Pix: imagem do QR em base64 (data URI) e o copia-e-cola (payload EMV).
+  pixQrCode    String?
+  pixCopyPaste String?
+  /// Vencimento da cobrança (Pix expira). Decide reaproveitar ou recriar a cobrança.
+  expiresAt    DateTime?
+  paidAt       DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([provider, externalId])
+  @@index([tenantId, status])
+  @@index([appointmentId])
+}
+
+/// Gateways de pagamento suportados. Só ASAAS está implementado; os demais têm
+/// adapter stub (UI selecionável, cobrança lança "ainda não disponível").
+enum PaymentProvider {
+  ASAAS
+  MERCADO_PAGO
+  PAGBANK
+  PAGARME
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  CANCELED
+  EXPIRED
+  REFUNDED
+}
+
+enum PaymentMethod {
+  PIX
+  CREDIT_CARD
+  /// Checkout que deixa o cliente escolher o meio (Asaas billingType UNDEFINED).
+  UNDEFINED
 }
 
 /// Pré-cadastro de interesse vindo da landing (signup público está desativado).

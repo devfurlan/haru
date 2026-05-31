@@ -133,7 +133,14 @@ const bookingSchema = z.object({
 
 export type CreatePublicBookingResult =
   | { error: string }
-  | { ok: true; status: AppointmentStatus; summary: string }
+  | {
+      ok: true;
+      status: AppointmentStatus;
+      summary: string;
+      appointmentId: string;
+      /** Mostra o bloco "Pagar agora" na tela de sucesso. */
+      paymentAvailable: boolean;
+    }
   | undefined;
 
 /**
@@ -251,5 +258,13 @@ export async function createPublicBooking(
     minute: '2-digit',
   }).format(startsAt);
 
-  return { ok: true, status, summary: `${service.name} · ${when}` };
+  const paymentAvailable = service.priceCents > 0 && tenant.paymentProvider !== null;
+
+  return {
+    ok: true,
+    status,
+    summary: `${service.name} · ${when}`,
+    appointmentId: appointment.id,
+    paymentAvailable,
+  };
 }

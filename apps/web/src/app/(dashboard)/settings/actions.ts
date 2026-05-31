@@ -8,6 +8,7 @@ import { prisma } from '@haru/database';
 
 import { requireAdmin, requireUserAndTenant } from '@/lib/auth';
 import { getBaseUrl } from '@/lib/base-url';
+import { encryptSecret } from '@/lib/crypto';
 import { createClient } from '@/lib/supabase/server';
 import { getSupabaseAdmin } from '@/lib/supabase/admin';
 import { sendInviteWhatsapp } from '@/lib/whatsapp-invite';
@@ -313,6 +314,81 @@ export async function disconnectWhatsapp(): Promise<WhatsappActionResult> {
       whatsappBusinessAccountId: null,
       whatsappAccessToken: null,
       whatsappDisplayPhone: null,
+    },
+  });
+
+  revalidatePath('/settings');
+  return { ok: true };
+}
+
+// --- Pagamentos -------------------------------------------------------------
+
+export type PaymentsActionResult = { error: string } | { ok: true };
+
+const paymentsSchema = z.object({
+  provider: z.enum(['ASAAS', 'MERCADO_PAGO', 'PAGBANK', 'PAGARME']),
+  sandbox: z.preprocess((v) => v === 'on' || v === 'true' || v === true, z.boolean()),
+  credential: z.string().min(1, 'Informe a credencial do gateway').max(500),
+  webhookToken: z
+    .string()
+    .max(200)
+    .optional()
+    .transform((v) => (v && v.trim() ? v.trim() : null)),
+});
+
+export async function connectPaymentGateway(
+  _prev: PaymentsActionResult | undefined,
+  formData: FormData,
+): Promise<PaymentsActionResult> {
+  const { tenant } = await requireAdmin();
+
+  const parsed = paymentsSchema.safeParse({
+    provider: formData.get('provider'),
+    sandbox: formData.get('sandbox'),
+    credential: formData.get('credential'),
+    webhookToken: formData.get('webhookToken'),
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? 'Dados inválidos' };
+  }
+
+  const { provider, sandbox, credential, webhookToken } = parsed.data;
+
+  // Criptografa antes de salvar. Grava só a credencial do provider escolhido e zera
+  // as demais — um provider ativo por vez.
+  const credEnc = encryptSecret(credential);
+  const tokenEnc = webhookToken ? encryptSecret(webhookToken) : null;
+
+  await prisma.tenant.update({
+    where: { id: tenant.id },
+    data: {
+      paymentProvider: provider,
+      paymentSandbox: sandbox,
+      paymentWebhookTokenEnc: tokenEnc,
+      paymentAsaasApiKeyEnc: provider === 'ASAAS' ? credEnc : null,
+      paymentMercadoPagoTokenEnc: provider === 'MERCADO_PAGO' ? credEnc : null,
+      paymentPagBankTokenEnc: provider === 'PAGBANK' ? credEnc : null,
+      paymentPagarmeApiKeyEnc: provider === 'PAGARME' ? credEnc : null,
+    },
+  });
+
+  revalidatePath('/settings');
+  return { ok: true };
+}
+
+export async function disconnectPaymentGateway(): Promise<PaymentsActionResult> {
+  const { tenant } = await requireAdmin();
+
+  await prisma.tenant.update({
+    where: { id: tenant.id },
+    data: {
+      paymentProvider: null,
+      paymentSandbox: false,
+      paymentAsaasApiKeyEnc: null,
+      paymentMercadoPagoTokenEnc: null,
+      paymentPagBankTokenEnc: null,
+      paymentPagarmeApiKeyEnc: null,
+      paymentWebhookTokenEnc: null,
     },
   });
 
