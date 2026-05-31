@@ -158,3 +158,34 @@ export async function notifyPaymentConfirmed(paymentId: string) {
     console.error('[notify] payment falhou', err);
   }
 }
+
+/**
+ * Avisa o CLIENTE (no WhatsApp, via bot) que o pagamento foi confirmado. O webhook do
+ * gateway chega aqui no apps/web, mas quem fala com o cliente é o bot — então fazemos
+ * um POST autenticado na rota interna do bot, que monta e envia a mensagem.
+ *
+ * Fire-and-forget e fail-soft: se BOT_INTERNAL_URL/BOT_INTERNAL_TOKEN não estiverem
+ * configurados (ex.: ambiente sem bot), apenas loga e segue — não quebra o webhook.
+ */
+export async function notifyCustomerPaymentConfirmed(paymentId: string) {
+  const baseUrl = process.env.BOT_INTERNAL_URL;
+  const token = process.env.BOT_INTERNAL_TOKEN;
+  if (!baseUrl || !token) {
+    console.warn('[notify] BOT_INTERNAL_URL/TOKEN ausentes — pulo aviso ao cliente');
+    return;
+  }
+  try {
+    const res = await fetch(`${baseUrl.replace(/\/$/, '')}/internal/payment-confirmed`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-internal-token': token },
+      body: JSON.stringify({ paymentId }),
+    });
+    if (!res.ok) {
+      console.error(
+        `[notify] bot payment-confirmed ${res.status}: ${await res.text().catch(() => '')}`,
+      );
+    }
+  } catch (err) {
+    console.error('[notify] aviso ao cliente falhou', err);
+  }
+}

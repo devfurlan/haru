@@ -5,10 +5,10 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 
 import { prisma } from '@haru/database';
+import { encryptSecret } from '@haru/payments';
 
 import { requireAdmin, requireUserAndTenant } from '@/lib/auth';
 import { getBaseUrl } from '@/lib/base-url';
-import { encryptSecret } from '@/lib/crypto';
 import { normalizePhoneBR } from '@/lib/format';
 import { createClient } from '@/lib/supabase/server';
 import { getSupabaseAdmin } from '@/lib/supabase/admin';
@@ -329,7 +329,13 @@ export type PaymentsActionResult = { error: string } | { ok: true };
 const paymentsSchema = z.object({
   provider: z.enum(['ASAAS', 'MERCADO_PAGO', 'PAGBANK', 'PAGARME']),
   sandbox: z.preprocess((v) => v === 'on' || v === 'true' || v === true, z.boolean()),
-  credential: z.string().min(1, 'Informe a credencial do gateway').max(500),
+  // Em branco = manter o valor atual (na edição). Por isso é opcional aqui; a
+  // obrigatoriedade na conexão nova é checada no corpo da action.
+  credential: z
+    .string()
+    .max(500)
+    .optional()
+    .transform((v) => (v && v.trim() ? v.trim() : null)),
   webhookToken: z
     .string()
     .max(200)
@@ -355,11 +361,36 @@ export async function connectPaymentGateway(
 
   const { provider, sandbox, credential, webhookToken } = parsed.data;
 
-  // Criptografa antes de salvar. Grava só a credencial do provider escolhido e zera
-  // as demais — um provider ativo por vez.
-  const credEnc = encryptSecret(credential);
-  const tokenEnc = webhookToken ? encryptSecret(webhookToken) : null;
+  // Credencial cifrada já salva PARA O PROVIDER escolhido (null se nenhum / outro provider).
+  // Editar sem trocar de provider e sem redigitar a credencial deve preservá-la — o form
+  // mostra os campos vazios (são senhas), então campo em branco = "manter o que está lá".
+  const currentCredEnc =
+    provider === tenant.paymentProvider
+      ? provider === 'ASAAS'
+        ? tenant.paymentAsaasApiKeyEnc
+        : provider === 'MERCADO_PAGO'
+          ? tenant.paymentMercadoPagoTokenEnc
+          : provider === 'PAGBANK'
+            ? tenant.paymentPagBankTokenEnc
+            : tenant.paymentPagarmeApiKeyEnc
+      : null;
 
+  // Credencial: usa a nova (cifrada) se veio do form; senão mantém a atual do provider.
+  // Trocar de provider zera o reuso — a credencial salva é de outro gateway.
+  const credEnc = credential ? encryptSecret(credential) : currentCredEnc;
+  if (!credEnc) {
+    return { error: 'Informe a credencial do gateway' };
+  }
+
+  // Token do webhook: em branco preserva o atual (não apaga sem querer). Trocar de
+  // provider também descarta o token antigo, que pertencia ao gateway anterior.
+  const tokenEnc = webhookToken
+    ? encryptSecret(webhookToken)
+    : provider === tenant.paymentProvider
+      ? tenant.paymentWebhookTokenEnc
+      : null;
+
+  // Grava só a credencial do provider escolhido e zera as demais — um provider ativo por vez.
   await prisma.tenant.update({
     where: { id: tenant.id },
     data: {

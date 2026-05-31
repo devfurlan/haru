@@ -6,6 +6,7 @@ import {
   rescheduleAppointmentForContact,
 } from '../../services/appointmentService.js';
 import { saveCustomerProfile } from '../../services/contactService.js';
+import { createPaymentForAppointment } from '../../services/paymentService.js';
 
 export interface ToolContext {
   tenantId: string;
@@ -67,6 +68,39 @@ export const TOOLS: FunctionTool[] = [
         },
       },
       required: ['service_id', 'starts_at'],
+      additionalProperties: false,
+    },
+  },
+  {
+    type: 'function',
+    name: 'create_payment',
+    description:
+      'Gera uma cobrança (Pix copia-e-cola ou link de cartão) para um agendamento do PRÓPRIO ' +
+      'cliente. Use SÓ depois de book_appointment ter dado certo e o cliente ter escolhido pagar ' +
+      'agora e o meio. Pagamento é OPCIONAL — nunca force. Se o resultado vier com ' +
+      '"needs_document": true, peça o CPF ao cliente e chame de novo passando-o em `document`.',
+    strict: true,
+    parameters: {
+      type: 'object',
+      properties: {
+        appointment_id: {
+          type: 'string',
+          description:
+            'ID do agendamento recém-criado (o `appointment_id` retornado por book_appointment).',
+        },
+        method: {
+          type: 'string',
+          enum: ['PIX', 'CREDIT_CARD'],
+          description: 'Meio escolhido pelo cliente: PIX (copia-e-cola) ou CREDIT_CARD (link).',
+        },
+        document: {
+          type: 'string',
+          description:
+            'CPF/CNPJ do cliente (só quando o passo anterior pediu via needs_document), ou "" se ' +
+            'já tivermos o documento salvo.',
+        },
+      },
+      required: ['appointment_id', 'method', 'document'],
       additionalProperties: false,
     },
   },
@@ -140,6 +174,26 @@ export async function executeTool(
       serviceId: String(args.service_id ?? ''),
       startsAtIso: String(args.starts_at ?? ''),
     });
+    return JSON.stringify(result);
+  }
+
+  if (name === 'create_payment') {
+    const method = String(args.method ?? '');
+    const result = await createPaymentForAppointment({
+      tenantId: ctx.tenantId,
+      contactId: ctx.contactId,
+      appointmentId: String(args.appointment_id ?? ''),
+      method: method === 'CREDIT_CARD' ? 'CREDIT_CARD' : 'PIX',
+      document: String(args.document ?? ''),
+    });
+    // Renomeia needsDocument → needs_document pra ficar no estilo dos outros payloads ao LLM.
+    if (!result.ok) {
+      return JSON.stringify({
+        ok: false,
+        reason: result.reason,
+        needs_document: result.needsDocument ?? false,
+      });
+    }
     return JSON.stringify(result);
   }
 

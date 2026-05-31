@@ -1,6 +1,7 @@
 import { Sentry } from './instrument.js';
 import Fastify from 'fastify';
 
+import { internalRoutes } from './routes/internal.js';
 import { webhookRoutes } from './routes/webhook.js';
 import { startHeartbeat } from './lib/heartbeat.js';
 import { startReminderLoop } from './lib/reminders.js';
@@ -12,6 +13,9 @@ Sentry.setupFastifyErrorHandler(app);
 // Webhook do WhatsApp precisa de raw body para validação de assinatura.
 // Registrado como plugin encapsulado para não afetar outras rotas.
 app.register(webhookRoutes);
+
+// Rotas internas (chamadas pelo apps/web, autenticadas por BOT_INTERNAL_TOKEN).
+app.register(internalRoutes);
 
 app.get('/health', async () => ({ status: 'ok' }));
 

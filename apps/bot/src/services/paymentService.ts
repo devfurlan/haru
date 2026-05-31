@@ -1,60 +1,65 @@
-'use server';
-
-import { type PaymentMethod, prisma } from '@haru/database';
+import { type PaymentMethod } from '@haru/database';
 import { getGatewayForTenant, GatewayNotImplementedError, PaymentConfigError } from '@haru/payments';
 
-import { isValidCpfCnpj, onlyDigits } from '@/lib/format';
+import { isValidCpfCnpj, onlyDigits } from '../lib/format.js';
+import prisma from '../lib/prisma.js';
+
+export interface CreatePaymentArgs {
+  tenantId: string;
+  contactId: string;
+  appointmentId: string;
+  method: 'PIX' | 'CREDIT_CARD';
+  /** CPF/CNPJ informado pelo cliente no chat (com ou sem máscara). Opcional se o Contact já tem. */
+  document?: string;
+}
 
 export type CreatePaymentResult =
-  | { error: string; needsDocument?: boolean }
   | {
       ok: true;
       method: PaymentMethod;
-      checkoutUrl: string | null;
-      pixQrCode: string | null;
+      amountCents: number;
       pixCopyPaste: string | null;
-    };
+      checkoutUrl: string | null;
+    }
+  | { ok: false; reason: string; needsDocument?: boolean };
 
 /**
- * Cria (ou reaproveita) uma cobrança para um agendamento, a partir da tela de sucesso
- * do agendamento público. Rota pública (cliente sem login): toda a confiança vem da
- * validação server-side — exigimos que o appointment exista, pertença ao tenant do
- * `slug`, esteja em status pagável e que o tenant tenha gateway configurado.
+ * Cria (ou reaproveita) uma cobrança para um agendamento, disparada pelo bot logo
+ * após `book_appointment`. Espelha `createPaymentForAppointment` de
+ * apps/web/src/app/[slug]/payments-actions.ts, mas:
+ *  - escopo por (tenantId, contactId) em vez do slug público;
+ *  - sem QR Code (o chat manda só o copia-e-cola + link de cartão);
+ *  - quando falta o CPF, devolve `needsDocument` pro LLM pedir ao cliente.
  *
- * O pagamento é OPCIONAL e NÃO altera o status do Appointment.
+ * Pagamento é OPCIONAL e NÃO altera o status do Appointment.
  */
 export async function createPaymentForAppointment(
-  slug: string,
-  appointmentId: string,
-  method: 'PIX' | 'CREDIT_CARD',
-  /** CPF/CNPJ do pagador (com ou sem máscara). O Asaas exige documento pra emitir Pix. */
-  document?: string,
+  args: CreatePaymentArgs,
 ): Promise<CreatePaymentResult> {
-  if (method !== 'PIX' && method !== 'CREDIT_CARD') {
-    return { error: 'Meio de pagamento inválido' };
+  if (args.method !== 'PIX' && args.method !== 'CREDIT_CARD') {
+    return { ok: false, reason: 'meio de pagamento inválido (use PIX ou CREDIT_CARD)' };
   }
 
-  const appointment = await prisma.appointment.findUnique({
-    where: { id: appointmentId },
+  const appointment = await prisma.appointment.findFirst({
+    where: { id: args.appointmentId, tenantId: args.tenantId, contactId: args.contactId },
     include: { tenant: true, service: true, contact: true },
   });
 
-  // Vincula ao slug público pra impedir enumerar appointments de outro tenant.
-  if (!appointment || appointment.tenant.slug !== slug) {
-    return { error: 'Agendamento não encontrado' };
+  if (!appointment) {
+    return { ok: false, reason: 'agendamento não encontrado ou não pertence a este cliente' };
   }
   if (appointment.status !== 'PENDING' && appointment.status !== 'CONFIRMED') {
-    return { error: 'Este agendamento não está disponível para pagamento' };
+    return { ok: false, reason: 'este agendamento não está disponível para pagamento' };
   }
   if (appointment.service.priceCents <= 0) {
-    return { error: 'Este serviço não tem cobrança' };
+    return { ok: false, reason: 'este serviço não tem cobrança' };
   }
   const { tenant } = appointment;
   if (!tenant.paymentProvider) {
-    return { error: 'Pagamento online indisponível no momento' };
+    return { ok: false, reason: 'pagamento online não está habilitado neste estabelecimento' };
   }
 
-  const wantedMethod: PaymentMethod = method;
+  const wantedMethod: PaymentMethod = args.method;
 
   // Idempotência: reaproveita uma cobrança PENDING ainda válida do mesmo método.
   const now = new Date();
@@ -71,24 +76,23 @@ export async function createPaymentForAppointment(
     return {
       ok: true,
       method: existing.method,
-      checkoutUrl: existing.checkoutUrl,
-      pixQrCode: existing.pixQrCode,
+      amountCents: existing.amountCents,
       pixCopyPaste: existing.pixCopyPaste,
+      checkoutUrl: existing.checkoutUrl,
     };
   }
 
-  // Documento do pagador: o Asaas recusa a cobrança sem CPF/CNPJ do cliente. Reusa o
-  // documento já salvo no contato; senão exige o do form. `needsDocument` sinaliza à UI
-  // pra abrir o campo de CPF em vez de só mostrar o erro genérico.
-  const documentDigits = document ? onlyDigits(document) : '';
+  // Documento do pagador: o Asaas recusa a cobrança sem CPF/CNPJ. Reusa o do contato;
+  // senão pede ao cliente (needsDocument sinaliza ao LLM pra pedir o CPF no chat).
+  const documentDigits = args.document ? onlyDigits(args.document) : '';
   const payerDocument = documentDigits || appointment.contact.document || '';
   if (!payerDocument) {
-    return { error: 'Pra gerar o pagamento, informe seu CPF.', needsDocument: true };
+    return { ok: false, reason: 'preciso do CPF do cliente pra gerar o pagamento', needsDocument: true };
   }
   if (!isValidCpfCnpj(payerDocument)) {
-    return { error: 'CPF inválido. Confira os números e tente de novo.', needsDocument: true };
+    return { ok: false, reason: 'CPF inválido — peça os números de novo', needsDocument: true };
   }
-  // Persiste no contato pra reuso em cobranças futuras (só quando veio um novo do form).
+  // Persiste no contato pra reuso (só quando veio um novo documento do chat).
   if (documentDigits && documentDigits !== appointment.contact.document) {
     await prisma.contact.update({
       where: { id: appointment.contact.id },
@@ -96,8 +100,8 @@ export async function createPaymentForAppointment(
     });
   }
 
-  // Cria o registro local primeiro: o id vira `externalReference` no gateway, que volta
-  // no webhook pra reconciliar.
+  // Cria o registro local primeiro: o id vira `externalReference` no gateway, que
+  // volta no webhook (recebido em apps/web) pra reconciliar.
   const payment =
     existing ??
     (await prisma.payment.create({
@@ -146,7 +150,6 @@ export async function createPaymentForAppointment(
         status:
           charge.status === 'PAID' ? 'PAID' : charge.status === 'FAILED' ? 'FAILED' : 'PENDING',
         paidAt: charge.status === 'PAID' ? new Date() : null,
-        // Garante o snapshot mesmo quando reaproveitamos um Payment PENDING sem externalId.
         payerDocument,
       },
     });
@@ -154,18 +157,18 @@ export async function createPaymentForAppointment(
     return {
       ok: true,
       method: updated.method,
-      checkoutUrl: updated.checkoutUrl,
-      pixQrCode: updated.pixQrCode,
+      amountCents: updated.amountCents,
       pixCopyPaste: updated.pixCopyPaste,
+      checkoutUrl: updated.checkoutUrl,
     };
   } catch (err) {
     if (err instanceof GatewayNotImplementedError) {
-      return { error: 'Este meio de pagamento ainda não está disponível.' };
+      return { ok: false, reason: 'este meio de pagamento ainda não está disponível' };
     }
     if (err instanceof PaymentConfigError) {
-      return { error: 'Pagamento online indisponível no momento' };
+      return { ok: false, reason: 'pagamento online indisponível no momento' };
     }
-    console.error('[payments] criar cobrança falhou', err);
-    return { error: 'Não foi possível gerar a cobrança. Tente novamente.' };
+    console.error('[payments] criar cobrança (bot) falhou', err);
+    return { ok: false, reason: 'não consegui gerar a cobrança agora, tente de novo' };
   }
 }

@@ -69,6 +69,9 @@ export function Features() {
             title="Conversa, agenda e resolve sozinho"
             items={[
               'Agendamento 100% conversacional, conduzido por IA que entende linguagem natural',
+              'Mostra o menu de serviços no chat, com preço e duração, pra escolher mais rápido',
+              'Cobra na própria conversa: Pix copia-e-cola ou link de cartão logo após agendar',
+              'Confirma o pagamento sozinho no chat assim que o valor cai',
               'O cliente cancela e remarca sozinho pelo chat, a qualquer hora',
               'Tira dúvidas de serviços, preços e horários automaticamente',
               'Entende áudios: transcreve a mensagem de voz e responde',
@@ -98,6 +101,7 @@ export function Features() {
               'Cadastro de serviços com nome, descrição, duração e preço',
               'Horários por dia da semana, inclusive expediente partido (08–12h e 14–18h)',
               'Agenda completa: crie e remarque agendamentos manualmente',
+              'Controle de presença: marque "atendido" ou "não compareceu" e acompanhe as faltas',
               'Caixa de conversas com o histórico de cada cliente, estilo WhatsApp',
               'Página pública /seunegocio com serviços, horários e botão "Agendar pelo WhatsApp"',
             ]}

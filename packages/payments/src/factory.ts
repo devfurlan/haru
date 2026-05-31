@@ -1,12 +1,12 @@
 import type { PaymentProvider } from '@haru/database';
 
-import { decryptSecret } from '@/lib/crypto';
+import { decryptSecret } from './crypto.js';
 
-import { AsaasGateway } from './asaas';
-import { MercadoPagoGateway } from './mercadopago';
-import { PagarmeGateway } from './pagarme';
-import { PagBankGateway } from './pagbank';
-import { type PaymentGateway, PaymentConfigError } from './types';
+import { AsaasGateway } from './asaas.js';
+import { MercadoPagoGateway } from './mercadopago.js';
+import { PagarmeGateway } from './pagarme.js';
+import { PagBankGateway } from './pagbank.js';
+import { type PaymentGateway, PaymentConfigError } from './types.js';
 
 /** Subconjunto do Tenant necessário pra resolver e configurar o gateway. */
 export interface TenantPaymentConfig {

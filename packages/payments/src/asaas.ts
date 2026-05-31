@@ -7,7 +7,7 @@ import {
   type ParseWebhookArgs,
   type PaymentGateway,
   PaymentConfigError,
-} from './types';
+} from './types.js';
 
 /**
  * Adapter real do Asaas (https://docs.asaas.com).

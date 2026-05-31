@@ -14,7 +14,15 @@ export interface BookAppointmentArgs {
 }
 
 export type BookAppointmentResult =
-  | { ok: true; appointmentId: string; summary: string }
+  | {
+      ok: true;
+      appointmentId: string;
+      summary: string;
+      /** Preço do serviço (centavos). 0 = sem cobrança. Pro LLM decidir se oferece pagamento. */
+      priceCents: number;
+      /** Se o estabelecimento aceita pagamento online (tenant.paymentProvider definido). */
+      paymentAvailable: boolean;
+    }
   | { ok: false; reason: string };
 
 export async function bookAppointment(
@@ -84,7 +92,7 @@ export async function bookAppointment(
 
   const tenant = await prisma.tenant.findUniqueOrThrow({
     where: { id: args.tenantId },
-    select: { timezone: true },
+    select: { timezone: true, paymentProvider: true },
   });
 
   const summary = `${service.name} · ${new Intl.DateTimeFormat('pt-BR', {
@@ -96,7 +104,13 @@ export async function bookAppointment(
     minute: '2-digit',
   }).format(startsAt)}`;
 
-  return { ok: true, appointmentId: appointment.id, summary };
+  return {
+    ok: true,
+    appointmentId: appointment.id,
+    summary,
+    priceCents: service.priceCents,
+    paymentAvailable: tenant.paymentProvider != null,
+  };
 }
 
 export interface CancelAppointmentArgs {

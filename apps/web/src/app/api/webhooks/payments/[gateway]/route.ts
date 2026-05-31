@@ -1,8 +1,7 @@
 import { type PaymentProvider, type PaymentStatus, prisma } from '@haru/database';
+import { getGatewayForTenant, webhookTokenForTenant, PaymentConfigError } from '@haru/payments';
 
-import { getGatewayForTenant, webhookTokenForTenant } from '@/lib/payments/factory';
-import { PaymentConfigError } from '@/lib/payments/types';
-import { notifyPaymentConfirmed } from '@/lib/notify';
+import { notifyCustomerPaymentConfirmed, notifyPaymentConfirmed } from '@/lib/notify';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -106,14 +105,24 @@ export async function POST(req: Request, { params }: { params: Promise<{ gateway
     });
 
     if (nextStatus === 'PAID') {
+      // Avisa o dono (webhook configurado) e o cliente (mensagem no WhatsApp via bot).
       notifyPaymentConfirmed(payment.id).catch((err) =>
-        console.error('[payments-webhook] notify falhou', err),
+        console.error('[payments-webhook] notify dono falhou', err),
+      );
+      notifyCustomerPaymentConfirmed(payment.id).catch((err) =>
+        console.error('[payments-webhook] notify cliente falhou', err),
       );
     }
 
     return new Response('OK', { status: 200 });
   } catch (err) {
     if (err instanceof PaymentConfigError) {
+      // 401 quase sempre = token do webhook configurado de um lado só (Demandae vs.
+      // painel do gateway) ou divergente. Loga o motivo (sem vazar o token) pra não
+      // ficar às cegas — só a mensagem do erro e o payment/tenant atingido.
+      console.warn(
+        `[payments-webhook] 401 ${provider} payment=${payment.id} tenant=${payment.tenantId}: ${err.message}`,
+      );
       return new Response('Unauthorized', { status: 401 });
     }
     console.error('[payments-webhook] erro', err);

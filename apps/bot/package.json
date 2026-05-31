@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@haru/database": "workspace:*",
+    "@haru/payments": "workspace:*",
     "@sentry/node": "^10.48.0",
     "@supabase/supabase-js": "^2.78.0",
     "@upstash/redis": "^1.34.3",

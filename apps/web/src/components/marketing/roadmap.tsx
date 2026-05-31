@@ -3,16 +3,8 @@ import { SectionHeading } from './section-heading';
 
 const road = [
   {
-    h: 'Pagamentos pelo WhatsApp',
-    p: 'Cliente paga ou deixa sinal direto na conversa, na hora de agendar.',
-  },
-  {
     h: 'Atendimento humano',
     p: 'Transferência da conversa pra você quando o cliente pedir um humano.',
-  },
-  {
-    h: 'Menu de serviços no chat',
-    p: 'Listagem dos serviços direto na conversa pra escolher mais rápido.',
   },
   {
     h: 'Anexos do cliente',
@@ -21,10 +13,6 @@ const road = [
   {
     h: 'Múltiplos profissionais',
     p: 'Agenda separada por profissional da equipe, cada um com seus horários.',
-  },
-  {
-    h: 'Controle de presença',
-    p: 'Marcar "concluído" e "não compareceu" pra acompanhar faltas de verdade.',
   },
 ];
 

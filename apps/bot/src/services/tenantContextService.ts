@@ -96,6 +96,11 @@ export async function buildTenantContext(
   lines.push(`Nome: ${tenant.name}`);
   lines.push(`Fuso horário: ${tenant.timezone}`);
   lines.push(`Data/hora atual: ${formatNowInTimezone(tenant.timezone)}`);
+  lines.push(
+    tenant.paymentProvider
+      ? 'Pagamento online: disponível (Pix e cartão pelo chat após o agendamento)'
+      : 'Pagamento online: indisponível (não ofereça pagamento)',
+  );
   lines.push('');
 
   lines.push('## Serviços disponíveis');
