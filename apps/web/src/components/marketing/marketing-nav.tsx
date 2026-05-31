@@ -28,11 +28,16 @@ export function MarketingNav() {
             </a>
           ))}
         </div>
-        <InterestDialog>
-          <Button variant="coral" className="h-11 rounded-full px-6">
-            Começar agora
+        <div className="flex items-center gap-2">
+          <Button asChild variant="ghost" className="h-11 rounded-full px-5 font-semibold">
+            <Link href="/login">Entrar</Link>
           </Button>
-        </InterestDialog>
+          <InterestDialog>
+            <Button variant="coral" className="h-11 rounded-full px-6">
+              Começar agora
+            </Button>
+          </InterestDialog>
+        </div>
       </Container>
     </nav>
   );

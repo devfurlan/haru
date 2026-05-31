@@ -26,14 +26,6 @@ export function FinalCta() {
               Conectar meu WhatsApp →
             </Button>
           </InterestDialog>
-          <Button
-            asChild
-            size="pill"
-            variant="outline"
-            className="border-cream/25 text-cream hover:border-cream/60 hover:bg-cream/10"
-          >
-            <a href="mailto:contato@demandae.com.br">Falar com a gente</a>
-          </Button>
         </div>
       </Container>
     </section>
