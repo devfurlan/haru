@@ -9,17 +9,17 @@ datasource db {
 // --- Domain models (esqueleto inicial — expandir conforme o produto evolui) ---
 
 model Tenant {
-  id        String   @id @default(cuid())
-  name      String
-  slug      String   @unique
+  id       String @id @default(cuid())
+  name     String
+  slug     String @unique
   /// Fuso usado pra interpretar horários do estabelecimento (ex: "America/Sao_Paulo").
-  timezone  String   @default("America/Sao_Paulo")
+  timezone String @default("America/Sao_Paulo")
 
   /// URL pública da logo do estabelecimento (bucket tenant-assets). Imagem
   /// quadrada padronizada — usada na página pública e no painel.
-  logoUrl   String?
+  logoUrl String?
   /// Endereço físico exibido pro cliente (texto livre, opcional).
-  address   String?
+  address String?
 
   /// Agendamento direto pela página pública (/[slug]). Quando false, a página só
   /// mostra serviços/horários e o botão de WhatsApp (sem formulário de booking).
@@ -41,10 +41,10 @@ model Tenant {
   /// URL opcional para POST quando agendamentos são criados/cancelados. Aceita
   /// webhooks de Discord, Slack, Zapier, n8n, etc. Para Discord: o body inclui
   /// um campo `content` com o resumo formatado.
-  notificationWebhookUrl String?
+  notificationWebhookUrl     String?
   /// Horas antes do horário marcado para o bot enviar lembrete via WhatsApp.
   /// 0 = lembretes desativados.
-  reminderHoursBefore    Int     @default(24)
+  reminderHoursBefore        Int     @default(24)
   /// Templates aprovados na Meta. Quando definidos, mensagens são enviadas via
   /// template em vez de freeform — escapam da regra das 24h. Todos esperam
   /// 3 variáveis no body: {{1}}=nome do cliente, {{2}}=data/hora formatada,
@@ -66,7 +66,7 @@ model Tenant {
   /// na página pública). Só a credencial do provider ativo é usada.
   paymentProvider PaymentProvider?
   /// Quando true, usa as URLs de sandbox do gateway (testes). false = produção.
-  paymentSandbox  Boolean         @default(false)
+  paymentSandbox  Boolean          @default(false)
 
   /// Credenciais criptografadas at rest (AES-256-GCM, formato "iv:tag:ct" em base64).
   /// Um campo por gateway — só o do provider ativo é preenchido por vez.
@@ -91,26 +91,26 @@ model Tenant {
 }
 
 model User {
-  id        String   @id @default(cuid())
+  id          String     @id @default(cuid())
   // Vinculado ao auth.users do Supabase
-  authId    String   @unique
-  email     String   @unique
-  name      String?
+  authId      String     @unique
+  email       String     @unique
+  name        String?
   /// Telefone E.164 sem máscara (ex.: "5511914092346"). Destino do convite por
   /// WhatsApp. Opcional — OWNER criado no signup não tem telefone.
-  phone     String?
-  role      UserRole @default(OWNER)
+  phone       String?
+  role        UserRole   @default(OWNER)
   /// Ciclo de vida do acesso. Membro convidado nasce INVITED (sem senha) e vira
   /// ACTIVE quando define a senha pela tela de ativação.
-  status    UserStatus @default(ACTIVE)
+  status      UserStatus @default(ACTIVE)
   /// Quando o convite foi enviado (membros INVITED). Null pra quem nasceu ACTIVE.
   invitedAt   DateTime?
   /// Quando o usuário ativou a conta (definiu a senha).
   activatedAt DateTime?
-  tenantId  String
-  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  tenantId    String
+  tenant      Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
 
   conversationReads ConversationRead[]
 }
@@ -139,7 +139,7 @@ model Service {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  appointments    Appointment[]
+  appointments Appointment[]
 }
 
 /// Janela de atendimento de um Tenant em um dia da semana. Múltiplos blocos no
@@ -161,19 +161,22 @@ model ScheduleBlock {
 }
 
 model Contact {
-  id          String   @id @default(cuid())
-  tenantId    String
-  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  phone       String
-  name        String?
-  email       String?
+  id                 String    @id @default(cuid())
+  tenantId           String
+  tenant             Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  phone              String
+  name               String?
+  email              String?
+  /// CPF/CNPJ do cliente, só dígitos (ex.: "12345678909"). Coletado no pagamento
+  /// (o Asaas exige documento do pagador pra emitir Pix) e reusado em cobranças futuras.
+  document           String?
   /// Data de nascimento. Guardada como meia-noite UTC; a parte de hora é ignorada.
-  birthDate   DateTime?
+  birthDate          DateTime?
   /// Marca quando o cliente confirmou o cadastro básico via bot. null = ainda não.
   /// É o sinal usado pelo gate de agendamento (NÃO confiar em `name`, que o profile do WhatsApp autopreenche).
   profileCompletedAt DateTime?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
   conversations Conversation[]
   appointments  Appointment[]
@@ -268,11 +271,11 @@ enum PublicBookingConfirmation {
 /// a PENDING mais recente não expirada. Pagamento é opcional e NÃO altera o status do
 /// Appointment — confirmação de agenda e de pagamento são independentes.
 model Payment {
-  id            String          @id @default(cuid())
+  id            String      @id @default(cuid())
   tenantId      String
-  tenant        Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant        Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   appointmentId String
-  appointment   Appointment     @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  appointment   Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
 
   provider PaymentProvider
   method   PaymentMethod   @default(UNDEFINED)
@@ -281,6 +284,10 @@ model Payment {
   /// Snapshot do Service.priceCents no momento da cobrança — o preço do serviço pode
   /// mudar depois; a cobrança preserva o valor cobrado de fato.
   amountCents Int
+
+  /// CPF/CNPJ do pagador (só dígitos) enviado ao gateway nesta cobrança. Snapshot —
+  /// o `Contact.document` pode mudar; aqui fica o documento usado de fato na charge.
+  payerDocument String?
 
   /// ID da cobrança no gateway (ex.: Asaas "pay_xxx"). Único por provider.
   externalId   String?

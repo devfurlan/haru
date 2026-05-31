@@ -32,7 +32,13 @@ import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { type AvailableSlot } from '@/lib/availability';
 import { buildBookingDays, isoDateInTz, labelFromIso, type BookingDay } from '@/lib/booking-days';
-import { formatBRL, formatDuration, formatPhoneBR } from '@/lib/format';
+import {
+  formatBRL,
+  formatDuration,
+  formatPhoneBR,
+  isValidCpfCnpj,
+  maskCpfCnpjInput,
+} from '@/lib/format';
 
 import {
   createPublicBooking,
@@ -896,14 +902,36 @@ function PaymentBlock({ slug, appointmentId }: { slug: string; appointmentId: st
   const [pix, setPix] = useState<{ qrCode: string | null; copyPaste: string | null } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  // CPF do pagador: só aparece quando o servidor pede (`needsDocument`). Cliente
+  // recorrente com documento já salvo paga sem nunca ver o campo.
+  const [document, setDocument] = useState('');
+  const [askDocument, setAskDocument] = useState(false);
+  const documentRef = useRef<HTMLInputElement>(null);
+
+  // Foca o campo de CPF assim que ele aparece (após o servidor pedir o documento).
+  useEffect(() => {
+    if (askDocument) documentRef.current?.focus();
+  }, [askDocument]);
 
   function pay(method: 'PIX' | 'CREDIT_CARD') {
     if (paying) return;
+    // Se já estamos pedindo o CPF, valida localmente antes de ir ao servidor.
+    if (askDocument && !isValidCpfCnpj(document)) {
+      setError('CPF inválido. Confira os números e tente de novo.');
+      documentRef.current?.focus();
+      return;
+    }
     setError(null);
     startPaying(async () => {
-      const result = await createPaymentForAppointment(slug, appointmentId, method);
+      const result = await createPaymentForAppointment(
+        slug,
+        appointmentId,
+        method,
+        document || undefined,
+      );
       if ('error' in result) {
         setError(result.error);
+        if (result.needsDocument) setAskDocument(true);
         return;
       }
       if (method === 'PIX') {
@@ -924,6 +952,28 @@ function PaymentBlock({ slug, appointmentId }: { slug: string; appointmentId: st
           Opcional — você pode pagar agora ou no dia do atendimento.
         </p>
       </div>
+
+      {/* Campo de CPF: surge quando o gateway exige documento do pagador. */}
+      {askDocument && !pix ? (
+        <div className="space-y-1.5">
+          <Label htmlFor="payment-document">CPF</Label>
+          <Input
+            id="payment-document"
+            ref={documentRef}
+            name="payment-document"
+            type="text"
+            inputMode="numeric"
+            placeholder="000.000.000-00"
+            value={maskCpfCnpjInput(document)}
+            onChange={(e) => setDocument(e.target.value.replace(/\D/g, '').slice(0, 14))}
+            aria-invalid={document.length > 0 && !isValidCpfCnpj(document)}
+            aria-describedby="payment-document-hint"
+          />
+          <p id="payment-document-hint" className="text-muted-foreground text-xs">
+            Necessário para gerar o pagamento.
+          </p>
+        </div>
+      ) : null}
 
       {pix ? (
         <div className="space-y-3">

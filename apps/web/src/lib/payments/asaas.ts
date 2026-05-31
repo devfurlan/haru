@@ -83,6 +83,7 @@ export class AsaasGateway implements PaymentGateway {
       method: 'POST',
       body: JSON.stringify({
         name: input.customer.name,
+        cpfCnpj: input.customer.cpfCnpj ?? undefined,
         mobilePhone: toNationalPhone(input.customer.phoneE164),
         email: input.customer.email ?? undefined,
         externalReference: input.externalReference,
@@ -154,7 +155,11 @@ export class AsaasGateway implements PaymentGateway {
 
     const status = mapAsaasEvent(body.event);
     const paidAt =
-      status === 'PAID' ? (body.payment?.paymentDate ? new Date(body.payment.paymentDate) : new Date()) : null;
+      status === 'PAID'
+        ? body.payment?.paymentDate
+          ? new Date(body.payment.paymentDate)
+          : new Date()
+        : null;
 
     return { externalId, status, paidAt };
   }
@@ -162,7 +167,8 @@ export class AsaasGateway implements PaymentGateway {
 
 /** Status de cobrança do Asaas → status simplificado do `createCharge`. */
 function mapAsaasPaymentStatus(status: string): 'PENDING' | 'PAID' | 'FAILED' {
-  if (status === 'RECEIVED' || status === 'CONFIRMED' || status === 'RECEIVED_IN_CASH') return 'PAID';
+  if (status === 'RECEIVED' || status === 'CONFIRMED' || status === 'RECEIVED_IN_CASH')
+    return 'PAID';
   if (status === 'REFUNDED' || status === 'CHARGEBACK_REQUESTED') return 'FAILED';
   return 'PENDING';
 }

@@ -2,11 +2,12 @@
 
 import { type PaymentMethod, prisma } from '@haru/database';
 
+import { isValidCpfCnpj, onlyDigits } from '@/lib/format';
 import { getGatewayForTenant } from '@/lib/payments/factory';
 import { GatewayNotImplementedError, PaymentConfigError } from '@/lib/payments/types';
 
 export type CreatePaymentResult =
-  | { error: string }
+  | { error: string; needsDocument?: boolean }
   | {
       ok: true;
       method: PaymentMethod;
@@ -27,6 +28,8 @@ export async function createPaymentForAppointment(
   slug: string,
   appointmentId: string,
   method: 'PIX' | 'CREDIT_CARD',
+  /** CPF/CNPJ do pagador (com ou sem máscara). O Asaas exige documento pra emitir Pix. */
+  document?: string,
 ): Promise<CreatePaymentResult> {
   if (method !== 'PIX' && method !== 'CREDIT_CARD') {
     return { error: 'Meio de pagamento inválido' };
@@ -75,6 +78,25 @@ export async function createPaymentForAppointment(
     };
   }
 
+  // Documento do pagador: o Asaas recusa a cobrança sem CPF/CNPJ do cliente. Reusa o
+  // documento já salvo no contato; senão exige o do form. `needsDocument` sinaliza à UI
+  // pra abrir o campo de CPF em vez de só mostrar o erro genérico.
+  const documentDigits = document ? onlyDigits(document) : '';
+  const payerDocument = documentDigits || appointment.contact.document || '';
+  if (!payerDocument) {
+    return { error: 'Pra gerar o pagamento, informe seu CPF.', needsDocument: true };
+  }
+  if (!isValidCpfCnpj(payerDocument)) {
+    return { error: 'CPF inválido. Confira os números e tente de novo.', needsDocument: true };
+  }
+  // Persiste no contato pra reuso em cobranças futuras (só quando veio um novo do form).
+  if (documentDigits && documentDigits !== appointment.contact.document) {
+    await prisma.contact.update({
+      where: { id: appointment.contact.id },
+      data: { document: documentDigits },
+    });
+  }
+
   // Cria o registro local primeiro: o id vira `externalReference` no gateway, que volta
   // no webhook pra reconciliar.
   const payment =
@@ -87,6 +109,7 @@ export async function createPaymentForAppointment(
         method: wantedMethod,
         status: 'PENDING',
         amountCents: appointment.service.priceCents,
+        payerDocument,
       },
     }));
 
@@ -109,6 +132,7 @@ export async function createPaymentForAppointment(
         name: appointment.contact.name ?? 'Cliente',
         phoneE164: appointment.contact.phone,
         email: appointment.contact.email,
+        cpfCnpj: payerDocument,
       },
     });
 
@@ -120,8 +144,11 @@ export async function createPaymentForAppointment(
         pixQrCode: charge.pixQrCode,
         pixCopyPaste: charge.pixCopyPaste,
         expiresAt: charge.expiresAt,
-        status: charge.status === 'PAID' ? 'PAID' : charge.status === 'FAILED' ? 'FAILED' : 'PENDING',
+        status:
+          charge.status === 'PAID' ? 'PAID' : charge.status === 'FAILED' ? 'FAILED' : 'PENDING',
         paidAt: charge.status === 'PAID' ? new Date() : null,
+        // Garante o snapshot mesmo quando reaproveitamos um Payment PENDING sem externalId.
+        payerDocument,
       },
     });
 

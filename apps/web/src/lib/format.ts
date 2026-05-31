@@ -78,6 +78,66 @@ export function maskPhoneBRInput(raw: string): string {
   return `(${ddd}) ${rest.slice(0, split)}-${rest.slice(split)}`;
 }
 
+// Só os dígitos de um CPF/CNPJ (ex.: "123.456.789-09" -> "12345678909"). Formato
+// canônico pra guardar no banco e enviar ao gateway.
+export function onlyDigits(raw: string): string {
+  return raw.replace(/\D/g, '');
+}
+
+// Mascara progressivamente o que o usuário digita num input de CPF/CNPJ:
+// até 11 dígitos formata como CPF ("123.456.789-09"); acima, como CNPJ
+// ("12.345.678/0001-90"). Não valida — só formata o que tem.
+export function maskCpfCnpjInput(raw: string): string {
+  const digits = onlyDigits(raw).slice(0, 14);
+  if (digits.length <= 11) {
+    return digits
+      .replace(/^(\d{3})(\d)/, '$1.$2')
+      .replace(/^(\d{3})\.(\d{3})(\d)/, '$1.$2.$3')
+      .replace(/^(\d{3})\.(\d{3})\.(\d{3})(\d)/, '$1.$2.$3-$4');
+  }
+  return digits
+    .replace(/^(\d{2})(\d)/, '$1.$2')
+    .replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3')
+    .replace(/^(\d{2})\.(\d{3})\.(\d{3})(\d)/, '$1.$2.$3/$4')
+    .replace(/^(\d{2})\.(\d{3})\.(\d{3})\/(\d{4})(\d)/, '$1.$2.$3/$4-$5');
+}
+
+// Valida CPF (11 díg) pelos dígitos verificadores. Recusa sequências repetidas
+// ("111.111.111-11") que passariam no cálculo mas são inválidas.
+function isValidCpf(digits: string): boolean {
+  if (digits.length !== 11 || /^(\d)\1{10}$/.test(digits)) return false;
+  const calc = (len: number) => {
+    let sum = 0;
+    for (let i = 0; i < len; i++) sum += Number(digits[i]) * (len + 1 - i);
+    const mod = (sum * 10) % 11;
+    return mod === 10 ? 0 : mod;
+  };
+  return calc(9) === Number(digits[9]) && calc(10) === Number(digits[10]);
+}
+
+// Valida CNPJ (14 díg) pelos dígitos verificadores. Recusa sequências repetidas.
+function isValidCnpj(digits: string): boolean {
+  if (digits.length !== 14 || /^(\d)\1{13}$/.test(digits)) return false;
+  const calc = (len: number) => {
+    const weights =
+      len === 12 ? [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2] : [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+    let sum = 0;
+    for (let i = 0; i < len; i++) sum += Number(digits[i]) * weights[i];
+    const mod = sum % 11;
+    return mod < 2 ? 0 : 11 - mod;
+  };
+  return calc(12) === Number(digits[12]) && calc(13) === Number(digits[13]);
+}
+
+// Valida um CPF (11 díg) ou CNPJ (14 díg) a partir de qualquer entrada (com ou
+// sem máscara). É a checagem usada antes de mandar o documento ao gateway.
+export function isValidCpfCnpj(raw: string): boolean {
+  const digits = onlyDigits(raw);
+  if (digits.length === 11) return isValidCpf(digits);
+  if (digits.length === 14) return isValidCnpj(digits);
+  return false;
+}
+
 // Formata uma data sem hora (ex.: data de nascimento). A data é guardada como
 // meia-noite UTC; usamos timeZone 'UTC' pra não recuar um dia no fuso local.
 export function formatDateOnly(date: Date): string {

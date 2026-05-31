@@ -16,7 +16,8 @@ export interface CreateChargeInput {
   method: ChargeMethod;
   /** Nosso `Payment.id` — volta no webhook como externalReference pra reconciliar. */
   externalReference: string;
-  customer: { name: string; phoneE164: string; email?: string | null };
+  /** `cpfCnpj`: só dígitos. O Asaas exige documento do pagador pra emitir Pix. */
+  customer: { name: string; phoneE164: string; email?: string | null; cpfCnpj?: string | null };
   /** Vencimento da cobrança. Default do adapter: hoje + 1 dia. */
   dueDate?: Date;
 }
