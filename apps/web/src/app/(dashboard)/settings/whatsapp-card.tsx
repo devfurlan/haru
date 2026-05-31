@@ -4,6 +4,7 @@ import { CheckCircle2, ChevronDown, Copy, XCircle } from 'lucide-react';
 import { useActionState, useState, useTransition } from 'react';
 import { useFormStatus } from 'react-dom';
 
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -32,7 +33,7 @@ function CopyField({ value }: { value: string }) {
   const [copied, setCopied] = useState(false);
   return (
     <div className="flex items-center gap-2">
-      <code className="flex-1 break-all rounded bg-muted px-2 py-1 text-xs">{value}</code>
+      <code className="bg-muted flex-1 break-all rounded px-2 py-1 text-xs">{value}</code>
       <Button
         type="button"
         variant="outline"
@@ -55,7 +56,7 @@ function CopyField({ value }: { value: string }) {
 function MetaGuide() {
   const [open, setOpen] = useState(false);
   return (
-    <div className="rounded-lg border bg-muted/30">
+    <div className="bg-muted/30 rounded-lg border">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -89,7 +90,7 @@ function MetaGuide() {
               <div className="mt-1.5">
                 <CopyField value={BOT_WEBHOOK_URL} />
               </div>
-              <p className="mt-1.5 text-muted-foreground">
+              <p className="text-muted-foreground mt-1.5">
                 No campo <strong>Verify token</strong>, use o token que você definiu (ou peça ao
                 suporte do Demandaê). Clique em <strong>Verificar e salvar</strong>.
               </p>
@@ -143,15 +144,15 @@ export function WhatsappCard({
         <div className="flex items-center justify-between gap-2">
           <CardTitle>WhatsApp Business</CardTitle>
           {connected ? (
-            <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800 dark:bg-green-950/50 dark:text-green-300">
+            <Badge variant="success" className="px-2.5">
               <CheckCircle2 className="h-3.5 w-3.5" />
               Conectado
-            </span>
+            </Badge>
           ) : (
-            <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-950/50 dark:text-amber-300">
+            <Badge variant="pending" className="px-2.5">
               <XCircle className="h-3.5 w-3.5" />
               Não conectado
-            </span>
+            </Badge>
           )}
         </div>
         <CardDescription>
@@ -206,9 +207,9 @@ export function WhatsappCard({
                   placeholder="123456789012345"
                   required
                 />
-                <p className="text-xs text-muted-foreground">
-                  É um número longo (15+ dígitos), <strong>não</strong> é o telefone do WhatsApp.
-                  Na Meta: WhatsApp → Configuração da API, logo abaixo do número selecionado.
+                <p className="text-muted-foreground text-xs">
+                  É um número longo (15+ dígitos), <strong>não</strong> é o telefone do WhatsApp. Na
+                  Meta: WhatsApp → Configuração da API, logo abaixo do número selecionado.
                 </p>
               </div>
 
@@ -221,7 +222,7 @@ export function WhatsappCard({
                   placeholder="EAAB…"
                   required
                 />
-                <p className="text-xs text-muted-foreground">
+                <p className="text-muted-foreground text-xs">
                   É o que autoriza o bot a enviar mensagens pelo seu número. Começa com{' '}
                   <code>EAA</code>. Para testar, use o token temporário (24h) que aparece em
                   Configuração da API. Em produção, gere um token permanente de um System User com a
@@ -239,7 +240,7 @@ export function WhatsappCard({
                   defaultValue={businessAccountId ?? ''}
                   placeholder="123456789012345"
                 />
-                <p className="text-xs text-muted-foreground">
+                <p className="text-muted-foreground text-xs">
                   É o ID da <strong>conta WhatsApp Business</strong>, que agrupa os seus números.{' '}
                   <strong>Não confunda</strong> com o ID do Aplicativo (App ID) nem com o
                   phone_number_id. Na Meta: WhatsApp → Configuração da API, no topo, campo{' '}
@@ -256,7 +257,7 @@ export function WhatsappCard({
                   defaultValue={displayPhone ?? ''}
                   placeholder="5511987654321"
                 />
-                <p className="text-xs text-muted-foreground">
+                <p className="text-muted-foreground text-xs">
                   O número que aparece para os clientes, usado no link <code>wa.me/...</code> da sua
                   página pública. Só dígitos, com DDI e DDD, sem +, espaços ou parênteses (ex.:
                   5519936195726).
@@ -264,7 +265,7 @@ export function WhatsappCard({
               </div>
 
               {state && 'error' in state && (
-                <p className="text-sm text-destructive">{state.error}</p>
+                <p className="text-destructive text-sm">{state.error}</p>
               )}
 
               <div className="flex gap-2">

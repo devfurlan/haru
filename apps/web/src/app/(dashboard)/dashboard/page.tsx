@@ -54,16 +54,16 @@ export default async function DashboardPage() {
     <div className="mx-auto max-w-4xl space-y-6">
       <div>
         <h1 className="font-serif text-2xl font-semibold tracking-tight">Olá, {tenant.name}</h1>
-        <p className="text-sm text-muted-foreground">Visão rápida do seu estabelecimento.</p>
+        <p className="text-muted-foreground text-sm">Visão rápida do seu estabelecimento.</p>
       </div>
 
       {!whatsappConnected && (
         <Link href="/settings" className="block">
-          <div className="flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 p-4 text-amber-900 transition-colors hover:bg-amber-100 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-100 dark:hover:bg-amber-950/60">
+          <div className="flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 p-4 text-amber-900 transition-colors hover:bg-amber-100">
             <MessageCircleWarning className="mt-0.5 h-5 w-5 shrink-0" />
             <div className="text-sm">
               <p className="font-semibold">Seu WhatsApp ainda não está conectado</p>
-              <p className="text-amber-800 dark:text-amber-200/80">
+              <p className="text-amber-800">
                 Enquanto não conectar, o bot não recebe nem responde mensagens dos seus clientes.
                 Clique aqui para configurar em Configurações.
               </p>
@@ -90,20 +90,20 @@ export default async function DashboardPage() {
           <CardTitle className="text-base">Próximos 7 dias</CardTitle>
           <Link
             href="/appointments"
-            className="text-xs text-muted-foreground underline-offset-4 hover:underline"
+            className="text-muted-foreground text-xs underline-offset-4 hover:underline"
           >
             Ver todos
           </Link>
         </CardHeader>
         <CardContent>
           {upcoming.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Nenhum agendamento próximo.</p>
+            <p className="text-muted-foreground text-sm">Nenhum agendamento próximo.</p>
           ) : (
             <ul className="divide-y">
               {upcoming.map((appt) => (
                 <li key={appt.id} className="flex items-center justify-between py-2 text-sm">
                   <span className="font-medium">{formatWhen(appt.startsAt, tenant.timezone)}</span>
-                  <span className="flex-1 px-3 text-muted-foreground">
+                  <span className="text-muted-foreground flex-1 px-3">
                     {appt.service.name} · {appt.contact.name ?? formatPhoneBR(appt.contact.phone)}
                   </span>
                 </li>
@@ -116,24 +116,14 @@ export default async function DashboardPage() {
   );
 }
 
-function StatCard({
-  icon,
-  label,
-  value,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-}) {
+function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
     <Card>
       <CardContent className="flex items-center gap-4 p-6">
-        <div className="flex h-10 w-10 items-center justify-center rounded-md bg-muted">
-          {icon}
-        </div>
+        <div className="bg-muted flex h-10 w-10 items-center justify-center rounded-md">{icon}</div>
         <div>
           <div className="text-2xl font-bold">{value}</div>
-          <div className="text-xs text-muted-foreground">{label}</div>
+          <div className="text-muted-foreground text-xs">{label}</div>
         </div>
       </CardContent>
     </Card>

@@ -6,6 +6,7 @@ import { useFormStatus } from 'react-dom';
 
 import type { PaymentProvider } from '@haru/database';
 
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -117,8 +118,8 @@ function AsaasGuide({ webhookUrl }: { webhookUrl: string }) {
                   Asaas
                 </a>
                 : <strong>Configurações → Integrações → Chave de API</strong>. Copie a chave (começa
-                com <code>$aact_</code>) e cole no campo abaixo. Para testar, use uma conta sandbox e
-                marque <strong>Modo de testes</strong>.
+                com <code>$aact_</code>) e cole no campo abaixo. Para testar, use uma conta sandbox
+                e marque <strong>Modo de testes</strong>.
               </p>
             </li>
             <li>
@@ -170,15 +171,15 @@ export function PaymentsCard({
         <div className="flex items-center justify-between gap-2">
           <CardTitle>Pagamentos</CardTitle>
           {connected ? (
-            <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800 dark:bg-green-950/50 dark:text-green-300">
+            <Badge variant="success" className="px-2.5">
               <CheckCircle2 className="h-3.5 w-3.5" />
               Conectado
-            </span>
+            </Badge>
           ) : (
-            <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-950/50 dark:text-amber-300">
+            <Badge variant="pending" className="px-2.5">
               <XCircle className="h-3.5 w-3.5" />
               Não conectado
-            </span>
+            </Badge>
           )}
         </div>
         <CardDescription>
@@ -229,7 +230,7 @@ export function PaymentsCard({
                   name="provider"
                   value={selectedProvider}
                   onChange={(e) => setSelectedProvider(e.target.value as PaymentProvider)}
-                  className="border-input bg-background ring-offset-background focus-visible:ring-ring flex h-9 w-full rounded-md border px-3 py-1 text-sm focus-visible:ring-2 focus-visible:outline-none"
+                  className="border-input bg-background ring-offset-background focus-visible:ring-ring flex h-9 w-full rounded-md border px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-2"
                 >
                   {(Object.keys(PROVIDERS) as PaymentProvider[]).map((key) => (
                     <option key={key} value={key}>
@@ -239,7 +240,7 @@ export function PaymentsCard({
                   ))}
                 </select>
                 {!meta.ready && (
-                  <p className="text-xs text-amber-700 dark:text-amber-400">
+                  <p className="text-xs text-amber-700">
                     {meta.label} ainda não está disponível para cobranças — por enquanto, use o
                     Asaas. Você pode salvar a credencial, mas o botão de pagar mostrará um aviso.
                   </p>

@@ -12,8 +12,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const { tenant, email, name } = user;
 
   return (
-    <div className="flex min-h-screen">
-      <aside className="bg-muted/30 hidden w-64 shrink-0 flex-col border-r md:flex">
+    <div className="flex h-screen">
+      <aside className="bg-muted/30 hidden h-screen w-64 shrink-0 flex-col border-r md:flex">
         <div className="border-b px-4 py-4">
           <Link href="/" aria-label="Demandaê" className="mb-3 block">
             <Logo pulse size="sm" />
