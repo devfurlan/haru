@@ -11,6 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -43,25 +44,17 @@ interface UsersCardProps {
 
 function RoleBadge({ role }: { role: UserRow['role'] }) {
   return role === 'OWNER' ? (
-    <span className="inline-flex items-center rounded-full bg-violet-100 px-2 py-0.5 text-xs font-medium text-violet-800 dark:bg-violet-950/50 dark:text-violet-300">
-      Administrador
-    </span>
+    <Badge variant="admin">Administrador</Badge>
   ) : (
-    <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700 dark:bg-slate-800 dark:text-slate-300">
-      Equipe
-    </span>
+    <Badge variant="neutral">Equipe</Badge>
   );
 }
 
 function StatusBadge({ status }: { status: UserRow['status'] }) {
   return status === 'ACTIVE' ? (
-    <span className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300">
-      Ativo
-    </span>
+    <Badge variant="success">Ativo</Badge>
   ) : (
-    <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-950/50 dark:text-amber-300">
-      Convite pendente
-    </span>
+    <Badge variant="pending">Convite pendente</Badge>
   );
 }
 
@@ -88,13 +81,7 @@ function CopyLink({ url }: { url: string }) {
 // Input de telefone que aplica a máscara BR enquanto o usuário digita. Mantém o
 // estado de exibição internamente; envia o valor mascarado pelo `name` (o server
 // action normaliza pra E.164 via normalizePhoneBR).
-function PhoneInput({
-  id,
-  defaultValue = '',
-}: {
-  id: string;
-  defaultValue?: string;
-}) {
+function PhoneInput({ id, defaultValue = '' }: { id: string; defaultValue?: string }) {
   const [value, setValue] = useState(() => maskPhoneBRInput(defaultValue));
   return (
     <Input
@@ -154,7 +141,7 @@ function InviteDialog({ open, onClose }: { open: boolean; onClose: () => void })
             </p>
             {!state.sent && (
               <div className="space-y-2">
-                <code className="block break-all rounded bg-muted px-2 py-1 text-xs">
+                <code className="bg-muted block break-all rounded px-2 py-1 text-xs">
                   {state.activationUrl}
                 </code>
                 <CopyLink url={state.activationUrl} />
@@ -179,16 +166,14 @@ function InviteDialog({ open, onClose }: { open: boolean; onClose: () => void })
                 placeholder="colaborador@email.com"
                 required
               />
-              <p className="text-xs text-muted-foreground">Será o login dele no painel.</p>
+              <p className="text-muted-foreground text-xs">Será o login dele no painel.</p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="invite-phone">WhatsApp</Label>
               <PhoneInput id="invite-phone" />
-              <p className="text-xs text-muted-foreground">Para onde o convite será enviado.</p>
+              <p className="text-muted-foreground text-xs">Para onde o convite será enviado.</p>
             </div>
-            {state && 'error' in state && (
-              <p className="text-sm text-destructive">{state.error}</p>
-            )}
+            {state && 'error' in state && <p className="text-destructive text-sm">{state.error}</p>}
             <SubmitButton label="Enviar convite" />
           </form>
         )}
@@ -245,18 +230,18 @@ function EditDialog({
               name="role"
               defaultValue={user.role}
               disabled={isSelf}
-              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm disabled:cursor-not-allowed disabled:opacity-50"
+              className="border-input flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-sm disabled:cursor-not-allowed disabled:opacity-50"
             >
               <option value="OWNER">Administrador</option>
               <option value="STAFF">Equipe</option>
             </select>
             {isSelf && (
-              <p className="text-xs text-muted-foreground">
+              <p className="text-muted-foreground text-xs">
                 Você não pode alterar o seu próprio papel.
               </p>
             )}
           </div>
-          {state && 'error' in state && <p className="text-sm text-destructive">{state.error}</p>}
+          {state && 'error' in state && <p className="text-destructive text-sm">{state.error}</p>}
           <SubmitButton label="Salvar" />
         </form>
       </DialogContent>
@@ -266,7 +251,15 @@ function EditDialog({
 
 // --- Ações por linha (excluir / reenviar) ----------------------------------
 
-function RowActions({ user, isSelf, onEdit }: { user: UserRow; isSelf: boolean; onEdit: () => void }) {
+function RowActions({
+  user,
+  isSelf,
+  onEdit,
+}: {
+  user: UserRow;
+  isSelf: boolean;
+  onEdit: () => void;
+}) {
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -289,7 +282,10 @@ function RowActions({ user, isSelf, onEdit }: { user: UserRow; isSelf: boolean; 
       resendInvite(user.id).then((r: ResendInviteActionResult) => {
         if ('error' in r) setError(r.error);
         else if (!r.sent) {
-          window.prompt('Não foi possível enviar pelo WhatsApp. Copie o link de ativação:', r.activationUrl);
+          window.prompt(
+            'Não foi possível enviar pelo WhatsApp. Copie o link de ativação:',
+            r.activationUrl,
+          );
         } else {
           window.alert('Convite reenviado pelo WhatsApp.');
         }
@@ -313,10 +309,10 @@ function RowActions({ user, isSelf, onEdit }: { user: UserRow; isSelf: boolean; 
       {open && (
         <>
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 z-20 mt-1 w-44 overflow-hidden rounded-md border bg-background py-1 text-sm shadow-md">
+          <div className="bg-background absolute right-0 z-20 mt-1 w-44 overflow-hidden rounded-md border py-1 text-sm shadow-md">
             <button
               type="button"
-              className="block w-full px-3 py-1.5 text-left hover:bg-accent"
+              className="hover:bg-accent block w-full px-3 py-1.5 text-left"
               onClick={() => {
                 setOpen(false);
                 onEdit();
@@ -327,7 +323,7 @@ function RowActions({ user, isSelf, onEdit }: { user: UserRow; isSelf: boolean; 
             {user.status === 'INVITED' && (
               <button
                 type="button"
-                className="block w-full px-3 py-1.5 text-left hover:bg-accent"
+                className="hover:bg-accent block w-full px-3 py-1.5 text-left"
                 onClick={handleResend}
               >
                 Reenviar convite
@@ -336,7 +332,7 @@ function RowActions({ user, isSelf, onEdit }: { user: UserRow; isSelf: boolean; 
             {!isSelf && (
               <button
                 type="button"
-                className="block w-full px-3 py-1.5 text-left text-destructive hover:bg-accent"
+                className="text-destructive hover:bg-accent block w-full px-3 py-1.5 text-left"
                 onClick={() => {
                   setOpen(false);
                   handleDelete();
@@ -348,7 +344,9 @@ function RowActions({ user, isSelf, onEdit }: { user: UserRow; isSelf: boolean; 
           </div>
         </>
       )}
-      {error && <p className="absolute right-0 mt-1 w-48 text-right text-xs text-destructive">{error}</p>}
+      {error && (
+        <p className="text-destructive absolute right-0 mt-1 w-48 text-right text-xs">{error}</p>
+      )}
     </div>
   );
 }
@@ -367,8 +365,8 @@ export function UsersCard({ users, currentUserId }: UsersCardProps) {
           </Button>
         </div>
         <CardDescription>
-          Quem tem acesso ao painel. Administradores acessam tudo, inclusive estas configurações;
-          a equipe acessa o dia a dia (agendamentos, conversas, clientes).
+          Quem tem acesso ao painel. Administradores acessam tudo, inclusive estas configurações; a
+          equipe acessa o dia a dia (agendamentos, conversas, clientes).
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -380,11 +378,11 @@ export function UsersCard({ users, currentUserId }: UsersCardProps) {
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="truncate text-sm font-medium">{u.name ?? u.email}</span>
-                    {isSelf && <span className="text-xs text-muted-foreground">(você)</span>}
+                    {isSelf && <span className="text-muted-foreground text-xs">(você)</span>}
                   </div>
-                  <div className="truncate text-xs text-muted-foreground">{u.email}</div>
+                  <div className="text-muted-foreground truncate text-xs">{u.email}</div>
                   {u.phone && (
-                    <div className="text-xs text-muted-foreground">{formatPhoneBR(u.phone)}</div>
+                    <div className="text-muted-foreground text-xs">{formatPhoneBR(u.phone)}</div>
                   )}
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
