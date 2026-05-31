@@ -136,6 +136,21 @@ function AsaasGuide({ webhookUrl }: { webhookUrl: string }) {
                 pagamentos.
               </p>
             </li>
+            <li>
+              <p className="font-medium">3. Selecione os eventos de Cobranças</p>
+              <p className="text-muted-foreground">
+                Na seção <strong>Adicionar Eventos</strong> do mesmo webhook, abra{' '}
+                <strong>Cobranças</strong> e clique em <strong>Selecionar Todos</strong>. É essa
+                categoria que avisa quando uma cobrança é{' '}
+                <strong>confirmada, recebida, vencida, estornada ou removida</strong> — sem ela, o
+                pagamento nunca é confirmado aqui. As outras categorias (Notas fiscais,
+                Transferências etc.) podem ficar desmarcadas.
+              </p>
+              <p className="text-muted-foreground mt-1.5">
+                Mantenha <strong>&quot;Este Webhook ficará ativo?&quot;</strong> ligado e clique em{' '}
+                <strong>Salvar</strong>.
+              </p>
+            </li>
           </ol>
         </div>
       )}
