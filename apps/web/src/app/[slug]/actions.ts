@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { type AppointmentStatus, prisma } from '@haru/database';
 
 import { type AvailableSlot, computeAvailableSlots, localWallTimeToUtc } from '@/lib/availability';
+import { BOOKING_HORIZON_DAYS, isoDateInTz } from '@/lib/booking-days';
 import { normalizePhoneBR } from '@/lib/format';
 import { notifyAppointmentCreated } from '@/lib/notify';
 
@@ -48,8 +49,14 @@ export async function getAvailableSlots(
   const tenant = await loadPublicTenant(slug);
   if (!tenant || !tenant.publicBookingEnabled) return [];
 
-  // Não oferece dias passados.
+  // Janela permitida: nem no passado, nem além do horizonte de agendamento. Este é
+  // o gate de verdade (o client só sugere datas; aqui não confiamos no que veio).
   if (dateStr < todayInTz(tenant.timezone)) return [];
+  const maxDate = isoDateInTz(
+    new Date(Date.now() + (BOOKING_HORIZON_DAYS - 1) * 86_400_000),
+    tenant.timezone,
+  );
+  if (dateStr > maxDate) return [];
 
   const service = tenant.services.find((s) => s.id === serviceId && s.active);
   if (!service) return [];

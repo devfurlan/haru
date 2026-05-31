@@ -31,7 +31,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { type AvailableSlot } from '@/lib/availability';
-import { buildBookingDays, type BookingDay } from '@/lib/booking-days';
+import { buildBookingDays, isoDateInTz, labelFromIso, type BookingDay } from '@/lib/booking-days';
 import { formatBRL, formatDuration, formatPhoneBR } from '@/lib/format';
 
 import {
@@ -580,6 +580,7 @@ function MonthCalendar({
 
 function StepDiaHora({
   days,
+  timezone,
   minDate,
   maxDate,
   openWeekdays,
@@ -594,6 +595,8 @@ function StepDiaHora({
   headingRef,
 }: {
   days: BookingDay[];
+  /** Fuso do tenant — pra rotular um dia escolhido pelo date-picker. */
+  timezone: string;
   /** Primeiro dia selecionável no calendário ("YYYY-MM-DD", fuso do tenant). */
   minDate: string;
   /** Último dia selecionável no calendário ("YYYY-MM-DD", fuso do tenant). */
@@ -624,7 +627,7 @@ function StepDiaHora({
   const selectedDay = days.find((d) => d.value === selectedDate) ?? null;
   const railDays =
     selectedDate && !selectedDay
-      ? [...days, { value: selectedDate, label: labelFromIso(selectedDate) }]
+      ? [...days, { value: selectedDate, label: labelFromIso(selectedDate, timezone) }]
       : days;
 
   return (
@@ -655,14 +658,15 @@ function StepDiaHora({
 
       {/* Faixa horizontal rolável de chips de dia. */}
       <div
+        ref={railRef}
         className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-2"
         role="radiogroup"
         aria-label="Escolha o dia"
       >
-        {days.length === 0 ? (
+        {railDays.length === 0 ? (
           <p className="text-muted-foreground px-1 text-sm">Nenhuma data disponível.</p>
         ) : (
-          days.map((day) => {
+          railDays.map((day) => {
             const { weekday, date } = splitDayLabel(day.label);
             const isSelected = day.value === selectedDate;
             return (
@@ -670,6 +674,7 @@ function StepDiaHora({
                 key={day.value}
                 type="button"
                 role="radio"
+                data-day={day.value}
                 aria-checked={isSelected}
                 aria-current={isSelected ? 'date' : undefined}
                 aria-label={day.label}
@@ -876,9 +881,7 @@ function SuccessScreen({
         {summary}
       </p>
 
-      {paymentAvailable ? (
-        <PaymentBlock slug={slug} appointmentId={appointmentId} />
-      ) : null}
+      {paymentAvailable ? <PaymentBlock slug={slug} appointmentId={appointmentId} /> : null}
     </div>
   );
 }
@@ -1003,8 +1006,28 @@ function PaymentBlock({ slug, appointmentId }: { slug: string; appointmentId: st
 // Componente raiz — máquina de estados
 // ---------------------------------------------------------------------------
 
-export function PublicBooking({ slug, services, days }: PublicBookingProps) {
+export function PublicBooking({
+  slug,
+  services,
+  timezone,
+  openWeekdays,
+  horizonDays,
+}: PublicBookingProps) {
   const [step, setStep] = useState<Step>(0);
+
+  // Dias atendíveis (carrossel) + janela do date-picker, gerados no fuso do tenant.
+  // openWeekdays nunca muda, então memoiza o Set; os dias só dependem dele e do
+  // horizonte. min/max são "hoje" e "hoje + horizonte" no fuso do tenant.
+  const openWeekdaysSet = useMemo(() => new Set(openWeekdays), [openWeekdays]);
+  const days = useMemo(
+    () => buildBookingDays(timezone, openWeekdaysSet, horizonDays),
+    [timezone, openWeekdaysSet, horizonDays],
+  );
+  const minDate = useMemo(() => isoDateInTz(new Date(), timezone), [timezone]);
+  const maxDate = useMemo(
+    () => isoDateInTz(new Date(Date.now() + (horizonDays - 1) * 86_400_000), timezone),
+    [timezone, horizonDays],
+  );
 
   // Passo 0 / 1 — serviço escolhido
   const [serviceId, setServiceId] = useState('');
@@ -1049,7 +1072,12 @@ export function PublicBooking({ slug, services, days }: PublicBookingProps) {
     () => services.find((s) => s.id === serviceId) ?? null,
     [services, serviceId],
   );
-  const selectedDay = useMemo(() => days.find((d) => d.value === dateStr) ?? null, [days, dateStr]);
+  // Rótulo do dia escolhido pro resumo. Usa o do carrossel quando existe; senão
+  // (dia vindo do date-picker, fora dos chips) rotula a data ISO no fuso do tenant.
+  const selectedDayLabel = useMemo(() => {
+    if (!dateStr) return '';
+    return days.find((d) => d.value === dateStr)?.label ?? labelFromIso(dateStr, timezone);
+  }, [days, dateStr, timezone]);
   const selectedSlot = useMemo(
     () => slots.find((s) => s.startsAtIso === selectedSlotIso) ?? null,
     [slots, selectedSlotIso],
@@ -1193,6 +1221,10 @@ export function PublicBooking({ slug, services, days }: PublicBookingProps) {
       {step === 2 ? (
         <StepDiaHora
           days={days}
+          timezone={timezone}
+          minDate={minDate}
+          maxDate={maxDate}
+          openWeekdays={openWeekdays}
           selectedDate={dateStr}
           onSelectDate={handleSelectDate}
           slots={slots}
@@ -1209,7 +1241,7 @@ export function PublicBooking({ slug, services, days }: PublicBookingProps) {
         <StepResumo
           slug={slug}
           service={selectedService}
-          dayLabel={selectedDay?.label ?? ''}
+          dayLabel={selectedDayLabel}
           slot={selectedSlot}
           name={effectiveName}
           phone={phone}

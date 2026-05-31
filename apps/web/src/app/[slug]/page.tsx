@@ -6,51 +6,12 @@ import { formatBRL, formatDuration, minutesToHHMM } from '@/lib/format';
 
 import { Button } from '@/components/ui/button';
 
+import { BOOKING_HORIZON_DAYS, buildBookingDays } from '@/lib/booking-days';
+
 import { loadPublicTenant } from './_tenant';
 import { PublicBooking } from './public-booking';
 
 const WEEKDAY_NAMES = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
-
-// Quantos dias adiante oferecer no agendamento online (só os com expediente entram).
-const BOOKING_HORIZON_DAYS = 14;
-
-/**
- * Próximos dias (a partir de hoje, no fuso do tenant) que têm ao menos um
- * ScheduleBlock no weekday, rotulados "sáb., 30/05". Calculado no servidor pra
- * usar o fuso do tenant — nunca o do browser do cliente.
- */
-function buildBookingDays(
-  timezone: string,
-  blocks: { weekday: number }[],
-): { value: string; label: string }[] {
-  const openWeekdays = new Set(blocks.map((b) => b.weekday));
-  if (openWeekdays.size === 0) return [];
-
-  const isoFmt = new Intl.DateTimeFormat('en-CA', {
-    timeZone: timezone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  });
-  const labelFmt = new Intl.DateTimeFormat('pt-BR', {
-    timeZone: timezone,
-    weekday: 'short',
-    day: '2-digit',
-    month: '2-digit',
-  });
-  const weekdayFmt = new Intl.DateTimeFormat('en-US', { timeZone: timezone, weekday: 'short' });
-  const WD: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
-
-  const days: { value: string; label: string }[] = [];
-  const now = Date.now();
-  for (let i = 0; i < BOOKING_HORIZON_DAYS; i++) {
-    const date = new Date(now + i * 24 * 60 * 60 * 1000);
-    const weekday = WD[weekdayFmt.format(date).slice(0, 3)] ?? 0;
-    if (!openWeekdays.has(weekday)) continue;
-    days.push({ value: isoFmt.format(date), label: labelFmt.format(date) });
-  }
-  return days;
-}
 
 export async function generateMetadata({
   params,
@@ -84,10 +45,12 @@ export default async function TenantPublicPage({ params }: { params: Promise<{ s
     : null;
 
   // Agendamento online: só mostra se ligado, com serviços e pelo menos um dia
-  // com expediente nos próximos dias.
-  const bookingDays = buildBookingDays(tenant.timezone, tenant.scheduleBlocks);
-  const showBooking =
-    tenant.publicBookingEnabled && tenant.services.length > 0 && bookingDays.length > 0;
+  // com expediente nos próximos dias. A lista de dias em si é gerada no client
+  // (carrossel + date-picker) a partir do fuso + dias-da-semana com expediente;
+  // aqui só precisamos saber se EXISTE algum dia atendível no horizonte.
+  const openWeekdays = [...new Set(tenant.scheduleBlocks.map((b) => b.weekday))];
+  const hasBookableDay = buildBookingDays(tenant.timezone, new Set(openWeekdays)).length > 0;
+  const showBooking = tenant.publicBookingEnabled && tenant.services.length > 0 && hasBookableDay;
 
   return (
     <main className="bg-muted/20 min-h-screen">
@@ -109,15 +72,15 @@ export default async function TenantPublicPage({ params }: { params: Promise<{ s
               durationMinutes: s.durationMinutes,
               priceCents: s.priceCents,
             }))}
-            days={bookingDays}
+            timezone={tenant.timezone}
+            openWeekdays={openWeekdays}
+            horizonDays={BOOKING_HORIZON_DAYS}
           />
         )}
 
         {waLink && (
           <div className="flex flex-col items-center gap-2">
-            {showBooking && (
-              <p className="text-muted-foreground text-xs">Prefere conversar?</p>
-            )}
+            {showBooking && <p className="text-muted-foreground text-xs">Prefere conversar?</p>}
             <Button asChild variant={showBooking ? 'outline' : 'coral'} size="pill">
               <a href={waLink} target="_blank" rel="noopener noreferrer">
                 <MessageCircle className="h-5 w-5" />
