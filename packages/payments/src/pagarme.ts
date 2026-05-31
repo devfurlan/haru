@@ -5,7 +5,7 @@ import {
   type ParseWebhookArgs,
   type PaymentGateway,
   GatewayNotImplementedError,
-} from './types.js';
+} from './types';
 
 /**
  * Stub do Pagar.me — estrutura/UI prontas, cobrança ainda não implementada.

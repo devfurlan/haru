@@ -268,17 +268,24 @@ export function PaymentsCard({
                   id="credential"
                   name="credential"
                   type="password"
-                  placeholder={meta.placeholder}
-                  required
+                  placeholder={connected ? 'Deixe em branco para manter a atual' : meta.placeholder}
+                  // Na edição, em branco mantém a credencial salva; só é obrigatória ao conectar.
+                  required={!connected}
                 />
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="webhookToken">Token do webhook — opcional, recomendado</Label>
-                <Input id="webhookToken" name="webhookToken" type="password" placeholder="••••••" />
+                <Input
+                  id="webhookToken"
+                  name="webhookToken"
+                  type="password"
+                  placeholder={connected ? 'Deixe em branco para manter o atual' : '••••••'}
+                />
                 <p className="text-muted-foreground text-xs">
                   Mesmo valor configurado no painel do gateway. Validamos esse token no recebimento
                   da confirmação de pagamento.
+                  {connected ? ' Em branco mantém o token já salvo.' : ''}
                 </p>
               </div>
 

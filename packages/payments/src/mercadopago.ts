@@ -5,7 +5,7 @@ import {
   type ParseWebhookArgs,
   type PaymentGateway,
   GatewayNotImplementedError,
-} from './types.js';
+} from './types';
 
 /**
  * Stub do Mercado Pago — estrutura/UI prontas, mas a cobrança ainda não está

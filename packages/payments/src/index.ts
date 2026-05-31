@@ -9,13 +9,9 @@
  * (web e bot) — o mesmo valor nos dois.
  */
 
-export {
-  getGatewayForTenant,
-  webhookTokenForTenant,
-  type TenantPaymentConfig,
-} from './factory.js';
+export { getGatewayForTenant, webhookTokenForTenant, type TenantPaymentConfig } from './factory';
 
-export { encryptSecret, decryptSecret, isEncrypted } from './crypto.js';
+export { encryptSecret, decryptSecret, isEncrypted } from './crypto';
 
 export {
   type ChargeMethod,
@@ -26,4 +22,4 @@ export {
   type PaymentGateway,
   GatewayNotImplementedError,
   PaymentConfigError,
-} from './types.js';
+} from './types';
