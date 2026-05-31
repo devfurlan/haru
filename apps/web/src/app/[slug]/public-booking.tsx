@@ -4,7 +4,9 @@ import {
   AlertTriangle,
   ArrowLeft,
   CalendarCheck,
+  CalendarDays,
   CheckCircle2,
+  ChevronLeft,
   ChevronRight,
   Clock,
   Copy,
@@ -18,10 +20,18 @@ import { useActionState, useEffect, useMemo, useRef, useState, useTransition } f
 import { useFormStatus } from 'react-dom';
 
 import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { type AvailableSlot } from '@/lib/availability';
+import { buildBookingDays, type BookingDay } from '@/lib/booking-days';
 import { formatBRL, formatDuration, formatPhoneBR } from '@/lib/format';
 
 import {
@@ -41,17 +51,15 @@ interface ServiceOption {
   priceCents: number;
 }
 
-interface DayOption {
-  /** "YYYY-MM-DD" no fuso do tenant. */
-  value: string;
-  /** Ex.: "sáb., 30/05". */
-  label: string;
-}
-
 interface PublicBookingProps {
   slug: string;
   services: ServiceOption[];
-  days: DayOption[];
+  /** Fuso do tenant — toda conta de data sai dele, nunca do browser. */
+  timezone: string;
+  /** Dias-da-semana com expediente (0=domingo … 6=sábado). */
+  openWeekdays: number[];
+  /** Até quantos dias adiante o agendamento é oferecido. */
+  horizonDays: number;
 }
 
 /**
@@ -382,11 +390,199 @@ function StepContato({
 }
 
 // ---------------------------------------------------------------------------
+// Date-picker de mês (acessível por qualquer dia futuro dentro do horizonte)
+// ---------------------------------------------------------------------------
+
+const MONTH_NAMES = [
+  'Janeiro',
+  'Fevereiro',
+  'Março',
+  'Abril',
+  'Maio',
+  'Junho',
+  'Julho',
+  'Agosto',
+  'Setembro',
+  'Outubro',
+  'Novembro',
+  'Dezembro',
+];
+// Cabeçalho da grade começando no domingo (igual Date#getUTCDay()).
+const WEEKDAY_INITIALS = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];
+
+/** Pad de 2 dígitos sem locale. */
+function pad2(n: number): string {
+  return n < 10 ? `0${n}` : String(n);
+}
+
+/** "YYYY-MM-DD" de um trio civil (sem fuso — comparação pura de calendário). */
+function ymd(year: number, month0: number, day: number): string {
+  return `${year}-${pad2(month0 + 1)}-${pad2(day)}`;
+}
+
+/**
+ * Calendário de mês num Dialog. Permite pular pra qualquer dia dentro da janela
+ * [minDate, maxDate] que tenha expediente (`openWeekdays`). Tudo é comparação de
+ * string "YYYY-MM-DD" — as datas-limite já vêm calculadas no fuso do tenant, então
+ * o calendário nunca precisa do fuso do browser.
+ */
+function MonthCalendar({
+  minDate,
+  maxDate,
+  openWeekdays,
+  selectedDate,
+  onSelect,
+}: {
+  /** Primeiro dia selecionável, "YYYY-MM-DD" (hoje no fuso do tenant). */
+  minDate: string;
+  /** Último dia selecionável, "YYYY-MM-DD" (hoje + horizonte). */
+  maxDate: string;
+  openWeekdays: number[];
+  selectedDate: string;
+  onSelect: (value: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const openSet = useMemo(() => new Set(openWeekdays), [openWeekdays]);
+
+  // Mês exibido (0-based). Começa no mês da data selecionada (ou do mínimo).
+  const [view, setView] = useState(() => {
+    const [y, m] = (selectedDate || minDate).split('-').map(Number);
+    return { year: y, month: m - 1 };
+  });
+
+  // Ao (re)abrir, reposiciona o mês na seleção atual — sem prender o usuário no
+  // mês onde ele estava navegando da última vez.
+  useEffect(() => {
+    if (open) {
+      const [y, m] = (selectedDate || minDate).split('-').map(Number);
+      setView({ year: y, month: m - 1 });
+    }
+  }, [open, selectedDate, minDate]);
+
+  // Limites de navegação: não vira pra antes do mês de hoje nem depois do teto.
+  const minYM = minDate.slice(0, 7);
+  const maxYM = maxDate.slice(0, 7);
+  const viewYM = `${view.year}-${pad2(view.month + 1)}`;
+  const canPrev = viewYM > minYM;
+  const canNext = viewYM < maxYM;
+
+  function shiftMonth(delta: number) {
+    setView((v) => {
+      let y = v.year;
+      let m = v.month + delta;
+      if (m < 0) {
+        m = 11;
+        y -= 1;
+      } else if (m > 11) {
+        m = 0;
+        y += 1;
+      }
+      return { year: y, month: m };
+    });
+  }
+
+  // Grade do mês: usa UTC só pra contar dias/posição — nenhuma conversão de fuso.
+  const firstWeekday = new Date(Date.UTC(view.year, view.month, 1)).getUTCDay(); // 0=dom
+  const daysInMonth = new Date(Date.UTC(view.year, view.month + 1, 0)).getUTCDate();
+  const cells: (number | null)[] = [];
+  for (let i = 0; i < firstWeekday; i++) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          aria-label="Abrir calendário"
+          title="Escolher outra data"
+        >
+          <CalendarDays className="h-4 w-4" />
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-xs gap-4">
+        <DialogHeader>
+          <DialogTitle className="text-xl">Escolha o dia</DialogTitle>
+        </DialogHeader>
+
+        <div className="flex items-center justify-between">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            disabled={!canPrev}
+            aria-label="Mês anterior"
+            onClick={() => shiftMonth(-1)}
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <span className="font-medium">
+            {MONTH_NAMES[view.month]} {view.year}
+          </span>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            disabled={!canNext}
+            aria-label="Próximo mês"
+            onClick={() => shiftMonth(1)}
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+
+        <div className="grid grid-cols-7 gap-1 text-center">
+          {WEEKDAY_INITIALS.map((w, i) => (
+            <span key={i} className="text-muted-foreground py-1 text-xs font-medium">
+              {w}
+            </span>
+          ))}
+          {cells.map((day, i) => {
+            if (day === null) return <span key={`empty-${i}`} />;
+            const value = ymd(view.year, view.month, day);
+            const weekday = new Date(Date.UTC(view.year, view.month, day)).getUTCDay();
+            const disabled = value < minDate || value > maxDate || !openSet.has(weekday);
+            const isSelected = value === selectedDate;
+            return (
+              <button
+                key={value}
+                type="button"
+                disabled={disabled}
+                aria-label={value}
+                aria-current={isSelected ? 'date' : undefined}
+                onClick={() => {
+                  onSelect(value);
+                  setOpen(false);
+                }}
+                className={
+                  'focus-visible:ring-ring flex aspect-square items-center justify-center rounded-md text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 ' +
+                  (isSelected
+                    ? 'bg-coral font-semibold text-white'
+                    : disabled
+                      ? 'text-muted-foreground/40 cursor-not-allowed'
+                      : 'hover:bg-coral/10 text-foreground')
+                }
+              >
+                {day}
+              </button>
+            );
+          })}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Passo 2 — Dia / Hora
 // ---------------------------------------------------------------------------
 
 function StepDiaHora({
   days,
+  minDate,
+  maxDate,
+  openWeekdays,
   selectedDate,
   onSelectDate,
   slots,
@@ -397,7 +593,12 @@ function StepDiaHora({
   onBack,
   headingRef,
 }: {
-  days: DayOption[];
+  days: BookingDay[];
+  /** Primeiro dia selecionável no calendário ("YYYY-MM-DD", fuso do tenant). */
+  minDate: string;
+  /** Último dia selecionável no calendário ("YYYY-MM-DD", fuso do tenant). */
+  maxDate: string;
+  openWeekdays: number[];
   selectedDate: string;
   onSelectDate: (value: string) => void;
   slots: AvailableSlot[];
@@ -409,9 +610,37 @@ function StepDiaHora({
   onBack: () => void;
   headingRef: React.RefObject<HTMLHeadingElement | null>;
 }) {
+  // Rola o carrossel até o chip escolhido (ex.: quando vem do date-picker).
+  const railRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!selectedDate || !railRef.current) return;
+    const chip = railRef.current.querySelector<HTMLElement>(`[data-day="${selectedDate}"]`);
+    chip?.scrollIntoView({ inline: 'center', block: 'nearest' });
+  }, [selectedDate]);
+
+  // Dia escolhido pelo calendário pode cair fora do carrossel (sábado distante,
+  // p.ex.). Nesse caso anexamos um chip-resumo no fim pra não ficar "selecionado
+  // mas invisível" — `buildBookingDays` só inclui os dias da janela contínua.
+  const selectedDay = days.find((d) => d.value === selectedDate) ?? null;
+  const railDays =
+    selectedDate && !selectedDay
+      ? [...days, { value: selectedDate, label: labelFromIso(selectedDate) }]
+      : days;
+
   return (
     <div className="space-y-6">
-      <StepHeader title={STEP_TITLES[2]} onBack={onBack} headingRef={headingRef} />
+      <div className="flex items-start justify-between gap-3">
+        <StepHeader title={STEP_TITLES[2]} onBack={onBack} headingRef={headingRef} />
+        <div className="shrink-0 pt-7">
+          <MonthCalendar
+            minDate={minDate}
+            maxDate={maxDate}
+            openWeekdays={openWeekdays}
+            selectedDate={selectedDate}
+            onSelect={onSelectDate}
+          />
+        </div>
+      </div>
 
       {/* Aviso quando o usuário foi trazido de volta por expiração de horário. */}
       {notice ? (
@@ -628,7 +857,7 @@ function SuccessScreen({
     <div className="space-y-5 text-center">
       <div className="flex justify-center">
         {confirmed ? (
-          <CheckCircle2 className="text-coral h-12 w-12" aria-hidden="true" />
+          <CheckCircle2 className="text-green h-12 w-12" aria-hidden="true" />
         ) : (
           <PartyPopper className="text-coral h-12 w-12" aria-hidden="true" />
         )}
