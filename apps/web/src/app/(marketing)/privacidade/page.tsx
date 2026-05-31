@@ -2,9 +2,9 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 
 export const metadata: Metadata = {
-  title: 'Política de Privacidade — haru',
+  title: 'Política de Privacidade — Demandaê',
   description:
-    'Como a haru coleta, usa, compartilha e protege dados pessoais na plataforma de agendamento e pagamentos pelo WhatsApp.',
+    'Como o Demandaê coleta, usa, compartilha e protege dados pessoais na plataforma de agendamento e pagamentos pelo WhatsApp.',
 };
 
 const LAST_UPDATED = '28 de maio de 2026';
@@ -18,7 +18,7 @@ export default function PrivacyPolicyPage() {
       <div className="mt-8 space-y-8 text-sm leading-relaxed text-foreground">
         <section className="space-y-3">
           <p>
-            Esta Política de Privacidade descreve como a haru (&ldquo;haru&rdquo;,
+            Esta Política de Privacidade descreve como o Demandaê (&ldquo;Demandaê&rdquo;,
             &ldquo;nós&rdquo;) coleta, utiliza, compartilha e protege dados pessoais ao oferecer uma
             plataforma de agendamento e pagamentos por meio do WhatsApp para negócios de serviço
             (barbearias, clínicas, podólogas e similares).

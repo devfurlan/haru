@@ -2,9 +2,9 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 
 export const metadata: Metadata = {
-  title: 'Termos de Serviço — haru',
+  title: 'Termos de Serviço — Demandaê',
   description:
-    'Termos e condições de uso da haru, plataforma de agendamento e pagamentos pelo WhatsApp para negócios de serviço.',
+    'Termos e condições de uso do Demandaê, plataforma de agendamento e pagamentos pelo WhatsApp para negócios de serviço.',
 };
 
 const LAST_UPDATED = '28 de maio de 2026';
@@ -18,15 +18,15 @@ export default function TermsOfServicePage() {
       <div className="mt-8 space-y-8 text-sm leading-relaxed text-foreground">
         <section className="space-y-3">
           <p>
-            Estes Termos de Serviço (&ldquo;Termos&rdquo;) regem o uso da haru
+            Estes Termos de Serviço (&ldquo;Termos&rdquo;) regem o uso do Demandaê
             (&ldquo;plataforma&rdquo;, &ldquo;serviço&rdquo;), operada por{' '}
             <strong>Cuidly Tecnologia Ltda</strong>, inscrita no CNPJ sob nº{' '}
             <strong>63.813.138/0001-20</strong>, com sede na Alameda Rio Negro, 503, Sala 2020,
             Alphaville Centro Industrial e Empresarial, Barueri/SP, CEP 06454-000
-            (&ldquo;haru&rdquo;, &ldquo;nós&rdquo;).
+            (&ldquo;Demandaê&rdquo;, &ldquo;nós&rdquo;).
           </p>
           <p>
-            A haru oferece uma plataforma de agendamento e pagamentos por meio do WhatsApp para
+            O Demandaê oferece uma plataforma de agendamento e pagamentos por meio do WhatsApp para
             negócios de serviço. Ao criar uma conta ou utilizar a plataforma, você
             (&ldquo;Contratante&rdquo;, &ldquo;você&rdquo;) declara ter lido, compreendido e
             concordado com estes Termos.
@@ -48,7 +48,7 @@ export default function TermsOfServicePage() {
         <section className="space-y-3">
           <h2 className="text-xl font-semibold">2. Descrição do serviço</h2>
           <p>
-            A haru disponibiliza ferramentas para gerenciamento de agendamentos, atendimento
+            O Demandaê disponibiliza ferramentas para gerenciamento de agendamentos, atendimento
             automatizado de clientes pelo WhatsApp (inclusive com uso de inteligência artificial),
             envio de notificações e processamento de pagamentos. Os recursos disponíveis podem
             variar conforme o plano contratado e podem ser alterados, ampliados ou descontinuados ao
@@ -93,7 +93,7 @@ export default function TermsOfServicePage() {
           <ul className="list-disc space-y-2 pl-6">
             <li>
               Você é responsável pelos dados dos seus clientes finais inseridos ou processados na
-              plataforma e atua como controlador desses dados, sendo a haru operadora, nos termos da
+              plataforma e atua como controlador desses dados, sendo o Demandaê operador, nos termos da
               LGPD.
             </li>
             <li>
@@ -149,8 +149,8 @@ export default function TermsOfServicePage() {
         <section className="space-y-3">
           <h2 className="text-xl font-semibold">8. Propriedade intelectual</h2>
           <p>
-            A plataforma, incluindo software, marca, layout e demais elementos, é de titularidade da
-            haru e protegida pela legislação aplicável. Estes Termos não transferem qualquer direito
+            A plataforma, incluindo software, marca, layout e demais elementos, é de titularidade do
+            Demandaê e protegida pela legislação aplicável. Estes Termos não transferem qualquer direito
             de propriedade intelectual a você, concedendo apenas uma licença limitada, não exclusiva
             e revogável de uso do serviço enquanto vigente o contrato. O conteúdo e os dados que você
             insere permanecem de sua titularidade.
@@ -185,7 +185,7 @@ export default function TermsOfServicePage() {
         <section className="space-y-3">
           <h2 className="text-xl font-semibold">11. Limitação de responsabilidade</h2>
           <p>
-            Na máxima extensão permitida pela lei, a haru não se responsabiliza por danos indiretos,
+            Na máxima extensão permitida pela lei, o Demandaê não se responsabiliza por danos indiretos,
             lucros cessantes, perda de dados ou prejuízos decorrentes de indisponibilidade do
             serviço, de serviços de terceiros ou do uso indevido da plataforma. Não garantimos
             resultados específicos de negócio decorrentes do uso da plataforma.

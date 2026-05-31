@@ -2,9 +2,9 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 
 export const metadata: Metadata = {
-  title: 'Política de Cookies — haru',
+  title: 'Política de Cookies — Demandaê',
   description:
-    'O que são cookies, quais a haru utiliza e como você pode gerenciá-los na plataforma de agendamento e pagamentos pelo WhatsApp.',
+    'O que são cookies, quais o Demandaê utiliza e como você pode gerenciá-los na plataforma de agendamento e pagamentos pelo WhatsApp.',
 };
 
 const LAST_UPDATED = '28 de maio de 2026';
@@ -18,7 +18,7 @@ export default function CookiePolicyPage() {
       <div className="mt-8 space-y-8 text-sm leading-relaxed text-foreground">
         <section className="space-y-3">
           <p>
-            Esta Política de Cookies explica o que são cookies, como a haru (&ldquo;haru&rdquo;,
+            Esta Política de Cookies explica o que são cookies, como o Demandaê (&ldquo;Demandaê&rdquo;,
             &ldquo;nós&rdquo;) os utiliza e quais opções você tem para gerenciá-los. Ela complementa
             a nossa{' '}
             <Link href="/privacidade" className="font-medium underline underline-offset-4">
