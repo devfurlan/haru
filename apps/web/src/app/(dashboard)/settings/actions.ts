@@ -6,20 +6,26 @@ import { z } from 'zod';
 
 import { prisma } from '@haru/database';
 
-import { requireUserAndTenant } from '@/lib/auth';
+import { requireAdmin, requireUserAndTenant } from '@/lib/auth';
+import { getBaseUrl } from '@/lib/base-url';
 import { createClient } from '@/lib/supabase/server';
+import { getSupabaseAdmin } from '@/lib/supabase/admin';
+import { sendInviteWhatsapp } from '@/lib/whatsapp-invite';
 
 // Slugs reservados — não podem ser usados como slug de tenant (conflitam com
 // rotas conhecidas em apps/web).
 const RESERVED_SLUGS = new Set([
   'login',
   'signup',
+  'ativar',
   'dashboard',
   'appointments',
   'conversations',
   'schedule',
   'services',
   'settings',
+  'account',
+  'business',
   'blog',
   'api',
   'admin',
@@ -264,7 +270,7 @@ export async function connectWhatsapp(
   _prev: WhatsappActionResult | undefined,
   formData: FormData,
 ): Promise<WhatsappActionResult> {
-  const { tenant } = await requireUserAndTenant();
+  const { tenant } = await requireAdmin();
 
   const parsed = whatsappSchema.safeParse({
     phoneNumberId: formData.get('phoneNumberId'),
@@ -298,7 +304,7 @@ export async function connectWhatsapp(
 }
 
 export async function disconnectWhatsapp(): Promise<WhatsappActionResult> {
-  const { tenant } = await requireUserAndTenant();
+  const { tenant } = await requireAdmin();
 
   await prisma.tenant.update({
     where: { id: tenant.id },
@@ -376,7 +382,7 @@ export async function updateNotifications(
   _prev: NotificationsActionResult | undefined,
   formData: FormData,
 ): Promise<NotificationsActionResult> {
-  const { tenant } = await requireUserAndTenant();
+  const { tenant } = await requireAdmin();
 
   const parsed = notificationsSchema.safeParse({
     notificationWebhookUrl: formData.get('notificationWebhookUrl'),
@@ -424,7 +430,7 @@ export async function updatePublicBooking(
   _prev: PublicBookingActionResult | undefined,
   formData: FormData,
 ): Promise<PublicBookingActionResult> {
-  const { tenant } = await requireUserAndTenant();
+  const { tenant } = await requireAdmin();
 
   const parsed = publicBookingSchema.safeParse({
     enabled: formData.get('enabled'),
@@ -445,4 +451,258 @@ export async function updatePublicBooking(
   revalidatePath('/settings');
   revalidatePath(`/${tenant.slug}`);
   return { ok: true };
+}
+
+// --- Gestão de usuários do estabelecimento (só admin/OWNER) ----------------
+
+/**
+ * Gera o link de ativação que o convidado abre para definir a senha. Usa o
+ * fluxo `recovery` do Supabase, que exige um auth.users já existente (o caller
+ * cria via auth.admin.createUser ANTES de chamar isto). Retorna um token_hash
+ * que a tela /ativar troca por sessão (verifyOtp). Null em caso de falha.
+ */
+async function buildActivationLink(email: string): Promise<string | null> {
+  const admin = getSupabaseAdmin();
+  const { data, error } = await admin.auth.admin.generateLink({ type: 'recovery', email });
+  if (error || !data.properties?.hashed_token) {
+    console.error('[users] falha ao gerar link de ativação:', error?.message);
+    return null;
+  }
+  const baseUrl = await getBaseUrl();
+  const params = new URLSearchParams({
+    token_hash: data.properties.hashed_token,
+    type: 'recovery',
+  });
+  return `${baseUrl}/ativar?${params.toString()}`;
+}
+
+function traduzErroCriarUser(message?: string): string {
+  if (message && /already.*registered|already.*exists|duplicate/i.test(message)) {
+    return 'Já existe um usuário com este email.';
+  }
+  return 'Não foi possível criar o usuário.';
+}
+
+// Normaliza um telefone BR pra E.164 sem máscara (ex.: "5511914092346").
+// Aceita entrada com máscara, com ou sem DDI 55. Determinística: só prefixa o
+// DDI quando a parte nacional tem 10 (fixo) ou 11 (celular) dígitos e a entrada
+// ainda não traz o 55 — evita gerar DDI duplicado ("5555…").
+function normalizePhoneBR(raw: string): string {
+  const digits = raw.replace(/\D/g, '');
+  // Já em E.164 BR (55 + 10/11 dígitos nacionais)?
+  if (/^55\d{10,11}$/.test(digits)) return digits;
+  // Parte nacional pura (DDD + número)?
+  if (/^\d{10,11}$/.test(digits)) return `55${digits}`;
+  return digits; // deixa a validação abaixo recusar
+}
+
+const phoneSchema = z
+  .string()
+  .min(1, 'Telefone obrigatório')
+  .transform(normalizePhoneBR)
+  .refine((v) => /^55\d{10,11}$/.test(v), {
+    message: 'Telefone inválido. Use DDD + número (ex.: 11 91409-2346).',
+  });
+
+const inviteUserSchema = z.object({
+  name: z.string().min(2, 'Nome muito curto').max(80),
+  email: z.string().email('Email inválido'),
+  phone: phoneSchema,
+});
+
+export type InviteUserActionResult =
+  | { error: string }
+  | { ok: true; sent: boolean; activationUrl: string };
+
+export async function inviteUser(
+  _prev: InviteUserActionResult | undefined,
+  formData: FormData,
+): Promise<InviteUserActionResult> {
+  const { tenant } = await requireAdmin();
+
+  const parsed = inviteUserSchema.safeParse({
+    name: formData.get('name'),
+    email: formData.get('email'),
+    phone: formData.get('phone'),
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? 'Dados inválidos' };
+  }
+  const { name, email, phone } = parsed.data;
+
+  const admin = getSupabaseAdmin();
+
+  // 1) Cria o auth.users sem senha (email confirmado — ativação define a senha).
+  const created = await admin.auth.admin.createUser({ email, email_confirm: true });
+  if (created.error || !created.data.user) {
+    return { error: traduzErroCriarUser(created.error?.message) };
+  }
+  const authId = created.data.user.id;
+
+  // 2) Cria o User no Postgres. Se falhar (ex.: email já existe), faz rollback do
+  //    auth.users recém-criado pra não deixar órfão.
+  try {
+    await prisma.user.create({
+      data: {
+        authId,
+        email,
+        name,
+        phone,
+        role: 'STAFF',
+        status: 'INVITED',
+        invitedAt: new Date(),
+        tenantId: tenant.id,
+      },
+    });
+  } catch (err) {
+    await admin.auth.admin.deleteUser(authId).catch(() => {});
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+      return { error: 'Já existe um usuário com este email.' };
+    }
+    throw err;
+  }
+
+  // 3) Gera o link de ativação e tenta enviar por WhatsApp. Se falhar aqui, o
+  //    usuário fica criado como INVITED — o admin recupera pelo botão "Reenviar
+  //    convite" (resendInvite gera um link novo). Não desfazemos a criação pra
+  //    não obrigar a redigitar os dados por uma falha transiente de API.
+  const activationUrl = await buildActivationLink(email);
+  if (!activationUrl) {
+    revalidatePath('/settings');
+    return {
+      error:
+        'Usuário criado, mas falhou ao gerar o link de ativação. Use "Reenviar convite" para tentar de novo.',
+    };
+  }
+
+  const sent = await sendInviteWhatsapp({
+    tenant,
+    toPhone: phone,
+    inviteeName: name,
+    activationUrl,
+  });
+
+  revalidatePath('/settings');
+  return { ok: true, sent, activationUrl };
+}
+
+const updateUserSchema = z.object({
+  userId: z.string().min(1),
+  name: z.string().min(2, 'Nome muito curto').max(80),
+  phone: phoneSchema,
+  role: z.enum(['OWNER', 'STAFF']),
+});
+
+export type UserActionResult = { error: string } | { ok: true };
+
+export async function updateUser(
+  _prev: UserActionResult | undefined,
+  formData: FormData,
+): Promise<UserActionResult> {
+  const admin = await requireAdmin();
+  const { tenant } = admin;
+
+  const parsed = updateUserSchema.safeParse({
+    userId: formData.get('userId'),
+    name: formData.get('name'),
+    phone: formData.get('phone'),
+    role: formData.get('role'),
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? 'Dados inválidos' };
+  }
+  const { userId, name, phone, role } = parsed.data;
+
+  const target = await prisma.user.findUnique({ where: { id: userId } });
+  if (!target || target.tenantId !== tenant.id) {
+    return { error: 'Usuário não encontrado neste estabelecimento.' };
+  }
+
+  // O admin não pode alterar o próprio papel (evita auto-rebaixamento que o
+  // deixaria sem acesso a estas configurações).
+  if (userId === admin.id && role !== admin.role) {
+    return { error: 'Você não pode alterar o seu próprio papel.' };
+  }
+
+  // Não permitir rebaixar o último OWNER do estabelecimento.
+  if (target.role === 'OWNER' && role !== 'OWNER') {
+    const owners = await prisma.user.count({ where: { tenantId: tenant.id, role: 'OWNER' } });
+    if (owners <= 1) {
+      return { error: 'O estabelecimento precisa de pelo menos um administrador.' };
+    }
+  }
+
+  await prisma.user.update({ where: { id: userId }, data: { name, phone, role } });
+
+  revalidatePath('/settings');
+  revalidatePath('/', 'layout');
+  return { ok: true };
+}
+
+export async function deleteUser(userId: string): Promise<UserActionResult> {
+  const admin = await requireAdmin();
+  const { tenant } = admin;
+
+  if (userId === admin.id) {
+    return { error: 'Você não pode excluir a si mesmo.' };
+  }
+
+  const target = await prisma.user.findUnique({ where: { id: userId } });
+  if (!target || target.tenantId !== tenant.id) {
+    return { error: 'Usuário não encontrado neste estabelecimento.' };
+  }
+
+  if (target.role === 'OWNER') {
+    const owners = await prisma.user.count({ where: { tenantId: tenant.id, role: 'OWNER' } });
+    if (owners <= 1) {
+      return { error: 'O estabelecimento precisa de pelo menos um administrador.' };
+    }
+  }
+
+  await prisma.user.delete({ where: { id: userId } });
+  // Best-effort: remove o auth.users correspondente. Logamos a falha pra não
+  // silenciar uma conta órfã no Supabase Auth (dificultaria troubleshooting).
+  await getSupabaseAdmin()
+    .auth.admin.deleteUser(target.authId)
+    .catch((err) =>
+      console.error(`[users] falha ao remover auth.users ${target.authId} de ${target.email}:`, err),
+    );
+
+  revalidatePath('/settings');
+  return { ok: true };
+}
+
+export type ResendInviteActionResult =
+  | { error: string }
+  | { ok: true; sent: boolean; activationUrl: string };
+
+export async function resendInvite(userId: string): Promise<ResendInviteActionResult> {
+  const { tenant } = await requireAdmin();
+
+  const target = await prisma.user.findUnique({ where: { id: userId } });
+  if (!target || target.tenantId !== tenant.id) {
+    return { error: 'Usuário não encontrado neste estabelecimento.' };
+  }
+  if (target.status !== 'INVITED') {
+    return { error: 'Este usuário já ativou a conta.' };
+  }
+
+  const activationUrl = await buildActivationLink(target.email);
+  if (!activationUrl) {
+    return { error: 'Falhou ao gerar o link de ativação. Tente de novo.' };
+  }
+
+  await prisma.user.update({ where: { id: userId }, data: { invitedAt: new Date() } });
+
+  const sent = target.phone
+    ? await sendInviteWhatsapp({
+        tenant,
+        toPhone: target.phone,
+        inviteeName: target.name ?? '',
+        activationUrl,
+      })
+    : false;
+
+  revalidatePath('/settings');
+  return { ok: true, sent, activationUrl };
 }

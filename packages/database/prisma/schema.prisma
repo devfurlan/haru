@@ -55,6 +55,11 @@ model Tenant {
   cancelTemplateLanguage     String? @default("pt_BR")
   rescheduleTemplateName     String?
   rescheduleTemplateLanguage String? @default("pt_BR")
+  /// Template aprovado na Meta usado no convite de novos usuários da equipe.
+  /// Quando definido, o convite é enviado via template (escapa a janela de 24h).
+  /// Espera 2 variáveis no body: {{1}}=nome do estabelecimento, {{2}}=link de ativação.
+  inviteTemplateName         String?
+  inviteTemplateLanguage     String? @default("pt_BR")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -73,7 +78,17 @@ model User {
   authId    String   @unique
   email     String   @unique
   name      String?
+  /// Telefone E.164 sem máscara (ex.: "5511914092346"). Destino do convite por
+  /// WhatsApp. Opcional — OWNER criado no signup não tem telefone.
+  phone     String?
   role      UserRole @default(OWNER)
+  /// Ciclo de vida do acesso. Membro convidado nasce INVITED (sem senha) e vira
+  /// ACTIVE quando define a senha pela tela de ativação.
+  status    UserStatus @default(ACTIVE)
+  /// Quando o convite foi enviado (membros INVITED). Null pra quem nasceu ACTIVE.
+  invitedAt   DateTime?
+  /// Quando o usuário ativou a conta (definiu a senha).
+  activatedAt DateTime?
   tenantId  String
   tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
@@ -85,6 +100,13 @@ model User {
 enum UserRole {
   OWNER
   STAFF
+}
+
+enum UserStatus {
+  /// Convidado pelo admin, ainda não definiu a senha.
+  INVITED
+  /// Conta ativa (definiu a senha / criada no signup).
+  ACTIVE
 }
 
 model Service {

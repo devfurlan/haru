@@ -42,3 +42,20 @@ export async function requireUserAndTenant(): Promise<CurrentUser> {
   if (!result) redirect('/login');
   return result;
 }
+
+/**
+ * Exige um admin (OWNER). Redireciona pra /login se não autenticado e pra
+ * /dashboard se for STAFF. Use em páginas/áreas restritas ao admin (ex.: gestão
+ * de usuários, integrações). As server actions sensíveis devem checar o papel
+ * por conta própria (defesa no servidor) — veja `isAdmin`.
+ */
+export async function requireAdmin(): Promise<CurrentUser> {
+  const user = await requireUserAndTenant();
+  if (user.role !== 'OWNER') redirect('/dashboard');
+  return user;
+}
+
+/** True se o usuário é admin (OWNER) do estabelecimento. */
+export function isAdmin(user: Pick<User, 'role'>): boolean {
+  return user.role === 'OWNER';
+}

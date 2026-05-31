@@ -71,6 +71,9 @@ export async function signUp(_prev: ActionResult, formData: FormData): Promise<A
           email,
           name: ownerName ?? null,
           role: 'OWNER',
+          // Dono já define a senha no signup — nasce ativo (explícito p/ não
+          // depender do default do schema).
+          status: 'ACTIVE',
           tenantId: tenant.id,
         },
       });

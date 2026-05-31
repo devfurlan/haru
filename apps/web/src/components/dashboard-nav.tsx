@@ -14,6 +14,8 @@ import { usePathname } from 'next/navigation';
 
 import { cn } from '@/lib/utils';
 
+// `adminOnly` esconde o item da equipe (STAFF). Configurações (usuários,
+// integrações, notificações) é só pra admin (OWNER).
 const items = [
   { href: '/dashboard', label: 'Visão geral', icon: LayoutDashboard },
   { href: '/appointments', label: 'Agendamentos', icon: CalendarCheck },
@@ -21,14 +23,16 @@ const items = [
   { href: '/conversations', label: 'Conversas', icon: MessagesSquare },
   { href: '/schedule', label: 'Horários', icon: CalendarClock },
   { href: '/services', label: 'Serviços', icon: Scissors },
-  { href: '/settings', label: 'Configurações', icon: Settings },
+  { href: '/settings', label: 'Configurações', icon: Settings, adminOnly: true },
 ];
 
-export function DashboardNav() {
+export function DashboardNav({ isAdmin }: { isAdmin: boolean }) {
   const pathname = usePathname();
   return (
     <nav className="flex flex-col gap-1 px-2 py-4">
-      {items.map((item) => {
+      {items
+        .filter((item) => isAdmin || !item.adminOnly)
+        .map((item) => {
         const Icon = item.icon;
         const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
         return (

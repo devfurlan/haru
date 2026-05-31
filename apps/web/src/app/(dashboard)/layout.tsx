@@ -5,10 +5,11 @@ import { DashboardNav } from '@/components/dashboard-nav';
 import { Logo } from '@/components/logo';
 import { SignOutButton } from '@/components/sign-out-button';
 import { UserMenuLink } from '@/components/user-menu-link';
-import { requireUserAndTenant } from '@/lib/auth';
+import { isAdmin, requireUserAndTenant } from '@/lib/auth';
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const { tenant, email, name } = await requireUserAndTenant();
+  const user = await requireUserAndTenant();
+  const { tenant, email, name } = user;
 
   return (
     <div className="flex min-h-screen">
@@ -23,7 +24,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
           </div>
         </div>
         <div className="flex-1 overflow-y-auto">
-          <DashboardNav />
+          <DashboardNav isAdmin={isAdmin(user)} />
         </div>
         <div className="border-t p-2">
           <SignOutButton />
