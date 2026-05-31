@@ -9,6 +9,7 @@ import { prisma } from '@haru/database';
 import { requireAdmin, requireUserAndTenant } from '@/lib/auth';
 import { getBaseUrl } from '@/lib/base-url';
 import { encryptSecret } from '@/lib/crypto';
+import { normalizePhoneBR } from '@/lib/format';
 import { createClient } from '@/lib/supabase/server';
 import { getSupabaseAdmin } from '@/lib/supabase/admin';
 import { sendInviteWhatsapp } from '@/lib/whatsapp-invite';
@@ -559,19 +560,6 @@ function traduzErroCriarUser(message?: string): string {
   return 'Não foi possível criar o usuário.';
 }
 
-// Normaliza um telefone BR pra E.164 sem máscara (ex.: "5511914092346").
-// Aceita entrada com máscara, com ou sem DDI 55. Determinística: só prefixa o
-// DDI quando a parte nacional tem 10 (fixo) ou 11 (celular) dígitos e a entrada
-// ainda não traz o 55 — evita gerar DDI duplicado ("5555…").
-function normalizePhoneBR(raw: string): string {
-  const digits = raw.replace(/\D/g, '');
-  // Já em E.164 BR (55 + 10/11 dígitos nacionais)?
-  if (/^55\d{10,11}$/.test(digits)) return digits;
-  // Parte nacional pura (DDD + número)?
-  if (/^\d{10,11}$/.test(digits)) return `55${digits}`;
-  return digits; // deixa a validação abaixo recusar
-}
-
 const phoneSchema = z
   .string()
   .min(1, 'Telefone obrigatório')
@@ -741,7 +729,10 @@ export async function deleteUser(userId: string): Promise<UserActionResult> {
   await getSupabaseAdmin()
     .auth.admin.deleteUser(target.authId)
     .catch((err) =>
-      console.error(`[users] falha ao remover auth.users ${target.authId} de ${target.email}:`, err),
+      console.error(
+        `[users] falha ao remover auth.users ${target.authId} de ${target.email}:`,
+        err,
+      ),
     );
 
   revalidatePath('/settings');

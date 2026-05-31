@@ -45,6 +45,18 @@ export function formatPhoneBR(phone: string | null | undefined): string {
   return phone;
 }
 
+// Normaliza um telefone BR pra E.164 sem máscara (ex.: "5511914092346") — formato
+// canônico do banco (o mesmo que o bot grava). Aceita entrada com máscara, com ou
+// sem DDI 55. Determinística: só prefixa o DDI quando a parte nacional tem 10 (fixo)
+// ou 11 (celular) dígitos e a entrada ainda não traz o 55 — evita DDI duplicado
+// ("5555…"). Entrada irreconhecível volta como veio, pra validação a jusante recusar.
+export function normalizePhoneBR(raw: string): string {
+  const digits = raw.replace(/\D/g, '');
+  if (/^55\d{10,11}$/.test(digits)) return digits;
+  if (/^\d{10,11}$/.test(digits)) return `55${digits}`;
+  return digits;
+}
+
 // Mascara o que o usuário digita num input de telefone BR, progressivamente:
 // "11"        -> "(11"
 // "1191409"   -> "(11) 91409"

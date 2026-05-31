@@ -5,11 +5,8 @@ import { z } from 'zod';
 
 import { type AppointmentStatus, prisma } from '@haru/database';
 
-import {
-  type AvailableSlot,
-  computeAvailableSlots,
-  localWallTimeToUtc,
-} from '@/lib/availability';
+import { type AvailableSlot, computeAvailableSlots, localWallTimeToUtc } from '@/lib/availability';
+import { normalizePhoneBR } from '@/lib/format';
 import { notifyAppointmentCreated } from '@/lib/notify';
 
 import { loadPublicTenant } from './_tenant';
@@ -79,7 +76,7 @@ export async function getAvailableSlots(
   });
 }
 
-const PHONE_RE = /^\d{10,15}$/;
+const PHONE_RE = /^55\d{10,11}$/;
 
 export type ContactLookupResult = { exists: boolean; name: string | null };
 
@@ -91,14 +88,16 @@ export type ContactLookupResult = { exists: boolean; name: string | null };
  * incompleto. Rota pública: sem auth, mas mínima superfície de dados.
  */
 export async function lookupContact(slug: string, phone: string): Promise<ContactLookupResult> {
-  const digits = phone.replace(/\D/g, '');
-  if (!PHONE_RE.test(digits)) return { exists: false, name: null };
+  // Normaliza pra E.164 (mesmo formato que o bot grava no banco) antes de buscar —
+  // senão o número nacional "11914092346" nunca casa com o "5511914092346" salvo.
+  const e164 = normalizePhoneBR(phone);
+  if (!PHONE_RE.test(e164)) return { exists: false, name: null };
 
   const tenant = await loadPublicTenant(slug);
   if (!tenant || !tenant.publicBookingEnabled) return { exists: false, name: null };
 
   const contact = await prisma.contact.findUnique({
-    where: { tenantId_phone: { tenantId: tenant.id, phone: digits } },
+    where: { tenantId_phone: { tenantId: tenant.id, phone: e164 } },
     select: { name: true, profileCompletedAt: true },
   });
 
@@ -127,8 +126,10 @@ const bookingSchema = z.object({
   phone: z
     .string()
     .min(8, 'Informe seu WhatsApp')
-    .transform((v) => v.replace(/\D/g, ''))
-    .refine((v) => /^\d{10,15}$/.test(v), { message: 'WhatsApp inválido — confira o DDD' }),
+    // Normaliza pra E.164 (mesmo formato do banco/bot) — o contato criado pelo site
+    // precisa casar com o que o bot grava, senão vira um cadastro duplicado.
+    .transform(normalizePhoneBR)
+    .refine((v) => /^55\d{10,11}$/.test(v), { message: 'WhatsApp inválido — confira o DDD' }),
 });
 
 export type CreatePublicBookingResult =

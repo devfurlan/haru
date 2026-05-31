@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { prisma, type AppointmentStatus } from '@haru/database';
 
 import { requireUserAndTenant } from '@/lib/auth';
+import { normalizePhoneBR } from '@/lib/format';
 import {
   notifyAppointmentCanceled,
   notifyAppointmentCreated,
@@ -14,10 +15,7 @@ import {
 } from '@/lib/notify';
 import { sendAppointmentTemplate } from '@/lib/whatsapp-templates';
 
-async function changeStatus(
-  appointmentId: string,
-  status: AppointmentStatus,
-): Promise<boolean> {
+async function changeStatus(appointmentId: string, status: AppointmentStatus): Promise<boolean> {
   const { tenant } = await requireUserAndTenant();
   const result = await prisma.appointment.updateMany({
     where: { id: appointmentId, tenantId: tenant.id },
@@ -62,8 +60,10 @@ const createSchema = z.object({
   contactPhone: z
     .string()
     .min(8, 'Telefone obrigatório')
-    .transform((v) => v.replace(/\D/g, ''))
-    .refine((v) => /^\d{10,15}$/.test(v), { message: 'Telefone inválido (E.164)' }),
+    // Normaliza pra E.164 (mesmo formato do banco/bot) — senão o agendamento manual
+    // cria um contato divergente que o bot nunca reencontra.
+    .transform(normalizePhoneBR)
+    .refine((v) => /^55\d{10,11}$/.test(v), { message: 'Telefone inválido — use DDD + número' }),
   contactName: z
     .string()
     .max(80)
