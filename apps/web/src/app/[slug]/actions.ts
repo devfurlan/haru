@@ -79,6 +79,37 @@ export async function getAvailableSlots(
   });
 }
 
+const PHONE_RE = /^\d{10,15}$/;
+
+export type ContactLookupResult = { exists: boolean; name: string | null };
+
+/**
+ * Consulta, pelo telefone, se já existe um cadastro completo neste tenant — usado
+ * pelo passo de contato do agendamento público pra pular o campo "nome" de quem
+ * já é cliente. Retorna SÓ { exists, name } (o nome é dado que o próprio cliente
+ * forneceu); nunca expõe email, nascimento, histórico ou existência de cadastro
+ * incompleto. Rota pública: sem auth, mas mínima superfície de dados.
+ */
+export async function lookupContact(slug: string, phone: string): Promise<ContactLookupResult> {
+  const digits = phone.replace(/\D/g, '');
+  if (!PHONE_RE.test(digits)) return { exists: false, name: null };
+
+  const tenant = await loadPublicTenant(slug);
+  if (!tenant || !tenant.publicBookingEnabled) return { exists: false, name: null };
+
+  const contact = await prisma.contact.findUnique({
+    where: { tenantId_phone: { tenantId: tenant.id, phone: digits } },
+    select: { name: true, profileCompletedAt: true },
+  });
+
+  // Só considera "cadastrado" quem completou o cadastro (mesmo gate do bot) e tem
+  // nome — senão ainda precisamos pedir o nome.
+  if (!contact || !contact.profileCompletedAt || !contact.name) {
+    return { exists: false, name: null };
+  }
+  return { exists: true, name: contact.name };
+}
+
 const bookingSchema = z.object({
   slug: z.string().min(1),
   serviceId: z.string().min(1, 'Selecione um serviço'),

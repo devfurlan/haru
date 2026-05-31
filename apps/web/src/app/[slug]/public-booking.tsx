@@ -1,12 +1,14 @@
 'use client';
 
 import {
+  AlertTriangle,
   ArrowLeft,
   CalendarCheck,
   CheckCircle2,
   ChevronRight,
   Clock,
   PartyPopper,
+  Phone,
   User as UserIcon,
 } from 'lucide-react';
 import { useActionState, useEffect, useMemo, useRef, useState, useTransition } from 'react';
@@ -21,8 +23,10 @@ import { formatBRL, formatDuration, formatPhoneBR } from '@/lib/format';
 
 import {
   createPublicBooking,
+  type ContactLookupResult,
   type CreatePublicBookingResult,
   getAvailableSlots,
+  lookupContact,
 } from './actions';
 
 interface ServiceOption {
@@ -46,16 +50,31 @@ interface PublicBookingProps {
   days: DayOption[];
 }
 
-/** Passos do wizard. "done" é a tela de sucesso pós-submit. */
-type Step = 1 | 2 | 3 | 4 | 'done';
+/**
+ * Passos do fluxo:
+ *  0      — Vitrine de serviços (estado inicial).
+ *  1      — Contato (telefone primeiro; nome aparece se o contato não existir).
+ *  2      — Dia e horário.
+ *  3      — Resumo / confirmação.
+ *  'done' — Tela de sucesso pós-submit.
+ */
+type Step = 0 | 1 | 2 | 3 | 'done';
 
 const TOTAL_STEPS = 4;
 
 const STEP_TITLES: Record<Exclude<Step, 'done'>, string> = {
-  1: 'Seus dados',
-  2: 'Escolha o serviço',
-  3: 'Escolha dia e horário',
-  4: 'Confira e confirme',
+  0: 'Escolha o serviço',
+  1: 'Seu contato',
+  2: 'Escolha dia e horário',
+  3: 'Confira e confirme',
+};
+
+/** Número humano do passo (1..4) a partir do estado interno. */
+const STEP_NUMBER: Record<Exclude<Step, 'done'>, 1 | 2 | 3 | 4> = {
+  0: 1,
+  1: 2,
+  2: 3,
+  3: 4,
 };
 
 /**
@@ -70,16 +89,17 @@ function splitDayLabel(label: string): { weekday: string; date: string } {
   return { weekday: rawWeekday.trim().replace(/\.$/, ''), date };
 }
 
-/** Indicador de progresso (bolinhas + texto), só para os 4 passos do wizard. */
+/** Indicador de progresso (bolinhas + texto), só para os passos do wizard. */
 function ProgressDots({ step }: { step: Exclude<Step, 'done'> }) {
+  const current = STEP_NUMBER[step];
   return (
     <div
       className="flex items-center justify-between gap-3"
       role="progressbar"
       aria-valuemin={1}
       aria-valuemax={TOTAL_STEPS}
-      aria-valuenow={step}
-      aria-label={`Passo ${step} de ${TOTAL_STEPS}: ${STEP_TITLES[step]}`}
+      aria-valuenow={current}
+      aria-label={`Passo ${current} de ${TOTAL_STEPS}: ${STEP_TITLES[step]}`}
     >
       <div className="flex items-center gap-2" aria-hidden="true">
         {([1, 2, 3, 4] as const).map((n) => (
@@ -87,13 +107,13 @@ function ProgressDots({ step }: { step: Exclude<Step, 'done'> }) {
             key={n}
             className={
               'h-2 w-2 rounded-full transition-colors ' +
-              (n === step ? 'bg-coral' : n < step ? 'bg-coral/40' : 'bg-muted')
+              (n === current ? 'bg-coral' : n < current ? 'bg-coral/40' : 'bg-muted')
             }
           />
         ))}
       </div>
       <span className="text-muted-foreground text-xs font-medium">
-        Passo {step} de {TOTAL_STEPS}
+        Passo {current} de {TOTAL_STEPS}
       </span>
     </div>
   );
@@ -117,7 +137,7 @@ function StepHeader({
         <button
           type="button"
           onClick={onBack}
-          className="text-muted-foreground hover:text-foreground focus-visible:ring-ring inline-flex items-center gap-1 rounded-md text-sm transition-colors focus-visible:ring-1 focus-visible:outline-none"
+          className="text-muted-foreground hover:text-foreground focus-visible:ring-ring inline-flex items-center gap-1 rounded-md text-sm transition-colors focus-visible:outline-none focus-visible:ring-1"
         >
           <ArrowLeft className="h-4 w-4" aria-hidden="true" />
           Voltar
@@ -155,56 +175,137 @@ function ConfirmButton() {
 }
 
 // ---------------------------------------------------------------------------
-// Passo 1 — Cadastro (nome + WhatsApp)
+// Passo 0 — Vitrine de serviços (estado inicial)
 // ---------------------------------------------------------------------------
 
-function StepCadastro({
-  name,
-  phone,
-  onChangeName,
-  onChangePhone,
-  onContinue,
+function StepVitrine({
+  services,
+  onSelect,
   headingRef,
 }: {
-  name: string;
-  phone: string;
-  onChangeName: (value: string) => void;
-  onChangePhone: (digits: string) => void;
-  onContinue: () => void;
+  services: ServiceOption[];
+  onSelect: (service: ServiceOption) => void;
   headingRef: React.RefObject<HTMLHeadingElement | null>;
 }) {
-  const nameOk = name.trim().length >= 2;
+  return (
+    <div className="space-y-6">
+      <StepHeader
+        title={STEP_TITLES[0]}
+        description="Toque no serviço que você quer agendar."
+        headingRef={headingRef}
+      />
+
+      {services.length === 0 ? (
+        <p className="bg-muted text-muted-foreground rounded-lg border p-4 text-sm">
+          Nenhum serviço disponível no momento.
+        </p>
+      ) : (
+        <ul className="space-y-3" aria-label="Serviços disponíveis">
+          {services.map((service) => (
+            <li key={service.id}>
+              <button
+                type="button"
+                onClick={() => onSelect(service)}
+                className="bg-card focus-visible:ring-ring hover:border-coral/50 w-full rounded-xl border p-4 text-left transition-colors focus-visible:outline-none focus-visible:ring-2"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 space-y-1">
+                    <p className="text-foreground font-medium">{service.name}</p>
+                    {service.description ? (
+                      <p className="text-muted-foreground text-sm">{service.description}</p>
+                    ) : null}
+                    <p className="text-muted-foreground flex items-center gap-1 text-xs">
+                      <Clock className="h-3.5 w-3.5" aria-hidden="true" />
+                      {formatDuration(service.durationMinutes)}
+                    </p>
+                  </div>
+                  <div className="flex flex-col items-end gap-1">
+                    <span className="text-coral whitespace-nowrap font-semibold">
+                      {formatBRL(service.priceCents)}
+                    </span>
+                    <ChevronRight className="text-muted-foreground h-4 w-4" aria-hidden="true" />
+                  </div>
+                </div>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Passo 1 — Contato (telefone primeiro; nome só se o contato não existir)
+// ---------------------------------------------------------------------------
+
+function StepContato({
+  service,
+  phone,
+  onChangePhone,
+  name,
+  onChangeName,
+  needsName,
+  lookingUp,
+  lookupError,
+  onLookup,
+  onConfirmName,
+  onBack,
+  headingRef,
+}: {
+  service: ServiceOption;
+  phone: string;
+  onChangePhone: (digits: string) => void;
+  name: string;
+  onChangeName: (value: string) => void;
+  /** true depois de um lookup que retornou exists=false (ou erro de rede). */
+  needsName: boolean;
+  lookingUp: boolean;
+  lookupError: string | null;
+  onLookup: () => void;
+  onConfirmName: () => void;
+  onBack: () => void;
+  headingRef: React.RefObject<HTMLHeadingElement | null>;
+}) {
   const phoneOk = phone.length >= 10;
-  const canContinue = nameOk && phoneOk;
+  const nameOk = name.trim().length >= 2;
+
+  // A ref do nome existe pra focar o campo assim que ele aparece (lookup→needsName).
+  const nameRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (needsName) nameRef.current?.focus();
+  }, [needsName]);
 
   return (
     <div className="space-y-6">
       <StepHeader
         title={STEP_TITLES[1]}
         description="Pra confirmar o agendamento pelo WhatsApp."
+        onBack={onBack}
         headingRef={headingRef}
       />
+
+      {/* Lembrete do serviço escolhido. */}
+      <p className="bg-muted text-muted-foreground flex flex-wrap items-center gap-2 rounded-lg border px-3 py-2 text-sm">
+        <CalendarCheck className="text-coral h-4 w-4 shrink-0" aria-hidden="true" />
+        <span className="text-foreground font-medium">{service.name}</span>
+        <span aria-hidden="true">·</span>
+        {formatDuration(service.durationMinutes)}
+        <span aria-hidden="true">·</span>
+        {formatBRL(service.priceCents)}
+      </p>
 
       <form
         className="space-y-4"
         onSubmit={(e) => {
           e.preventDefault();
-          if (canContinue) onContinue();
+          if (needsName) {
+            if (nameOk) onConfirmName();
+          } else if (phoneOk && !lookingUp) {
+            onLookup();
+          }
         }}
       >
-        <div className="space-y-1.5">
-          <Label htmlFor="booking-name">Nome</Label>
-          <Input
-            id="booking-name"
-            name="display-name"
-            autoComplete="name"
-            placeholder="Como podemos te chamar?"
-            value={name}
-            onChange={(e) => onChangeName(e.target.value)}
-            aria-invalid={name.length > 0 && !nameOk}
-          />
-        </div>
-
         <div className="space-y-1.5">
           <Label htmlFor="booking-phone">WhatsApp</Label>
           <Input
@@ -224,85 +325,60 @@ function StepCadastro({
           </p>
         </div>
 
-        <Button type="submit" variant="coral" size="pill" className="w-full" disabled={!canContinue}>
-          Continuar
-          <ChevronRight className="h-4 w-4" aria-hidden="true" />
-        </Button>
+        {/* Campo de nome aparece NA MESMA TELA quando o contato não existe. */}
+        {needsName ? (
+          <div className="space-y-1.5">
+            <Label htmlFor="booking-name">Nome</Label>
+            <Input
+              id="booking-name"
+              ref={nameRef}
+              name="display-name"
+              autoComplete="name"
+              placeholder="Como podemos te chamar?"
+              value={name}
+              onChange={(e) => onChangeName(e.target.value)}
+              aria-invalid={name.length > 0 && !nameOk}
+            />
+            <p className="text-muted-foreground text-xs">
+              Não encontramos esse número. Conta pra gente seu nome.
+            </p>
+          </div>
+        ) : null}
+
+        {lookupError ? (
+          <p
+            role="alert"
+            className="border-destructive/40 bg-destructive/5 text-destructive rounded-lg border p-3 text-sm"
+          >
+            {lookupError}
+          </p>
+        ) : null}
+
+        {needsName ? (
+          <Button type="submit" variant="coral" size="pill" className="w-full" disabled={!nameOk}>
+            Continuar
+            <ChevronRight className="h-4 w-4" aria-hidden="true" />
+          </Button>
+        ) : (
+          <Button
+            type="submit"
+            variant="coral"
+            size="pill"
+            className="w-full"
+            disabled={!phoneOk || lookingUp}
+            aria-busy={lookingUp}
+          >
+            {lookingUp ? 'Verificando…' : 'Continuar'}
+            {!lookingUp ? <ChevronRight className="h-4 w-4" aria-hidden="true" /> : null}
+          </Button>
+        )}
       </form>
     </div>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Passo 2 — Serviço
-// ---------------------------------------------------------------------------
-
-function StepServico({
-  services,
-  selectedId,
-  onSelect,
-  onBack,
-  headingRef,
-}: {
-  services: ServiceOption[];
-  selectedId: string;
-  onSelect: (service: ServiceOption) => void;
-  onBack: () => void;
-  headingRef: React.RefObject<HTMLHeadingElement | null>;
-}) {
-  return (
-    <div className="space-y-6">
-      <StepHeader title={STEP_TITLES[2]} onBack={onBack} headingRef={headingRef} />
-
-      {services.length === 0 ? (
-        <p className="bg-muted text-muted-foreground rounded-lg border p-4 text-sm">
-          Nenhum serviço disponível no momento.
-        </p>
-      ) : (
-        <ul className="space-y-3" aria-label="Serviços disponíveis">
-          {services.map((service) => {
-            const isSelected = service.id === selectedId;
-            return (
-              <li key={service.id}>
-                <button
-                  type="button"
-                  onClick={() => onSelect(service)}
-                  aria-pressed={isSelected}
-                  className={
-                    'bg-card focus-visible:ring-ring w-full rounded-xl border p-4 text-left transition-colors focus-visible:ring-2 focus-visible:outline-none ' +
-                    (isSelected ? 'border-coral ring-coral ring-1' : 'hover:border-coral/50')
-                  }
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0 space-y-1">
-                      <p className="text-foreground font-medium">{service.name}</p>
-                      {service.description ? (
-                        <p className="text-muted-foreground text-sm">{service.description}</p>
-                      ) : null}
-                      <p className="text-muted-foreground flex items-center gap-1 text-xs">
-                        <Clock className="h-3.5 w-3.5" aria-hidden="true" />
-                        {formatDuration(service.durationMinutes)}
-                      </p>
-                    </div>
-                    <div className="flex flex-col items-end gap-1">
-                      <span className="text-coral font-semibold whitespace-nowrap">
-                        {formatBRL(service.priceCents)}
-                      </span>
-                      <ChevronRight className="text-muted-foreground h-4 w-4" aria-hidden="true" />
-                    </div>
-                  </div>
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      )}
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Passo 3 — Dia / Hora
+// Passo 2 — Dia / Hora
 // ---------------------------------------------------------------------------
 
 function StepDiaHora({
@@ -313,6 +389,7 @@ function StepDiaHora({
   loadingSlots,
   selectedSlotIso,
   onSelectSlot,
+  notice,
   onBack,
   headingRef,
 }: {
@@ -323,12 +400,25 @@ function StepDiaHora({
   loadingSlots: boolean;
   selectedSlotIso: string;
   onSelectSlot: (slot: AvailableSlot) => void;
+  /** Aviso opcional exibido no topo (ex.: horário escolhido expirou). */
+  notice: string | null;
   onBack: () => void;
   headingRef: React.RefObject<HTMLHeadingElement | null>;
 }) {
   return (
     <div className="space-y-6">
-      <StepHeader title={STEP_TITLES[3]} onBack={onBack} headingRef={headingRef} />
+      <StepHeader title={STEP_TITLES[2]} onBack={onBack} headingRef={headingRef} />
+
+      {/* Aviso quando o usuário foi trazido de volta por expiração de horário. */}
+      {notice ? (
+        <p
+          role="alert"
+          className="border-destructive/40 bg-destructive/5 text-destructive flex items-start gap-2 rounded-lg border p-3 text-sm"
+        >
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+          <span>{notice}</span>
+        </p>
+      ) : null}
 
       {/* Faixa horizontal rolável de chips de dia. */}
       <div
@@ -352,7 +442,7 @@ function StepDiaHora({
                 aria-label={day.label}
                 onClick={() => onSelectDate(day.value)}
                 className={
-                  'focus-visible:ring-ring flex min-w-18 shrink-0 flex-col items-center gap-0.5 rounded-xl border px-3 py-2 text-center transition-colors focus-visible:ring-2 focus-visible:outline-none ' +
+                  'focus-visible:ring-ring min-w-18 flex shrink-0 flex-col items-center gap-0.5 rounded-xl border px-3 py-2 text-center transition-colors focus-visible:outline-none focus-visible:ring-2 ' +
                   (isSelected
                     ? 'border-coral bg-coral text-white'
                     : 'bg-card text-foreground hover:border-coral/50')
@@ -422,7 +512,7 @@ function StepDiaHora({
 }
 
 // ---------------------------------------------------------------------------
-// Passo 4 — Resumo / confirmação (form de submit real)
+// Passo 3 — Resumo / confirmação (form de submit real)
 // ---------------------------------------------------------------------------
 
 function StepResumo({
@@ -450,7 +540,7 @@ function StepResumo({
 }) {
   return (
     <div className="space-y-6">
-      <StepHeader title={STEP_TITLES[4]} onBack={onBack} headingRef={headingRef} />
+      <StepHeader title={STEP_TITLES[3]} onBack={onBack} headingRef={headingRef} />
 
       <dl className="bg-card space-y-3 rounded-xl border p-4 text-sm">
         <div className="flex items-start gap-3">
@@ -477,9 +567,16 @@ function StepResumo({
         <div className="flex items-start gap-3">
           <UserIcon className="text-coral mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
           <div className="flex-1">
-            <dt className="text-muted-foreground">Seus dados</dt>
+            <dt className="text-muted-foreground">Nome</dt>
             <dd className="text-foreground font-medium">{name.trim()}</dd>
-            <dd className="text-muted-foreground">{formatPhoneBR(phone) || phone}</dd>
+          </div>
+        </div>
+
+        <div className="flex items-start gap-3">
+          <Phone className="text-coral mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+          <div className="flex-1">
+            <dt className="text-muted-foreground">WhatsApp</dt>
+            <dd className="text-foreground font-medium">{formatPhoneBR(phone) || phone}</dd>
           </div>
         </div>
       </dl>
@@ -530,7 +627,7 @@ function SuccessScreen({ confirmed, summary }: { confirmed: boolean; summary: st
             : 'Recebemos seu pedido. Em breve confirmamos pelo WhatsApp.'}
         </p>
       </div>
-      <p className="bg-card text-foreground rounded-xl border p-4 text-left text-sm whitespace-pre-line">
+      <p className="bg-card text-foreground whitespace-pre-line rounded-xl border p-4 text-left text-sm">
         {summary}
       </p>
     </div>
@@ -542,20 +639,29 @@ function SuccessScreen({ confirmed, summary }: { confirmed: boolean; summary: st
 // ---------------------------------------------------------------------------
 
 export function PublicBooking({ slug, services, days }: PublicBookingProps) {
-  const [step, setStep] = useState<Step>(1);
+  const [step, setStep] = useState<Step>(0);
 
-  // Passo 1
-  const [name, setName] = useState('');
-  const [phone, setPhone] = useState(''); // dígitos crus
-
-  // Passo 2
+  // Passo 0 / 1 — serviço escolhido
   const [serviceId, setServiceId] = useState('');
 
-  // Passo 3
+  // Passo 1 — contato
+  const [phone, setPhone] = useState(''); // dígitos crus
+  const [name, setName] = useState('');
+  // Nome resolvido pelo servidor quando o contato já existe; usado no submit.
+  const [resolvedName, setResolvedName] = useState<string | null>(null);
+  // Mostra o campo de nome (contato novo ou fallback de erro de rede).
+  const [needsName, setNeedsName] = useState(false);
+  const [lookupError, setLookupError] = useState<string | null>(null);
+  const [lookingUp, startLookup] = useTransition();
+
+  // Passo 2 — dia / hora
   const [dateStr, setDateStr] = useState('');
   const [slots, setSlots] = useState<AvailableSlot[]>([]);
   const [selectedSlotIso, setSelectedSlotIso] = useState('');
   const [loadingSlots, startLoadingSlots] = useTransition();
+  // Aviso exibido no passo 2 quando o usuário é trazido de volta por expiração
+  // do horário/serviço que tinha escolhido (em vez de pular de tela em silêncio).
+  const [expiryNotice, setExpiryNotice] = useState<string | null>(null);
 
   const [state, formAction] = useActionState<CreatePublicBookingResult, FormData>(
     createPublicBooking,
@@ -563,7 +669,7 @@ export function PublicBooking({ slug, services, days }: PublicBookingProps) {
   );
 
   // Foco gerenciado: ao TROCAR de passo, leva o foco pro título do passo. Pula
-  // o primeiro efeito (mount) pra não roubar o foco do usuário no passo 1.
+  // o primeiro efeito (mount) pra não roubar o foco do usuário na vitrine.
   const headingRef = useRef<HTMLHeadingElement>(null);
   const isMountedRef = useRef(false);
   useEffect(() => {
@@ -583,6 +689,9 @@ export function PublicBooking({ slug, services, days }: PublicBookingProps) {
     () => slots.find((s) => s.startsAtIso === selectedSlotIso) ?? null,
     [slots, selectedSlotIso],
   );
+
+  // Nome efetivo para o submit: o do servidor (contato existente) tem prioridade.
+  const effectiveName = resolvedName ?? name;
 
   // Busca slots sempre que serviço + dia estiverem escolhidos. Reseta o slot
   // selecionado a cada mudança — trocar de dia ou de serviço (voltando atrás)
@@ -608,77 +717,140 @@ export function PublicBooking({ slug, services, days }: PublicBookingProps) {
 
   const submitError = state && 'error' in state ? state.error : null;
 
-  // Robustez: se chegamos no passo 4 mas o slot/serviço escolhido sumiu (ex.: a
-  // re-busca o removeu por ter expirado), volta pro passo 3 pra reescolher. Não
-  // dispara durante uma re-busca em andamento (loadingSlots) nem após o sucesso
-  // (step vira 'done'), evitando bounce indevido antes da tela de sucesso.
+  // Robustez: se chegamos no passo 3 (resumo) mas o slot/serviço escolhido sumiu
+  // (ex.: a re-busca o removeu por ter expirado), volta pro passo 2 pra reescolher.
+  // Não dispara durante uma re-busca em andamento (loadingSlots) nem após o
+  // sucesso (step vira 'done'), evitando bounce indevido antes da tela de sucesso.
+  // Diferente do bounce silencioso: avisa o usuário POR QUÊ ele voltou de tela.
   useEffect(() => {
-    if (step === 4 && !loadingSlots && (!selectedService || !selectedSlot)) {
-      setStep(3);
+    if (step === 3 && !loadingSlots && (!selectedService || !selectedSlot)) {
+      setExpiryNotice('Esse horário não está mais disponível. Escolha outro, por favor.');
+      setStep(2);
     }
   }, [step, loadingSlots, selectedService, selectedSlot]);
 
-  // Transições explícitas.
+  // --- Transições explícitas --------------------------------------------------
+
   function handleSelectService(service: ServiceOption) {
     setServiceId(service.id);
-    setStep(3);
+    setStep(1);
+  }
+
+  /** Volta pra vitrine: limpa o estado de contato pra não vazar entre serviços. */
+  function handleBackToVitrine() {
+    setNeedsName(false);
+    setLookupError(null);
+    setResolvedName(null);
+    setStep(0);
+  }
+
+  /** Telefone mudou no passo 1 → invalida o lookup anterior. */
+  function handleChangePhone(digits: string) {
+    setPhone(digits);
+    setNeedsName(false);
+    setResolvedName(null);
+    setLookupError(null);
+  }
+
+  /** Botão "Continuar" do telefone: consulta o contato e decide o próximo passo. */
+  function handleLookup() {
+    if (phone.length < 10 || lookingUp) return;
+    setLookupError(null);
+    startLookup(async () => {
+      try {
+        const result: ContactLookupResult = await lookupContact(slug, phone);
+        if (result.exists && result.name) {
+          // Contato conhecido: usa o nome do servidor e pula direto pro dia/hora.
+          setResolvedName(result.name);
+          setNeedsName(false);
+          setStep(2);
+        } else {
+          // Contato novo (ou sem nome no cadastro): pede o nome na mesma tela.
+          setResolvedName(null);
+          setNeedsName(true);
+        }
+      } catch {
+        // Erro de rede: fallback robusto — pede o nome mesmo assim pra não travar.
+        setResolvedName(null);
+        setNeedsName(true);
+        setLookupError(
+          'Não conseguimos verificar seu número agora. Confirme seu nome para continuar.',
+        );
+      }
+    });
+  }
+
+  /** Confirma o nome digitado (contato novo) e avança pro dia/hora. */
+  function handleConfirmName() {
+    if (name.trim().length < 2) return;
+    setStep(2);
+  }
+
+  /** Escolher um dia limpa o aviso de expiração (o usuário já está reescolhendo). */
+  function handleSelectDate(value: string) {
+    setExpiryNotice(null);
+    setDateStr(value);
   }
 
   function handleSelectSlot(slot: AvailableSlot) {
+    setExpiryNotice(null);
     setSelectedSlotIso(slot.startsAtIso);
-    setStep(4);
+    setStep(3);
   }
+
+  // --- Render -----------------------------------------------------------------
 
   return (
     <div className="mx-auto w-full max-w-md space-y-6">
-      {step !== 'done' ? <ProgressDots step={step} /> : null}
+      {step !== 'done' && step !== 0 ? <ProgressDots step={step} /> : null}
 
-      {step === 1 ? (
-        <StepCadastro
-          name={name}
+      {step === 0 ? (
+        <StepVitrine services={services} onSelect={handleSelectService} headingRef={headingRef} />
+      ) : null}
+
+      {step === 1 && selectedService ? (
+        <StepContato
+          service={selectedService}
           phone={phone}
+          onChangePhone={handleChangePhone}
+          name={name}
           onChangeName={setName}
-          onChangePhone={setPhone}
-          onContinue={() => setStep(2)}
+          needsName={needsName}
+          lookingUp={lookingUp}
+          lookupError={lookupError}
+          onLookup={handleLookup}
+          onConfirmName={handleConfirmName}
+          onBack={handleBackToVitrine}
           headingRef={headingRef}
         />
       ) : null}
 
       {step === 2 ? (
-        <StepServico
-          services={services}
-          selectedId={serviceId}
-          onSelect={handleSelectService}
+        <StepDiaHora
+          days={days}
+          selectedDate={dateStr}
+          onSelectDate={handleSelectDate}
+          slots={slots}
+          loadingSlots={loadingSlots}
+          selectedSlotIso={selectedSlotIso}
+          onSelectSlot={handleSelectSlot}
+          notice={expiryNotice}
           onBack={() => setStep(1)}
           headingRef={headingRef}
         />
       ) : null}
 
-      {step === 3 ? (
-        <StepDiaHora
-          days={days}
-          selectedDate={dateStr}
-          onSelectDate={setDateStr}
-          slots={slots}
-          loadingSlots={loadingSlots}
-          selectedSlotIso={selectedSlotIso}
-          onSelectSlot={handleSelectSlot}
-          onBack={() => setStep(2)}
-          headingRef={headingRef}
-        />
-      ) : null}
-
-      {step === 4 && selectedService && selectedSlot ? (
+      {step === 3 && selectedService && selectedSlot ? (
         <StepResumo
           slug={slug}
           service={selectedService}
           dayLabel={selectedDay?.label ?? ''}
           slot={selectedSlot}
-          name={name}
+          name={effectiveName}
           phone={phone}
           error={submitError}
           formAction={formAction}
-          onBack={() => setStep(3)}
+          onBack={() => setStep(2)}
           headingRef={headingRef}
         />
       ) : null}

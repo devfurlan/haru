@@ -127,32 +127,38 @@ export default async function TenantPublicPage({ params }: { params: Promise<{ s
           </div>
         )}
 
-        <section className="space-y-3">
-          <h2 className="font-serif text-xl font-semibold">Serviços</h2>
-          {tenant.services.length === 0 ? (
-            <p className="text-muted-foreground text-sm">Nenhum serviço cadastrado ainda.</p>
-          ) : (
-            <ul className="space-y-2">
-              {tenant.services.map((s) => (
-                <li
-                  key={s.id}
-                  className="bg-card flex items-start justify-between gap-3 rounded-lg border p-4 shadow-sm"
-                >
-                  <div>
-                    <div className="font-medium">{s.name}</div>
-                    {s.description && (
-                      <div className="text-muted-foreground text-sm">{s.description}</div>
-                    )}
-                    <div className="text-muted-foreground text-xs">
-                      {formatDuration(s.durationMinutes)}
+        {/* Vitrine estática de serviços — só quando o agendamento online está
+            indisponível. Com booking ativo, a vitrine vive dentro do <PublicBooking>
+            (é o 1º passo: clicar num serviço inicia o agendamento), evitando listar
+            os serviços duas vezes. */}
+        {!showBooking && (
+          <section className="space-y-3">
+            <h2 className="font-serif text-xl font-semibold">Serviços</h2>
+            {tenant.services.length === 0 ? (
+              <p className="text-muted-foreground text-sm">Nenhum serviço cadastrado ainda.</p>
+            ) : (
+              <ul className="space-y-2">
+                {tenant.services.map((s) => (
+                  <li
+                    key={s.id}
+                    className="bg-card flex items-start justify-between gap-3 rounded-lg border p-4 shadow-sm"
+                  >
+                    <div>
+                      <div className="font-medium">{s.name}</div>
+                      {s.description && (
+                        <div className="text-muted-foreground text-sm">{s.description}</div>
+                      )}
+                      <div className="text-muted-foreground text-xs">
+                        {formatDuration(s.durationMinutes)}
+                      </div>
                     </div>
-                  </div>
-                  <div className="shrink-0 text-sm font-semibold">{formatBRL(s.priceCents)}</div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
+                    <div className="shrink-0 text-sm font-semibold">{formatBRL(s.priceCents)}</div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        )}
 
         <section className="space-y-3">
           <h2 className="flex items-center gap-2 font-serif text-xl font-semibold">
