@@ -131,6 +131,51 @@ pnpm db:generate       # regenera o cliente
 
 **Multi-tenant nativo:** o webhook resolve qual Tenant atende cada mensagem via `metadata.phone_number_id`.
 
+## Templates da Meta (WhatsApp)
+
+Mensagens iniciadas pelo negócio fora da janela de 24h de atendimento exigem **templates pré-aprovados na Meta** (WhatsApp Manager → _Modelos de mensagem_). Cada Tenant configura o nome e o idioma do template que ele mesmo criou e aprovou na conta dele; o nome é livre — os defaults abaixo são só sugestão exibida na UI. **Os parâmetros (`{{1}}`, `{{2}}`, …) têm que bater exatamente** com o que o código envia, na ordem listada, senão a Meta recusa o envio (e a falha é silenciosa: o lembrete/aviso simplesmente não chega).
+
+Templates que o código envia hoje. O **corpo** é uma sugestão (texto que o negócio cola na Meta ao criar o template) — o que precisa ser idêntico é o **número e a ordem das variáveis**, não a redação.
+
+### Lembrete de agendamento
+
+- **Default do nome (UI):** `haru_appointment_reminder` · **Idioma:** `pt_BR` · **Categoria Meta:** `UTILITY`
+- **Variáveis:** `{{1}}` nome do cliente · `{{2}}` data/hora · `{{3}}` serviço
+- **Enviado em:** [apps/bot/src/lib/reminders.ts](apps/bot/src/lib/reminders.ts)
+- **Corpo sugerido:**
+  > Oi, {{1}}! 👋 Passando pra lembrar do seu agendamento: 📅 {{2}} — ✂️ {{3}}. Se precisar remarcar ou cancelar, é só me chamar por aqui. Até lá!
+
+### Cancelamento
+
+- **Default do nome (UI):** `haru_appointment_canceled` · **Idioma:** `pt_BR` · **Categoria Meta:** `UTILITY`
+- **Variáveis:** `{{1}}` nome do cliente · `{{2}}` data/hora · `{{3}}` serviço
+- **Enviado em:** [apps/web/src/lib/whatsapp-templates.ts](apps/web/src/lib/whatsapp-templates.ts)
+- **Corpo sugerido:**
+  > Oi, {{1}}. Seu agendamento de {{3}} em {{2}} foi cancelado. Se quiser remarcar, é só me chamar por aqui que a gente encontra um novo horário. 🗓️
+
+### Remarcação
+
+- **Default do nome (UI):** `haru_appointment_rescheduled` · **Idioma:** `pt_BR` · **Categoria Meta:** `UTILITY`
+- **Variáveis:** `{{1}}` nome do cliente · `{{2}}` **nova** data/hora · `{{3}}` serviço
+- **Enviado em:** [apps/web/src/lib/whatsapp-templates.ts](apps/web/src/lib/whatsapp-templates.ts)
+- **Corpo sugerido:**
+  > Oi, {{1}}! ✅ Seu agendamento de {{3}} foi remarcado. Novo horário: 📅 {{2}}. Qualquer coisa é só responder por aqui. Até lá!
+
+### Convite de equipe
+
+- **Default do nome (UI):** _não tem_ (hoje só configurável por DB/seed) — sugestão: `haru_team_invite` · **Idioma:** `pt_BR` · **Categoria Meta:** `UTILITY`
+- **Variáveis:** `{{1}}` nome do negócio · `{{2}}` link de ativação
+- **Enviado em:** [apps/web/src/lib/whatsapp-invite.ts](apps/web/src/lib/whatsapp-invite.ts)
+- **Corpo sugerido:**
+  > Olá! Você foi convidado para acessar o painel de *{{1}}* no Demandaê. Ative sua conta e defina sua senha aqui: {{2}}
+
+Notas:
+
+- **Fallback:** se o Tenant não tem template configurado, o código cai para texto livre — que **só entrega se o cliente falou com o número nas últimas 24h**. Por isso os templates são o caminho oficial.
+- **Onde se configura:** nome + idioma de cada template ficam no model `Tenant` (`reminderTemplateName`/`Language`, `cancelTemplateName`/`Language`, `rescheduleTemplateName`/`Language`, `inviteTemplateName`/`Language` — ver [schema.prisma](packages/database/prisma/schema.prisma)). Os 3 de agendamento são editáveis no painel em `/settings`; o de convite hoje só por DB/seed.
+
+> ⚠️ **Manutenção:** ao adicionar/alterar qualquer template (novo evento, mudança no número/ordem de parâmetros, no default do nome ou no corpo sugerido), **atualize esta seção na mesma alteração**.
+
 ## Deploy
 
 - **web** → Vercel
