@@ -1,3 +1,5 @@
+import { Suspense } from 'react';
+
 import { notFound } from 'next/navigation';
 
 import { prisma } from '@haru/database';
@@ -31,9 +33,22 @@ function formatDuration(minutes: number): string {
   return m === 0 ? `${h}h` : `${h}h${m}min`;
 }
 
-export default async function RescheduleModal({ params }: PageProps) {
+function RescheduleSkeleton() {
+  return (
+    <div className="space-y-4">
+      <div className="h-4 w-48 animate-pulse rounded bg-muted" />
+      <div className="h-9 animate-pulse rounded-md bg-muted" />
+      <div className="flex gap-2">
+        <div className="h-9 w-40 animate-pulse rounded-md bg-muted" />
+        <div className="h-9 w-24 animate-pulse rounded-md bg-muted" />
+      </div>
+    </div>
+  );
+}
+
+// O `await` mora aqui, não no shell — o <Dialog> abre na hora com o skeleton.
+async function RescheduleBody({ id }: { id: string }) {
   const { tenant } = await requireUserAndTenant();
-  const { id } = await params;
 
   const appointment = await prisma.appointment.findFirst({
     where: { id, tenantId: tenant.id },
@@ -42,16 +57,13 @@ export default async function RescheduleModal({ params }: PageProps) {
   if (!appointment) notFound();
 
   return (
-    <RouteModal
-      title="Remarcar"
-      description={
-        <>
-          {appointment.service.name} ·{' '}
-          {appointment.contact.name ?? formatPhoneBR(appointment.contact.phone)} ·{' '}
-          {formatDuration(appointment.service.durationMinutes)}
-        </>
-      }
-    >
+    <>
+      <p className="text-sm text-muted-foreground">
+        {appointment.service.name} ·{' '}
+        {appointment.contact.name ?? formatPhoneBR(appointment.contact.phone)} ·{' '}
+        {formatDuration(appointment.service.durationMinutes)}
+      </p>
+
       <div className="text-sm">
         <span className="text-muted-foreground">Horário atual: </span>
         {formatWhen(appointment.startsAt, tenant.timezone)}
@@ -61,6 +73,18 @@ export default async function RescheduleModal({ params }: PageProps) {
         appointmentId={appointment.id}
         currentStartsAtIso={appointment.startsAt.toISOString()}
       />
+    </>
+  );
+}
+
+export default async function RescheduleModal({ params }: PageProps) {
+  const { id } = await params;
+
+  return (
+    <RouteModal title="Remarcar">
+      <Suspense fallback={<RescheduleSkeleton />}>
+        <RescheduleBody id={id} />
+      </Suspense>
     </RouteModal>
   );
 }
