@@ -15,7 +15,7 @@ export function InterestDialog({ children }: { children: React.ReactNode }) {
   return (
     <Dialog>
       <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent>
+      <DialogContent dismissable={false}>
         <DialogHeader>
           <DialogTitle>Quero usar o Demandaê</DialogTitle>
           <DialogDescription>

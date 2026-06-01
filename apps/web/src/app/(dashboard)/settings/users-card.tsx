@@ -124,7 +124,7 @@ function InviteDialog({ open, onClose }: { open: boolean; onClose: () => void })
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent>
+      <DialogContent dismissable={false}>
         <DialogHeader>
           <DialogTitle>Adicionar usuário</DialogTitle>
           <DialogDescription>
@@ -208,7 +208,7 @@ function EditDialog({
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent>
+      <DialogContent dismissable={false}>
         <DialogHeader>
           <DialogTitle>Editar usuário</DialogTitle>
           <DialogDescription>{user.email}</DialogDescription>

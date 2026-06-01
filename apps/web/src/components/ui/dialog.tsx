@@ -25,8 +25,15 @@ DialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
 
 const DialogContent = React.forwardRef<
   React.ComponentRef<typeof DialogPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
->(({ className, children, ...props }, ref) => (
+  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & {
+    /**
+     * Quando `false`, o modal não fecha ao clicar fora (overlay) nem com ESC —
+     * só pelo X ou por um botão de cancelar interno. Use em modais com
+     * formulário/ação pra evitar perda acidental do que foi digitado.
+     */
+    dismissable?: boolean;
+  }
+>(({ className, children, dismissable = true, onInteractOutside, onEscapeKeyDown, ...props }, ref) => (
   <DialogPortal>
     <DialogOverlay />
     <DialogPrimitive.Content
@@ -35,6 +42,14 @@ const DialogContent = React.forwardRef<
         'fixed left-1/2 top-1/2 z-50 grid w-full max-w-md -translate-x-1/2 -translate-y-1/2 gap-4 rounded-2xl border border-border bg-background p-6 shadow-lg',
         className,
       )}
+      onInteractOutside={(e) => {
+        if (!dismissable) e.preventDefault();
+        onInteractOutside?.(e);
+      }}
+      onEscapeKeyDown={(e) => {
+        if (!dismissable) e.preventDefault();
+        onEscapeKeyDown?.(e);
+      }}
       {...props}
     >
       {children}
