@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useActionState, useState } from 'react';
 import { useFormStatus } from 'react-dom';
 
@@ -38,6 +38,7 @@ function SubmitButton() {
 }
 
 export function RescheduleForm({ appointmentId, currentStartsAtIso }: RescheduleFormProps) {
+  const router = useRouter();
   const actionWithId = rescheduleAppointment.bind(null, appointmentId);
   const [state, formAction] = useActionState<RescheduleResult, FormData>(
     actionWithId,
@@ -78,8 +79,8 @@ export function RescheduleForm({ appointmentId, currentStartsAtIso }: Reschedule
 
       <div className="flex gap-2">
         <SubmitButton />
-        <Button asChild variant="ghost">
-          <Link href="/appointments">Cancelar</Link>
+        <Button type="button" variant="ghost" onClick={() => router.back()}>
+          Cancelar
         </Button>
       </div>
     </form>

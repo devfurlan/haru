@@ -7,7 +7,13 @@ import { SignOutButton } from '@/components/sign-out-button';
 import { UserMenuLink } from '@/components/user-menu-link';
 import { isAdmin, requireUserAndTenant } from '@/lib/auth';
 
-export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
+export default async function DashboardLayout({
+  children,
+  modal,
+}: {
+  children: React.ReactNode;
+  modal: React.ReactNode;
+}) {
   const user = await requireUserAndTenant();
   const { tenant, email, name } = user;
 
@@ -31,6 +37,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         </div>
       </aside>
       <main className="flex-1 overflow-y-auto p-6">{children}</main>
+      {modal}
     </div>
   );
 }
