@@ -291,7 +291,7 @@ export function SlotPicker({
       : days;
 
   return (
-    <div className="space-y-4">
+    <div className="min-w-0 space-y-4">
       <div className="flex items-center justify-between gap-3">
         <p className="text-foreground flex items-center gap-1.5 text-sm font-medium">
           <CalendarDays className="h-4 w-4" aria-hidden="true" />
@@ -309,7 +309,7 @@ export function SlotPicker({
       {/* Faixa horizontal rolável de chips de dia. */}
       <div
         ref={railRef}
-        className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-2"
+        className="-mx-1 flex min-w-0 gap-2 overflow-x-auto px-1 pb-2"
         role="radiogroup"
         aria-label="Escolha o dia"
       >

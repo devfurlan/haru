@@ -46,7 +46,11 @@ export function RouteModal({ title, description, children }: RouteModalProps) {
           <DialogTitle>{title}</DialogTitle>
           {description ? <DialogDescription>{description}</DialogDescription> : null}
         </DialogHeader>
-        {children}
+        {/* Wrapper em bloco: o DialogContent é um `grid`, então sem isto cada filho
+            (e o conteúdo do form) vira item de grid. `min-w-0` impede que conteúdo
+            largo (ex.: o carrossel rolável de dias) estoure a coluna do grid e
+            empurre todo o modal pra fora da borda. */}
+        <div className="min-w-0 space-y-4">{children}</div>
       </DialogContent>
     </Dialog>
   );
