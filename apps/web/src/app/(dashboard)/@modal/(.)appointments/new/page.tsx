@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { prisma } from '@haru/database';
 
 import { requireUserAndTenant } from '@/lib/auth';
+import { BOOKING_HORIZON_DAYS } from '@/lib/booking-days';
 
 import { NewAppointmentForm } from '@/app/(dashboard)/appointments/new/new-appointment-form';
 
@@ -14,12 +15,12 @@ function FormSkeleton() {
   return (
     <div className="space-y-4">
       <div className="grid gap-4 sm:grid-cols-2">
-        <div className="h-9 animate-pulse rounded-md bg-muted" />
-        <div className="h-9 animate-pulse rounded-md bg-muted" />
+        <div className="bg-muted h-9 animate-pulse rounded-md" />
+        <div className="bg-muted h-9 animate-pulse rounded-md" />
       </div>
-      <div className="h-9 animate-pulse rounded-md bg-muted" />
-      <div className="h-9 animate-pulse rounded-md bg-muted" />
-      <div className="h-9 w-40 animate-pulse rounded-md bg-muted" />
+      <div className="bg-muted h-9 animate-pulse rounded-md" />
+      <div className="bg-muted h-9 animate-pulse rounded-md" />
+      <div className="bg-muted h-9 w-40 animate-pulse rounded-md" />
     </div>
   );
 }
@@ -35,9 +36,15 @@ async function NewAppointmentBody() {
     select: { id: true, name: true, durationMinutes: true, priceCents: true },
   });
 
+  const blocks = await prisma.scheduleBlock.findMany({
+    where: { tenantId: tenant.id },
+    select: { weekday: true },
+  });
+  const openWeekdays = [...new Set(blocks.map((b) => b.weekday))];
+
   if (services.length === 0) {
     return (
-      <p className="text-sm text-muted-foreground">
+      <p className="text-muted-foreground text-sm">
         Cadastre um serviço primeiro em{' '}
         <Link href="/services" className="underline underline-offset-4">
           /services
@@ -47,7 +54,14 @@ async function NewAppointmentBody() {
     );
   }
 
-  return <NewAppointmentForm services={services} />;
+  return (
+    <NewAppointmentForm
+      services={services}
+      timezone={tenant.timezone}
+      openWeekdays={openWeekdays}
+      horizonDays={BOOKING_HORIZON_DAYS}
+    />
+  );
 }
 
 export default function NewAppointmentModal() {

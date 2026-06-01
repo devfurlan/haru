@@ -4,81 +4,74 @@ import { useRouter } from 'next/navigation';
 import { useActionState, useState } from 'react';
 import { useFormStatus } from 'react-dom';
 
+import { SlotPicker } from '@/components/slot-picker';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 
-import { rescheduleAppointment, type RescheduleResult } from '../../actions';
+import {
+  getTenantAvailableSlots,
+  rescheduleAppointment,
+  type RescheduleResult,
+} from '../../actions';
 
 interface RescheduleFormProps {
   appointmentId: string;
-  currentStartsAtIso: string;
+  serviceId: string;
+  /** Dia atual do agendamento (YYYY-MM-DD no fuso do tenant) — pré-seleciona. */
+  currentDateStr: string;
+  timezone: string;
+  openWeekdays: number[];
+  horizonDays: number;
 }
 
-/**
- * Converte ISO UTC pro formato `YYYY-MM-DDTHH:mm` usado pelo input
- * datetime-local — preserva o relógio do navegador.
- */
-function isoToDatetimeLocal(iso: string): string {
-  const d = new Date(iso);
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return (
-    `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}` +
-    `T${pad(d.getHours())}:${pad(d.getMinutes())}`
-  );
-}
-
-function SubmitButton() {
+function SubmitButton({ disabled }: { disabled: boolean }) {
   const { pending } = useFormStatus();
   return (
-    <Button type="submit" disabled={pending}>
+    <Button type="submit" disabled={pending || disabled}>
       {pending ? 'Remarcando…' : 'Confirmar nova data'}
     </Button>
   );
 }
 
-export function RescheduleForm({ appointmentId, currentStartsAtIso }: RescheduleFormProps) {
+export function RescheduleForm({
+  appointmentId,
+  serviceId,
+  currentDateStr,
+  timezone,
+  openWeekdays,
+  horizonDays,
+}: RescheduleFormProps) {
   const router = useRouter();
   const actionWithId = rescheduleAppointment.bind(null, appointmentId);
-  const [state, formAction] = useActionState<RescheduleResult, FormData>(
-    actionWithId,
-    undefined,
-  );
+  const [state, formAction] = useActionState<RescheduleResult, FormData>(actionWithId, undefined);
 
-  // Inicializa com o ISO atual pra que enviar sem trocar nada não vire erro.
-  const [newIso, setNewIso] = useState(currentStartsAtIso);
+  const [slotIso, setSlotIso] = useState('');
 
-  function handleDateChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const value = e.target.value;
-    if (!value) {
-      setNewIso('');
-      return;
-    }
-    const d = new Date(value);
-    setNewIso(Number.isNaN(d.getTime()) ? '' : d.toISOString());
-  }
+  // O próprio agendamento não conta como ocupado — senão o horário atual sumiria
+  // das opções. Por isso o reschedule passa `appointmentId` como exclusão.
+  const loadSlots = (svcId: string, dateStr: string) =>
+    getTenantAvailableSlots(svcId, dateStr, appointmentId);
 
   return (
     <form action={formAction} className="space-y-4">
-      <div className="space-y-2">
-        <Label htmlFor="newStartsAt">Novo horário</Label>
-        <Input
-          id="newStartsAt"
-          type="datetime-local"
-          step={300}
-          defaultValue={isoToDatetimeLocal(currentStartsAtIso)}
-          onChange={handleDateChange}
-          required
-        />
-        <input type="hidden" name="newStartsAtIso" value={newIso} />
-      </div>
+      <SlotPicker
+        serviceId={serviceId}
+        timezone={timezone}
+        openWeekdays={openWeekdays}
+        horizonDays={horizonDays}
+        value={slotIso}
+        onChange={setSlotIso}
+        loadSlots={loadSlots}
+        initialDate={currentDateStr}
+      />
+
+      <input type="hidden" name="newStartsAtIso" value={slotIso} />
 
       {state && 'error' in state && state.error && (
-        <p className="text-sm text-destructive">{state.error}</p>
+        <p className="text-destructive text-sm">{state.error}</p>
       )}
 
       <div className="flex gap-2">
-        <SubmitButton />
+        <SubmitButton disabled={!slotIso} />
         <Button type="button" variant="ghost" onClick={() => router.back()}>
           Cancelar
         </Button>

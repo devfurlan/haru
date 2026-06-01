@@ -3,11 +3,16 @@
 import { useActionState, useState } from 'react';
 import { useFormStatus } from 'react-dom';
 
+import { SlotPicker } from '@/components/slot-picker';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
-import { createManualAppointment, type CreateAppointmentResult } from '../actions';
+import {
+  createManualAppointment,
+  getTenantAvailableSlots,
+  type CreateAppointmentResult,
+} from '../actions';
 
 interface ServiceOption {
   id: string;
@@ -18,6 +23,9 @@ interface ServiceOption {
 
 interface NewAppointmentFormProps {
   services: ServiceOption[];
+  timezone: string;
+  openWeekdays: number[];
+  horizonDays: number;
 }
 
 function formatBRL(cents: number): string {
@@ -31,35 +39,29 @@ function formatDuration(minutes: number): string {
   return m === 0 ? `${h}h` : `${h}h${m}min`;
 }
 
-function SubmitButton() {
+function SubmitButton({ disabled }: { disabled: boolean }) {
   const { pending } = useFormStatus();
   return (
-    <Button type="submit" disabled={pending}>
+    <Button type="submit" disabled={pending || disabled}>
       {pending ? 'Criando…' : 'Criar agendamento'}
     </Button>
   );
 }
 
-export function NewAppointmentForm({ services }: NewAppointmentFormProps) {
+export function NewAppointmentForm({
+  services,
+  timezone,
+  openWeekdays,
+  horizonDays,
+}: NewAppointmentFormProps) {
   const [state, formAction] = useActionState<CreateAppointmentResult, FormData>(
     createManualAppointment,
     undefined,
   );
 
-  // Converte o valor do <input type="datetime-local"> (local browser) pra ISO
-  // antes de enviar — assim o servidor recebe UTC inequívoco, sem depender do
-  // TZ do processo Node.
+  const [serviceId, setServiceId] = useState('');
+  // Slot escolhido na grade (ISO UTC) — o servidor revalida que é um horário livre.
   const [startsAtIso, setStartsAtIso] = useState('');
-
-  function handleDateChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const value = e.target.value; // ex: "2026-05-28T14:00"
-    if (!value) {
-      setStartsAtIso('');
-      return;
-    }
-    const date = new Date(value);
-    setStartsAtIso(Number.isNaN(date.getTime()) ? '' : date.toISOString());
-  }
 
   return (
     <form action={formAction} className="space-y-4">
@@ -74,7 +76,7 @@ export function NewAppointmentForm({ services }: NewAppointmentFormProps) {
             placeholder="5511987654321"
             required
           />
-          <p className="text-xs text-muted-foreground">Só dígitos, com DDI (55) e DDD.</p>
+          <p className="text-muted-foreground text-xs">Só dígitos, com DDI (55) e DDD.</p>
         </div>
 
         <div className="space-y-2">
@@ -89,8 +91,9 @@ export function NewAppointmentForm({ services }: NewAppointmentFormProps) {
           id="serviceId"
           name="serviceId"
           required
-          className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-          defaultValue=""
+          className="border-input focus-visible:ring-ring flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1"
+          value={serviceId}
+          onChange={(e) => setServiceId(e.target.value)}
         >
           <option value="" disabled>
             Selecione um serviço
@@ -104,23 +107,31 @@ export function NewAppointmentForm({ services }: NewAppointmentFormProps) {
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="startsAt">Data e hora</Label>
-        <Input
-          id="startsAt"
-          type="datetime-local"
-          required
-          step={300}
-          onChange={handleDateChange}
-        />
+        <Label>Data e hora</Label>
+        {serviceId ? (
+          <SlotPicker
+            serviceId={serviceId}
+            timezone={timezone}
+            openWeekdays={openWeekdays}
+            horizonDays={horizonDays}
+            value={startsAtIso}
+            onChange={setStartsAtIso}
+            loadSlots={getTenantAvailableSlots}
+          />
+        ) : (
+          <p className="bg-muted text-muted-foreground rounded-lg border p-4 text-sm">
+            Selecione um serviço para ver os horários disponíveis.
+          </p>
+        )}
         <input type="hidden" name="startsAtIso" value={startsAtIso} />
       </div>
 
       {state && 'error' in state && state.error && (
-        <p className="text-sm text-destructive">{state.error}</p>
+        <p className="text-destructive text-sm">{state.error}</p>
       )}
 
       <div className="flex gap-2">
-        <SubmitButton />
+        <SubmitButton disabled={!serviceId || !startsAtIso} />
       </div>
     </form>
   );

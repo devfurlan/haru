@@ -5,6 +5,7 @@ import { prisma } from '@haru/database';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { requireUserAndTenant } from '@/lib/auth';
+import { BOOKING_HORIZON_DAYS, isoDateInTz } from '@/lib/booking-days';
 import { formatPhoneBR } from '@/lib/format';
 
 import { RescheduleForm } from './reschedule-form';
@@ -41,12 +42,19 @@ export default async function ReschedulePage({ params }: PageProps) {
   });
   if (!appointment) notFound();
 
+  const blocks = await prisma.scheduleBlock.findMany({
+    where: { tenantId: tenant.id },
+    select: { weekday: true },
+  });
+  const openWeekdays = [...new Set(blocks.map((b) => b.weekday))];
+  const currentDateStr = isoDateInTz(appointment.startsAt, tenant.timezone);
+
   return (
     <div className="mx-auto max-w-xl space-y-6">
       <div>
         <Link
           href="/appointments"
-          className="text-sm text-muted-foreground underline-offset-4 hover:underline"
+          className="text-muted-foreground text-sm underline-offset-4 hover:underline"
         >
           ← Agendamentos
         </Link>
@@ -69,7 +77,11 @@ export default async function ReschedulePage({ params }: PageProps) {
 
           <RescheduleForm
             appointmentId={appointment.id}
-            currentStartsAtIso={appointment.startsAt.toISOString()}
+            serviceId={appointment.serviceId}
+            currentDateStr={currentDateStr}
+            timezone={tenant.timezone}
+            openWeekdays={openWeekdays}
+            horizonDays={BOOKING_HORIZON_DAYS}
           />
         </CardContent>
       </Card>

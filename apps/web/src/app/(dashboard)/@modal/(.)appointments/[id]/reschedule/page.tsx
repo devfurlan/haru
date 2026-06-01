@@ -5,6 +5,7 @@ import { notFound } from 'next/navigation';
 import { prisma } from '@haru/database';
 
 import { requireUserAndTenant } from '@/lib/auth';
+import { BOOKING_HORIZON_DAYS, isoDateInTz } from '@/lib/booking-days';
 import { formatPhoneBR } from '@/lib/format';
 
 import { RescheduleForm } from '@/app/(dashboard)/appointments/[id]/reschedule/reschedule-form';
@@ -36,11 +37,11 @@ function formatDuration(minutes: number): string {
 function RescheduleSkeleton() {
   return (
     <div className="space-y-4">
-      <div className="h-4 w-48 animate-pulse rounded bg-muted" />
-      <div className="h-9 animate-pulse rounded-md bg-muted" />
+      <div className="bg-muted h-4 w-48 animate-pulse rounded" />
+      <div className="bg-muted h-9 animate-pulse rounded-md" />
       <div className="flex gap-2">
-        <div className="h-9 w-40 animate-pulse rounded-md bg-muted" />
-        <div className="h-9 w-24 animate-pulse rounded-md bg-muted" />
+        <div className="bg-muted h-9 w-40 animate-pulse rounded-md" />
+        <div className="bg-muted h-9 w-24 animate-pulse rounded-md" />
       </div>
     </div>
   );
@@ -56,9 +57,16 @@ async function RescheduleBody({ id }: { id: string }) {
   });
   if (!appointment) notFound();
 
+  const blocks = await prisma.scheduleBlock.findMany({
+    where: { tenantId: tenant.id },
+    select: { weekday: true },
+  });
+  const openWeekdays = [...new Set(blocks.map((b) => b.weekday))];
+  const currentDateStr = isoDateInTz(appointment.startsAt, tenant.timezone);
+
   return (
     <>
-      <p className="text-sm text-muted-foreground">
+      <p className="text-muted-foreground text-sm">
         {appointment.service.name} ·{' '}
         {appointment.contact.name ?? formatPhoneBR(appointment.contact.phone)} ·{' '}
         {formatDuration(appointment.service.durationMinutes)}
@@ -71,7 +79,11 @@ async function RescheduleBody({ id }: { id: string }) {
 
       <RescheduleForm
         appointmentId={appointment.id}
-        currentStartsAtIso={appointment.startsAt.toISOString()}
+        serviceId={appointment.serviceId}
+        currentDateStr={currentDateStr}
+        timezone={tenant.timezone}
+        openWeekdays={openWeekdays}
+        horizonDays={BOOKING_HORIZON_DAYS}
       />
     </>
   );
