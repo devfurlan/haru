@@ -6,10 +6,13 @@ import { z } from 'zod';
 
 import { Prisma, prisma } from '@haru/database';
 
+import { getBaseUrl } from '@/lib/base-url';
 import { createClient } from '@/lib/supabase/server';
 import { uniqueSlug } from '@/lib/slug';
 
 export type ActionResult = { error: string } | undefined;
+
+export type ForgotPasswordResult = { error: string } | { ok: true } | undefined;
 
 function traduzErroSignUp(error: { code?: string; message?: string }): string {
   switch (error.code) {
@@ -109,6 +112,34 @@ export async function signIn(_prev: ActionResult, formData: FormData): Promise<A
 
   revalidatePath('/', 'layout');
   redirect('/dashboard');
+}
+
+const forgotPasswordSchema = z.object({
+  email: z.string().email('Email inválido'),
+});
+
+/**
+ * Dispara o e-mail de recuperação de senha (link no formato token_hash, igual ao
+ * /ativar — ver template recovery em supabase/config.toml). Sempre retorna ok,
+ * mesmo se o e-mail não existir: confirmar/negar o cadastro vazaria quais
+ * e-mails têm conta (enumeração). O rate-limit fica por conta do Supabase.
+ */
+export async function requestPasswordReset(
+  _prev: ForgotPasswordResult,
+  formData: FormData,
+): Promise<ForgotPasswordResult> {
+  const parsed = forgotPasswordSchema.safeParse({ email: formData.get('email') });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? 'Email inválido' };
+  }
+
+  const supabase = await createClient();
+  const baseUrl = await getBaseUrl();
+  await supabase.auth.resetPasswordForEmail(parsed.data.email, {
+    redirectTo: `${baseUrl}/redefinir-senha`,
+  });
+
+  return { ok: true };
 }
 
 export async function signOut() {

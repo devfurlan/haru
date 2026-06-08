@@ -85,6 +85,7 @@ site_url = "http://localhost:4361"
 additional_redirect_urls = [
   "http://localhost:4361/auth/callback",
   "http://localhost:3001/auth/callback",
+  "http://localhost:4361/redefinir-senha",
 ]
 jwt_expiry = 3600
 enable_refresh_token_rotation = true
@@ -114,6 +115,15 @@ secure_password_change = false
 max_frequency = "1s"
 otp_length = 6
 otp_expiry = 3600
+
+# Link de recuperação no formato token_hash (igual ao /ativar): a página
+# /redefinir-senha faz verifyOtp({ type: 'recovery' }) com o token_hash da URL.
+# IMPORTANTE: o Supabase hospedado (produção) NÃO lê este config.toml — replicar
+# este mesmo template em Auth → Email Templates → Reset Password no dashboard, e
+# adicionar /redefinir-senha à allow-list de Redirect URLs.
+[auth.email.template.recovery]
+subject = "Redefina sua senha — Demandaê"
+content_path = "./supabase/templates/recovery.html"
 
 [auth.sms]
 enable_signup = false
