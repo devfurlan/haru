@@ -135,8 +135,10 @@ export async function requestPasswordReset(
 
   const supabase = await createClient();
   const baseUrl = await getBaseUrl();
+  // Passa pelo /auth/confirm: ele troca o token (code ou token_hash) por sessão
+  // no servidor e então manda pro /redefinir-senha já autenticado.
   await supabase.auth.resetPasswordForEmail(parsed.data.email, {
-    redirectTo: `${baseUrl}/redefinir-senha`,
+    redirectTo: `${baseUrl}/auth/confirm?next=/redefinir-senha`,
   });
 
   return { ok: true };

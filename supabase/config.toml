@@ -85,6 +85,7 @@ site_url = "http://localhost:4361"
 additional_redirect_urls = [
   "http://localhost:4361/auth/callback",
   "http://localhost:3001/auth/callback",
+  "http://localhost:4361/auth/confirm",
   "http://localhost:4361/redefinir-senha",
 ]
 jwt_expiry = 3600

@@ -1,13 +1,14 @@
+import Link from 'next/link';
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { getAuthUser } from '@/lib/auth';
 
 import { ResetPasswordForm } from './reset-password-form';
 
-interface ResetPasswordPageProps {
-  searchParams: Promise<{ token_hash?: string; type?: string }>;
-}
-
-export default async function ResetPasswordPage({ searchParams }: ResetPasswordPageProps) {
-  const { token_hash: tokenHash } = await searchParams;
+export default async function ResetPasswordPage() {
+  // A sessão de recovery já foi estabelecida pelo /auth/confirm. Sem ela, o link
+  // é inválido/expirado (ou o usuário entrou direto).
+  const user = await getAuthUser();
 
   return (
     <Card>
@@ -16,7 +17,19 @@ export default async function ResetPasswordPage({ searchParams }: ResetPasswordP
         <CardDescription>Escolha uma nova senha para acessar o painel.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <ResetPasswordForm tokenHash={tokenHash ?? null} />
+        {user ? (
+          <ResetPasswordForm />
+        ) : (
+          <div className="space-y-3">
+            <p className="text-destructive text-sm">Link de recuperação inválido ou expirado.</p>
+            <Link
+              href="/esqueci-senha"
+              className="text-foreground text-sm font-medium underline-offset-4 hover:underline"
+            >
+              Solicitar um novo link
+            </Link>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
