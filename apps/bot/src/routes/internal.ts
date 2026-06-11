@@ -8,6 +8,7 @@ import { formatBRL } from '../lib/format.js';
 import prisma from '../lib/prisma.js';
 import { sendTextSafely } from '../lib/whatsapp/safeSend.js';
 import { getOrCreateConversation, saveMessage } from '../services/chatHistoryService.js';
+import { refreshHandoffWindow } from '../services/handoffService.js';
 
 /** Compara dois tokens em tempo constante (evita timing attack). */
 function tokenMatches(received: string, expected: string): boolean {
@@ -44,6 +45,64 @@ export async function internalRoutes(app: FastifyInstance) {
       Sentry.captureException(err, { tags: { component: 'internal', route: 'payment-confirmed' } });
     });
   });
+
+  // Envio manual do dono (handoff humano): o painel /conversations chama aqui pra
+  // o bot mandar uma mensagem de texto livre ao cliente. Responde SÍNCRONO com
+  // `delivered` porque o painel precisa saber se a janela de 24h do WhatsApp
+  // estava aberta — fora dela, texto livre é recusado pela Meta.
+  app.post('/internal/send-message', async (request: FastifyRequest, reply: FastifyReply) => {
+    const token = request.headers['x-internal-token'];
+    if (typeof token !== 'string' || !tokenMatches(token, env.BOT_INTERNAL_TOKEN)) {
+      return reply.code(401).send({ ok: false, error: 'unauthorized' });
+    }
+
+    const body = request.body as { conversationId?: unknown; text?: unknown } | undefined;
+    const conversationId = typeof body?.conversationId === 'string' ? body.conversationId : '';
+    const text = typeof body?.text === 'string' ? body.text.trim() : '';
+    if (!conversationId || !text) {
+      return reply.code(400).send({ ok: false, error: 'conversationId e text obrigatórios' });
+    }
+
+    try {
+      const delivered = await sendManualMessage(conversationId, text);
+      return reply.code(200).send({ ok: true, delivered });
+    } catch (err) {
+      app.log.error({ err, conversationId }, 'falha no envio manual');
+      Sentry.captureException(err, { tags: { component: 'internal', route: 'send-message' } });
+      return reply.code(500).send({ ok: false, error: 'send_failed' });
+    }
+  });
+}
+
+/**
+ * Manda uma mensagem de texto livre do dono ao cliente e persiste o OUTBOUND.
+ * Retorna `true` se entregue. Também renova a janela do handoff — a resposta do
+ * dono mantém a conversa em modo humano por mais 24h.
+ */
+async function sendManualMessage(conversationId: string, text: string): Promise<boolean> {
+  const conversation = await prisma.conversation.findUnique({
+    where: { id: conversationId },
+    include: { tenant: true, contact: true },
+  });
+  if (!conversation) return false;
+
+  const phoneNumberId = conversation.tenant.whatsappPhoneNumberId;
+  if (!phoneNumberId) return false;
+
+  const sent = await sendTextSafely(phoneNumberId, conversation.contact.phone, text, {
+    phone: conversation.contact.phone,
+    phoneNumberId,
+    tenantId: conversation.tenantId,
+    conversationId,
+    flow: 'handoff',
+  });
+
+  if (sent) {
+    await saveMessage(conversationId, 'OUTBOUND', text);
+    await refreshHandoffWindow(conversationId).catch(() => {});
+  }
+
+  return sent;
 }
 
 /**

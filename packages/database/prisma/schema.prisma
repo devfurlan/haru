@@ -114,6 +114,7 @@ model User {
   updatedAt   DateTime   @updatedAt
 
   conversationReads ConversationRead[]
+  handoffConversations Conversation[] @relation("ConversationHandoff")
 }
 
 enum UserRole {
@@ -191,6 +192,13 @@ model Conversation {
   tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   contactId String
   contact   Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  /// Handoff humano: enquanto > now(), o bot fica em silêncio nesta conversa e o
+  /// dono responde manualmente pelo painel. null = bot ativo. Cada mensagem do
+  /// cliente renova a janela (24h de inatividade); expira sozinho sem cron.
+  handoffExpiresAt DateTime?
+  /// Quem assumiu a conversa (atribuição "em atendimento por X"). null = bot ativo.
+  handoffById      String?
+  handoffBy        User?     @relation("ConversationHandoff", fields: [handoffById], references: [id], onDelete: SetNull)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

@@ -7,11 +7,15 @@ import { createClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/utils';
 import { formatPhoneBR } from '@/lib/format';
 import { formatFullDateTime, formatRelativeShort } from '@/lib/relative-time';
+import { Button } from '@/components/ui/button';
 
 import {
+  assumeConversation,
   getConversationList,
   getThread,
   markConversationRead,
+  returnConversationToBot,
+  sendManualMessage,
   type ConversationListItem,
   type ThreadMessage,
 } from './actions';
@@ -53,6 +57,11 @@ export function ConversationInbox({
   const [conversations, setConversations] = useState(initialConversations);
   const [selectedId, setSelectedId] = useState<string | null>(initialSelectedId);
   const [messages, setMessages] = useState<ThreadMessage[]>(initialMessages);
+  // Composer da resposta manual (modo handoff).
+  const [draft, setDraft] = useState('');
+  const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
+  const [handoffPending, setHandoffPending] = useState(false);
 
   const selectedConv = conversations.find((c) => c.id === selectedId) ?? null;
 
@@ -97,6 +106,8 @@ export function ConversationInbox({
   const openConversation = useCallback(
     (convId: string) => {
       setSelectedId(convId);
+      setDraft('');
+      setSendError(null);
       lastMarkedInboundRef.current = null;
       refetchThread(convId);
       markReadLocal(convId);
@@ -105,6 +116,68 @@ export function ConversationInbox({
     },
     [refetchThread, markReadLocal, router],
   );
+
+  // Patch otimista de uma conversa no estado local.
+  const patchConv = useCallback((convId: string, patch: Partial<ConversationListItem>) => {
+    setConversations((prev) => prev.map((c) => (c.id === convId ? { ...c, ...patch } : c)));
+  }, []);
+
+  // Dono assume a conversa: bot entra em silêncio, composer libera.
+  const handleAssume = useCallback(
+    async (convId: string) => {
+      setHandoffPending(true);
+      patchConv(convId, { handoffActive: true, handoffByName: null });
+      try {
+        await assumeConversation(convId);
+      } finally {
+        setHandoffPending(false);
+        refetchList();
+      }
+    },
+    [patchConv, refetchList],
+  );
+
+  // Devolve ao bot: reativa o atendimento automático.
+  const handleReturn = useCallback(
+    async (convId: string) => {
+      setHandoffPending(true);
+      patchConv(convId, { handoffActive: false, handoffByName: null });
+      try {
+        await returnConversationToBot(convId);
+      } finally {
+        setHandoffPending(false);
+        refetchList();
+      }
+    },
+    [patchConv, refetchList],
+  );
+
+  // Envia a resposta manual: append otimista; o realtime/refetch reconcilia (e
+  // remove a mensagem se a Meta recusar fora da janela de 24h).
+  const handleSend = useCallback(async () => {
+    const convId = selectedIdRef.current;
+    const text = draft.trim();
+    if (!convId || !text || sending) return;
+    setSending(true);
+    setSendError(null);
+    const tempId = `temp-${Date.now()}`;
+    setMessages((prev) => [
+      ...prev,
+      { id: tempId, direction: 'OUTBOUND', body: text, createdAt: new Date().toISOString() },
+    ]);
+    setDraft('');
+    try {
+      const { delivered } = await sendManualMessage(convId, text);
+      if (!delivered) {
+        setSendError('Mensagem não entregue — a janela de 24h do WhatsApp expirou.');
+      }
+    } catch {
+      setSendError('Falha ao enviar. Tente de novo.');
+    } finally {
+      setSending(false);
+      refetchThread(convId);
+    }
+  }, [draft, sending, refetchThread]);
 
   // Quando a conversa aberta já está lida e chega nova INBOUND, re-marca pra o
   // badge não piscar. Detecta pela última msg INBOUND presente na thread.
@@ -267,6 +340,11 @@ export function ConversationInbox({
                             <span className="size-2 shrink-0 rounded-full bg-primary" aria-label="não lida" />
                           )}
                         </div>
+                        {conv.handoffActive && (
+                          <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-coral/10 px-2 py-0.5 text-[10px] font-medium text-coral">
+                            ● atendimento manual
+                          </span>
+                        )}
                       </div>
                     </button>
                   </li>
@@ -299,6 +377,29 @@ export function ConversationInbox({
                   <div className="truncate text-xs text-muted-foreground">
                     {formatPhoneBR(selectedConv.contactPhone)}
                   </div>
+                )}
+              </div>
+              <div className="ml-auto flex shrink-0 items-center gap-2">
+                {selectedConv.handoffActive ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={handoffPending}
+                    onClick={() => handleReturn(selectedConv.id)}
+                  >
+                    Devolver ao bot
+                  </Button>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="coral"
+                    size="sm"
+                    disabled={handoffPending}
+                    onClick={() => handleAssume(selectedConv.id)}
+                  >
+                    Assumir conversa
+                  </Button>
                 )}
               </div>
             </header>
@@ -338,6 +439,52 @@ export function ConversationInbox({
               )}
               <div ref={endRef} />
             </div>
+            {/* Composer — só responde manualmente em modo handoff (silêncio do bot) */}
+            <footer className="border-t bg-card px-4 py-3 md:px-6">
+              {selectedConv.handoffActive ? (
+                <>
+                  <div className="flex items-end gap-2">
+                    <textarea
+                      value={draft}
+                      onChange={(e) => setDraft(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          handleSend();
+                        }
+                      }}
+                      rows={1}
+                      placeholder="Escreva uma resposta…"
+                      className="max-h-32 min-h-9 flex-1 resize-none rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                    />
+                    <Button
+                      type="button"
+                      size="sm"
+                      disabled={sending || !draft.trim()}
+                      onClick={handleSend}
+                    >
+                      Enviar
+                    </Button>
+                  </div>
+                  {sendError && <p className="mt-2 text-xs text-destructive">{sendError}</p>}
+                </>
+              ) : (
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-xs text-muted-foreground">
+                    O bot está atendendo. Assuma a conversa para responder manualmente.
+                  </span>
+                  <Button
+                    type="button"
+                    variant="coral"
+                    size="sm"
+                    disabled={handoffPending}
+                    onClick={() => handleAssume(selectedConv.id)}
+                  >
+                    Assumir conversa
+                  </Button>
+                </div>
+              )}
+            </footer>
           </>
         ) : (
           <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">

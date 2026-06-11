@@ -189,3 +189,32 @@ export async function notifyCustomerPaymentConfirmed(paymentId: string) {
     console.error('[notify] aviso ao cliente falhou', err);
   }
 }
+
+/**
+ * Envio manual do dono (handoff humano): pede ao bot pra mandar `text` ao cliente
+ * da conversa. Quem fala com o WhatsApp é o bot, então o painel faz um POST
+ * autenticado na rota interna. Retorna `delivered` (false = caiu fora da janela
+ * de 24h, a Meta recusa texto livre) ou `null` se o bot não está configurado.
+ */
+export async function sendManualWhatsappMessage(
+  conversationId: string,
+  text: string,
+): Promise<{ delivered: boolean } | null> {
+  const baseUrl = process.env.BOT_INTERNAL_URL;
+  const token = process.env.BOT_INTERNAL_TOKEN;
+  if (!baseUrl || !token) {
+    console.warn('[notify] BOT_INTERNAL_URL/TOKEN ausentes — envio manual ignorado');
+    return null;
+  }
+  const res = await fetch(`${baseUrl.replace(/\/$/, '')}/internal/send-message`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-internal-token': token },
+    body: JSON.stringify({ conversationId, text }),
+  });
+  if (!res.ok) {
+    console.error(`[notify] bot send-message ${res.status}: ${await res.text().catch(() => '')}`);
+    return { delivered: false };
+  }
+  const data = (await res.json().catch(() => null)) as { delivered?: boolean } | null;
+  return { delivered: data?.delivered ?? false };
+}

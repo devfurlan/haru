@@ -12,6 +12,7 @@ import { downloadMedia, markAsRead, verifyWebhookSignature } from '../lib/whatsa
 import type { WebhookMessage, WebhookPayload } from '../lib/whatsapp/types.js';
 import { sendTextSafely } from '../lib/whatsapp/safeSend.js';
 import { getOrCreateConversation, saveMessage } from '../services/chatHistoryService.js';
+import { getHandoffStatus, refreshHandoffWindow } from '../services/handoffService.js';
 import { findTenantByPhoneNumberId } from '../services/tenantService.js';
 
 export async function webhookRoutes(app: FastifyInstance) {
@@ -191,6 +192,18 @@ async function routeMessage(
     message.type === 'sticker'
   ) {
     // TODO: ingestão de imagem/PDF/etc. (OCR/visão)
+    return;
+  }
+
+  // Handoff humano: se o dono assumiu a conversa pelo painel, o bot fica em
+  // silêncio — só registra a mensagem do cliente (pro inbox) e renova a janela
+  // de 24h. Gate antes dos botões/flows engole até cliques de botão.
+  const handoff = await getHandoffStatus(tenantId, phone);
+  if (handoff) {
+    if (!audioHandled) {
+      await saveMessage(handoff.conversationId, 'INBOUND', text, message.id).catch(console.error);
+    }
+    await refreshHandoffWindow(handoff.conversationId).catch(console.error);
     return;
   }
 

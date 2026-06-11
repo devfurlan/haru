@@ -4,6 +4,7 @@ import { prisma } from '@haru/database';
 import type { MessageDirection } from '@haru/database';
 
 import { requireUserAndTenant } from '@/lib/auth';
+import { sendManualWhatsappMessage } from '@/lib/notify';
 
 export interface ConversationListItem {
   id: string;
@@ -16,6 +17,10 @@ export interface ConversationListItem {
   lastInboundAt: string | null;
   /// Quando o usuário atual leu esta conversa pela última vez (null = nunca).
   lastReadAt: string | null;
+  /// Modo humano ativo: o dono assumiu e o bot está em silêncio nesta conversa.
+  handoffActive: boolean;
+  /// Nome de quem assumiu a conversa (null = bot ativo / sem atribuição).
+  handoffByName: string | null;
   updatedAt: string;
 }
 
@@ -42,6 +47,7 @@ export async function getConversationList(): Promise<ConversationListItem[]> {
       contact: true,
       messages: { orderBy: { createdAt: 'desc' }, take: 1 },
       reads: { where: { userId }, take: 1 },
+      handoffBy: { select: { name: true } },
     },
     orderBy: { updatedAt: 'desc' },
     take: 50,
@@ -60,9 +66,11 @@ export async function getConversationList(): Promise<ConversationListItem[]> {
     }
   }
 
+  const now = new Date();
   return conversations.map((c) => {
     const last = c.messages[0] ?? null;
     const lastInbound = lastInboundByConv.get(c.id) ?? null;
+    const handoffActive = c.handoffExpiresAt != null && c.handoffExpiresAt > now;
     return {
       id: c.id,
       contactName: c.contact.name,
@@ -72,6 +80,8 @@ export async function getConversationList(): Promise<ConversationListItem[]> {
       lastMessageDirection: last?.direction ?? null,
       lastInboundAt: lastInbound ? lastInbound.toISOString() : null,
       lastReadAt: c.reads[0] ? c.reads[0].lastReadAt.toISOString() : null,
+      handoffActive,
+      handoffByName: handoffActive ? (c.handoffBy?.name ?? null) : null,
       updatedAt: c.updatedAt.toISOString(),
     };
   });
@@ -120,4 +130,59 @@ export async function markConversationRead(conversationId: string): Promise<void
     update: { lastReadAt: new Date() },
     create: { userId, conversationId, lastReadAt: new Date() },
   });
+}
+
+/// Janela do handoff: 24h (espelha HANDOFF_WINDOW_MS do bot).
+const HANDOFF_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * O dono assume a conversa: o bot entra em silêncio e o dono passa a responder
+ * manualmente pelo painel. Marca `handoffExpiresAt` 24h à frente e registra quem
+ * assumiu. Valida o tenant dono (defesa em profundidade — Prisma bypassa RLS).
+ */
+export async function assumeConversation(conversationId: string): Promise<void> {
+  const { id: userId, tenant } = await requireUserAndTenant();
+
+  await prisma.conversation.updateMany({
+    where: { id: conversationId, tenantId: tenant.id },
+    data: { handoffExpiresAt: new Date(Date.now() + HANDOFF_WINDOW_MS), handoffById: userId },
+  });
+}
+
+/** Devolve a conversa ao bot: reativa o atendimento automático. */
+export async function returnConversationToBot(conversationId: string): Promise<void> {
+  const { tenant } = await requireUserAndTenant();
+
+  await prisma.conversation.updateMany({
+    where: { id: conversationId, tenantId: tenant.id },
+    data: { handoffExpiresAt: null, handoffById: null },
+  });
+}
+
+/**
+ * Envia uma resposta manual do dono ao cliente. Exige que a conversa esteja em
+ * modo humano (o dono precisa "assumir" antes — silêncio total). Retorna
+ * `delivered: false` quando a janela de 24h do WhatsApp já fechou.
+ */
+export async function sendManualMessage(
+  conversationId: string,
+  text: string,
+): Promise<{ delivered: boolean }> {
+  const { tenant } = await requireUserAndTenant();
+
+  const body = text.trim();
+  if (!body) return { delivered: false };
+
+  const conv = await prisma.conversation.findFirst({
+    where: { id: conversationId, tenantId: tenant.id },
+    select: { handoffExpiresAt: true },
+  });
+  if (!conv) return { delivered: false };
+  if (!conv.handoffExpiresAt || conv.handoffExpiresAt <= new Date()) {
+    // Sem handoff ativo não enviamos — o front deve mandar "assumir" antes.
+    return { delivered: false };
+  }
+
+  const result = await sendManualWhatsappMessage(conversationId, body);
+  return { delivered: result?.delivered ?? false };
 }
