@@ -169,7 +169,10 @@ export function ConversationInbox({
     try {
       const { delivered } = await sendManualMessage(convId, text);
       if (!delivered) {
-        setSendError('Mensagem não entregue — a janela de 24h do WhatsApp expirou.');
+        setSendError(
+          'Não foi possível enviar: o cliente não manda mensagem há mais de 24h. ' +
+            'O WhatsApp só libera resposta dentro desse prazo — aguarde ele escrever de novo.',
+        );
       }
     } catch {
       setSendError('Falha ao enviar. Tente de novo.');
