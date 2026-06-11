@@ -190,10 +190,14 @@ export async function notifyCustomerPaymentConfirmed(paymentId: string) {
   }
 }
 
-export type SendFailureReason = 'window_closed' | 'not_configured' | 'send_failed';
+/// `unreachable`: o web não conseguiu falar com o bot (envs BOT_INTERNAL_* ausentes,
+/// bot fora do ar, 404/500). Problema de infra — não é o WhatsApp do tenant.
+export type SendFailureReason = 'window_closed' | 'not_configured' | 'unreachable' | 'send_failed';
 export interface ManualSendResult {
   delivered: boolean;
   reason?: SendFailureReason;
+  /// Código de erro da Cloud API do Meta (quando houver) — ajuda a diagnosticar.
+  waCode?: number;
 }
 
 /**
@@ -209,8 +213,11 @@ export async function sendManualWhatsappMessage(
   const baseUrl = process.env.BOT_INTERNAL_URL;
   const token = process.env.BOT_INTERNAL_TOKEN;
   if (!baseUrl || !token) {
-    console.warn('[notify] BOT_INTERNAL_URL/TOKEN ausentes — envio manual ignorado');
-    return { delivered: false, reason: 'not_configured' };
+    console.warn(
+      '[notify] BOT_INTERNAL_URL/BOT_INTERNAL_TOKEN ausentes no web — não dá pra chamar o bot. ' +
+        'Configure-as no ambiente do web (Vercel) apontando pro bot.',
+    );
+    return { delivered: false, reason: 'unreachable' };
   }
   try {
     const res = await fetch(`${baseUrl.replace(/\/$/, '')}/internal/send-message`, {
@@ -220,12 +227,15 @@ export async function sendManualWhatsappMessage(
     });
     if (!res.ok) {
       console.error(`[notify] bot send-message ${res.status}: ${await res.text().catch(() => '')}`);
-      return { delivered: false, reason: 'send_failed' };
+      return { delivered: false, reason: 'unreachable' };
     }
     const data = (await res.json().catch(() => null)) as ManualSendResult | null;
-    return { delivered: data?.delivered ?? false, reason: data?.reason };
+    if (data && !data.delivered) {
+      console.error(`[notify] envio manual não entregue — reason=${data.reason} waCode=${data.waCode}`);
+    }
+    return { delivered: data?.delivered ?? false, reason: data?.reason, waCode: data?.waCode };
   } catch (err) {
     console.error('[notify] envio manual falhou', err);
-    return { delivered: false, reason: 'send_failed' };
+    return { delivered: false, reason: 'unreachable' };
   }
 }
