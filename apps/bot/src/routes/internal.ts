@@ -6,9 +6,9 @@ import { Sentry } from '../instrument.js';
 import { env } from '../lib/env.js';
 import { formatBRL } from '../lib/format.js';
 import prisma from '../lib/prisma.js';
+import { sendTextMessage } from '../lib/whatsapp/client.js';
 import { sendTextSafely } from '../lib/whatsapp/safeSend.js';
 import { getOrCreateConversation, saveMessage } from '../services/chatHistoryService.js';
-import { refreshHandoffWindow } from '../services/handoffService.js';
 
 /** Compara dois tokens em tempo constante (evita timing attack). */
 function tokenMatches(received: string, expected: string): boolean {
@@ -63,46 +63,62 @@ export async function internalRoutes(app: FastifyInstance) {
       return reply.code(400).send({ ok: false, error: 'conversationId e text obrigatórios' });
     }
 
-    try {
-      const delivered = await sendManualMessage(conversationId, text);
-      return reply.code(200).send({ ok: true, delivered });
-    } catch (err) {
-      app.log.error({ err, conversationId }, 'falha no envio manual');
-      Sentry.captureException(err, { tags: { component: 'internal', route: 'send-message' } });
-      return reply.code(500).send({ ok: false, error: 'send_failed' });
+    const outcome = await sendManualMessage(conversationId, text);
+    if (!outcome.delivered) {
+      app.log.warn({ conversationId, reason: outcome.reason, waCode: outcome.waCode }, 'envio manual não entregue');
     }
+    return reply.code(200).send({ ok: true, ...outcome });
   });
+}
+
+/// Motivo de uma falha no envio manual — o painel usa pra explicar ao dono.
+/// `window_closed`: o Meta recusou por estar fora da janela de 24h (código 131047
+/// e afins). `not_configured`: o tenant não tem WhatsApp conectado.
+/// `send_failed`: qualquer outra falha da Cloud API.
+type SendOutcome =
+  | { delivered: true }
+  | { delivered: false; reason: 'window_closed' | 'not_configured' | 'send_failed'; waCode?: number };
+
+/// Códigos de erro da Cloud API que significam "fora da janela de 24h / precisa
+/// de template pra reengajar". https://developers.facebook.com/docs/whatsapp/cloud-api/support/error-codes
+const WINDOW_CLOSED_CODES = new Set([131047, 131051, 131026]);
+
+/** Extrai o `error.code` numérico do erro lançado por `callApi` (texto JSON da Meta). */
+function whatsappErrorCode(err: unknown): number | undefined {
+  const msg = err instanceof Error ? err.message : String(err);
+  const match = msg.match(/"code":\s*(\d+)/);
+  return match ? Number(match[1]) : undefined;
 }
 
 /**
  * Manda uma mensagem de texto livre do dono ao cliente e persiste o OUTBOUND.
- * Retorna `true` se entregue. Também renova a janela do handoff — a resposta do
- * dono mantém a conversa em modo humano por mais 24h.
+ * NÃO renova a janela do handoff — só mensagem do cliente reabre a janela de 24h
+ * do WhatsApp; resposta do dono não conta. Classifica a falha pra UI explicar.
  */
-async function sendManualMessage(conversationId: string, text: string): Promise<boolean> {
+async function sendManualMessage(conversationId: string, text: string): Promise<SendOutcome> {
   const conversation = await prisma.conversation.findUnique({
     where: { id: conversationId },
     include: { tenant: true, contact: true },
   });
-  if (!conversation) return false;
+  if (!conversation) return { delivered: false, reason: 'send_failed' };
 
   const phoneNumberId = conversation.tenant.whatsappPhoneNumberId;
-  if (!phoneNumberId) return false;
+  if (!phoneNumberId) return { delivered: false, reason: 'not_configured' };
 
-  const sent = await sendTextSafely(phoneNumberId, conversation.contact.phone, text, {
-    phone: conversation.contact.phone,
-    phoneNumberId,
-    tenantId: conversation.tenantId,
-    conversationId,
-    flow: 'handoff',
-  });
-
-  if (sent) {
-    await saveMessage(conversationId, 'OUTBOUND', text);
-    await refreshHandoffWindow(conversationId).catch(() => {});
+  try {
+    await sendTextMessage(phoneNumberId, conversation.contact.phone, text);
+  } catch (err) {
+    const waCode = whatsappErrorCode(err);
+    const reason = waCode && WINDOW_CLOSED_CODES.has(waCode) ? 'window_closed' : 'send_failed';
+    Sentry.captureException(err, {
+      tags: { component: 'internal', route: 'send-message', wa_code: String(waCode ?? '') },
+      extra: { conversationId, tenantId: conversation.tenantId },
+    });
+    return { delivered: false, reason, waCode };
   }
 
-  return sent;
+  await saveMessage(conversationId, 'OUTBOUND', text);
+  return { delivered: true };
 }
 
 /**

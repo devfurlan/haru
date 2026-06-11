@@ -48,6 +48,34 @@ function isUnread(conv: ConversationListItem): boolean {
   return !conv.lastReadAt || conv.lastInboundAt > conv.lastReadAt;
 }
 
+const WINDOW_MS = 24 * 60 * 60 * 1000;
+
+/// Janela de 24h do WhatsApp: só dá pra responder em texto livre se o cliente
+/// mandou mensagem nas últimas 24h. Calculado no cliente a partir do último INBOUND.
+function isWindowOpen(conv: ConversationListItem): boolean {
+  if (!conv.lastInboundAt) return false;
+  return Date.now() - new Date(conv.lastInboundAt).getTime() < WINDOW_MS;
+}
+
+/// Modo manual efetivo: o dono assumiu E a janela ainda está aberta. Os dois
+/// andam juntos (o handoff expira com a janela), mas a checagem por tempo no
+/// cliente evita o composer ficar aberto quando a janela já fechou sem refetch.
+function isManual(conv: ConversationListItem): boolean {
+  return conv.handoffActive && isWindowOpen(conv);
+}
+
+/// Mensagem de erro por motivo de falha no envio.
+function sendErrorMessage(reason?: string): string {
+  switch (reason) {
+    case 'window_closed':
+      return 'Não foi possível enviar: passaram-se mais de 24h desde a última mensagem do cliente. O WhatsApp só libera resposta livre dentro desse prazo — aguarde ele escrever de novo.';
+    case 'not_configured':
+      return 'WhatsApp não conectado. Conecte o número em Configurações para responder.';
+    default:
+      return 'Não foi possível enviar agora. Tente de novo em instantes.';
+  }
+}
+
 export function ConversationInbox({
   initialConversations,
   initialSelectedId,
@@ -122,13 +150,19 @@ export function ConversationInbox({
     setConversations((prev) => prev.map((c) => (c.id === convId ? { ...c, ...patch } : c)));
   }, []);
 
-  // Dono assume a conversa: bot entra em silêncio, composer libera.
+  // Dono assume a conversa: bot entra em silêncio, composer libera. Recusa se a
+  // janela de 24h já fechou (sem inbound recente não dá pra responder).
   const handleAssume = useCallback(
     async (convId: string) => {
       setHandoffPending(true);
+      setSendError(null);
       patchConv(convId, { handoffActive: true, handoffByName: null });
       try {
-        await assumeConversation(convId);
+        const res = await assumeConversation(convId);
+        if (!res.ok) {
+          patchConv(convId, { handoffActive: false });
+          setSendError(sendErrorMessage('window_closed'));
+        }
       } finally {
         setHandoffPending(false);
         refetchList();
@@ -167,15 +201,14 @@ export function ConversationInbox({
     ]);
     setDraft('');
     try {
-      const { delivered } = await sendManualMessage(convId, text);
+      const { delivered, reason } = await sendManualMessage(convId, text);
       if (!delivered) {
-        setSendError(
-          'Não foi possível enviar: o cliente não manda mensagem há mais de 24h. ' +
-            'O WhatsApp só libera resposta dentro desse prazo — aguarde ele escrever de novo.',
-        );
+        setSendError(sendErrorMessage(reason));
+        setDraft(text); // devolve o texto pra não perder o que foi digitado
       }
     } catch {
-      setSendError('Falha ao enviar. Tente de novo.');
+      setSendError(sendErrorMessage('send_failed'));
+      setDraft(text);
     } finally {
       setSending(false);
       refetchThread(convId);
@@ -343,7 +376,7 @@ export function ConversationInbox({
                             <span className="size-2 shrink-0 rounded-full bg-primary" aria-label="não lida" />
                           )}
                         </div>
-                        {conv.handoffActive && (
+                        {isManual(conv) && (
                           <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-coral/10 px-2 py-0.5 text-[10px] font-medium text-coral">
                             ● atendimento manual
                           </span>
@@ -383,7 +416,7 @@ export function ConversationInbox({
                 )}
               </div>
               <div className="ml-auto flex shrink-0 items-center gap-2">
-                {selectedConv.handoffActive ? (
+                {isManual(selectedConv) ? (
                   <Button
                     type="button"
                     variant="outline"
@@ -398,7 +431,7 @@ export function ConversationInbox({
                     type="button"
                     variant="coral"
                     size="sm"
-                    disabled={handoffPending}
+                    disabled={handoffPending || !isWindowOpen(selectedConv)}
                     onClick={() => handleAssume(selectedConv.id)}
                   >
                     Assumir conversa
@@ -444,34 +477,31 @@ export function ConversationInbox({
             </div>
             {/* Composer — só responde manualmente em modo handoff (silêncio do bot) */}
             <footer className="border-t bg-card px-4 py-3 md:px-6">
-              {selectedConv.handoffActive ? (
-                <>
-                  <div className="flex items-end gap-2">
-                    <textarea
-                      value={draft}
-                      onChange={(e) => setDraft(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' && !e.shiftKey) {
-                          e.preventDefault();
-                          handleSend();
-                        }
-                      }}
-                      rows={1}
-                      placeholder="Escreva uma resposta…"
-                      className="max-h-32 min-h-9 flex-1 resize-none rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-                    />
-                    <Button
-                      type="button"
-                      size="sm"
-                      disabled={sending || !draft.trim()}
-                      onClick={handleSend}
-                    >
-                      Enviar
-                    </Button>
-                  </div>
-                  {sendError && <p className="mt-2 text-xs text-destructive">{sendError}</p>}
-                </>
-              ) : (
+              {isManual(selectedConv) ? (
+                <div className="flex items-end gap-2">
+                  <textarea
+                    value={draft}
+                    onChange={(e) => setDraft(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSend();
+                      }
+                    }}
+                    rows={1}
+                    placeholder="Escreva uma resposta…"
+                    className="max-h-32 min-h-9 flex-1 resize-none rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={sending || !draft.trim()}
+                    onClick={handleSend}
+                  >
+                    Enviar
+                  </Button>
+                </div>
+              ) : isWindowOpen(selectedConv) ? (
                 <div className="flex items-center justify-between gap-3">
                   <span className="text-xs text-muted-foreground">
                     O bot está atendendo. Assuma a conversa para responder manualmente.
@@ -486,7 +516,13 @@ export function ConversationInbox({
                     Assumir conversa
                   </Button>
                 </div>
+              ) : (
+                <span className="text-xs text-muted-foreground">
+                  O cliente não manda mensagem há mais de 24h. O WhatsApp só libera resposta livre
+                  dentro desse prazo — aguarde ele escrever de novo para poder responder.
+                </span>
               )}
+              {sendError && <p className="mt-2 text-xs text-destructive">{sendError}</p>}
             </footer>
           </>
         ) : (

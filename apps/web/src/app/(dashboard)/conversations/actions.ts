@@ -4,7 +4,7 @@ import { prisma } from '@haru/database';
 import type { MessageDirection } from '@haru/database';
 
 import { requireUserAndTenant } from '@/lib/auth';
-import { sendManualWhatsappMessage } from '@/lib/notify';
+import { sendManualWhatsappMessage, type ManualSendResult } from '@/lib/notify';
 
 export interface ConversationListItem {
   id: string;
@@ -135,18 +135,41 @@ export async function markConversationRead(conversationId: string): Promise<void
 /// Janela do handoff: 24h (espelha HANDOFF_WINDOW_MS do bot).
 const HANDOFF_WINDOW_MS = 24 * 60 * 60 * 1000;
 
+export type AssumeResult = { ok: true } | { ok: false; reason: 'window_closed' };
+
 /**
  * O dono assume a conversa: o bot entra em silêncio e o dono passa a responder
- * manualmente pelo painel. Marca `handoffExpiresAt` 24h à frente e registra quem
- * assumiu. Valida o tenant dono (defesa em profundidade — Prisma bypassa RLS).
+ * manualmente. O handoff dura exatamente o que dura a janela de 24h do WhatsApp
+ * (última mensagem do cliente + 24h) — fora dela não dá pra responder, então
+ * recusamos assumir. Quando a janela fecha, o handoff expira e o bot volta sozinho.
+ * Valida o tenant dono (defesa em profundidade — Prisma bypassa RLS).
  */
-export async function assumeConversation(conversationId: string): Promise<void> {
+export async function assumeConversation(conversationId: string): Promise<AssumeResult> {
   const { id: userId, tenant } = await requireUserAndTenant();
 
-  await prisma.conversation.updateMany({
+  const conv = await prisma.conversation.findFirst({
     where: { id: conversationId, tenantId: tenant.id },
-    data: { handoffExpiresAt: new Date(Date.now() + HANDOFF_WINDOW_MS), handoffById: userId },
+    select: { id: true },
   });
+  if (!conv) return { ok: false, reason: 'window_closed' };
+
+  const lastInbound = await prisma.message.findFirst({
+    where: { conversationId, direction: 'INBOUND' },
+    orderBy: { createdAt: 'desc' },
+    select: { createdAt: true },
+  });
+  const windowEnd = lastInbound
+    ? new Date(lastInbound.createdAt.getTime() + HANDOFF_WINDOW_MS)
+    : null;
+  if (!windowEnd || windowEnd <= new Date()) {
+    return { ok: false, reason: 'window_closed' };
+  }
+
+  await prisma.conversation.update({
+    where: { id: conversationId },
+    data: { handoffExpiresAt: windowEnd, handoffById: userId },
+  });
+  return { ok: true };
 }
 
 /** Devolve a conversa ao bot: reativa o atendimento automático. */
@@ -167,22 +190,21 @@ export async function returnConversationToBot(conversationId: string): Promise<v
 export async function sendManualMessage(
   conversationId: string,
   text: string,
-): Promise<{ delivered: boolean }> {
+): Promise<ManualSendResult> {
   const { tenant } = await requireUserAndTenant();
 
   const body = text.trim();
-  if (!body) return { delivered: false };
+  if (!body) return { delivered: false, reason: 'send_failed' };
 
   const conv = await prisma.conversation.findFirst({
     where: { id: conversationId, tenantId: tenant.id },
     select: { handoffExpiresAt: true },
   });
-  if (!conv) return { delivered: false };
+  if (!conv) return { delivered: false, reason: 'send_failed' };
   if (!conv.handoffExpiresAt || conv.handoffExpiresAt <= new Date()) {
     // Sem handoff ativo não enviamos — o front deve mandar "assumir" antes.
-    return { delivered: false };
+    return { delivered: false, reason: 'window_closed' };
   }
 
-  const result = await sendManualWhatsappMessage(conversationId, body);
-  return { delivered: result?.delivered ?? false };
+  return sendManualWhatsappMessage(conversationId, body);
 }
