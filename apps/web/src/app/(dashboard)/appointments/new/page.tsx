@@ -3,13 +3,14 @@ import Link from 'next/link';
 import { prisma } from '@haru/database';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { requireUserAndTenant } from '@/lib/auth';
+import { isAdmin, requireUserAndTenant } from '@/lib/auth';
 import { BOOKING_HORIZON_DAYS } from '@/lib/booking-days';
 
 import { NewAppointmentForm } from './new-appointment-form';
 
 export default async function NewAppointmentPage() {
-  const { tenant } = await requireUserAndTenant();
+  const user = await requireUserAndTenant();
+  const { tenant } = user;
 
   const services = await prisma.service.findMany({
     where: { tenantId: tenant.id, active: true },
@@ -60,6 +61,7 @@ export default async function NewAppointmentPage() {
               timezone={tenant.timezone}
               openWeekdays={openWeekdays}
               horizonDays={BOOKING_HORIZON_DAYS}
+              isAdmin={isAdmin(user)}
             />
           )}
         </CardContent>

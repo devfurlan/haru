@@ -5,6 +5,7 @@ import { z } from 'zod';
 
 import { type AppointmentStatus, prisma } from '@haru/database';
 
+import { createAppointmentSeries } from '@/lib/appointment-series';
 import { type AvailableSlot, computeAvailableSlots, localWallTimeToUtc } from '@/lib/availability';
 import { BOOKING_HORIZON_DAYS, isoDateInTz } from '@/lib/booking-days';
 import { normalizePhoneBR } from '@/lib/format';
@@ -137,6 +138,9 @@ const bookingSchema = z.object({
     // precisa casar com o que o bot grava, senão vira um cadastro duplicado.
     .transform(normalizePhoneBR)
     .refine((v) => /^55\d{10,11}$/.test(v), { message: 'WhatsApp inválido — confira o DDD' }),
+  // Recorrência (opcional). 'NONE'/ausente = agendamento avulso.
+  frequency: z.enum(['NONE', 'WEEKLY', 'BIWEEKLY', 'MONTHLY']).default('NONE'),
+  occurrences: z.coerce.number().int().min(2).max(12).optional(),
 });
 
 export type CreatePublicBookingResult =
@@ -148,6 +152,17 @@ export type CreatePublicBookingResult =
       appointmentId: string;
       /** Mostra o bloco "Pagar agora" na tela de sucesso. */
       paymentAvailable: boolean;
+    }
+  | {
+      ok: true;
+      series: true;
+      status: AppointmentStatus;
+      /** Resumo da 1ª ocorrência (serviço · dia/hora). */
+      summary: string;
+      createdCount: number;
+      /** ISOs (UTC) das ocorrências puladas por conflito/expediente. */
+      skipped: string[];
+      beyondHorizon: number;
     }
   | undefined;
 
@@ -166,11 +181,13 @@ export async function createPublicBooking(
     slotIso: formData.get('slotIso'),
     name: formData.get('name'),
     phone: formData.get('phone'),
+    frequency: formData.get('frequency') ?? 'NONE',
+    occurrences: formData.get('occurrences') ?? undefined,
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? 'Dados inválidos' };
   }
-  const { slug, serviceId, slotIso, name, phone } = parsed.data;
+  const { slug, serviceId, slotIso, name, phone, frequency } = parsed.data;
 
   const tenant = await loadPublicTenant(slug);
   if (!tenant || !tenant.publicBookingEnabled) {
@@ -235,6 +252,58 @@ export async function createPublicBooking(
 
   // publicBookingConfirmation (PENDING|CONFIRMED) é subconjunto de AppointmentStatus.
   const status = tenant.publicBookingConfirmation as unknown as AppointmentStatus;
+
+  const whenFirst = new Intl.DateTimeFormat('pt-BR', {
+    timeZone: tenant.timezone,
+    weekday: 'long',
+    day: '2-digit',
+    month: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(startsAt);
+
+  // --- Agendamento recorrente: cria a série (pula ocorrências ocupadas/fora do
+  // expediente e avisa). Não oferece pagamento online nesta versão (cobrança de
+  // série fica fora de escopo).
+  if (frequency !== 'NONE') {
+    if (!parsed.data.occurrences) {
+      return { error: 'Escolha quantas vezes o agendamento se repete' };
+    }
+    const result = await createAppointmentSeries({
+      tenantId: tenant.id,
+      contactId: contact.id,
+      serviceId: service.id,
+      durationMinutes: service.durationMinutes,
+      tz: tenant.timezone,
+      frequency,
+      occurrences: parsed.data.occurrences,
+      firstStartsAtIso: startsAt.toISOString(),
+      status,
+      blocks: tenant.scheduleBlocks,
+    });
+
+    if (result.createdIds.length === 0) {
+      return { error: 'Nenhum horário da série está livre. Escolha outro horário inicial.' };
+    }
+
+    notifyAppointmentCreated(result.createdIds[0]).catch((err) =>
+      console.error('[public-booking] notify create (series) failed', err),
+    );
+
+    revalidatePath(`/${slug}`);
+    revalidatePath('/appointments');
+    revalidatePath('/dashboard');
+
+    return {
+      ok: true,
+      series: true,
+      status,
+      summary: `${service.name} · ${whenFirst}`,
+      createdCount: result.createdIds.length,
+      skipped: result.skipped,
+      beyondHorizon: result.beyondHorizon,
+    };
+  }
 
   const appointment = await prisma.appointment.create({
     data: {

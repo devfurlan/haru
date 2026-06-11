@@ -37,7 +37,13 @@ function civilDateInTimezone(
   }).formatToParts(instant);
   const get = (type: string) => parts.find((p) => p.type === type)?.value ?? '';
   const weekdayMap: Record<string, number> = {
-    Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6,
+    Sun: 0,
+    Mon: 1,
+    Tue: 2,
+    Wed: 3,
+    Thu: 4,
+    Fri: 5,
+    Sat: 6,
   };
   return {
     year: Number(get('year')),
@@ -78,10 +84,7 @@ function formatBirthDate(date: Date): string {
  * com os agendamentos futuros DESTE contato — essencial pro fluxo de
  * cancelamento (LLM precisa do ID `[apt_...]` pra chamar `cancel_appointment`).
  */
-export async function buildTenantContext(
-  tenantId: string,
-  contactId?: string,
-): Promise<string> {
+export async function buildTenantContext(tenantId: string, contactId?: string): Promise<string> {
   const tenant = await prisma.tenant.findUniqueOrThrow({
     where: { id: tenantId },
     include: {
@@ -105,8 +108,9 @@ export async function buildTenantContext(
 
   lines.push('## Serviços disponíveis');
   if (tenant.services.length === 0) {
-    lines.push('(nenhum serviço cadastrado — peça pro cliente aguardar o estabelecimento ' +
-      'configurar)');
+    lines.push(
+      '(nenhum serviço cadastrado — peça pro cliente aguardar o estabelecimento ' + 'configurar)',
+    );
   } else {
     for (const s of tenant.services) {
       const desc = s.description ? ` — ${s.description}` : '';
@@ -217,17 +221,28 @@ export async function buildTenantContext(
         status: { in: ['PENDING', 'CONFIRMED'] },
         startsAt: { gte: now },
       },
-      include: { service: true },
+      include: { service: true, series: { select: { frequency: true } } },
       orderBy: { startsAt: 'asc' },
     });
+
+    const FREQUENCY_LABEL: Record<string, string> = {
+      WEEKLY: 'semanal',
+      BIWEEKLY: 'quinzenal',
+      MONTHLY: 'mensal',
+    };
 
     lines.push('## Seus agendamentos (deste cliente)');
     if (contactAppts.length === 0) {
       lines.push('(nenhum)');
     } else {
       for (const a of contactAppts) {
+        // Marca a recorrência (e agrupa pelo seriesId) pra o LLM saber que um
+        // cancelamento pode envolver vários — pergunte se é só este ou a série toda.
+        const rec = a.series
+          ? ` (recorrente ${FREQUENCY_LABEL[a.series.frequency] ?? ''} · série ${a.seriesId})`
+          : '';
         lines.push(
-          `- [${a.id}] ${formatAppointmentDate(a.startsAt, tenant.timezone)} — ${a.service.name}`,
+          `- [${a.id}] ${formatAppointmentDate(a.startsAt, tenant.timezone)} — ${a.service.name}${rec}`,
         );
       }
     }

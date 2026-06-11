@@ -1,5 +1,5 @@
 import { prisma } from '@haru/database';
-import { Plus } from 'lucide-react';
+import { Plus, Repeat } from 'lucide-react';
 import Link from 'next/link';
 
 import { Button } from '@/components/ui/button';
@@ -101,7 +101,7 @@ export default async function AppointmentsPage({ searchParams }: PageProps) {
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="font-serif text-2xl font-semibold tracking-tight">Agendamentos</h1>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-muted-foreground text-sm">
             Tudo que o bot agendou e o histórico do estabelecimento.
           </p>
         </div>
@@ -127,7 +127,7 @@ export default async function AppointmentsPage({ searchParams }: PageProps) {
 
       {appointments.length === 0 ? (
         <Card>
-          <CardContent className="py-10 text-center text-sm text-muted-foreground">
+          <CardContent className="text-muted-foreground py-10 text-center text-sm">
             {tab === 'upcoming'
               ? 'Nenhum agendamento próximo.'
               : tab === 'past'
@@ -140,7 +140,7 @@ export default async function AppointmentsPage({ searchParams }: PageProps) {
           {appointments.map((appt) => (
             <div
               key={appt.id}
-              className="flex flex-col gap-3 rounded-lg border bg-card p-4 shadow-sm sm:flex-row sm:items-center"
+              className="bg-card flex flex-col gap-3 rounded-lg border p-4 shadow-sm sm:flex-row sm:items-center"
             >
               <div className="flex-1">
                 <div className="flex items-center gap-2">
@@ -153,18 +153,28 @@ export default async function AppointmentsPage({ searchParams }: PageProps) {
                   >
                     {STATUS_LABEL[appt.status] ?? appt.status}
                   </span>
+                  {appt.seriesId && (
+                    <span className="bg-muted text-muted-foreground inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs font-medium">
+                      <Repeat className="h-3 w-3" aria-hidden="true" />
+                      Recorrente
+                    </span>
+                  )}
                 </div>
                 <div className="mt-1 text-sm">
                   {appt.service.name} · {formatDuration(appt.service.durationMinutes)} ·{' '}
                   {formatBRL(appt.service.priceCents)}
                 </div>
-                <div className="text-sm text-muted-foreground">
+                <div className="text-muted-foreground text-sm">
                   {appt.contact.name ? `${appt.contact.name} · ` : ''}
                   {formatPhoneBR(appt.contact.phone)}
                 </div>
               </div>
 
-              <AppointmentActions appointmentId={appt.id} status={appt.status} />
+              <AppointmentActions
+                appointmentId={appt.id}
+                status={appt.status}
+                seriesId={appt.seriesId}
+              />
             </div>
           ))}
         </div>
@@ -181,7 +191,7 @@ function Tab({ href, label, active }: { href: string; label: string; active: boo
         '-mb-px border-b-2 px-3 py-2 text-sm transition-colors',
         active
           ? 'border-foreground text-foreground'
-          : 'border-transparent text-muted-foreground hover:text-foreground',
+          : 'text-muted-foreground hover:text-foreground border-transparent',
       )}
     >
       {label}

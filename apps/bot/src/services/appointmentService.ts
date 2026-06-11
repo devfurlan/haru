@@ -1,4 +1,10 @@
 import prisma from '../lib/prisma.js';
+import {
+  generateSeriesDates,
+  occursWithinOpenBlocks,
+  RECURRENCE_MAX_HORIZON_DAYS,
+  type RecurrenceFrequency,
+} from '../lib/recurrence.js';
 import { sendAppointmentTemplate } from './appointmentTemplateService.js';
 import {
   notifyAppointmentCanceled,
@@ -25,9 +31,7 @@ export type BookAppointmentResult =
     }
   | { ok: false; reason: string };
 
-export async function bookAppointment(
-  args: BookAppointmentArgs,
-): Promise<BookAppointmentResult> {
+export async function bookAppointment(args: BookAppointmentArgs): Promise<BookAppointmentResult> {
   // Gate de cadastro: só agenda depois que o cliente confirmou o cadastro básico
   // pelo bot (profileCompletedAt setado por save_customer_profile). NÃO usamos
   // `name` porque o profile do WhatsApp o autopreenche e nunca dispararia o gate.
@@ -113,15 +117,178 @@ export async function bookAppointment(
   };
 }
 
+export interface BookRecurringArgs {
+  tenantId: string;
+  contactId: string;
+  serviceId: string;
+  startsAtIso: string;
+  frequency: RecurrenceFrequency;
+  occurrences: number;
+}
+
+export type BookRecurringResult =
+  | {
+      ok: true;
+      seriesId: string;
+      createdCount: number;
+      /** Resumo da 1ª ocorrência criada (serviço · dia/hora). */
+      summary: string;
+      /** Datas puladas (humanizadas no fuso do tenant) por conflito/fora do expediente. */
+      skipped: string[];
+      /** Quantas ocorrências caíram além do horizonte de 90 dias. */
+      beyondHorizon: number;
+    }
+  | { ok: false; reason: string };
+
+const MS_PER_DAY = 86_400_000;
+
+/**
+ * Cria uma série de agendamentos recorrentes (semanal/quinzenal/mensal) confirmados.
+ * A 1ª ocorrência é o horário escolhido; as demais saltam mantendo a hora-de-parede.
+ * PULA (sem travar a série) ocorrências que caem fora do expediente, colidem com
+ * outro agendamento ou passam do horizonte de 90 dias — e devolve quais foram puladas.
+ */
+export async function bookRecurringAppointment(
+  args: BookRecurringArgs,
+): Promise<BookRecurringResult> {
+  const contact = await prisma.contact.findFirst({
+    where: { id: args.contactId, tenantId: args.tenantId },
+    select: { profileCompletedAt: true },
+  });
+  if (!contact || !contact.profileCompletedAt) {
+    return {
+      ok: false,
+      reason:
+        'cadastro incompleto — confirme o nome (e ofereça email e data de nascimento, que são ' +
+        'opcionais) e chame save_customer_profile antes de agendar',
+    };
+  }
+
+  const first = new Date(args.startsAtIso);
+  if (Number.isNaN(first.getTime())) {
+    return { ok: false, reason: 'starts_at inválido (use ISO 8601 com timezone)' };
+  }
+  if (first < new Date()) {
+    return { ok: false, reason: 'starts_at no passado' };
+  }
+  const occurrences = Math.min(Math.max(Math.trunc(args.occurrences), 2), 12);
+
+  const service = await prisma.service.findFirst({
+    where: { id: args.serviceId, tenantId: args.tenantId, active: true },
+  });
+  if (!service) {
+    return { ok: false, reason: 'service_id não encontrado ou inativo' };
+  }
+
+  const tenant = await prisma.tenant.findUniqueOrThrow({
+    where: { id: args.tenantId },
+    select: { timezone: true },
+  });
+  const blocks = await prisma.scheduleBlock.findMany({
+    where: { tenantId: args.tenantId },
+    select: { weekday: true, startMinute: true, endMinute: true },
+  });
+
+  const now = new Date();
+  const maxInstant = new Date(now.getTime() + RECURRENCE_MAX_HORIZON_DAYS * MS_PER_DAY);
+  const dates = generateSeriesDates(args.startsAtIso, tenant.timezone, args.frequency, occurrences);
+
+  const fmt = (d: Date) =>
+    new Intl.DateTimeFormat('pt-BR', {
+      timeZone: tenant.timezone,
+      weekday: 'short',
+      day: '2-digit',
+      month: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(d);
+
+  const toCreate: { startsAt: Date; endsAt: Date }[] = [];
+  const skipped: string[] = [];
+  let beyondHorizon = 0;
+
+  for (const iso of dates) {
+    const startsAt = new Date(iso);
+    if (startsAt > maxInstant) {
+      beyondHorizon++;
+      continue;
+    }
+    if (startsAt <= now) {
+      skipped.push(fmt(startsAt));
+      continue;
+    }
+    if (!occursWithinOpenBlocks(iso, service.durationMinutes, tenant.timezone, blocks)) {
+      skipped.push(fmt(startsAt));
+      continue;
+    }
+    const endsAt = new Date(startsAt.getTime() + service.durationMinutes * 60_000);
+    const conflict = await prisma.appointment.findFirst({
+      where: {
+        tenantId: args.tenantId,
+        status: { in: ['PENDING', 'CONFIRMED'] },
+        AND: [{ startsAt: { lt: endsAt } }, { endsAt: { gt: startsAt } }],
+      },
+      select: { id: true },
+    });
+    if (conflict) {
+      skipped.push(fmt(startsAt));
+      continue;
+    }
+    toCreate.push({ startsAt, endsAt });
+  }
+
+  if (toCreate.length === 0) {
+    return {
+      ok: false,
+      reason: 'nenhum horário da série está livre — proponha outro horário inicial',
+    };
+  }
+
+  const { seriesId, firstId } = await prisma.$transaction(async (tx) => {
+    const series = await tx.appointmentSeries.create({
+      data: { tenantId: args.tenantId, frequency: args.frequency },
+    });
+    let firstCreatedId = '';
+    for (const { startsAt, endsAt } of toCreate) {
+      const appt = await tx.appointment.create({
+        data: {
+          tenantId: args.tenantId,
+          contactId: args.contactId,
+          serviceId: service.id,
+          startsAt,
+          endsAt,
+          status: 'CONFIRMED',
+          seriesId: series.id,
+        },
+        select: { id: true },
+      });
+      if (!firstCreatedId) firstCreatedId = appt.id;
+    }
+    return { seriesId: series.id, firstId: firstCreatedId };
+  });
+
+  // Fire-and-forget: um único webhook (1ª ocorrência) — evita N notificações.
+  notifyAppointmentCreated(firstId).catch((err) =>
+    console.error('[appointment] notify create (series) failed', err),
+  );
+
+  return {
+    ok: true,
+    seriesId,
+    createdCount: toCreate.length,
+    summary: `${service.name} · ${fmt(toCreate[0].startsAt)}`,
+    skipped,
+    beyondHorizon,
+  };
+}
+
 export interface CancelAppointmentArgs {
   tenantId: string;
   contactId: string;
   appointmentId: string;
 }
 
-export type CancelAppointmentResult =
-  | { ok: true; summary: string }
-  | { ok: false; reason: string };
+export type CancelAppointmentResult = { ok: true; summary: string } | { ok: false; reason: string };
 
 /**
  * Cancela um agendamento, com scope obrigatório por contactId — o cliente só
@@ -173,6 +340,62 @@ export async function cancelAppointmentForContact(
   }).format(appt.startsAt)}`;
 
   return { ok: true, summary };
+}
+
+export interface CancelSeriesArgs {
+  tenantId: string;
+  contactId: string;
+  seriesId: string;
+}
+
+export type CancelSeriesResult =
+  | { ok: true; canceledCount: number }
+  | { ok: false; reason: string };
+
+/**
+ * Cancela TODAS as ocorrências futuras (PENDING/CONFIRMED) de uma série, com scope
+ * por contactId — o cliente só cancela séries próprias. Não toca em ocorrências
+ * passadas/realizadas. Notifica o cliente uma única vez (é o mesmo contato).
+ */
+export async function cancelSeriesForContact(args: CancelSeriesArgs): Promise<CancelSeriesResult> {
+  const now = new Date();
+  const futures = await prisma.appointment.findMany({
+    where: {
+      tenantId: args.tenantId,
+      contactId: args.contactId,
+      seriesId: args.seriesId,
+      status: { in: ['PENDING', 'CONFIRMED'] },
+      startsAt: { gte: now },
+    },
+    select: { id: true },
+    orderBy: { startsAt: 'asc' },
+  });
+  if (futures.length === 0) {
+    return {
+      ok: false,
+      reason: 'nenhuma ocorrência futura nessa série (ou ela não pertence a este cliente)',
+    };
+  }
+
+  await prisma.appointment.updateMany({
+    where: {
+      tenantId: args.tenantId,
+      contactId: args.contactId,
+      seriesId: args.seriesId,
+      status: { in: ['PENDING', 'CONFIRMED'] },
+      startsAt: { gte: now },
+    },
+    data: { status: 'CANCELED' },
+  });
+
+  notifyAppointmentCanceled(futures[0].id).catch((err) =>
+    console.error('[appointment] notify cancel (series) failed', err),
+  );
+  sendAppointmentTemplate(futures[0].id, 'cancel').catch((err) =>
+    console.error('[appointment] template cancel (series) failed', err),
+  );
+
+  return { ok: true, canceledCount: futures.length };
 }
 
 export interface RescheduleAppointmentArgs {

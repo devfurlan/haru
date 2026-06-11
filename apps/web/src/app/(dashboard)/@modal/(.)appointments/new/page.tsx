@@ -4,7 +4,7 @@ import Link from 'next/link';
 
 import { prisma } from '@haru/database';
 
-import { requireUserAndTenant } from '@/lib/auth';
+import { isAdmin, requireUserAndTenant } from '@/lib/auth';
 import { BOOKING_HORIZON_DAYS } from '@/lib/booking-days';
 
 import { NewAppointmentForm } from '@/app/(dashboard)/appointments/new/new-appointment-form';
@@ -28,7 +28,8 @@ function FormSkeleton() {
 // Componente async isolado: o `await` mora aqui, não no shell do modal.
 // Assim o <Dialog> abre na hora (com o skeleton) e o conteúdo streama depois.
 async function NewAppointmentBody() {
-  const { tenant } = await requireUserAndTenant();
+  const user = await requireUserAndTenant();
+  const { tenant } = user;
 
   const services = await prisma.service.findMany({
     where: { tenantId: tenant.id, active: true },
@@ -60,6 +61,7 @@ async function NewAppointmentBody() {
       timezone={tenant.timezone}
       openWeekdays={openWeekdays}
       horizonDays={BOOKING_HORIZON_DAYS}
+      isAdmin={isAdmin(user)}
     />
   );
 }

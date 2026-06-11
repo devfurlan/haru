@@ -6,8 +6,9 @@ import { z } from 'zod';
 
 import { prisma, type AppointmentStatus } from '@haru/database';
 
+import { createAppointmentSeries } from '@/lib/appointment-series';
 import { type AvailableSlot, computeAvailableSlots, localWallTimeToUtc } from '@/lib/availability';
-import { requireUserAndTenant } from '@/lib/auth';
+import { isAdmin, requireUserAndTenant } from '@/lib/auth';
 import { BOOKING_HORIZON_DAYS, isoDateInTz } from '@/lib/booking-days';
 import { normalizePhoneBR } from '@/lib/format';
 import {
@@ -139,6 +140,48 @@ export async function markNoShow(appointmentId: string) {
   await changeStatus(appointmentId, 'NO_SHOW');
 }
 
+/**
+ * Cancela TODAS as ocorrências futuras (PENDING/CONFIRMED) de uma série recorrente.
+ * Não toca em ocorrências já passadas/realizadas. Notifica o cliente uma única vez
+ * (não N) — é o mesmo contato em todas as ocorrências.
+ */
+export async function cancelAppointmentSeries(seriesId: string) {
+  const { tenant } = await requireUserAndTenant();
+  const now = new Date();
+  const futures = await prisma.appointment.findMany({
+    where: {
+      tenantId: tenant.id,
+      seriesId,
+      status: { in: ['PENDING', 'CONFIRMED'] },
+      startsAt: { gte: now },
+    },
+    select: { id: true },
+    orderBy: { startsAt: 'asc' },
+  });
+  if (futures.length === 0) return;
+
+  await prisma.appointment.updateMany({
+    where: {
+      tenantId: tenant.id,
+      seriesId,
+      status: { in: ['PENDING', 'CONFIRMED'] },
+      startsAt: { gte: now },
+    },
+    data: { status: 'CANCELED' },
+  });
+
+  revalidatePath('/appointments');
+  revalidatePath('/dashboard');
+  revalidatePath('/clients/[id]', 'page');
+
+  notifyAppointmentCanceled(futures[0].id).catch((err) =>
+    console.error('[appointments] notify cancel (series) failed', err),
+  );
+  sendAppointmentTemplate(futures[0].id, 'cancel').catch((err) =>
+    console.error('[appointments] template cancel (series) failed', err),
+  );
+}
+
 const createSchema = z.object({
   serviceId: z.string().min(1, 'Selecione um serviço'),
   contactPhone: z
@@ -153,30 +196,50 @@ const createSchema = z.object({
     .max(80)
     .optional()
     .transform((v) => (v && v.trim() ? v.trim() : null)),
-  startsAtIso: z
-    .string()
-    .min(1, 'Selecione data/hora')
-    .transform((v) => new Date(v))
-    .refine((d) => !Number.isNaN(d.getTime()), { message: 'Data inválida' })
-    .refine((d) => d > new Date(), { message: 'Não dá pra agendar no passado' }),
+  // Fluxo normal: ISO UTC do slot escolhido na grade.
+  startsAtIso: z.string().optional(),
+  // Encaixe (admin): data+hora crus no fuso do tenant, sem validação de agenda.
+  encaixe: z.literal('on').optional(),
+  encaixeDate: z.string().optional(),
+  encaixeTime: z.string().optional(),
+  // Recorrência (opcional). 'NONE'/ausente = agendamento avulso.
+  frequency: z.enum(['NONE', 'WEEKLY', 'BIWEEKLY', 'MONTHLY']).default('NONE'),
+  occurrences: z.coerce.number().int().min(2).max(12).optional(),
 });
 
-export type CreateAppointmentResult = { error: string } | undefined;
+export type CreateAppointmentResult =
+  | { error: string }
+  | { ok: true; createdCount: number; skipped: string[]; beyondHorizon: number }
+  | undefined;
 
 export async function createManualAppointment(
   _prev: CreateAppointmentResult,
   formData: FormData,
 ): Promise<CreateAppointmentResult> {
-  const { tenant } = await requireUserAndTenant();
+  const user = await requireUserAndTenant();
+  const { tenant } = user;
 
   const parsed = createSchema.safeParse({
     serviceId: formData.get('serviceId'),
     contactPhone: formData.get('contactPhone'),
     contactName: formData.get('contactName'),
     startsAtIso: formData.get('startsAtIso'),
+    encaixe: formData.get('encaixe') ?? undefined,
+    encaixeDate: formData.get('encaixeDate') ?? undefined,
+    encaixeTime: formData.get('encaixeTime') ?? undefined,
+    frequency: formData.get('frequency') ?? 'NONE',
+    occurrences: formData.get('occurrences') ?? undefined,
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? 'Dados inválidos' };
+  }
+
+  // Encaixe libera as 24h e a sobreposição de agendamentos — é exclusivo do admin.
+  // O toggle some da UI pra STAFF, mas a checagem TEM que ser no servidor: STAFF
+  // poderia forjar o formData.
+  const encaixe = parsed.data.encaixe === 'on';
+  if (encaixe && !isAdmin(user)) {
+    return { error: 'Encaixe é exclusivo do administrador.' };
   }
 
   const service = await prisma.service.findFirst({
@@ -184,17 +247,45 @@ export async function createManualAppointment(
   });
   if (!service) return { error: 'Serviço não encontrado' };
 
-  const startsAt = parsed.data.startsAtIso;
+  // Resolve o início. No encaixe vem data+hora crus, convertidos do fuso do tenant
+  // pra UTC no servidor (sem trava de passado). No fluxo normal vem o ISO UTC do
+  // slot escolhido na grade.
+  let startsAt: Date;
+  if (encaixe) {
+    const d = parsed.data.encaixeDate ?? '';
+    const t = parsed.data.encaixeTime ?? '';
+    const timeMatch = /^(\d{2}):(\d{2})$/.exec(t);
+    if (!DATE_RE.test(d) || !timeMatch) {
+      return { error: 'Informe a data e a hora do encaixe' };
+    }
+    const hh = Number(timeMatch[1]);
+    const mm = Number(timeMatch[2]);
+    if (hh > 23 || mm > 59) return { error: 'Hora inválida' };
+    startsAt = localWallTimeToUtc(d, hh * 60 + mm, tenant.timezone);
+  } else {
+    const iso = parsed.data.startsAtIso ?? '';
+    startsAt = new Date(iso);
+    if (!iso || Number.isNaN(startsAt.getTime())) {
+      return { error: 'Selecione data/hora' };
+    }
+    if (startsAt <= new Date()) {
+      return { error: 'Não dá pra agendar no passado' };
+    }
+  }
+
   const endsAt = new Date(startsAt.getTime() + service.durationMinutes * 60_000);
 
-  // Revalida o slot no servidor: recalcula os horários livres do dia e exige que
-  // o escolhido esteja entre eles. Garante, de uma vez, que cai no expediente,
-  // está alinhado à grade e não colide — sem confiar no que o client enviou.
-  const dateStr = dateStrInTz(startsAt, tenant.timezone);
-  const slots = await getTenantAvailableSlots(service.id, dateStr);
-  const slotOk = slots.some((s) => s.startsAtIso === startsAt.toISOString());
-  if (!slotOk) {
-    return { error: 'Esse horário não está disponível na sua agenda. Escolha outro.' };
+  // Fluxo normal revalida o slot no servidor: recalcula os horários livres do dia
+  // e exige que o escolhido esteja entre eles (expediente + grade + sem-colisão),
+  // sem confiar no client. No encaixe esse passo é DELIBERADAMENTE pulado — é o
+  // bypass total da agenda pedido pelo admin.
+  if (!encaixe) {
+    const dateStr = dateStrInTz(startsAt, tenant.timezone);
+    const slots = await getTenantAvailableSlots(service.id, dateStr);
+    const slotOk = slots.some((s) => s.startsAtIso === startsAt.toISOString());
+    if (!slotOk) {
+      return { error: 'Esse horário não está disponível na sua agenda. Escolha outro.' };
+    }
   }
 
   // Upsert do contato — não cria Conversation (não faz sentido sem mensagens)
@@ -209,6 +300,52 @@ export async function createManualAppointment(
       name: parsed.data.contactName,
     },
   });
+
+  const frequency = parsed.data.frequency;
+
+  // --- Agendamento recorrente: cria a série (pula ocorrências ocupadas/fora do
+  // expediente e avisa). Não redireciona — volta um resumo pra UI mostrar.
+  // Encaixe é sempre avulso: a série pularia justamente os horários ocupados/fora
+  // do expediente que o encaixe existe pra forçar, então não faz sentido combinar.
+  if (!encaixe && frequency !== 'NONE') {
+    if (!parsed.data.occurrences) {
+      return { error: 'Escolha quantas vezes o agendamento se repete' };
+    }
+    const blocks = await prisma.scheduleBlock.findMany({
+      where: { tenantId: tenant.id },
+      select: { weekday: true, startMinute: true, endMinute: true },
+    });
+    const result = await createAppointmentSeries({
+      tenantId: tenant.id,
+      contactId: contact.id,
+      serviceId: service.id,
+      durationMinutes: service.durationMinutes,
+      tz: tenant.timezone,
+      frequency,
+      occurrences: parsed.data.occurrences,
+      firstStartsAtIso: startsAt.toISOString(),
+      status: 'CONFIRMED',
+      blocks,
+    });
+
+    if (result.createdIds.length === 0) {
+      return { error: 'Nenhum horário da série está livre. Escolha outro horário inicial.' };
+    }
+
+    // Fire-and-forget: um único webhook (1ª ocorrência) — evita N notificações.
+    notifyAppointmentCreated(result.createdIds[0]).catch((err) =>
+      console.error('[appointments] notify create (series) failed', err),
+    );
+
+    revalidatePath('/appointments');
+    revalidatePath('/dashboard');
+    return {
+      ok: true,
+      createdCount: result.createdIds.length,
+      skipped: result.skipped,
+      beyondHorizon: result.beyondHorizon,
+    };
+  }
 
   const appointment = await prisma.appointment.create({
     data: {

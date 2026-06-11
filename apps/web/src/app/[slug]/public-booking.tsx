@@ -14,6 +14,7 @@ import {
   PartyPopper,
   Phone,
   QrCode,
+  Repeat,
   User as UserIcon,
 } from 'lucide-react';
 import { useActionState, useEffect, useMemo, useRef, useState, useTransition } from 'react';
@@ -39,6 +40,7 @@ import {
   isValidCpfCnpj,
   maskCpfCnpjInput,
 } from '@/lib/format';
+import { RECURRENCE_OCCURRENCE_OPTIONS, type RecurrenceFrequency } from '@/lib/recurrence';
 
 import {
   createPublicBooking,
@@ -77,6 +79,17 @@ interface PublicBookingProps {
  *  'done' — Tela de sucesso pós-submit.
  */
 type Step = 0 | 1 | 2 | 3 | 'done';
+
+type FrequencyChoice = 'NONE' | RecurrenceFrequency;
+
+const FREQUENCY_LABELS: Record<FrequencyChoice, string> = {
+  NONE: 'Uma vez',
+  WEEKLY: 'Toda semana',
+  BIWEEKLY: 'A cada 15 dias',
+  MONTHLY: 'Todo mês',
+};
+
+const FREQUENCY_ORDER: FrequencyChoice[] = ['NONE', 'WEEKLY', 'BIWEEKLY', 'MONTHLY'];
 
 const TOTAL_STEPS = 4;
 
@@ -766,6 +779,10 @@ function StepResumo({
   slot,
   name,
   phone,
+  frequency,
+  occurrences,
+  onChangeFrequency,
+  onChangeOccurrences,
   error,
   formAction,
   onBack,
@@ -777,6 +794,10 @@ function StepResumo({
   slot: AvailableSlot;
   name: string;
   phone: string;
+  frequency: FrequencyChoice;
+  occurrences: number;
+  onChangeFrequency: (f: FrequencyChoice) => void;
+  onChangeOccurrences: (n: number) => void;
   error: string | null;
   formAction: (formData: FormData) => void;
   onBack: () => void;
@@ -825,12 +846,59 @@ function StepResumo({
         </div>
       </dl>
 
+      <div className="space-y-3">
+        <p className="text-foreground flex items-center gap-1.5 text-sm font-medium">
+          <Repeat className="h-4 w-4" aria-hidden="true" />
+          Repetir agendamento?
+        </p>
+        <div className="flex flex-wrap gap-2" role="group" aria-label="Repetição">
+          {FREQUENCY_ORDER.map((f) => (
+            <Button
+              key={f}
+              type="button"
+              variant={frequency === f ? 'coral' : 'outline'}
+              size="sm"
+              aria-pressed={frequency === f}
+              onClick={() => onChangeFrequency(f)}
+            >
+              {FREQUENCY_LABELS[f]}
+            </Button>
+          ))}
+        </div>
+        {frequency !== 'NONE' ? (
+          <div className="space-y-2">
+            <p className="text-muted-foreground text-sm">Quantas vezes no total?</p>
+            <div className="flex flex-wrap gap-2" role="group" aria-label="Número de ocorrências">
+              {RECURRENCE_OCCURRENCE_OPTIONS.map((n) => (
+                <Button
+                  key={n}
+                  type="button"
+                  variant={occurrences === n ? 'coral' : 'outline'}
+                  size="sm"
+                  aria-pressed={occurrences === n}
+                  onClick={() => onChangeOccurrences(n)}
+                >
+                  {n}×
+                </Button>
+              ))}
+            </div>
+            <p className="text-muted-foreground text-xs">
+              Pulamos automaticamente datas sem horário livre (até 90 dias).
+            </p>
+          </div>
+        ) : null}
+      </div>
+
       <form action={formAction} className="space-y-3">
         <input type="hidden" name="slug" value={slug} />
         <input type="hidden" name="serviceId" value={service.id} />
         <input type="hidden" name="slotIso" value={slot.startsAtIso} />
         <input type="hidden" name="name" value={name.trim()} />
         <input type="hidden" name="phone" value={phone} />
+        <input type="hidden" name="frequency" value={frequency} />
+        {frequency !== 'NONE' ? (
+          <input type="hidden" name="occurrences" value={occurrences} />
+        ) : null}
 
         {error ? (
           <p
@@ -888,6 +956,80 @@ function SuccessScreen({
       </p>
 
       {paymentAvailable ? <PaymentBlock slug={slug} appointmentId={appointmentId} /> : null}
+    </div>
+  );
+}
+
+/**
+ * Tela de sucesso de uma série recorrente: mostra quantas ocorrências entraram e
+ * quais datas foram puladas (horário ocupado / fora do expediente). Não oferece
+ * pagamento online (cobrança de série fica fora de escopo nesta versão).
+ */
+function SeriesSuccessScreen({
+  confirmed,
+  summary,
+  createdCount,
+  skipped,
+  beyondHorizon,
+  timezone,
+}: {
+  confirmed: boolean;
+  summary: string;
+  createdCount: number;
+  skipped: string[];
+  beyondHorizon: number;
+  timezone: string;
+}) {
+  const skippedFmt = skipped.map((iso) =>
+    new Intl.DateTimeFormat('pt-BR', {
+      timeZone: timezone,
+      weekday: 'short',
+      day: '2-digit',
+      month: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(new Date(iso)),
+  );
+  return (
+    <div className="space-y-5 text-center">
+      <div className="flex justify-center">
+        {confirmed ? (
+          <CheckCircle2 className="text-green h-12 w-12" aria-hidden="true" />
+        ) : (
+          <PartyPopper className="text-coral h-12 w-12" aria-hidden="true" />
+        )}
+      </div>
+      <div className="space-y-2">
+        <h2 className="text-foreground font-serif text-2xl">
+          {confirmed ? 'Agendamentos confirmados!' : 'Pedidos recebidos!'}
+        </h2>
+        <p className="text-muted-foreground text-sm">
+          Criamos {createdCount} {createdCount === 1 ? 'agendamento' : 'agendamentos'} recorrente
+          {createdCount === 1 ? '' : 's'}.
+        </p>
+      </div>
+      <p className="bg-card text-foreground whitespace-pre-line rounded-xl border p-4 text-left text-sm">
+        A partir de {summary}
+      </p>
+      {skippedFmt.length > 0 ? (
+        <div className="bg-muted text-muted-foreground rounded-xl border p-4 text-left text-sm">
+          <p className="text-foreground font-medium">
+            Pulamos {skippedFmt.length}{' '}
+            {skippedFmt.length === 1 ? 'data sem horário livre' : 'datas sem horário livre'}:
+          </p>
+          <ul className="mt-1 list-inside list-disc">
+            {skippedFmt.map((d, i) => (
+              <li key={i}>{d}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+      {beyondHorizon > 0 ? (
+        <p className="text-muted-foreground text-xs">
+          {beyondHorizon} {beyondHorizon === 1 ? 'data ficou' : 'datas ficaram'} além do limite de
+          90 dias.
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -1101,6 +1243,10 @@ export function PublicBooking({
   // do horário/serviço que tinha escolhido (em vez de pular de tela em silêncio).
   const [expiryNotice, setExpiryNotice] = useState<string | null>(null);
 
+  // Passo 3 — recorrência (opcional). 'NONE' = agendamento único.
+  const [frequency, setFrequency] = useState<FrequencyChoice>('NONE');
+  const [occurrences, setOccurrences] = useState(4);
+
   const [state, formAction] = useActionState<CreatePublicBookingResult, FormData>(
     createPublicBooking,
     undefined,
@@ -1295,6 +1441,10 @@ export function PublicBooking({
           slot={selectedSlot}
           name={effectiveName}
           phone={phone}
+          frequency={frequency}
+          occurrences={occurrences}
+          onChangeFrequency={setFrequency}
+          onChangeOccurrences={setOccurrences}
           error={submitError}
           formAction={formAction}
           onBack={() => setStep(2)}
@@ -1303,13 +1453,24 @@ export function PublicBooking({
       ) : null}
 
       {step === 'done' && state && 'ok' in state && state.ok ? (
-        <SuccessScreen
-          confirmed={state.status === 'CONFIRMED'}
-          summary={state.summary}
-          slug={slug}
-          appointmentId={state.appointmentId}
-          paymentAvailable={state.paymentAvailable}
-        />
+        'series' in state ? (
+          <SeriesSuccessScreen
+            confirmed={state.status === 'CONFIRMED'}
+            summary={state.summary}
+            createdCount={state.createdCount}
+            skipped={state.skipped}
+            beyondHorizon={state.beyondHorizon}
+            timezone={timezone}
+          />
+        ) : (
+          <SuccessScreen
+            confirmed={state.status === 'CONFIRMED'}
+            summary={state.summary}
+            slug={slug}
+            appointmentId={state.appointmentId}
+            paymentAvailable={state.paymentAvailable}
+          />
+        )
       ) : null}
     </div>
   );

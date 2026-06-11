@@ -81,13 +81,14 @@ model Tenant {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  users          User[]
-  services       Service[]
-  appointments   Appointment[]
-  contacts       Contact[]
-  conversations  Conversation[]
-  scheduleBlocks ScheduleBlock[]
-  payments       Payment[]
+  users              User[]
+  services           Service[]
+  appointments       Appointment[]
+  appointmentSeries  AppointmentSeries[]
+  contacts           Contact[]
+  conversations      Conversation[]
+  scheduleBlocks     ScheduleBlock[]
+  payments           Payment[]
 }
 
 model User {
@@ -240,6 +241,10 @@ model Appointment {
   startsAt       DateTime
   endsAt         DateTime
   status         AppointmentStatus @default(PENDING)
+  /// Série de recorrência à qual essa ocorrência pertence. null = agendamento avulso.
+  /// Ocorrências da mesma série compartilham serviço/contato e são geradas juntas.
+  seriesId       String?
+  series         AppointmentSeries? @relation(fields: [seriesId], references: [id], onDelete: SetNull)
   /// Marca de quando o lembrete via WhatsApp foi enviado. null = ainda não.
   reminderSentAt DateTime?
   createdAt      DateTime          @default(now())
@@ -248,6 +253,29 @@ model Appointment {
   payments Payment[]
 
   @@index([tenantId, startsAt])
+  @@index([seriesId])
+}
+
+/// Agrupa as ocorrências de um agendamento recorrente (semanal/quinzenal/mensal).
+/// As ocorrências são expandidas em registros Appointment reais na criação — esta
+/// tabela guarda só a regra (frequência), pra rotular a série e cancelá-la inteira.
+model AppointmentSeries {
+  id        String              @id @default(cuid())
+  tenantId  String
+  tenant    Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  frequency RecurrenceFrequency
+  createdAt DateTime            @default(now())
+
+  appointments Appointment[]
+
+  @@index([tenantId])
+}
+
+/// Frequência de repetição de uma série de agendamentos.
+enum RecurrenceFrequency {
+  WEEKLY    // toda semana (+7 dias)
+  BIWEEKLY  // quinzenal (+14 dias)
+  MONTHLY   // mensal (+1 mês, mesmo dia, com clamp ao último dia do mês)
 }
 
 enum AppointmentStatus {

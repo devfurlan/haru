@@ -2,9 +2,12 @@ import type { FunctionTool } from 'openai/resources/responses/responses';
 
 import {
   bookAppointment,
+  bookRecurringAppointment,
   cancelAppointmentForContact,
+  cancelSeriesForContact,
   rescheduleAppointmentForContact,
 } from '../../services/appointmentService.js';
+import type { RecurrenceFrequency } from '../recurrence.js';
 import { saveCustomerProfile } from '../../services/contactService.js';
 import { createPaymentForAppointment } from '../../services/paymentService.js';
 
@@ -73,6 +76,44 @@ export const TOOLS: FunctionTool[] = [
   },
   {
     type: 'function',
+    name: 'book_recurring_appointment',
+    description:
+      'Cria uma SÉRIE de agendamentos recorrentes confirmados (toda semana, a cada 15 dias ou ' +
+      'todo mês), a partir de um horário inicial. Use quando o cliente confirmar que quer repetir ' +
+      'o agendamento e disser a frequência e quantas vezes. Horários ocupados ou fora do ' +
+      'expediente são PULADOS automaticamente — o resultado traz `skipped` (datas puladas) e ' +
+      '`created_count`. Avise o cliente sobre as datas puladas. Limite de 90 dias adiante.',
+    strict: true,
+    parameters: {
+      type: 'object',
+      properties: {
+        service_id: {
+          type: 'string',
+          description:
+            'ID do serviço (vide o [srv_...] que aparece na lista de serviços do estabelecimento)',
+        },
+        starts_at: {
+          type: 'string',
+          description:
+            'Data/hora da PRIMEIRA ocorrência no formato ISO 8601 com offset do fuso do ' +
+            'estabelecimento, ex: 2026-05-28T14:00:00-03:00',
+        },
+        frequency: {
+          type: 'string',
+          enum: ['WEEKLY', 'BIWEEKLY', 'MONTHLY'],
+          description: 'Frequência: WEEKLY (semanal), BIWEEKLY (quinzenal) ou MONTHLY (mensal).',
+        },
+        occurrences: {
+          type: 'integer',
+          description: 'Quantas vezes no total (incluindo a primeira). Entre 2 e 12.',
+        },
+      },
+      required: ['service_id', 'starts_at', 'frequency', 'occurrences'],
+      additionalProperties: false,
+    },
+  },
+  {
+    type: 'function',
     name: 'create_payment',
     description:
       'Gera uma cobrança (Pix copia-e-cola ou link de cartão) para um agendamento do PRÓPRIO ' +
@@ -120,6 +161,27 @@ export const TOOLS: FunctionTool[] = [
         },
       },
       required: ['appointment_id'],
+      additionalProperties: false,
+    },
+  },
+  {
+    type: 'function',
+    name: 'cancel_appointment_series',
+    description:
+      'Cancela TODAS as ocorrências futuras de uma série recorrente do PRÓPRIO cliente. Use ' +
+      'quando o cliente confirmar que quer cancelar a série inteira (não só uma ocorrência). O ' +
+      'ID da série vem em "Seus agendamentos" (ex: "série cmxxxx"). Para cancelar só uma ' +
+      'ocorrência, use cancel_appointment com o [apt_...] específico.',
+    strict: true,
+    parameters: {
+      type: 'object',
+      properties: {
+        series_id: {
+          type: 'string',
+          description: 'ID da série recorrente (vide "série ..." em "Seus agendamentos").',
+        },
+      },
+      required: ['series_id'],
       additionalProperties: false,
     },
   },
@@ -177,6 +239,21 @@ export async function executeTool(
     return JSON.stringify(result);
   }
 
+  if (name === 'book_recurring_appointment') {
+    const freq = String(args.frequency ?? '');
+    const frequency: RecurrenceFrequency =
+      freq === 'BIWEEKLY' ? 'BIWEEKLY' : freq === 'MONTHLY' ? 'MONTHLY' : 'WEEKLY';
+    const result = await bookRecurringAppointment({
+      tenantId: ctx.tenantId,
+      contactId: ctx.contactId,
+      serviceId: String(args.service_id ?? ''),
+      startsAtIso: String(args.starts_at ?? ''),
+      frequency,
+      occurrences: Number(args.occurrences ?? 0),
+    });
+    return JSON.stringify(result);
+  }
+
   if (name === 'create_payment') {
     const method = String(args.method ?? '');
     const result = await createPaymentForAppointment({
@@ -202,6 +279,15 @@ export async function executeTool(
       tenantId: ctx.tenantId,
       contactId: ctx.contactId,
       appointmentId: String(args.appointment_id ?? ''),
+    });
+    return JSON.stringify(result);
+  }
+
+  if (name === 'cancel_appointment_series') {
+    const result = await cancelSeriesForContact({
+      tenantId: ctx.tenantId,
+      contactId: ctx.contactId,
+      seriesId: String(args.series_id ?? ''),
     });
     return JSON.stringify(result);
   }

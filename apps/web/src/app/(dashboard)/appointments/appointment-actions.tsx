@@ -1,6 +1,6 @@
 'use client';
 
-import { CalendarClock, Check, UserX, X } from 'lucide-react';
+import { CalendarClock, Check, Repeat, UserX, X } from 'lucide-react';
 import Link from 'next/link';
 import { useTransition } from 'react';
 
@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 
 import {
   cancelAppointment,
+  cancelAppointmentSeries,
   completeAppointment,
   confirmAppointment,
   markNoShow,
@@ -18,9 +19,11 @@ import {
 interface AppointmentActionsProps {
   appointmentId: string;
   status: AppointmentStatus;
+  /** Quando definido, o agendamento pertence a uma série recorrente. */
+  seriesId?: string | null;
 }
 
-export function AppointmentActions({ appointmentId, status }: AppointmentActionsProps) {
+export function AppointmentActions({ appointmentId, status, seriesId }: AppointmentActionsProps) {
   const [pending, startTransition] = useTransition();
 
   // Estados terminais não têm ações
@@ -78,6 +81,21 @@ export function AppointmentActions({ appointmentId, status }: AppointmentActions
       >
         <X className="h-4 w-4" />
       </Button>
+      {seriesId && (
+        <Button
+          size="sm"
+          variant="ghost"
+          disabled={pending}
+          onClick={() => {
+            if (!window.confirm('Cancelar TODA a série recorrente (ocorrências futuras)?')) return;
+            startTransition(() => cancelAppointmentSeries(seriesId));
+          }}
+          title="Cancelar toda a série recorrente"
+        >
+          <Repeat className="h-4 w-4" />
+          Cancelar série
+        </Button>
+      )}
     </div>
   );
 }
