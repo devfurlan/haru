@@ -198,6 +198,9 @@ export interface ManualSendResult {
   reason?: SendFailureReason;
   /// Código de erro da Cloud API do Meta (quando houver) — ajuda a diagnosticar.
   waCode?: number;
+  /// Status HTTP da resposta do bot quando reason='unreachable' (401 token, 404
+  /// URL/rota, etc). Ausente = bot não respondeu (host inalcançável / DNS).
+  httpStatus?: number;
 }
 
 /**
@@ -227,13 +230,18 @@ export async function sendManualWhatsappMessage(
     });
     if (!res.ok) {
       console.error(`[notify] bot send-message ${res.status}: ${await res.text().catch(() => '')}`);
-      return { delivered: false, reason: 'unreachable' };
+      return { delivered: false, reason: 'unreachable', httpStatus: res.status };
     }
     const data = (await res.json().catch(() => null)) as ManualSendResult | null;
     if (data && !data.delivered) {
       console.error(`[notify] envio manual não entregue — reason=${data.reason} waCode=${data.waCode}`);
     }
-    return { delivered: data?.delivered ?? false, reason: data?.reason, waCode: data?.waCode };
+    return {
+      delivered: data?.delivered ?? false,
+      reason: data?.reason,
+      waCode: data?.waCode,
+      httpStatus: res.status,
+    };
   } catch (err) {
     console.error('[notify] envio manual falhou', err);
     return { delivered: false, reason: 'unreachable' };

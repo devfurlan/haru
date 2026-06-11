@@ -65,15 +65,17 @@ function isManual(conv: ConversationListItem): boolean {
 }
 
 /// Mensagem de erro por motivo de falha no envio.
-function sendErrorMessage(reason?: string, waCode?: number): string {
+function sendErrorMessage(reason?: string, waCode?: number, httpStatus?: number): string {
   const code = waCode ? ` (código WhatsApp: ${waCode})` : '';
   switch (reason) {
     case 'window_closed':
       return 'Não foi possível enviar: passaram-se mais de 24h desde a última mensagem do cliente. O WhatsApp só libera resposta livre dentro desse prazo — aguarde ele escrever de novo.';
     case 'not_configured':
       return 'WhatsApp não conectado. Conecte o número em Configurações para responder.';
-    case 'unreachable':
-      return 'Envio indisponível no momento (falha de conexão com o serviço). Tente de novo em instantes.';
+    case 'unreachable': {
+      const detail = httpStatus ? `HTTP ${httpStatus}` : 'sem resposta do serviço';
+      return `Envio indisponível no momento (${detail}). Tente de novo em instantes.`;
+    }
     default:
       return `Não foi possível enviar agora${code}. Tente de novo em instantes.`;
   }
@@ -204,9 +206,9 @@ export function ConversationInbox({
     ]);
     setDraft('');
     try {
-      const { delivered, reason, waCode } = await sendManualMessage(convId, text);
+      const { delivered, reason, waCode, httpStatus } = await sendManualMessage(convId, text);
       if (!delivered) {
-        setSendError(sendErrorMessage(reason, waCode));
+        setSendError(sendErrorMessage(reason, waCode, httpStatus));
         setDraft(text); // devolve o texto pra não perder o que foi digitado
       }
     } catch {
