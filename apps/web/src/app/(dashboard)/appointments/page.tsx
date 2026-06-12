@@ -10,7 +10,7 @@ import { formatPhoneBR } from '@/lib/format';
 import { cn } from '@/lib/utils';
 
 import { AppointmentActions } from './appointment-actions';
-import { AppointmentsCalendar, type CalendarAppointment } from './appointments-calendar';
+import { AppointmentsDayView, type CalendarAppointment } from './appointments-day-view';
 
 type Tab = 'upcoming' | 'past' | 'all';
 
@@ -65,18 +65,24 @@ export default async function AppointmentsPage({ searchParams }: PageProps) {
   const calendarTo = new Date(now);
   calendarTo.setMonth(calendarTo.getMonth() + 12);
 
-  const calendarRows = await prisma.appointment.findMany({
-    where: {
-      tenantId: tenant.id,
-      startsAt: { gte: calendarFrom, lte: calendarTo },
-      status: { notIn: ['CANCELED'] },
-    },
-    include: {
-      service: { select: { name: true } },
-      contact: { select: { name: true, phone: true } },
-    },
-    orderBy: { startsAt: 'asc' },
-  });
+  const [calendarRows, scheduleBlocks] = await Promise.all([
+    prisma.appointment.findMany({
+      where: {
+        tenantId: tenant.id,
+        startsAt: { gte: calendarFrom, lte: calendarTo },
+        status: { notIn: ['CANCELED'] },
+      },
+      include: {
+        service: { select: { name: true, durationMinutes: true, priceCents: true } },
+        contact: { select: { name: true, phone: true } },
+      },
+      orderBy: { startsAt: 'asc' },
+    }),
+    prisma.scheduleBlock.findMany({
+      where: { tenantId: tenant.id },
+      select: { weekday: true, startMinute: true, endMinute: true },
+    }),
+  ]);
 
   const calendarAppointments: CalendarAppointment[] = calendarRows.map((appt) => ({
     id: appt.id,
@@ -84,8 +90,11 @@ export default async function AppointmentsPage({ searchParams }: PageProps) {
     endsAt: appt.endsAt.toISOString(),
     status: appt.status,
     serviceName: appt.service.name,
+    durationMinutes: appt.service.durationMinutes,
+    priceCents: appt.service.priceCents,
     contactName: appt.contact.name,
     contactPhone: appt.contact.phone,
+    seriesId: appt.seriesId,
   }));
 
   // "Hoje" no fuso do tenant (YYYY-MM-DD), para destacar o dia corrente.
@@ -113,8 +122,9 @@ export default async function AppointmentsPage({ searchParams }: PageProps) {
         </Button>
       </div>
 
-      <AppointmentsCalendar
+      <AppointmentsDayView
         appointments={calendarAppointments}
+        scheduleBlocks={scheduleBlocks}
         timezone={tenant.timezone}
         today={todayLocal}
       />
