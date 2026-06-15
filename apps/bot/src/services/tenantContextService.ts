@@ -187,6 +187,28 @@ export async function buildTenantContext(tenantId: string, contactId?: string): 
   }
   lines.push('');
 
+  // Bloqueios da agenda (folga/compromisso do dono) nos próximos 7 dias — a LLM
+  // NÃO deve oferecer horários dentro deles (bookAppointment também recusaria).
+  const exceptions = await prisma.scheduleException.findMany({
+    where: { tenantId, endsAt: { gt: now }, startsAt: { lt: horizon } },
+    orderBy: { startsAt: 'asc' },
+  });
+  lines.push('## Horários BLOQUEADOS na agenda (NÃO oferecer) nos próximos 7 dias');
+  if (exceptions.length === 0) {
+    lines.push('(nenhum)');
+  } else {
+    for (const e of exceptions) {
+      const reason = e.reason ? ` — ${e.reason}` : '';
+      lines.push(
+        `- de ${formatAppointmentDate(e.startsAt, tenant.timezone)} até ${formatAppointmentDate(
+          e.endsAt,
+          tenant.timezone,
+        )}${reason}`,
+      );
+    }
+  }
+  lines.push('');
+
   // Cadastro DESTE contato + agendamentos dele.
   if (contactId) {
     const contact = await prisma.contact.findUnique({

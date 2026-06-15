@@ -74,12 +74,22 @@ export async function getAvailableSlots(
     select: { startsAt: true, endsAt: true },
   });
 
+  // Bloqueios pontuais da agenda que tocam a janela do dia.
+  const exceptions = await prisma.scheduleException.findMany({
+    where: {
+      tenantId: tenant.id,
+      AND: [{ startsAt: { lt: dayEnd } }, { endsAt: { gt: dayStart } }],
+    },
+    select: { startsAt: true, endsAt: true },
+  });
+
   return computeAvailableSlots({
     tz: tenant.timezone,
     dateStr,
     durationMinutes: service.durationMinutes,
     blocks: tenant.scheduleBlocks,
     appointments,
+    exceptions,
     now: new Date(),
   });
 }

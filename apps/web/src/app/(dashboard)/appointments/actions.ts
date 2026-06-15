@@ -90,12 +90,22 @@ export async function getTenantAvailableSlots(
     select: { startsAt: true, endsAt: true },
   });
 
+  // Bloqueios pontuais da agenda que tocam a janela do dia.
+  const exceptions = await prisma.scheduleException.findMany({
+    where: {
+      tenantId: tenant.id,
+      AND: [{ startsAt: { lt: dayEnd } }, { endsAt: { gt: dayStart } }],
+    },
+    select: { startsAt: true, endsAt: true },
+  });
+
   return computeAvailableSlots({
     tz: tenant.timezone,
     dateStr,
     durationMinutes: service.durationMinutes,
     blocks,
     appointments,
+    exceptions,
     now: new Date(),
   });
 }
@@ -367,6 +377,122 @@ export async function createManualAppointment(
   revalidatePath('/appointments');
   revalidatePath('/dashboard');
   redirect('/appointments');
+}
+
+const TIME_RE = /^(\d{2}):(\d{2})$/;
+
+/** Converte "HH:MM" em minutos desde a meia-noite, ou null se inválido. */
+function parseTimeToMinutes(value: string): number | null {
+  const m = TIME_RE.exec(value);
+  if (!m) return null;
+  const hh = Number(m[1]);
+  const mm = Number(m[2]);
+  if (hh > 23 || mm > 59) return null;
+  return hh * 60 + mm;
+}
+
+const blockSchema = z
+  .object({
+    // Data inicial (e, no modo período, também a final). YYYY-MM-DD no fuso do tenant.
+    startDate: z.string().regex(DATE_RE, 'Data inválida'),
+    endDate: z.string().regex(DATE_RE, 'Data inválida').optional(),
+    // Dia inteiro: ignora horários e bloqueia de 00:00 a 24:00.
+    allDay: z.coerce.boolean().default(false),
+    // Intervalo de horário (só quando não é dia inteiro). "HH:MM".
+    startTime: z.string().optional(),
+    endTime: z.string().optional(),
+    reason: z
+      .string()
+      .max(120)
+      .optional()
+      .transform((v) => (v && v.trim() ? v.trim() : null)),
+  })
+  .refine((d) => !d.endDate || d.endDate >= d.startDate, {
+    message: 'A data final não pode ser antes da inicial',
+  });
+
+export type CreateScheduleExceptionResult = { error: string } | { ok: true } | undefined;
+
+/**
+ * Cria um bloqueio pontual na agenda (folga, compromisso, férias). Três formas:
+ * intervalo de horário num dia, dia inteiro, ou vários dias (allDay + endDate).
+ * Recusa a criação se houver agendamento ativo (PENDING/CONFIRMED) no período —
+ * o dono trata os agendamentos antes.
+ */
+export async function createScheduleException(
+  _prev: CreateScheduleExceptionResult,
+  formData: FormData,
+): Promise<CreateScheduleExceptionResult> {
+  const { tenant } = await requireUserAndTenant();
+  const tz = tenant.timezone;
+
+  const parsed = blockSchema.safeParse({
+    startDate: formData.get('startDate'),
+    endDate: formData.get('endDate') ?? undefined,
+    allDay: formData.get('allDay') ?? false,
+    startTime: formData.get('startTime') ?? undefined,
+    endTime: formData.get('endTime') ?? undefined,
+    reason: formData.get('reason') ?? undefined,
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? 'Dados inválidos' };
+  }
+
+  const { startDate, endDate, allDay, reason } = parsed.data;
+
+  let startsAt: Date;
+  let endsAt: Date;
+  if (allDay) {
+    // 00:00 do primeiro dia → 00:00 do dia seguinte ao último (fim exclusivo).
+    startsAt = localWallTimeToUtc(startDate, 0, tz);
+    const lastDate = endDate ?? startDate;
+    endsAt = new Date(localWallTimeToUtc(lastDate, 0, tz).getTime() + 24 * 60 * 60_000);
+  } else {
+    const startMin = parseTimeToMinutes(parsed.data.startTime ?? '');
+    const endMin = parseTimeToMinutes(parsed.data.endTime ?? '');
+    if (startMin === null || endMin === null) {
+      return { error: 'Informe o horário de início e fim' };
+    }
+    if (endMin <= startMin) {
+      return { error: 'O horário final tem que ser depois do inicial' };
+    }
+    startsAt = localWallTimeToUtc(startDate, startMin, tz);
+    endsAt = localWallTimeToUtc(startDate, endMin, tz);
+  }
+
+  // Conflito: barra a criação se houver agendamento ativo dentro do período.
+  const conflicts = await prisma.appointment.count({
+    where: {
+      tenantId: tenant.id,
+      status: { in: ['PENDING', 'CONFIRMED'] },
+      AND: [{ startsAt: { lt: endsAt } }, { endsAt: { gt: startsAt } }],
+    },
+  });
+  if (conflicts > 0) {
+    return {
+      error: `Existe${conflicts > 1 ? 'm' : ''} ${conflicts} agendamento${
+        conflicts > 1 ? 's' : ''
+      } nesse período. Remarque ou cancele antes de bloquear.`,
+    };
+  }
+
+  await prisma.scheduleException.create({
+    data: { tenantId: tenant.id, startsAt, endsAt, reason },
+  });
+
+  revalidatePath('/appointments');
+  revalidatePath('/dashboard');
+  return { ok: true };
+}
+
+/** Remove um bloqueio da agenda (escopado ao tenant do usuário). */
+export async function deleteScheduleException(id: string) {
+  const { tenant } = await requireUserAndTenant();
+  await prisma.scheduleException.deleteMany({
+    where: { id, tenantId: tenant.id },
+  });
+  revalidatePath('/appointments');
+  revalidatePath('/dashboard');
 }
 
 const rescheduleSchema = z.object({

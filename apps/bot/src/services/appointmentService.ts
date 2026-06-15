@@ -78,6 +78,18 @@ export async function bookAppointment(args: BookAppointmentArgs): Promise<BookAp
     return { ok: false, reason: 'horário ocupado por outro agendamento' };
   }
 
+  // Bloqueio pontual da agenda (folga/compromisso do dono) — indisponível.
+  const blocked = await prisma.scheduleException.findFirst({
+    where: {
+      tenantId: args.tenantId,
+      AND: [{ startsAt: { lt: endsAt } }, { endsAt: { gt: startsAt } }],
+    },
+    select: { id: true },
+  });
+  if (blocked) {
+    return { ok: false, reason: 'horário bloqueado na agenda (indisponível)' };
+  }
+
   const appointment = await prisma.appointment.create({
     data: {
       tenantId: args.tenantId,
@@ -190,6 +202,11 @@ export async function bookRecurringAppointment(
   });
 
   const now = new Date();
+  // Bloqueios pontuais da agenda — ocorrências dentro deles são puladas.
+  const exceptions = await prisma.scheduleException.findMany({
+    where: { tenantId: args.tenantId, endsAt: { gt: now } },
+    select: { startsAt: true, endsAt: true },
+  });
   const maxInstant = new Date(now.getTime() + RECURRENCE_MAX_HORIZON_DAYS * MS_PER_DAY);
   const dates = generateSeriesDates(args.startsAtIso, tenant.timezone, args.frequency, occurrences);
 
@@ -222,6 +239,11 @@ export async function bookRecurringAppointment(
       continue;
     }
     const endsAt = new Date(startsAt.getTime() + service.durationMinutes * 60_000);
+    const blockedByException = exceptions.some((e) => e.startsAt < endsAt && e.endsAt > startsAt);
+    if (blockedByException) {
+      skipped.push(fmt(startsAt));
+      continue;
+    }
     const conflict = await prisma.appointment.findFirst({
       where: {
         tenantId: args.tenantId,
@@ -457,6 +479,18 @@ export async function rescheduleAppointmentForContact(
   });
   if (conflict) {
     return { ok: false, reason: 'novo horário já ocupado por outro agendamento' };
+  }
+
+  // Bloqueio pontual da agenda (folga/compromisso do dono) — indisponível.
+  const blocked = await prisma.scheduleException.findFirst({
+    where: {
+      tenantId: args.tenantId,
+      AND: [{ startsAt: { lt: newEndsAt } }, { endsAt: { gt: newStartsAt } }],
+    },
+    select: { id: true },
+  });
+  if (blocked) {
+    return { ok: false, reason: 'novo horário bloqueado na agenda (indisponível)' };
   }
 
   await prisma.appointment.update({

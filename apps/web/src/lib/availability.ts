@@ -41,7 +41,14 @@ export function tzOffsetMinutes(date: Date, tz: string): number {
   let hour = get('hour');
   // Alguns ambientes emitem "24" pra meia-noite; normaliza pra 0.
   if (hour === 24) hour = 0;
-  const asUtc = Date.UTC(get('year'), get('month') - 1, get('day'), hour, get('minute'), get('second'));
+  const asUtc = Date.UTC(
+    get('year'),
+    get('month') - 1,
+    get('day'),
+    hour,
+    get('minute'),
+    get('second'),
+  );
   return Math.round((asUtc - date.getTime()) / MS_PER_MINUTE);
 }
 
@@ -79,7 +86,9 @@ export function localWallTimeToUtc(dateStr: string, localMinutes: number, tz: st
  */
 export function weekdayInTz(dateStr: string, tz: string): number {
   const noonUtc = localWallTimeToUtc(dateStr, 12 * 60, tz);
-  const short = new Intl.DateTimeFormat('en-US', { timeZone: tz, weekday: 'short' }).format(noonUtc);
+  const short = new Intl.DateTimeFormat('en-US', { timeZone: tz, weekday: 'short' }).format(
+    noonUtc,
+  );
   return WEEKDAY_INDEX[short.slice(0, 3)] ?? 0;
 }
 
@@ -113,6 +122,8 @@ export interface ComputeSlotsInput {
   blocks: ScheduleBlockLite[];
   /** Agendamentos ativos que tocam o dia (PENDING/CONFIRMED). */
   appointments: BusyInterval[];
+  /** Bloqueios pontuais da agenda (ScheduleException) que tocam o dia. */
+  exceptions?: BusyInterval[];
   /** Instante atual injetado — slots no passado são descartados. */
   now: Date;
   /** Passo da grade em minutos (default 30). */
@@ -155,6 +166,10 @@ export function computeAvailableSlots(input: ComputeSlotsInput): AvailableSlot[]
       // existing.startsAt < new.endsAt && existing.endsAt > new.startsAt.
       const collides = input.appointments.some((a) => a.startsAt < end && a.endsAt > start);
       if (collides) continue;
+
+      // Colisão com bloqueio pontual da agenda (mesma fórmula de overlap).
+      const blocked = (input.exceptions ?? []).some((e) => e.startsAt < end && e.endsAt > start);
+      if (blocked) continue;
 
       slots.push({ startsAtIso: start.toISOString(), label: formatTimeInTz(start, input.tz) });
     }

@@ -1,13 +1,18 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useTransition } from 'react';
 
 import type { AppointmentStatus } from '@haru/database';
 
 import { formatPhoneBR } from '@/lib/format';
 import { cn } from '@/lib/utils';
 
-import type { CalendarAppointment, DayScheduleBlock } from './appointments-day-view';
+import { deleteScheduleException } from './actions';
+import type {
+  CalendarAppointment,
+  CalendarException,
+  DayScheduleBlock,
+} from './appointments-day-view';
 
 /** Altura de uma hora na timeline, em pixels. */
 const HOUR_PX = 64;
@@ -94,6 +99,8 @@ interface DayTimelineProps {
   dayKey: string;
   /** Agendamentos já filtrados para este dia. */
   appointments: CalendarAppointment[];
+  /** Bloqueios da agenda que tocam este dia. */
+  exceptions: CalendarException[];
   /** Todos os blocos de expediente do tenant. */
   scheduleBlocks: DayScheduleBlock[];
   timezone: string;
@@ -101,14 +108,22 @@ interface DayTimelineProps {
   onSelect: (appt: CalendarAppointment) => void;
 }
 
+interface PositionedException {
+  ex: CalendarException;
+  start: number; // minutos locais (clamp em 0 se começa em dia anterior)
+  end: number; // minutos locais (clamp em 1440 se termina em dia posterior)
+}
+
 export function DayTimeline({
   dayKey,
   appointments,
+  exceptions,
   scheduleBlocks,
   timezone,
   isToday,
   onSelect,
 }: DayTimelineProps) {
+  const [isPending, startTransition] = useTransition();
   const weekday = useMemo(() => {
     const [y, m, d] = dayKey.split('-').map(Number);
     return new Date(Date.UTC(y, m - 1, d)).getUTCDay();
@@ -124,20 +139,43 @@ export function DayTimeline({
     });
   }, [appointments, timezone]);
 
+  // Posição dos bloqueios dentro do dia. Clamp em [0, 1440] para bloqueios que
+  // entram vindos do dia anterior ou seguem para o próximo (folga/férias).
+  const positionedExceptions = useMemo<PositionedException[]>(() => {
+    const [y, m, d] = dayKey.split('-').map(Number);
+    const dayStart = Date.UTC(y, m - 1, d);
+    const dayEnd = dayStart + 24 * 60 * 60_000;
+    return exceptions.map((ex) => {
+      const exStartMs = new Date(ex.startsAt).getTime();
+      const exEndMs = new Date(ex.endsAt).getTime();
+      const start = exStartMs <= dayStart ? 0 : localMinutes(ex.startsAt, timezone);
+      const end = exEndMs >= dayEnd ? 24 * 60 : localMinutes(ex.endsAt, timezone);
+      return { ex, start, end: end <= start ? 24 * 60 : end };
+    });
+  }, [exceptions, dayKey, timezone]);
+
   const blocks = useMemo(
     () => scheduleBlocks.filter((b) => b.weekday === weekday),
     [scheduleBlocks, weekday],
   );
 
-  // Faixa de horas: união do expediente do dia com os horários dos agendamentos.
+  // Faixa de horas: união do expediente do dia, dos agendamentos e dos bloqueios.
   const range = useMemo(() => {
-    const starts = [...blocks.map((b) => b.startMinute), ...positioned.map((p) => p.start)];
-    const ends = [...blocks.map((b) => b.endMinute), ...positioned.map((p) => p.end)];
+    const starts = [
+      ...blocks.map((b) => b.startMinute),
+      ...positioned.map((p) => p.start),
+      ...positionedExceptions.map((p) => p.start),
+    ];
+    const ends = [
+      ...blocks.map((b) => b.endMinute),
+      ...positioned.map((p) => p.end),
+      ...positionedExceptions.map((p) => p.end),
+    ];
     if (starts.length === 0) return null;
     const startHour = Math.floor(Math.min(...starts) / 60);
     const endHour = Math.ceil(Math.max(...ends) / 60);
     return { startHour, endHour: Math.max(endHour, startHour + 1) };
-  }, [blocks, positioned]);
+  }, [blocks, positioned, positionedExceptions]);
 
   const lanes = useMemo(() => computeLanes(positioned), [positioned]);
 
@@ -186,6 +224,40 @@ export function DayTimeline({
             </span>
           </div>
         ))}
+
+        {positionedExceptions.map((p) => {
+          const top = (p.start - startHour * 60) * pxPerMin;
+          const blockHeight = Math.max((p.end - p.start) * pxPerMin, MIN_BLOCK_PX);
+          const label =
+            p.start === 0 && p.end === 24 * 60
+              ? 'Dia bloqueado'
+              : `${minutesToLabel(p.start)}–${minutesToLabel(p.end)} bloqueado`;
+          return (
+            <div
+              key={p.ex.id}
+              className="absolute inset-x-0 flex items-start justify-between gap-2 overflow-hidden rounded-md border border-dashed border-zinc-300 bg-[repeating-linear-gradient(45deg,var(--color-zinc-100),var(--color-zinc-100)_8px,var(--color-zinc-50)_8px,var(--color-zinc-50)_16px)] px-2 py-1 text-xs text-zinc-500"
+              style={{ top, height: blockHeight }}
+            >
+              <span className="truncate">
+                {label}
+                {p.ex.reason ? ` · ${p.ex.reason}` : ''}
+              </span>
+              <button
+                type="button"
+                disabled={isPending}
+                onClick={() => {
+                  if (!confirm('Remover este bloqueio?')) return;
+                  startTransition(() => {
+                    void deleteScheduleException(p.ex.id);
+                  });
+                }}
+                className="flex-none rounded px-1 text-zinc-500 hover:bg-zinc-200 hover:text-zinc-800 disabled:opacity-50"
+              >
+                Remover
+              </button>
+            </div>
+          );
+        })}
 
         {positioned.map((p) => {
           const lane = lanes.get(p.appt.id) ?? { col: 0, cols: 1 };

@@ -88,6 +88,7 @@ model Tenant {
   contacts           Contact[]
   conversations      Conversation[]
   scheduleBlocks     ScheduleBlock[]
+  scheduleExceptions ScheduleException[]
   payments           Payment[]
 }
 
@@ -160,6 +161,22 @@ model ScheduleBlock {
   updatedAt   DateTime @updatedAt
 
   @@index([tenantId, weekday])
+}
+
+/// Bloqueio pontual da agenda do Tenant: um intervalo [startsAt, endsAt) em UTC
+/// onde não se aceita agendamento (folga, compromisso pessoal, férias).
+/// "Dia inteiro" e "vários dias" são apenas intervalos maiores.
+model ScheduleException {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  startsAt  DateTime
+  endsAt    DateTime
+  reason    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId, startsAt])
 }
 
 model Contact {

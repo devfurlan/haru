@@ -10,7 +10,11 @@ import { formatPhoneBR } from '@/lib/format';
 import { cn } from '@/lib/utils';
 
 import { AppointmentActions } from './appointment-actions';
-import { AppointmentsDayView, type CalendarAppointment } from './appointments-day-view';
+import {
+  AppointmentsDayView,
+  type CalendarAppointment,
+  type CalendarException,
+} from './appointments-day-view';
 
 type Tab = 'upcoming' | 'past' | 'all';
 
@@ -65,7 +69,7 @@ export default async function AppointmentsPage({ searchParams }: PageProps) {
   const calendarTo = new Date(now);
   calendarTo.setMonth(calendarTo.getMonth() + 12);
 
-  const [calendarRows, scheduleBlocks] = await Promise.all([
+  const [calendarRows, scheduleBlocks, exceptionRows] = await Promise.all([
     prisma.appointment.findMany({
       where: {
         tenantId: tenant.id,
@@ -82,6 +86,14 @@ export default async function AppointmentsPage({ searchParams }: PageProps) {
       where: { tenantId: tenant.id },
       select: { weekday: true, startMinute: true, endMinute: true },
     }),
+    prisma.scheduleException.findMany({
+      where: {
+        tenantId: tenant.id,
+        startsAt: { lte: calendarTo },
+        endsAt: { gte: calendarFrom },
+      },
+      orderBy: { startsAt: 'asc' },
+    }),
   ]);
 
   const calendarAppointments: CalendarAppointment[] = calendarRows.map((appt) => ({
@@ -95,6 +107,13 @@ export default async function AppointmentsPage({ searchParams }: PageProps) {
     contactName: appt.contact.name,
     contactPhone: appt.contact.phone,
     seriesId: appt.seriesId,
+  }));
+
+  const calendarExceptions: CalendarException[] = exceptionRows.map((e) => ({
+    id: e.id,
+    startsAt: e.startsAt.toISOString(),
+    endsAt: e.endsAt.toISOString(),
+    reason: e.reason,
   }));
 
   // "Hoje" no fuso do tenant (YYYY-MM-DD), para destacar o dia corrente.
@@ -124,6 +143,7 @@ export default async function AppointmentsPage({ searchParams }: PageProps) {
 
       <AppointmentsDayView
         appointments={calendarAppointments}
+        exceptions={calendarExceptions}
         scheduleBlocks={scheduleBlocks}
         timezone={tenant.timezone}
         today={todayLocal}

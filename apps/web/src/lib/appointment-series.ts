@@ -63,6 +63,14 @@ export async function createAppointmentSeries(
     input.occurrences,
   );
 
+  // Bloqueios pontuais da agenda — uma ocorrência que cai num bloqueio é pulada,
+  // como já se faz com colisão e expediente. Busca uma vez só (N de ocorrências
+  // é pequeno; a janela cobre toda a série).
+  const exceptions = await prisma.scheduleException.findMany({
+    where: { tenantId: input.tenantId, endsAt: { gt: now } },
+    select: { startsAt: true, endsAt: true },
+  });
+
   const toCreate: { startsAt: Date; endsAt: Date }[] = [];
   const skipped: string[] = [];
   let beyondHorizon = 0;
@@ -82,6 +90,11 @@ export async function createAppointmentSeries(
       continue;
     }
     const endsAt = new Date(startsAt.getTime() + input.durationMinutes * 60_000);
+    const blocked = exceptions.some((e) => e.startsAt < endsAt && e.endsAt > startsAt);
+    if (blocked) {
+      skipped.push(iso);
+      continue;
+    }
     const conflict = await prisma.appointment.findFirst({
       where: {
         tenantId: input.tenantId,

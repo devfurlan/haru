@@ -1,6 +1,6 @@
 'use client';
 
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Lock } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
 import type { AppointmentStatus } from '@haru/database';
@@ -8,6 +8,7 @@ import type { AppointmentStatus } from '@haru/database';
 import { Button } from '@/components/ui/button';
 
 import { AppointmentDetailDialog } from './appointment-detail-dialog';
+import { BlockTimeDialog } from './block-time-dialog';
 import { DayTimeline } from './day-timeline';
 import { MiniMonth } from './mini-month';
 
@@ -24,6 +25,13 @@ export interface CalendarAppointment {
   seriesId: string | null;
 }
 
+export interface CalendarException {
+  id: string;
+  startsAt: string; // ISO UTC
+  endsAt: string; // ISO UTC
+  reason: string | null;
+}
+
 export interface DayScheduleBlock {
   weekday: number;
   startMinute: number;
@@ -32,6 +40,7 @@ export interface DayScheduleBlock {
 
 interface AppointmentsDayViewProps {
   appointments: CalendarAppointment[];
+  exceptions: CalendarException[];
   scheduleBlocks: DayScheduleBlock[];
   timezone: string;
   /** "Hoje" no fuso do tenant (YYYY-MM-DD). */
@@ -60,12 +69,16 @@ function shiftDayKey(key: string, delta: number): string {
 
 export function AppointmentsDayView({
   appointments,
+  exceptions,
   scheduleBlocks,
   timezone,
   today,
 }: AppointmentsDayViewProps) {
   const [selected, setSelected] = useState(today);
   const [active, setActive] = useState<CalendarAppointment | null>(null);
+  const [blocking, setBlocking] = useState(false);
+  // Remonta o modal a cada abertura (zera o useActionState de sucesso anterior).
+  const [blockSeq, setBlockSeq] = useState(0);
 
   const byDay = useMemo(() => {
     const map = new Map<string, CalendarAppointment[]>();
@@ -81,8 +94,29 @@ export function AppointmentsDayView({
     return map;
   }, [appointments, timezone]);
 
+  // Exceções por dia: uma exceção pode abranger vários dias (folga/férias), então
+  // entra em CADA dia entre o início e o fim (fim exclusivo).
+  const exceptionsByDay = useMemo(() => {
+    const map = new Map<string, CalendarException[]>();
+    for (const ex of exceptions) {
+      const firstKey = localDayKey(ex.startsAt, timezone);
+      // Fim exclusivo: subtrai 1ms pra não incluir o dia seguinte quando termina 00:00.
+      const lastKey = localDayKey(
+        new Date(new Date(ex.endsAt).getTime() - 1).toISOString(),
+        timezone,
+      );
+      for (let key = firstKey; key <= lastKey; key = shiftDayKey(key, 1)) {
+        const list = map.get(key);
+        if (list) list.push(ex);
+        else map.set(key, [ex]);
+      }
+    }
+    return map;
+  }, [exceptions, timezone]);
+
   const daysWithAppointments = useMemo(() => new Set(byDay.keys()), [byDay]);
   const dayAppointments = byDay.get(selected) ?? [];
+  const dayExceptions = exceptionsByDay.get(selected) ?? [];
 
   const selectedLabel = useMemo(() => {
     const [y, m, d] = selected.split('-').map(Number);
@@ -101,6 +135,18 @@ export function AppointmentsDayView({
       <div className="min-w-0 md:flex-1 md:pr-6">
         <div className="flex items-center gap-3">
           <h2 className="flex-auto text-sm font-semibold">{selectedLabel}</h2>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setBlockSeq((n) => n + 1);
+              setBlocking(true);
+            }}
+          >
+            <Lock className="h-4 w-4" />
+            Bloquear horário
+          </Button>
           <Button
             type="button"
             variant="outline"
@@ -134,6 +180,7 @@ export function AppointmentsDayView({
           <DayTimeline
             dayKey={selected}
             appointments={dayAppointments}
+            exceptions={dayExceptions}
             scheduleBlocks={scheduleBlocks}
             timezone={timezone}
             isToday={selected === today}
@@ -157,6 +204,14 @@ export function AppointmentsDayView({
         appointment={active}
         timezone={timezone}
         onClose={() => setActive(null)}
+      />
+
+      <BlockTimeDialog
+        key={blockSeq}
+        open={blocking}
+        defaultDate={selected}
+        onClose={() => setBlocking(false)}
+        onCreated={() => setBlocking(false)}
       />
     </div>
   );
