@@ -56,15 +56,17 @@ export default async function TenantPublicPage({ params }: { params: Promise<{ s
     <main className="bg-muted/20 min-h-screen">
       <div className="mx-auto max-w-2xl space-y-8 px-4 py-12">
         <header className="space-y-2 text-center">
-          {tenant.logoUrl && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={tenant.logoUrl}
-              alt={tenant.name}
-              className="mx-auto h-24 w-24 rounded-full object-cover"
-            />
-          )}
-          <h1 className="font-serif text-4xl font-semibold tracking-[-0.01em]">{tenant.name}</h1>
+          <div className="flex items-center justify-center gap-3">
+            {tenant.logoUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={tenant.logoUrl}
+                alt={tenant.name}
+                className="h-16 w-16 shrink-0 rounded-full object-cover"
+              />
+            )}
+            <h1 className="font-serif text-4xl font-semibold tracking-[-0.01em]">{tenant.name}</h1>
+          </div>
           <p className="text-muted-foreground text-sm">
             {showBooking ? 'Agende seu horário em segundos.' : 'Agende pelo WhatsApp em segundos.'}
           </p>
