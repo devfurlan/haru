@@ -15,26 +15,9 @@ import { LogoUploader } from './logo-uploader';
 interface TenantCardProps {
   name: string;
   slug: string;
-  timezone: string;
   address: string | null;
   logoUrl: string | null;
 }
-
-// Subset comum de timezones brasileiros. Usuário pode digitar qualquer IANA
-// válido — o servidor valida via Intl.DateTimeFormat.
-const TIMEZONE_OPTIONS = [
-  'America/Sao_Paulo',
-  'America/Bahia',
-  'America/Fortaleza',
-  'America/Recife',
-  'America/Belem',
-  'America/Manaus',
-  'America/Cuiaba',
-  'America/Campo_Grande',
-  'America/Porto_Velho',
-  'America/Rio_Branco',
-  'America/Noronha',
-];
 
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -45,16 +28,11 @@ function SubmitButton() {
   );
 }
 
-export function TenantCard({ name, slug, timezone, address, logoUrl }: TenantCardProps) {
+export function TenantCard({ name, slug, address, logoUrl }: TenantCardProps) {
   const [state, formAction] = useActionState<TenantActionResult | undefined, FormData>(
     updateTenant,
     undefined,
   );
-
-  // Garante que o timezone atual aparece como opção mesmo se não estiver na lista
-  const tzOptions = TIMEZONE_OPTIONS.includes(timezone)
-    ? TIMEZONE_OPTIONS
-    : [timezone, ...TIMEZONE_OPTIONS];
 
   // Reflete o slug em edição na URL pública exibida, mas só aponta pro slug já salvo.
   const [slugValue, setSlugValue] = useState(slug);
@@ -136,26 +114,6 @@ export function TenantCard({ name, slug, timezone, address, logoUrl }: TenantCar
             <p className="text-muted-foreground text-xs">
               Aceita minúsculas, dígitos e hífen. Não pode coincidir com rotas do sistema (login,
               dashboard, services etc.).
-            </p>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="timezone">Fuso horário</Label>
-            <select
-              id="timezone"
-              name="timezone"
-              defaultValue={timezone}
-              required
-              className="border-input focus-visible:ring-ring flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1"
-            >
-              {tzOptions.map((tz) => (
-                <option key={tz} value={tz}>
-                  {tz}
-                </option>
-              ))}
-            </select>
-            <p className="text-muted-foreground text-xs">
-              Usado pra formatar datas pro cliente e pro lembrete.
             </p>
           </div>
 

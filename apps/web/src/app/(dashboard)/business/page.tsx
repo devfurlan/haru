@@ -17,7 +17,6 @@ export default async function BusinessPage() {
       <TenantCard
         name={tenant.name}
         slug={tenant.slug}
-        timezone={tenant.timezone}
         address={tenant.address}
         logoUrl={tenant.logoUrl}
       />

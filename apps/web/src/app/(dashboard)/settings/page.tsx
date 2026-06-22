@@ -6,6 +6,7 @@ import { getBaseUrl } from '@/lib/base-url';
 import { NotificationsCard } from './notifications-card';
 import { PaymentsCard } from './payments-card';
 import { PublicBookingCard } from './public-booking-card';
+import { TimezoneCard } from './timezone-card';
 import { UsersCard, type UserRow } from './users-card';
 import { WhatsappCard } from './whatsapp-card';
 
@@ -40,6 +41,8 @@ export default async function SettingsPage() {
         publicBookingEnabled={tenant.publicBookingEnabled}
         publicBookingConfirmation={tenant.publicBookingConfirmation}
       />
+
+      <TimezoneCard timezone={tenant.timezone} />
 
       <PaymentsCard
         provider={tenant.paymentProvider}

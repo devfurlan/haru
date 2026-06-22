@@ -50,7 +50,6 @@ const tenantSchema = z.object({
     .max(40)
     .regex(/^[a-z0-9-]+$/, 'Slug aceita só minúsculas, dígitos e hífen')
     .refine((v) => !RESERVED_SLUGS.has(v), { message: 'Esse slug é reservado pelo sistema' }),
-  timezone: z.string().refine(isValidTimezone, { message: 'Fuso horário inválido' }),
   address: z
     .string()
     .max(200, 'Endereço muito longo')
@@ -69,7 +68,6 @@ export async function updateTenant(
   const parsed = tenantSchema.safeParse({
     name: formData.get('name'),
     slug: formData.get('slug'),
-    timezone: formData.get('timezone'),
     address: formData.get('address'),
   });
   if (!parsed.success) {
@@ -93,6 +91,34 @@ export async function updateTenant(
   revalidatePath('/business');
   revalidatePath('/', 'layout');
   revalidatePath(`/${parsed.data.slug}`);
+  return { ok: true };
+}
+
+// --- Fuso horário -----------------------------------------------------------
+
+const timezoneSchema = z.object({
+  timezone: z.string().refine(isValidTimezone, { message: 'Fuso horário inválido' }),
+});
+
+export type TimezoneActionResult = { error: string } | { ok: true };
+
+export async function updateTimezone(
+  _prev: TimezoneActionResult | undefined,
+  formData: FormData,
+): Promise<TimezoneActionResult> {
+  const { tenant } = await requireAdmin();
+
+  const parsed = timezoneSchema.safeParse({ timezone: formData.get('timezone') });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? 'Dados inválidos' };
+  }
+
+  await prisma.tenant.update({
+    where: { id: tenant.id },
+    data: { timezone: parsed.data.timezone },
+  });
+
+  revalidatePath('/settings');
   return { ok: true };
 }
 
