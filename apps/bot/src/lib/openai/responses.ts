@@ -8,7 +8,49 @@ import { env } from '../env.js';
 import { BOT_MODEL } from './prompts/index.js';
 import { executeTool, type ToolContext } from './tools.js';
 
-const openai = new OpenAI({ apiKey: env.OPENAI_API_KEY });
+const openai = new OpenAI({
+  apiKey: env.OPENAI_API_KEY,
+  // Erros de rede (ex.: ERR_STREAM_PREMATURE_CLOSE da OpenAI) são transitórios;
+  // deixa o SDK retentar antes de cair no fallback.
+  maxRetries: 3,
+  timeout: 90_000,
+});
+
+/** Erros de conexão que valem uma nova tentativa (a resposta nem chegou inteira). */
+function isRetriableNetworkError(err: unknown): boolean {
+  const code = (err as { code?: string })?.code;
+  return (
+    code === 'ERR_STREAM_PREMATURE_CLOSE' ||
+    code === 'ECONNRESET' ||
+    code === 'ETIMEDOUT' ||
+    code === 'EPIPE' ||
+    err instanceof OpenAI.APIConnectionError
+  );
+}
+
+/**
+ * Envolve `openai.responses.create` com retry para falhas de rede que escapam
+ * do retry interno do SDK (o premature close chega como FetchError cru ao ler
+ * o body já com status 200, então o SDK não o retenta sozinho).
+ */
+async function createResponse(
+  params: OpenAI.Responses.ResponseCreateParamsNonStreaming,
+): Promise<OpenAI.Responses.Response> {
+  const MAX_ATTEMPTS = 3;
+  let lastErr: unknown;
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    try {
+      return await openai.responses.create(params);
+    } catch (err) {
+      lastErr = err;
+      if (attempt === MAX_ATTEMPTS || !isRetriableNetworkError(err)) throw err;
+      console.warn(
+        `[openai] tentativa ${attempt}/${MAX_ATTEMPTS} falhou (${(err as { code?: string })?.code ?? 'erro'}), retentando...`,
+      );
+    }
+  }
+  throw lastErr;
+}
 
 export interface AskBotOptions {
   /** System prompt (substitui as `instructions` da Responses API). */
@@ -145,7 +187,7 @@ async function runToolCalls(
 
 export async function askBot(opts: AskBotOptions): Promise<BotResponseResult> {
   try {
-    let response = await openai.responses.create({
+    let response = await createResponse({
       model: BOT_MODEL,
       instructions: buildInstructions(opts),
       previous_response_id: opts.previousResponseId,
@@ -159,7 +201,7 @@ export async function askBot(opts: AskBotOptions): Promise<BotResponseResult> {
     for (let hop = 0; hop < MAX_TOOL_HOPS; hop++) {
       const outputs = await runToolCalls(opts.toolContext, response);
       if (!outputs) break;
-      response = await openai.responses.create({
+      response = await createResponse({
         model: BOT_MODEL,
         previous_response_id: response.id,
         input: outputs,
