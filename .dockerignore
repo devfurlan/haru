@@ -1,4 +1,4 @@
-# deps e artefatos de build — reinstalados/rebuildados dentro da imagem
+# deps e artefatos de build - reinstalados/rebuildados dentro da imagem
 **/node_modules
 **/dist
 **/.next

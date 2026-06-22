@@ -1,6 +1,6 @@
 import { prisma } from '@haru/database';
 
-// Slugs reservados — não podem colidir com rotas conhecidas em apps/web.
+// Slugs reservados - não podem colidir com rotas conhecidas em apps/web.
 // Mantido em sincronia com RESERVED_SLUGS de (dashboard)/settings/actions.ts
 // (validação na criação do slug).
 const RESERVED_SLUGS = new Set([

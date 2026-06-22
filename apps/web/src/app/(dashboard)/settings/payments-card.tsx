@@ -132,7 +132,7 @@ function AsaasGuide({ webhookUrl }: { webhookUrl: string }) {
               </div>
               <p className="text-muted-foreground mt-1.5">
                 Defina um <strong>Token de autenticação</strong> no Asaas e cole o mesmo valor no
-                campo &quot;Token do webhook&quot; abaixo — é o que garante que só o Asaas confirma
+                campo &quot;Token do webhook&quot; abaixo - é o que garante que só o Asaas confirma
                 pagamentos.
               </p>
             </li>
@@ -142,7 +142,7 @@ function AsaasGuide({ webhookUrl }: { webhookUrl: string }) {
                 Na seção <strong>Adicionar Eventos</strong> do mesmo webhook, abra{' '}
                 <strong>Cobranças</strong> e clique em <strong>Selecionar Todos</strong>. É essa
                 categoria que avisa quando uma cobrança é{' '}
-                <strong>confirmada, recebida, vencida, estornada ou removida</strong> — sem ela, o
+                <strong>confirmada, recebida, vencida, estornada ou removida</strong> - sem ela, o
                 pagamento nunca é confirmado aqui. As outras categorias (Notas fiscais,
                 Transferências etc.) podem ficar desmarcadas.
               </p>
@@ -256,7 +256,7 @@ export function PaymentsCard({
                 </select>
                 {!meta.ready && (
                   <p className="text-xs text-amber-700">
-                    {meta.label} ainda não está disponível para cobranças — por enquanto, use o
+                    {meta.label} ainda não está disponível para cobranças - por enquanto, use o
                     Asaas. Você pode salvar a credencial, mas o botão de pagar mostrará um aviso.
                   </p>
                 )}
@@ -275,7 +275,7 @@ export function PaymentsCard({
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="webhookToken">Token do webhook — opcional, recomendado</Label>
+                <Label htmlFor="webhookToken">Token do webhook - opcional, recomendado</Label>
                 <Input
                   id="webhookToken"
                   name="webhookToken"

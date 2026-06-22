@@ -8,7 +8,7 @@ import {
 } from './types';
 
 /**
- * Stub do Pagar.me — estrutura/UI prontas, cobrança ainda não implementada.
+ * Stub do Pagar.me - estrutura/UI prontas, cobrança ainda não implementada.
  * Quando for implementar, espelhar o `AsaasGateway`.
  */
 export class PagarmeGateway implements PaymentGateway {

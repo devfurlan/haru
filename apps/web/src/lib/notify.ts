@@ -28,7 +28,7 @@ const HEADER: Record<AppointmentEventName, (tenantName: string) => string> = {
 
 /**
  * Versão server-side (Next.js) do dispatcher de webhook. Idêntica em
- * comportamento à do bot — duplicada pra evitar dependência cruzada entre
+ * comportamento à do bot - duplicada pra evitar dependência cruzada entre
  * apps/web e apps/bot. Se evoluir, vale extrair pra `@haru/notifications`.
  */
 async function dispatchAppointmentEvent(appointmentId: string, event: AppointmentEventName) {
@@ -161,17 +161,17 @@ export async function notifyPaymentConfirmed(paymentId: string) {
 
 /**
  * Avisa o CLIENTE (no WhatsApp, via bot) que o pagamento foi confirmado. O webhook do
- * gateway chega aqui no apps/web, mas quem fala com o cliente é o bot — então fazemos
+ * gateway chega aqui no apps/web, mas quem fala com o cliente é o bot - então fazemos
  * um POST autenticado na rota interna do bot, que monta e envia a mensagem.
  *
  * Fire-and-forget e fail-soft: se BOT_INTERNAL_URL/BOT_INTERNAL_TOKEN não estiverem
- * configurados (ex.: ambiente sem bot), apenas loga e segue — não quebra o webhook.
+ * configurados (ex.: ambiente sem bot), apenas loga e segue - não quebra o webhook.
  */
 export async function notifyCustomerPaymentConfirmed(paymentId: string) {
   const baseUrl = process.env.BOT_INTERNAL_URL;
   const token = process.env.BOT_INTERNAL_TOKEN;
   if (!baseUrl || !token) {
-    console.warn('[notify] BOT_INTERNAL_URL/TOKEN ausentes — pulo aviso ao cliente');
+    console.warn('[notify] BOT_INTERNAL_URL/TOKEN ausentes - pulo aviso ao cliente');
     return;
   }
   try {
@@ -191,12 +191,12 @@ export async function notifyCustomerPaymentConfirmed(paymentId: string) {
 }
 
 /// `unreachable`: o web não conseguiu falar com o bot (envs BOT_INTERNAL_* ausentes,
-/// bot fora do ar, 404/500). Problema de infra — não é o WhatsApp do tenant.
+/// bot fora do ar, 404/500). Problema de infra - não é o WhatsApp do tenant.
 export type SendFailureReason = 'window_closed' | 'not_configured' | 'unreachable' | 'send_failed';
 export interface ManualSendResult {
   delivered: boolean;
   reason?: SendFailureReason;
-  /// Código de erro da Cloud API do Meta (quando houver) — ajuda a diagnosticar.
+  /// Código de erro da Cloud API do Meta (quando houver) - ajuda a diagnosticar.
   waCode?: number;
   /// Status HTTP da resposta do bot quando reason='unreachable' (401 token, 404
   /// URL/rota, etc). Ausente = bot não respondeu (host inalcançável / DNS).
@@ -217,7 +217,7 @@ export async function sendManualWhatsappMessage(
   const token = process.env.BOT_INTERNAL_TOKEN;
   if (!baseUrl || !token) {
     console.warn(
-      '[notify] BOT_INTERNAL_URL/BOT_INTERNAL_TOKEN ausentes no web — não dá pra chamar o bot. ' +
+      '[notify] BOT_INTERNAL_URL/BOT_INTERNAL_TOKEN ausentes no web - não dá pra chamar o bot. ' +
         'Configure-as no ambiente do web (Vercel) apontando pro bot.',
     );
     return { delivered: false, reason: 'unreachable' };
@@ -234,7 +234,7 @@ export async function sendManualWhatsappMessage(
     }
     const data = (await res.json().catch(() => null)) as ManualSendResult | null;
     if (data && !data.delivered) {
-      console.error(`[notify] envio manual não entregue — reason=${data.reason} waCode=${data.waCode}`);
+      console.error(`[notify] envio manual não entregue - reason=${data.reason} waCode=${data.waCode}`);
     }
     return {
       delivered: data?.delivered ?? false,

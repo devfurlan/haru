@@ -124,7 +124,7 @@ export interface ComputeSlotsInput {
   appointments: BusyInterval[];
   /** Bloqueios pontuais da agenda (ScheduleException) que tocam o dia. */
   exceptions?: BusyInterval[];
-  /** Instante atual injetado — slots no passado são descartados. */
+  /** Instante atual injetado - slots no passado são descartados. */
   now: Date;
   /** Passo da grade em minutos (default 30). */
   stepMinutes?: number;
@@ -162,7 +162,7 @@ export function computeAvailableSlots(input: ComputeSlotsInput): AvailableSlot[]
       // Já passou (relevante quando o dia-alvo é hoje).
       if (start <= input.now) continue;
 
-      // Colisão com agendamento ativo — mesma fórmula de overlap do resto do app:
+      // Colisão com agendamento ativo - mesma fórmula de overlap do resto do app:
       // existing.startsAt < new.endsAt && existing.endsAt > new.startsAt.
       const collides = input.appointments.some((a) => a.startsAt < end && a.endsAt > start);
       if (collides) continue;

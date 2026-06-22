@@ -8,7 +8,7 @@ import {
 } from './types';
 
 /**
- * Stub do PagSeguro/PagBank — estrutura/UI prontas, cobrança ainda não implementada.
+ * Stub do PagSeguro/PagBank - estrutura/UI prontas, cobrança ainda não implementada.
  * Quando for implementar, espelhar o `AsaasGateway`.
  */
 export class PagBankGateway implements PaymentGateway {

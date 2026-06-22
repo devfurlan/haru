@@ -6,7 +6,7 @@ import { sendTextSafely } from './whatsapp/safeSend.js';
 const TICK_INTERVAL_MS = 5 * 60 * 1000;
 // Quanto de atraso ainda vale a pena recuperar. Se o bot ficou fora do ar (deploy,
 // restart, plano dormindo) exatamente na hora-alvo de um lembrete, ele volta e
-// dispara assim que subir — desde que o atraso seja menor que isto. Acima disso o
+// dispara assim que subir - desde que o atraso seja menor que isto. Acima disso o
 // lembrete chegaria perto/depois do horário e não faz mais sentido, então pulamos.
 const MAX_LATE_MS = 6 * 60 * 60 * 1000;
 
@@ -38,7 +38,7 @@ async function processReminders() {
     //   alvo >= agora - MAX_LATE ⇔  startsAt >= agora - MAX_LATE + offset (não atrasado demais)
     // Assim um lembrete cuja hora-alvo passou enquanto o bot estava fora do ar é
     // recuperado no próximo tick em vez de perdido pra sempre. O reminderSentAt
-    // continua garantindo envio único — sem risco de duplicar a cada tick.
+    // continua garantindo envio único - sem risco de duplicar a cada tick.
     const earliestStart = new Date(now.getTime() - MAX_LATE_MS + offsetMs);
     const latestStart = new Date(now.getTime() + offsetMs);
 

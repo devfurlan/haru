@@ -21,7 +21,7 @@ export function Roadmap() {
     <section id="breve" className="bg-cream-2 py-24">
       <Container>
         <SectionHeading eyebrow="No forno" title="O que vem por aí.">
-          Recursos em desenvolvimento. Ainda não estão no ar — mas já estão no nosso mapa.
+          Recursos em desenvolvimento. Ainda não estão no ar - mas já estão no nosso mapa.
         </SectionHeading>
         <div className="grid gap-4 md:grid-cols-3">
           {road.map((r) => (

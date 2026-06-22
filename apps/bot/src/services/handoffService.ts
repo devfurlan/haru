@@ -8,7 +8,7 @@ const HANDOFF_WINDOW_MS = 24 * 60 * 60 * 1000;
 /**
  * Retorna a conversa em modo humano para um (tenant, telefone), ou null se o bot
  * está ativo. Modo humano = `handoffExpiresAt` no futuro. Contato novo nunca está
- * em handoff, então isto não cria contact/conversation — é só uma leitura leve.
+ * em handoff, então isto não cria contact/conversation - é só uma leitura leve.
  */
 export async function getHandoffStatus(
   tenantId: string,

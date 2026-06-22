@@ -20,7 +20,7 @@ function formatNowInTimezone(timezone: string): string {
 /**
  * Retorna a data civil (ano/mês/dia + weekday) que `instant` representa NO fuso
  * `timezone`. Usado pra ancorar a lista de "próximos dias" no calendário local
- * do tenant — sem isso o cálculo de dias usaria o fuso do servidor (UTC) e
+ * do tenant - sem isso o cálculo de dias usaria o fuso do servidor (UTC) e
  * poderia pular/repetir um dia perto da virada.
  */
 function civilDateInTimezone(
@@ -64,7 +64,7 @@ function formatAppointmentDate(date: Date, timezone: string): string {
   }).format(date);
 }
 
-// birthDate é guardada como meia-noite UTC — formatar com timeZone UTC pra não recuar um dia.
+// birthDate é guardada como meia-noite UTC - formatar com timeZone UTC pra não recuar um dia.
 function formatBirthDate(date: Date): string {
   return new Intl.DateTimeFormat('pt-BR', {
     timeZone: 'UTC',
@@ -81,7 +81,7 @@ function formatBirthDate(date: Date): string {
  * enviado uma vez por sessão.
  *
  * Se `contactId` for fornecido, inclui também a seção "## Seus agendamentos"
- * com os agendamentos futuros DESTE contato — essencial pro fluxo de
+ * com os agendamentos futuros DESTE contato - essencial pro fluxo de
  * cancelamento (LLM precisa do ID `[apt_...]` pra chamar `cancel_appointment`).
  */
 export async function buildTenantContext(tenantId: string, contactId?: string): Promise<string> {
@@ -109,11 +109,11 @@ export async function buildTenantContext(tenantId: string, contactId?: string): 
   lines.push('## Serviços disponíveis');
   if (tenant.services.length === 0) {
     lines.push(
-      '(nenhum serviço cadastrado — peça pro cliente aguardar o estabelecimento ' + 'configurar)',
+      '(nenhum serviço cadastrado - peça pro cliente aguardar o estabelecimento ' + 'configurar)',
     );
   } else {
     for (const s of tenant.services) {
-      const desc = s.description ? ` — ${s.description}` : '';
+      const desc = s.description ? ` - ${s.description}` : '';
       lines.push(
         `- [${s.id}] ${s.name}${desc} · ${formatDuration(s.durationMinutes)} · ${formatBRL(
           s.priceCents,
@@ -133,7 +133,7 @@ export async function buildTenantContext(tenantId: string, contactId?: string): 
   // Lista os PRÓXIMOS dias com a data civil concreta no fuso do tenant. O LLM é
   // ruim em aritmética de calendário ("hoje é sábado, então sexta é dia X") e
   // chegava a oferecer datas já passadas. Entregando as datas prontas, ele só
-  // copia — nunca calcula. Dias fechados/passados simplesmente não aparecem.
+  // copia - nunca calcula. Dias fechados/passados simplesmente não aparecem.
   const HORIZON_DAYS = 14;
   const today = civilDateInTimezone(new Date(), tenant.timezone);
   // Meio-dia UTC do dia civil de hoje: longe o suficiente das viradas pra somar
@@ -156,11 +156,11 @@ export async function buildTenantContext(tenantId: string, contactId?: string): 
     openDays++;
   }
   if (openDays === 0) {
-    lines.push('(nenhum dia de atendimento configurado — peça pro cliente aguardar)');
+    lines.push('(nenhum dia de atendimento configurado - peça pro cliente aguardar)');
   }
   lines.push('');
 
-  // Próximos agendamentos (7 dias) — pra LLM não oferecer slots ocupados
+  // Próximos agendamentos (7 dias) - pra LLM não oferecer slots ocupados
   const now = new Date();
   const horizon = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
   const appointments = await prisma.appointment.findMany({
@@ -179,7 +179,7 @@ export async function buildTenantContext(tenantId: string, contactId?: string): 
   } else {
     for (const a of appointments) {
       lines.push(
-        `- ${formatAppointmentDate(a.startsAt, tenant.timezone)} — ${a.service.name} (${formatDuration(
+        `- ${formatAppointmentDate(a.startsAt, tenant.timezone)} - ${a.service.name} (${formatDuration(
           a.service.durationMinutes,
         )})`,
       );
@@ -187,7 +187,7 @@ export async function buildTenantContext(tenantId: string, contactId?: string): 
   }
   lines.push('');
 
-  // Bloqueios da agenda (folga/compromisso do dono) nos próximos 7 dias — a LLM
+  // Bloqueios da agenda (folga/compromisso do dono) nos próximos 7 dias - a LLM
   // NÃO deve oferecer horários dentro deles (bookAppointment também recusaria).
   const exceptions = await prisma.scheduleException.findMany({
     where: { tenantId, endsAt: { gt: now }, startsAt: { lt: horizon } },
@@ -198,7 +198,7 @@ export async function buildTenantContext(tenantId: string, contactId?: string): 
     lines.push('(nenhum)');
   } else {
     for (const e of exceptions) {
-      const reason = e.reason ? ` — ${e.reason}` : '';
+      const reason = e.reason ? ` - ${e.reason}` : '';
       lines.push(
         `- de ${formatAppointmentDate(e.startsAt, tenant.timezone)} até ${formatAppointmentDate(
           e.endsAt,
@@ -217,7 +217,7 @@ export async function buildTenantContext(tenantId: string, contactId?: string): 
     });
 
     lines.push('## Cadastro do cliente');
-    lines.push(`Telefone: ${contact?.phone ?? '(desconhecido)'} (já temos — não peça)`);
+    lines.push(`Telefone: ${contact?.phone ?? '(desconhecido)'} (já temos - não peça)`);
     lines.push(`Nome: ${contact?.name ?? '(não informado)'}`);
     lines.push(`Email: ${contact?.email ?? '(não informado)'}`);
     lines.push(
@@ -225,7 +225,7 @@ export async function buildTenantContext(tenantId: string, contactId?: string): 
     );
     if (contact?.profileCompletedAt) {
       lines.push(
-        'Status: cadastro confirmado. Se o nome estiver correto, NÃO confirme de novo — siga direto.',
+        'Status: cadastro confirmado. Se o nome estiver correto, NÃO confirme de novo - siga direto.',
       );
     } else {
       lines.push(
@@ -259,12 +259,12 @@ export async function buildTenantContext(tenantId: string, contactId?: string): 
     } else {
       for (const a of contactAppts) {
         // Marca a recorrência (e agrupa pelo seriesId) pra o LLM saber que um
-        // cancelamento pode envolver vários — pergunte se é só este ou a série toda.
+        // cancelamento pode envolver vários - pergunte se é só este ou a série toda.
         const rec = a.series
           ? ` (recorrente ${FREQUENCY_LABEL[a.series.frequency] ?? ''} · série ${a.seriesId})`
           : '';
         lines.push(
-          `- [${a.id}] ${formatAppointmentDate(a.startsAt, tenant.timezone)} — ${a.service.name}${rec}`,
+          `- [${a.id}] ${formatAppointmentDate(a.startsAt, tenant.timezone)} - ${a.service.name}${rec}`,
         );
       }
     }

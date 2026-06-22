@@ -62,7 +62,7 @@ interface ServiceOption {
 interface PublicBookingProps {
   slug: string;
   services: ServiceOption[];
-  /** Fuso do tenant — toda conta de data sai dele, nunca do browser. */
+  /** Fuso do tenant - toda conta de data sai dele, nunca do browser. */
   timezone: string;
   /** Dias-da-semana com expediente (0=domingo … 6=sábado). */
   openWeekdays: number[];
@@ -72,11 +72,11 @@ interface PublicBookingProps {
 
 /**
  * Passos do fluxo:
- *  0      — Vitrine de serviços (estado inicial).
- *  1      — Contato (telefone primeiro; nome aparece se o contato não existir).
- *  2      — Dia e horário.
- *  3      — Resumo / confirmação.
- *  'done' — Tela de sucesso pós-submit.
+ *  0      - Vitrine de serviços (estado inicial).
+ *  1      - Contato (telefone primeiro; nome aparece se o contato não existir).
+ *  2      - Dia e horário.
+ *  3      - Resumo / confirmação.
+ *  'done' - Tela de sucesso pós-submit.
  */
 type Step = 0 | 1 | 2 | 3 | 'done';
 
@@ -188,7 +188,7 @@ function StepHeader({
   );
 }
 
-/** Botão de submit final — usa useFormStatus para o estado "pending". */
+/** Botão de submit final - usa useFormStatus para o estado "pending". */
 function ConfirmButton() {
   const { pending } = useFormStatus();
   return (
@@ -206,7 +206,7 @@ function ConfirmButton() {
 }
 
 // ---------------------------------------------------------------------------
-// Passo 0 — Vitrine de serviços (estado inicial)
+// Passo 0 - Vitrine de serviços (estado inicial)
 // ---------------------------------------------------------------------------
 
 function StepVitrine({
@@ -267,7 +267,7 @@ function StepVitrine({
 }
 
 // ---------------------------------------------------------------------------
-// Passo 1 — Contato (telefone primeiro; nome só se o contato não existir)
+// Passo 1 - Contato (telefone primeiro; nome só se o contato não existir)
 // ---------------------------------------------------------------------------
 
 function StepContato({
@@ -434,7 +434,7 @@ function pad2(n: number): string {
   return n < 10 ? `0${n}` : String(n);
 }
 
-/** "YYYY-MM-DD" de um trio civil (sem fuso — comparação pura de calendário). */
+/** "YYYY-MM-DD" de um trio civil (sem fuso - comparação pura de calendário). */
 function ymd(year: number, month0: number, day: number): string {
   return `${year}-${pad2(month0 + 1)}-${pad2(day)}`;
 }
@@ -442,7 +442,7 @@ function ymd(year: number, month0: number, day: number): string {
 /**
  * Calendário de mês num Dialog. Permite pular pra qualquer dia dentro da janela
  * [minDate, maxDate] que tenha expediente (`openWeekdays`). Tudo é comparação de
- * string "YYYY-MM-DD" — as datas-limite já vêm calculadas no fuso do tenant, então
+ * string "YYYY-MM-DD" - as datas-limite já vêm calculadas no fuso do tenant, então
  * o calendário nunca precisa do fuso do browser.
  */
 function MonthCalendar({
@@ -469,7 +469,7 @@ function MonthCalendar({
     return { year: y, month: m - 1 };
   });
 
-  // Ao (re)abrir, reposiciona o mês na seleção atual — sem prender o usuário no
+  // Ao (re)abrir, reposiciona o mês na seleção atual - sem prender o usuário no
   // mês onde ele estava navegando da última vez.
   useEffect(() => {
     if (open) {
@@ -500,7 +500,7 @@ function MonthCalendar({
     });
   }
 
-  // Grade do mês: usa UTC só pra contar dias/posição — nenhuma conversão de fuso.
+  // Grade do mês: usa UTC só pra contar dias/posição - nenhuma conversão de fuso.
   const firstWeekday = new Date(Date.UTC(view.year, view.month, 1)).getUTCDay(); // 0=dom
   const daysInMonth = new Date(Date.UTC(view.year, view.month + 1, 0)).getUTCDate();
   const cells: (number | null)[] = [];
@@ -594,7 +594,7 @@ function MonthCalendar({
 }
 
 // ---------------------------------------------------------------------------
-// Passo 2 — Dia / Hora
+// Passo 2 - Dia / Hora
 // ---------------------------------------------------------------------------
 
 function StepDiaHora({
@@ -614,7 +614,7 @@ function StepDiaHora({
   headingRef,
 }: {
   days: BookingDay[];
-  /** Fuso do tenant — pra rotular um dia escolhido pelo date-picker. */
+  /** Fuso do tenant - pra rotular um dia escolhido pelo date-picker. */
   timezone: string;
   /** Primeiro dia selecionável no calendário ("YYYY-MM-DD", fuso do tenant). */
   minDate: string;
@@ -642,7 +642,7 @@ function StepDiaHora({
 
   // Dia escolhido pelo calendário pode cair fora do carrossel (sábado distante,
   // p.ex.). Nesse caso anexamos um chip-resumo no fim pra não ficar "selecionado
-  // mas invisível" — `buildBookingDays` só inclui os dias da janela contínua.
+  // mas invisível" - `buildBookingDays` só inclui os dias da janela contínua.
   const selectedDay = days.find((d) => d.value === selectedDate) ?? null;
   const railDays =
     selectedDate && !selectedDay
@@ -769,7 +769,7 @@ function StepDiaHora({
 }
 
 // ---------------------------------------------------------------------------
-// Passo 3 — Resumo / confirmação (form de submit real)
+// Passo 3 - Resumo / confirmação (form de submit real)
 // ---------------------------------------------------------------------------
 
 function StepResumo({
@@ -1037,7 +1037,7 @@ function SeriesSuccessScreen({
 /**
  * Bloco de pagamento opcional na tela de sucesso. Gera a cobrança sob demanda
  * (Pix mostra QR + copia-e-cola; cartão abre o checkout hospedado do gateway).
- * Não bloqueia a agenda — pagamento é opcional.
+ * Não bloqueia a agenda - pagamento é opcional.
  */
 function PaymentBlock({ slug, appointmentId }: { slug: string; appointmentId: string }) {
   const [paying, startPaying] = useTransition();
@@ -1091,7 +1091,7 @@ function PaymentBlock({ slug, appointmentId }: { slug: string; appointmentId: st
       <div>
         <p className="text-foreground text-sm font-medium">Pagamento</p>
         <p className="text-muted-foreground text-xs">
-          Opcional — você pode pagar agora ou no dia do atendimento.
+          Opcional - você pode pagar agora ou no dia do atendimento.
         </p>
       </div>
 
@@ -1195,7 +1195,7 @@ function PaymentBlock({ slug, appointmentId }: { slug: string; appointmentId: st
 }
 
 // ---------------------------------------------------------------------------
-// Componente raiz — máquina de estados
+// Componente raiz - máquina de estados
 // ---------------------------------------------------------------------------
 
 export function PublicBooking({
@@ -1221,10 +1221,10 @@ export function PublicBooking({
     [timezone, horizonDays],
   );
 
-  // Passo 0 / 1 — serviço escolhido
+  // Passo 0 / 1 - serviço escolhido
   const [serviceId, setServiceId] = useState('');
 
-  // Passo 1 — contato
+  // Passo 1 - contato
   const [phone, setPhone] = useState(''); // dígitos crus
   const [name, setName] = useState('');
   // Nome resolvido pelo servidor quando o contato já existe; usado no submit.
@@ -1234,7 +1234,7 @@ export function PublicBooking({
   const [lookupError, setLookupError] = useState<string | null>(null);
   const [lookingUp, startLookup] = useTransition();
 
-  // Passo 2 — dia / hora
+  // Passo 2 - dia / hora
   const [dateStr, setDateStr] = useState('');
   const [slots, setSlots] = useState<AvailableSlot[]>([]);
   const [selectedSlotIso, setSelectedSlotIso] = useState('');
@@ -1243,7 +1243,7 @@ export function PublicBooking({
   // do horário/serviço que tinha escolhido (em vez de pular de tela em silêncio).
   const [expiryNotice, setExpiryNotice] = useState<string | null>(null);
 
-  // Passo 3 — recorrência (opcional). 'NONE' = agendamento único.
+  // Passo 3 - recorrência (opcional). 'NONE' = agendamento único.
   const [frequency, setFrequency] = useState<FrequencyChoice>('NONE');
   const [occurrences, setOccurrences] = useState(4);
 
@@ -1283,7 +1283,7 @@ export function PublicBooking({
   const effectiveName = resolvedName ?? name;
 
   // Busca slots sempre que serviço + dia estiverem escolhidos. Reseta o slot
-  // selecionado a cada mudança — trocar de dia ou de serviço (voltando atrás)
+  // selecionado a cada mudança - trocar de dia ou de serviço (voltando atrás)
   // recarrega tudo, então um horário que expirou some da grade na re-busca.
   useEffect(() => {
     setSelectedSlotIso('');
@@ -1359,7 +1359,7 @@ export function PublicBooking({
           setNeedsName(true);
         }
       } catch {
-        // Erro de rede: fallback robusto — pede o nome mesmo assim pra não travar.
+        // Erro de rede: fallback robusto - pede o nome mesmo assim pra não travar.
         setResolvedName(null);
         setNeedsName(true);
         setLookupError(

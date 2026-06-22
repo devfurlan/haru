@@ -2,9 +2,9 @@
 
 Next.js 16 (App Router, Turbopack, React 19). Contém:
 
-- **`(marketing)`** — site público: home, blog, landing pages
-- **`(dashboard)`** — área logada do cliente (conversas do bot, horários, serviços)
-- **`/login`** — fluxo de autenticação via Supabase
+- **`(marketing)`** - site público: home, blog, landing pages
+- **`(dashboard)`** - área logada do cliente (conversas do bot, horários, serviços)
+- **`/login`** - fluxo de autenticação via Supabase
 
 ## Dev
 

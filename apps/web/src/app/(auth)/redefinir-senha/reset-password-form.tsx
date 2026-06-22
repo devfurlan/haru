@@ -26,7 +26,7 @@ export function ResetPasswordForm() {
     undefined,
   );
 
-  // Sucesso: a sessão de recovery já deixa o usuário logado — manda pro painel.
+  // Sucesso: a sessão de recovery já deixa o usuário logado - manda pro painel.
   useEffect(() => {
     if (state && 'ok' in state) {
       router.replace('/dashboard');

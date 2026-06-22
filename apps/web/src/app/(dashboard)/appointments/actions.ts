@@ -45,7 +45,7 @@ function dateStrInTz(date: Date, tz: string): string {
  * lógica do agendamento público (`computeAvailableSlots`): só slots alinhados à
  * grade, dentro do expediente (ScheduleBlock) e sem colisão com agendamento ativo.
  *
- * `excludeAppointmentId` exclui um agendamento da checagem de colisão — usado na
+ * `excludeAppointmentId` exclui um agendamento da checagem de colisão - usado na
  * remarcação, pra que o próprio horário atual do agendamento não se conte como
  * "ocupado" e suma da lista de opções.
  */
@@ -153,7 +153,7 @@ export async function markNoShow(appointmentId: string) {
 /**
  * Cancela TODAS as ocorrências futuras (PENDING/CONFIRMED) de uma série recorrente.
  * Não toca em ocorrências já passadas/realizadas. Notifica o cliente uma única vez
- * (não N) — é o mesmo contato em todas as ocorrências.
+ * (não N) - é o mesmo contato em todas as ocorrências.
  */
 export async function cancelAppointmentSeries(seriesId: string) {
   const { tenant } = await requireUserAndTenant();
@@ -197,10 +197,10 @@ const createSchema = z.object({
   contactPhone: z
     .string()
     .min(8, 'Telefone obrigatório')
-    // Normaliza pra E.164 (mesmo formato do banco/bot) — senão o agendamento manual
+    // Normaliza pra E.164 (mesmo formato do banco/bot) - senão o agendamento manual
     // cria um contato divergente que o bot nunca reencontra.
     .transform(normalizePhoneBR)
-    .refine((v) => /^55\d{10,11}$/.test(v), { message: 'Telefone inválido — use DDD + número' }),
+    .refine((v) => /^55\d{10,11}$/.test(v), { message: 'Telefone inválido - use DDD + número' }),
   contactName: z
     .string()
     .max(80)
@@ -245,7 +245,7 @@ export async function createManualAppointment(
   }
 
   // Encaixe libera as 24h e a sobreposição de agendamentos. Disponível pra qualquer
-  // usuário do painel (OWNER ou STAFF) — o cliente final agenda pelo WhatsApp e nem
+  // usuário do painel (OWNER ou STAFF) - o cliente final agenda pelo WhatsApp e nem
   // tem acesso a esta action.
   const encaixe = parsed.data.encaixe === 'on';
 
@@ -284,7 +284,7 @@ export async function createManualAppointment(
 
   // Fluxo normal revalida o slot no servidor: recalcula os horários livres do dia
   // e exige que o escolhido esteja entre eles (expediente + grade + sem-colisão),
-  // sem confiar no client. No encaixe esse passo é DELIBERADAMENTE pulado — é o
+  // sem confiar no client. No encaixe esse passo é DELIBERADAMENTE pulado - é o
   // bypass total da agenda pedido pelo admin.
   if (!encaixe) {
     const dateStr = dateStrInTz(startsAt, tenant.timezone);
@@ -295,7 +295,7 @@ export async function createManualAppointment(
     }
   }
 
-  // Upsert do contato — não cria Conversation (não faz sentido sem mensagens)
+  // Upsert do contato - não cria Conversation (não faz sentido sem mensagens)
   const contact = await prisma.contact.upsert({
     where: {
       tenantId_phone: { tenantId: tenant.id, phone: parsed.data.contactPhone },
@@ -311,7 +311,7 @@ export async function createManualAppointment(
   const frequency = parsed.data.frequency;
 
   // --- Agendamento recorrente: cria a série (pula ocorrências ocupadas/fora do
-  // expediente e avisa). Não redireciona — volta um resumo pra UI mostrar.
+  // expediente e avisa). Não redireciona - volta um resumo pra UI mostrar.
   // Encaixe é sempre avulso: a série pularia justamente os horários ocupados/fora
   // do expediente que o encaixe existe pra forçar, então não faz sentido combinar.
   if (!encaixe && frequency !== 'NONE') {
@@ -339,7 +339,7 @@ export async function createManualAppointment(
       return { error: 'Nenhum horário da série está livre. Escolha outro horário inicial.' };
     }
 
-    // Fire-and-forget: um único webhook (1ª ocorrência) — evita N notificações.
+    // Fire-and-forget: um único webhook (1ª ocorrência) - evita N notificações.
     notifyAppointmentCreated(result.createdIds[0]).catch((err) =>
       console.error('[appointments] notify create (series) failed', err),
     );
@@ -413,7 +413,7 @@ export type CreateScheduleExceptionResult = { error: string } | { ok: true } | u
 /**
  * Cria um bloqueio pontual na agenda (folga, compromisso, férias). Três formas:
  * intervalo de horário num dia, dia inteiro, ou vários dias (allDay + endDate).
- * Recusa a criação se houver agendamento ativo (PENDING/CONFIRMED) no período —
+ * Recusa a criação se houver agendamento ativo (PENDING/CONFIRMED) no período -
  * o dono trata os agendamentos antes.
  */
 export async function createScheduleException(
@@ -523,10 +523,10 @@ export async function rescheduleAppointment(
   });
   if (!appt) return { error: 'Agendamento não encontrado' };
   if (appt.status === 'CANCELED') {
-    return { error: 'Agendamento cancelado — crie um novo em vez de remarcar' };
+    return { error: 'Agendamento cancelado - crie um novo em vez de remarcar' };
   }
   if (appt.status === 'COMPLETED' || appt.status === 'NO_SHOW') {
-    return { error: 'Agendamento já realizado — não dá pra remarcar' };
+    return { error: 'Agendamento já realizado - não dá pra remarcar' };
   }
 
   const newStartsAt = parsed.data.newStartsAtIso;
@@ -548,7 +548,7 @@ export async function rescheduleAppointment(
     data: {
       startsAt: newStartsAt,
       endsAt: newEndsAt,
-      // Lembrete já foi enviado pro horário antigo — zera pra disparar de novo.
+      // Lembrete já foi enviado pro horário antigo - zera pra disparar de novo.
       reminderSentAt: null,
     },
   });

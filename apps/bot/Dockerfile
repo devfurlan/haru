@@ -1,4 +1,4 @@
-# Multi-stage build para o bot — alvo Railway
+# Multi-stage build para o bot - alvo Railway
 FROM node:22-alpine AS base
 RUN corepack enable && corepack prepare pnpm@11.4.0 --activate
 WORKDIR /app
@@ -34,7 +34,7 @@ COPY --from=build /app/package.json ./package.json
 COPY --from=build /app/pnpm-workspace.yaml ./pnpm-workspace.yaml
 
 EXPOSE 3001
-# Migrations NÃO rodam aqui — quem aplica o schema é o `vercel-build` do web
+# Migrations NÃO rodam aqui - quem aplica o schema é o `vercel-build` do web
 # (prisma migrate deploy). Rodar migrate no boot do bot trava o start se o lock
 # não for adquirido (ex: DATABASE_URL apontando pro transaction pooler).
 CMD ["node", "apps/bot/dist/index.js"]

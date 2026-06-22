@@ -16,7 +16,7 @@ import {
 interface RescheduleFormProps {
   appointmentId: string;
   serviceId: string;
-  /** Dia atual do agendamento (YYYY-MM-DD no fuso do tenant) — pré-seleciona. */
+  /** Dia atual do agendamento (YYYY-MM-DD no fuso do tenant) - pré-seleciona. */
   currentDateStr: string;
   timezone: string;
   openWeekdays: number[];
@@ -46,7 +46,7 @@ export function RescheduleForm({
 
   const [slotIso, setSlotIso] = useState('');
 
-  // O próprio agendamento não conta como ocupado — senão o horário atual sumiria
+  // O próprio agendamento não conta como ocupado - senão o horário atual sumiria
   // das opções. Por isso o reschedule passa `appointmentId` como exclusão.
   const loadSlots = (svcId: string, dateStr: string) =>
     getTenantAvailableSlots(svcId, dateStr, appointmentId);

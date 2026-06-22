@@ -37,7 +37,7 @@ function dateStrInTz(date: Date, tz: string): string {
 }
 
 /**
- * Horários livres pra um serviço num dia — chamado sob demanda pelo client quando
+ * Horários livres pra um serviço num dia - chamado sob demanda pelo client quando
  * o cliente escolhe serviço + dia. Rota pública: NÃO usa requireUserAndTenant.
  */
 export async function getAvailableSlots(
@@ -99,14 +99,14 @@ const PHONE_RE = /^55\d{10,11}$/;
 export type ContactLookupResult = { exists: boolean; name: string | null };
 
 /**
- * Consulta, pelo telefone, se já existe um cadastro completo neste tenant — usado
+ * Consulta, pelo telefone, se já existe um cadastro completo neste tenant - usado
  * pelo passo de contato do agendamento público pra pular o campo "nome" de quem
  * já é cliente. Retorna SÓ { exists, name } (o nome é dado que o próprio cliente
  * forneceu); nunca expõe email, nascimento, histórico ou existência de cadastro
  * incompleto. Rota pública: sem auth, mas mínima superfície de dados.
  */
 export async function lookupContact(slug: string, phone: string): Promise<ContactLookupResult> {
-  // Normaliza pra E.164 (mesmo formato que o bot grava no banco) antes de buscar —
+  // Normaliza pra E.164 (mesmo formato que o bot grava no banco) antes de buscar -
   // senão o número nacional "11914092346" nunca casa com o "5511914092346" salvo.
   const e164 = normalizePhoneBR(phone);
   if (!PHONE_RE.test(e164)) return { exists: false, name: null };
@@ -120,7 +120,7 @@ export async function lookupContact(slug: string, phone: string): Promise<Contac
   });
 
   // Só considera "cadastrado" quem completou o cadastro (mesmo gate do bot) e tem
-  // nome — senão ainda precisamos pedir o nome.
+  // nome - senão ainda precisamos pedir o nome.
   if (!contact || !contact.profileCompletedAt || !contact.name) {
     return { exists: false, name: null };
   }
@@ -144,10 +144,10 @@ const bookingSchema = z.object({
   phone: z
     .string()
     .min(8, 'Informe seu WhatsApp')
-    // Normaliza pra E.164 (mesmo formato do banco/bot) — o contato criado pelo site
+    // Normaliza pra E.164 (mesmo formato do banco/bot) - o contato criado pelo site
     // precisa casar com o que o bot grava, senão vira um cadastro duplicado.
     .transform(normalizePhoneBR)
-    .refine((v) => /^55\d{10,11}$/.test(v), { message: 'WhatsApp inválido — confira o DDD' }),
+    .refine((v) => /^55\d{10,11}$/.test(v), { message: 'WhatsApp inválido - confira o DDD' }),
   // Recorrência (opcional). 'NONE'/ausente = agendamento avulso.
   frequency: z.enum(['NONE', 'WEEKLY', 'BIWEEKLY', 'MONTHLY']).default('NONE'),
   occurrences: z.coerce.number().int().min(2).max(12).optional(),
@@ -178,7 +178,7 @@ export type CreatePublicBookingResult =
 
 /**
  * Cria um agendamento a partir do formulário público. Rota pública (sem auth):
- * toda a confiança vem da revalidação server-side — o slot é recalculado e o
+ * toda a confiança vem da revalidação server-side - o slot é recalculado e o
  * conflito re-checado, então não confiamos no que o client mandou.
  */
 export async function createPublicBooking(
@@ -213,7 +213,7 @@ export async function createPublicBooking(
   // Revalida o slot no servidor: deriva o dia no fuso do tenant e exige que o
   // horário escolhido esteja entre os slots livres calculados. Isso garante,
   // de uma vez, que o horário cai no expediente, está alinhado à grade e não
-  // colide — sem confiar no que o client enviou.
+  // colide - sem confiar no que o client enviou.
   const dateStr = dateStrInTz(startsAt, tenant.timezone);
   const slots = await getAvailableSlots(slug, serviceId, dateStr);
   const slotOk = slots.some((s) => s.startsAtIso === startsAt.toISOString());

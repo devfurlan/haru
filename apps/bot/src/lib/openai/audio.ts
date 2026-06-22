@@ -24,7 +24,7 @@ function extFromMime(mime: string): string {
 
 /**
  * Transcreve áudio recebido via WhatsApp usando whisper-1. Idioma fixado em
- * pt — produto brasileiro. Se um dia atendermos outras línguas, expor parâmetro.
+ * pt - produto brasileiro. Se um dia atendermos outras línguas, expor parâmetro.
  */
 export async function transcribeAudio(buffer: Buffer, mimeType: string): Promise<string> {
   const cleanMime = mimeType.split(';')[0].trim();

@@ -1,6 +1,6 @@
 // Geração de datas de uma série de agendamentos recorrentes, no fuso do tenant.
 //
-// Puro e sem dependências de Next/Prisma — recebe tudo por argumento. A peça
+// Puro e sem dependências de Next/Prisma - recebe tudo por argumento. A peça
 // delicada é manter a HORA-DE-PAREDE local constante ao saltar de semana/mês,
 // reconvertendo pra UTC de forma robusta a DST (mesmo algoritmo de availability.ts).
 //
@@ -161,7 +161,7 @@ export interface OpenBlock {
 /**
  * Verifica se a ocorrência `[startsAt, startsAt+durationMinutes]` cabe inteira dentro
  * de algum ScheduleBlock do seu weekday (no fuso `tz`). Não checa conflito com outros
- * agendamentos — isso fica a cargo do caller (query Prisma de overlap).
+ * agendamentos - isso fica a cargo do caller (query Prisma de overlap).
  */
 export function occursWithinOpenBlocks(
   startsAtIso: string,

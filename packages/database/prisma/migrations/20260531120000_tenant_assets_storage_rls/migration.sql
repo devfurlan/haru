@@ -3,7 +3,7 @@
 -- O upload da logo é feito direto do browser (cliente Supabase com a chave
 -- publishable, role `authenticated`) pro bucket `tenant-assets`. O bucket é
 -- `public = true`, o que só libera LEITURA (SELECT em storage.objects). A
--- ESCRITA (INSERT/UPDATE/DELETE) continua barrada por RLS — sem policy, o
+-- ESCRITA (INSERT/UPDATE/DELETE) continua barrada por RLS - sem policy, o
 -- upload falha com "new row violates row-level security policy".
 --
 -- Aqui criamos policies que deixam cada usuário autenticado escrever APENAS
@@ -19,12 +19,12 @@
 DO $storage_rls$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = 'storage') THEN
-    RAISE NOTICE 'schema storage ausente — pulando RLS de storage (provável shadow DB ou CI sem Supabase)';
+    RAISE NOTICE 'schema storage ausente - pulando RLS de storage (provável shadow DB ou CI sem Supabase)';
     RETURN;
   END IF;
 
   -- Garante a função de mapeamento de tenant mesmo que esta migration rode
-  -- antes/independente da de realtime (idempotente — CREATE OR REPLACE).
+  -- antes/independente da de realtime (idempotente - CREATE OR REPLACE).
   IF EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = 'auth') THEN
     EXECUTE $fn$
       CREATE OR REPLACE FUNCTION public.current_tenant_id() RETURNS text

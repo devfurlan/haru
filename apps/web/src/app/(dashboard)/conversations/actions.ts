@@ -34,7 +34,7 @@ export interface ThreadMessage {
 /**
  * Lista as conversas do tenant ordenadas pela atividade mais recente, já com
  * a marca de leitura do usuário atual e o instante da última mensagem do
- * cliente — o front usa esses dois pra decidir "não-lida". Computado sem N+1:
+ * cliente - o front usa esses dois pra decidir "não-lida". Computado sem N+1:
  * uma query pra conversas (com contact, última msg e read do usuário) e uma
  * `groupBy` pro último INBOUND de cada conversa.
  */
@@ -113,7 +113,7 @@ export async function getThread(conversationId: string): Promise<ThreadMessage[]
 
 /**
  * Marca a conversa como lida pelo usuário atual (upsert em ConversationRead).
- * Valida que a conversa é do tenant do usuário (defesa em profundidade — o
+ * Valida que a conversa é do tenant do usuário (defesa em profundidade - o
  * Prisma bypassa RLS).
  */
 export async function markConversationRead(conversationId: string): Promise<void> {
@@ -140,9 +140,9 @@ export type AssumeResult = { ok: true } | { ok: false; reason: 'window_closed' }
 /**
  * O dono assume a conversa: o bot entra em silêncio e o dono passa a responder
  * manualmente. O handoff dura exatamente o que dura a janela de 24h do WhatsApp
- * (última mensagem do cliente + 24h) — fora dela não dá pra responder, então
+ * (última mensagem do cliente + 24h) - fora dela não dá pra responder, então
  * recusamos assumir. Quando a janela fecha, o handoff expira e o bot volta sozinho.
- * Valida o tenant dono (defesa em profundidade — Prisma bypassa RLS).
+ * Valida o tenant dono (defesa em profundidade - Prisma bypassa RLS).
  */
 export async function assumeConversation(conversationId: string): Promise<AssumeResult> {
   const { id: userId, tenant } = await requireUserAndTenant();
@@ -184,7 +184,7 @@ export async function returnConversationToBot(conversationId: string): Promise<v
 
 /**
  * Envia uma resposta manual do dono ao cliente. Exige que a conversa esteja em
- * modo humano (o dono precisa "assumir" antes — silêncio total). Retorna
+ * modo humano (o dono precisa "assumir" antes - silêncio total). Retorna
  * `delivered: false` quando a janela de 24h do WhatsApp já fechou.
  */
 export async function sendManualMessage(
@@ -202,7 +202,7 @@ export async function sendManualMessage(
   });
   if (!conv) return { delivered: false, reason: 'send_failed' };
   if (!conv.handoffExpiresAt || conv.handoffExpiresAt <= new Date()) {
-    // Sem handoff ativo não enviamos — o front deve mandar "assumir" antes.
+    // Sem handoff ativo não enviamos - o front deve mandar "assumir" antes.
     return { delivered: false, reason: 'window_closed' };
   }
 

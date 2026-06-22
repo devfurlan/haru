@@ -18,7 +18,7 @@ const resetSchema = z
 
 /**
  * Define a nova senha do usuário. Depende da sessão de recovery já estabelecida
- * no cliente (verifyOtp na tela /redefinir-senha) — os cookies chegam aqui via
+ * no cliente (verifyOtp na tela /redefinir-senha) - os cookies chegam aqui via
  * createClient(). Sem sessão, recusa. Diferente do /ativar, não mexe no status
  * do User: aqui ele já é uma conta ativa apenas redefinindo a senha.
  */

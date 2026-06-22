@@ -16,7 +16,7 @@ import { getHandoffStatus, refreshHandoffWindow } from '../services/handoffServi
 import { findTenantByPhoneNumberId } from '../services/tenantService.js';
 
 export async function webhookRoutes(app: FastifyInstance) {
-  // Parser para raw body — necessário pra validação de assinatura HMAC
+  // Parser para raw body - necessário pra validação de assinatura HMAC
   app.addContentTypeParser(
     'application/json',
     { parseAs: 'buffer' },
@@ -25,7 +25,7 @@ export async function webhookRoutes(app: FastifyInstance) {
     },
   );
 
-  // GET — verificação do webhook pela Meta
+  // GET - verificação do webhook pela Meta
   app.get('/webhook', async (request: FastifyRequest, reply: FastifyReply) => {
     const query = request.query as Record<string, string>;
     const mode = query['hub.mode'];
@@ -41,7 +41,7 @@ export async function webhookRoutes(app: FastifyInstance) {
     return reply.code(403).send('Forbidden');
   });
 
-  // POST — recebe mensagens
+  // POST - recebe mensagens
   app.post('/webhook', async (request: FastifyRequest, reply: FastifyReply) => {
     const rawBody = request.body as Buffer;
 
@@ -53,7 +53,7 @@ export async function webhookRoutes(app: FastifyInstance) {
 
     const payload: WebhookPayload = JSON.parse(rawBody.toString());
 
-    // Meta espera resposta rápida — processa em background
+    // Meta espera resposta rápida - processa em background
     reply.code(200).send('OK');
 
     processWebhook(payload, app).catch((err) => {
@@ -145,7 +145,7 @@ async function routeMessage(
     '';
 
   // Áudio: baixa, sobe no Storage (fire-and-forget), transcreve e segue como texto.
-  // O inbound é salvo aqui com prefixo 🎤 pra dashboard distinguir — debounce
+  // O inbound é salvo aqui com prefixo 🎤 pra dashboard distinguir - debounce
   // recebe skipInboundSave=true pra não duplicar.
   let audioHandled = false;
   if (message.type === 'audio' && message.audio?.id) {
@@ -196,7 +196,7 @@ async function routeMessage(
   }
 
   // Handoff humano: se o dono assumiu a conversa pelo painel, o bot fica em
-  // silêncio — só registra a mensagem do cliente (pro inbox) e renova a janela
+  // silêncio - só registra a mensagem do cliente (pro inbox) e renova a janela
   // de 24h. Gate antes dos botões/flows engole até cliques de botão.
   const handoff = await getHandoffStatus(tenantId, phone);
   if (handoff) {

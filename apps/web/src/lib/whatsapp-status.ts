@@ -1,4 +1,4 @@
-// URL pública do webhook do bot (Railway). Não é segredo — é o endpoint que a
+// URL pública do webhook do bot (Railway). Não é segredo - é o endpoint que a
 // Meta chama. Usada no guia de conexão em /settings.
 export const BOT_WEBHOOK_URL = 'https://demandae-bot.up.railway.app/webhook';
 

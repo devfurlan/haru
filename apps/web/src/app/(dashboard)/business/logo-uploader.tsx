@@ -11,7 +11,7 @@ interface LogoUploaderProps {
   logoUrl: string | null;
 }
 
-const LOGO_SIZE = 512; // px — saída quadrada padronizada
+const LOGO_SIZE = 512; // px - saída quadrada padronizada
 const MAX_INPUT_BYTES = 5 * 1024 * 1024; // bucket aceita até 5MiB
 const ACCEPTED = ['image/jpeg', 'image/png', 'image/webp'];
 
@@ -27,7 +27,7 @@ function canvasToBlob(canvas: HTMLCanvasElement, type: string): Promise<Blob> {
 
 // Redimensiona pra quadrado (center-crop) e devolve dois formatos do mesmo
 // canvas: webp (vai pro storage/página pública, menor) e jpeg (foto do perfil
-// do WhatsApp — a Meta não aceita webp).
+// do WhatsApp - a Meta não aceita webp).
 function toSquareImages(file: File): Promise<{ webp: Blob; jpeg: Blob }> {
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(file);

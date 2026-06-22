@@ -73,7 +73,7 @@ export function NewAppointmentForm({
   );
 
   const [serviceId, setServiceId] = useState('');
-  // Slot escolhido na grade (ISO UTC) — o servidor revalida que é um horário livre.
+  // Slot escolhido na grade (ISO UTC) - o servidor revalida que é um horário livre.
   const [startsAtIso, setStartsAtIso] = useState('');
   const [frequency, setFrequency] = useState<FrequencyChoice>('NONE');
   const [occurrences, setOccurrences] = useState(4);

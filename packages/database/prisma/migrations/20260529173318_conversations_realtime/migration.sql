@@ -29,13 +29,13 @@ ALTER TABLE "ConversationRead" ADD CONSTRAINT "ConversationRead_conversationId_f
 --
 -- Tudo abaixo é condicional à existência do schema `auth` (criado pela stack
 -- do Supabase, não pelo Prisma). Assim a migration aplica limpa no shadow DB
--- do Prisma e em CI sem Supabase — onde o realtime não roda mesmo —, e só
+-- do Prisma e em CI sem Supabase - onde o realtime não roda mesmo -, e só
 -- executa de fato nos bancos Supabase (local e prod).
 -- =====================================================================
 DO $rls$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = 'auth') THEN
-    RAISE NOTICE 'schema auth ausente — pulando RLS/realtime (provável shadow DB ou CI sem Supabase)';
+    RAISE NOTICE 'schema auth ausente - pulando RLS/realtime (provável shadow DB ou CI sem Supabase)';
     RETURN;
   END IF;
 
@@ -91,7 +91,7 @@ BEGIN
   ALTER TABLE public."Message"      REPLICA IDENTITY FULL;
   ALTER TABLE public."Conversation" REPLICA IDENTITY FULL;
 
-  -- Adiciona as tabelas à publication do realtime (idempotente — a publication
+  -- Adiciona as tabelas à publication do realtime (idempotente - a publication
   -- supabase_realtime já existe em qualquer projeto Supabase).
   IF EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime') THEN
     IF NOT EXISTS (SELECT 1 FROM pg_publication_tables

@@ -90,7 +90,7 @@ export async function createPaymentForAppointment(
     return { ok: false, reason: 'preciso do CPF do cliente pra gerar o pagamento', needsDocument: true };
   }
   if (!isValidCpfCnpj(payerDocument)) {
-    return { ok: false, reason: 'CPF inválido — peça os números de novo', needsDocument: true };
+    return { ok: false, reason: 'CPF inválido - peça os números de novo', needsDocument: true };
   }
   // Persiste no contato pra reuso (só quando veio um novo documento do chat).
   if (documentDigits && documentDigits !== appointment.contact.document) {

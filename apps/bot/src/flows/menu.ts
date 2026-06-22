@@ -73,7 +73,7 @@ export async function sendServices(
   const list = services
     .map((s) => {
       const desc = s.description ? `\n  ${s.description}` : '';
-      return `*${s.name}* — ${formatDuration(s.durationMinutes)} · ${formatBRL(s.priceCents)}${desc}`;
+      return `*${s.name}* - ${formatDuration(s.durationMinutes)} · ${formatBRL(s.priceCents)}${desc}`;
     })
     .join('\n\n');
 

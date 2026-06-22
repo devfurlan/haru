@@ -74,7 +74,7 @@ export async function signUp(_prev: ActionResult, formData: FormData): Promise<A
           email,
           name: ownerName ?? null,
           role: 'OWNER',
-          // Dono já define a senha no signup — nasce ativo (explícito p/ não
+          // Dono já define a senha no signup - nasce ativo (explícito p/ não
           // depender do default do schema).
           status: 'ACTIVE',
           tenantId: tenant.id,
@@ -120,7 +120,7 @@ const forgotPasswordSchema = z.object({
 
 /**
  * Dispara o e-mail de recuperação de senha (link no formato token_hash, igual ao
- * /ativar — ver template recovery em supabase/config.toml). Sempre retorna ok,
+ * /ativar - ver template recovery em supabase/config.toml). Sempre retorna ok,
  * mesmo se o e-mail não existir: confirmar/negar o cadastro vazaria quais
  * e-mails têm conta (enumeração). O rate-limit fica por conta do Supabase.
  */

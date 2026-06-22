@@ -12,13 +12,13 @@ export interface SaveCustomerProfileArgs {
 
 export type SaveCustomerProfileResult = { ok: true } | { ok: false; reason: string };
 
-// Validação simples de email — só pra barrar lixo óbvio, não RFC completo.
+// Validação simples de email - só pra barrar lixo óbvio, não RFC completo.
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const BIRTHDATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 /**
  * Persiste o cadastro básico do cliente (nome obrigatório; email e nascimento
- * opcionais) e marca `profileCompletedAt` — o sinal que destrava o agendamento
+ * opcionais) e marca `profileCompletedAt` - o sinal que destrava o agendamento
  * (ver gate em appointmentService.bookAppointment). O contato é escopado por
  * contactId, que vem do ToolContext confiável do bot.
  */
@@ -44,7 +44,7 @@ export async function saveCustomerProfile(
     if (!BIRTHDATE_RE.test(raw)) {
       return { ok: false, reason: 'data de nascimento inválida (use YYYY-MM-DD)' };
     }
-    // Meia-noite UTC — a parte de hora é ignorada na exibição (formatada com timeZone UTC).
+    // Meia-noite UTC - a parte de hora é ignorada na exibição (formatada com timeZone UTC).
     const parsed = new Date(`${raw}T00:00:00Z`);
     if (Number.isNaN(parsed.getTime())) {
       return { ok: false, reason: 'data de nascimento inválida' };

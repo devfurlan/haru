@@ -14,7 +14,7 @@ interface TimezoneCardProps {
 }
 
 // Subset comum de timezones brasileiros. Usuário pode digitar qualquer IANA
-// válido — o servidor valida via Intl.DateTimeFormat.
+// válido - o servidor valida via Intl.DateTimeFormat.
 const TIMEZONE_OPTIONS = [
   'America/Sao_Paulo',
   'America/Bahia',

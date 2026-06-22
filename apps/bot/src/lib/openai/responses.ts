@@ -97,7 +97,7 @@ async function runToolCalls(
   if (calls.length === 0) return null;
 
   if (!ctx) {
-    // Sem contexto definido pelo caller — responde "tool não suportada" pra
+    // Sem contexto definido pelo caller - responde "tool não suportada" pra
     // não travar o loop com erro do SDK.
     return calls.map((call) =>
       call.type === 'function_call'

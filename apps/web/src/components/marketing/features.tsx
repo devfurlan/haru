@@ -58,7 +58,7 @@ export function Features() {
           eyebrow="Tudo que já funciona"
           title="Um atendente no WhatsApp e um painel pra você comandar."
         >
-          Recursos disponíveis hoje — sem promessa pra depois.
+          Recursos disponíveis hoje - sem promessa pra depois.
         </SectionHeading>
 
         <div className="grid gap-4 lg:grid-cols-12">
@@ -86,7 +86,7 @@ export function Features() {
             kicker="Lembretes automáticos"
             title="Cadeira vazia dói no bolso"
             items={[
-              'Lembrete via WhatsApp X horas antes do horário — você define quantas',
+              'Lembrete via WhatsApp X horas antes do horário - você define quantas',
               'Quer desligar? É só colocar 0. Simples assim',
               'Reduz faltas sem você precisar mandar mensagem na mão',
             ]}

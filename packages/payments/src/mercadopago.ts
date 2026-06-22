@@ -8,7 +8,7 @@ import {
 } from './types';
 
 /**
- * Stub do Mercado Pago — estrutura/UI prontas, mas a cobrança ainda não está
+ * Stub do Mercado Pago - estrutura/UI prontas, mas a cobrança ainda não está
  * implementada. Quando for implementar, espelhar o `AsaasGateway`.
  */
 export class MercadoPagoGateway implements PaymentGateway {

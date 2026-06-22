@@ -48,7 +48,7 @@ export function ActivateForm({ tokenHash }: { tokenHash: string | null }) {
       .then(({ error }) => setVerify(error ? 'invalid' : 'ready'));
   }, [tokenHash]);
 
-  // Sucesso: já há sessão ativa — manda pro painel.
+  // Sucesso: já há sessão ativa - manda pro painel.
   useEffect(() => {
     if (state && 'ok' in state) {
       router.replace('/dashboard');

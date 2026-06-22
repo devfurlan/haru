@@ -2,7 +2,7 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
 /**
  * Cliente Supabase com a service role key (SUPABASE_SECRET_KEY). Tem poder de
- * admin sobre o Auth — criar/excluir usuários, gerar links de ativação. NUNCA
+ * admin sobre o Auth - criar/excluir usuários, gerar links de ativação. NUNCA
  * importe isto de um client component: a chave não tem prefixo NEXT_PUBLIC_,
  * então só existe no servidor. Espelha o cliente admin do bot
  * (apps/bot/src/lib/supabase.ts).

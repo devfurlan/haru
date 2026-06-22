@@ -46,8 +46,8 @@ pnpm --filter bot dev
 Sobe em `http://localhost:3001`. Endpoints:
 
 - `GET /health`
-- `GET /webhook` — verificação Meta (hub.challenge)
-- `POST /webhook` — recebimento de mensagens (validação HMAC sha256)
+- `GET /webhook` - verificação Meta (hub.challenge)
+- `POST /webhook` - recebimento de mensagens (validação HMAC sha256)
 
 Para expor pra Meta em desenvolvimento, use ngrok:
 
@@ -67,7 +67,7 @@ railway up
 
 Ver `.env.example` na raiz do monorepo. As essenciais:
 
-- `DATABASE_URL` — Postgres Supabase
+- `DATABASE_URL` - Postgres Supabase
 - `WHATSAPP_VERIFY_TOKEN`, `WHATSAPP_APP_SECRET`, `WHATSAPP_PLATFORM_ACCESS_TOKEN`
 - `OPENAI_API_KEY`
 - `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`

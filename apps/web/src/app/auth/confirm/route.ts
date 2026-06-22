@@ -11,7 +11,7 @@ import { createClient } from '@/lib/supabase/server';
  * - `token_hash` + `type`  → magic-link cross-device (template customizado).
  *   verifyOtp não precisa de estado local, funciona em qualquer aparelho.
  * - `code`                 → fluxo PKCE (template padrão do Supabase). Depende
- *   do code_verifier (cookie) gravado quando o reset foi pedido — só funciona
+ *   do code_verifier (cookie) gravado quando o reset foi pedido - só funciona
  *   no mesmo navegador. Para cobrir outro aparelho, o template de e-mail precisa
  *   usar o formato token_hash (ver supabase/templates/recovery.html).
  *
@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
   const type = searchParams.get('type');
   const code = searchParams.get('code');
 
-  // `next` é sempre um caminho interno — barrar URL absoluta evita open redirect.
+  // `next` é sempre um caminho interno - barrar URL absoluta evita open redirect.
   const nextParam = searchParams.get('next') ?? '/redefinir-senha';
   const next = nextParam.startsWith('/') ? nextParam : '/redefinir-senha';
 

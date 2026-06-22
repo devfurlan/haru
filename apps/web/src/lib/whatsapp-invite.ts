@@ -28,7 +28,7 @@ interface SendInviteArgs {
  * faltou WhatsApp conectado ou a API recusou. O caller decide o que mostrar
  * (ex.: oferecer o link pra copiar quando não enviou).
  *
- * O telefone vai bruto (E.164) — é valor consumido por máquina (recipient da
+ * O telefone vai bruto (E.164) - é valor consumido por máquina (recipient da
  * Cloud API), exceção da convenção de formatação BR.
  */
 export async function sendInviteWhatsapp({

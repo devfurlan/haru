@@ -9,7 +9,7 @@ const API_URL = 'https://graph.facebook.com/v21.0';
 /**
  * Cache simples (phone_number_id → access_token) com TTL de 5 min. Evita
  * roundtrip ao DB a cada envio. Invalidação acontece naturalmente quando o
- * usuário atualiza o token em /settings — vai pegar o novo no próximo ciclo.
+ * usuário atualiza o token em /settings - vai pegar o novo no próximo ciclo.
  */
 const tokenCache = new Map<string, { token: string; expiresAt: number }>();
 const TOKEN_TTL_MS = 5 * 60 * 1000;
@@ -93,7 +93,7 @@ export async function sendInteractiveButtons(
 }
 
 /**
- * Concatena labels dos botões ao texto para salvar no histórico — sem isso
+ * Concatena labels dos botões ao texto para salvar no histórico - sem isso
  * o painel exibe só o prompt e não as opções oferecidas.
  */
 export function formatInteractiveContent(bodyText: string, buttons: InteractiveButton[]): string {

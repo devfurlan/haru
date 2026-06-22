@@ -27,7 +27,7 @@ const DialogContent = React.forwardRef<
   React.ComponentRef<typeof DialogPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & {
     /**
-     * Quando `false`, o modal não fecha ao clicar fora (overlay) nem com ESC —
+     * Quando `false`, o modal não fecha ao clicar fora (overlay) nem com ESC -
      * só pelo X ou por um botão de cancelar interno. Use em modais com
      * formulário/ação pra evitar perda acidental do que foi digitado.
      */

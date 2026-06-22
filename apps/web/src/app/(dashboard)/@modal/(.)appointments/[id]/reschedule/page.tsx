@@ -47,7 +47,7 @@ function RescheduleSkeleton() {
   );
 }
 
-// O `await` mora aqui, não no shell — o <Dialog> abre na hora com o skeleton.
+// O `await` mora aqui, não no shell - o <Dialog> abre na hora com o skeleton.
 async function RescheduleBody({ id }: { id: string }) {
   const { tenant } = await requireUserAndTenant();
 

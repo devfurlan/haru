@@ -45,10 +45,10 @@ export function formatPhoneBR(phone: string | null | undefined): string {
   return phone;
 }
 
-// Normaliza um telefone BR pra E.164 sem máscara (ex.: "5511914092346") — formato
+// Normaliza um telefone BR pra E.164 sem máscara (ex.: "5511914092346") - formato
 // canônico do banco (o mesmo que o bot grava). Aceita entrada com máscara, com ou
 // sem DDI 55. Determinística: só prefixa o DDI quando a parte nacional tem 10 (fixo)
-// ou 11 (celular) dígitos e a entrada ainda não traz o 55 — evita DDI duplicado
+// ou 11 (celular) dígitos e a entrada ainda não traz o 55 - evita DDI duplicado
 // ("5555…"). Entrada irreconhecível volta como veio, pra validação a jusante recusar.
 export function normalizePhoneBR(raw: string): string {
   const digits = raw.replace(/\D/g, '');
@@ -86,7 +86,7 @@ export function onlyDigits(raw: string): string {
 
 // Mascara progressivamente o que o usuário digita num input de CPF/CNPJ:
 // até 11 dígitos formata como CPF ("123.456.789-09"); acima, como CNPJ
-// ("12.345.678/0001-90"). Não valida — só formata o que tem.
+// ("12.345.678/0001-90"). Não valida - só formata o que tem.
 export function maskCpfCnpjInput(raw: string): string {
   const digits = onlyDigits(raw).slice(0, 14);
   if (digits.length <= 11) {

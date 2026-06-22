@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 
 export const metadata: Metadata = {
-  title: 'Termos de Serviço — Demandaê',
+  title: 'Termos de Serviço - Demandaê',
   description:
     'Termos e condições de uso do Demandaê, plataforma de agendamento e pagamentos pelo WhatsApp para negócios de serviço.',
 };

@@ -13,7 +13,7 @@ const badgeVariants = cva(
       variant: {
         // Papel "Administrador" (OWNER)
         admin: 'bg-violet-200 text-violet-900 ring-violet-300',
-        // Papel "Equipe" (STAFF) — neutro de propósito
+        // Papel "Equipe" (STAFF) - neutro de propósito
         neutral: 'bg-slate-200 text-slate-800 ring-slate-300',
         // Status "Ativo"
         success: 'bg-emerald-200 text-emerald-900 ring-emerald-300',

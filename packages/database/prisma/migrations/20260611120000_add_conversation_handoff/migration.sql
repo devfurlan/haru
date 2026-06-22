@@ -1,6 +1,6 @@
 -- Handoff humano: o dono assume a conversa e o bot fica em silêncio.
 -- handoffExpiresAt no futuro = modo humano; null = bot ativo.
--- Idempotente (ADD COLUMN IF NOT EXISTS / constraint guard) — segura re-aplicação.
+-- Idempotente (ADD COLUMN IF NOT EXISTS / constraint guard) - segura re-aplicação.
 
 ALTER TABLE "Conversation" ADD COLUMN IF NOT EXISTS "handoffExpiresAt" TIMESTAMP(3);
 ALTER TABLE "Conversation" ADD COLUMN IF NOT EXISTS "handoffById" TEXT;

@@ -7,8 +7,8 @@ Plataforma de agendamento de horários e pagamentos via WhatsApp para negócios 
 ```
 haru/
 ├── apps/
-│   ├── web/        # Next.js 16 — site público + área logada (dashboard)
-│   └── bot/        # Fastify + OpenAI + Redis — webhook da WhatsApp Cloud API
+│   ├── web/        # Next.js 16 - site público + área logada (dashboard)
+│   └── bot/        # Fastify + OpenAI + Redis - webhook da WhatsApp Cloud API
 ├── packages/
 │   ├── database/        # Prisma 7 (driver adapter @prisma/adapter-pg)
 │   ├── ui/              # Componentes compartilhados (shadcn)
@@ -109,22 +109,22 @@ pnpm db:generate       # regenera o cliente
 
 ## Stack
 
-### apps/web — Next.js 16
+### apps/web - Next.js 16
 
 - App Router + React 19 (Server Components + Server Actions)
 - Supabase Auth via `@supabase/ssr`
 - Prisma 7 via `@haru/database`
 - shadcn/ui + Tailwind CSS v4
 - Rotas:
-  - `/` — marketing
-  - `/login`, `/signup` — auth (Supabase)
-  - `/dashboard`, `/services`, `/schedule`, `/conversations`, `/settings` — área logada
+  - `/` - marketing
+  - `/login`, `/signup` - auth (Supabase)
+  - `/dashboard`, `/services`, `/schedule`, `/conversations`, `/settings` - área logada
 
-### apps/bot — Fastify + OpenAI (espelha o bot da clicare)
+### apps/bot - Fastify + OpenAI (espelha o bot da clicare)
 
 - **Fastify** como HTTP framework
 - **OpenAI Responses API** (`gpt-5`, encadeamento via `previous_response_id`)
-- **Upstash Redis** — estado da conversa + buffer do debouncer (6s)
+- **Upstash Redis** - estado da conversa + buffer do debouncer (6s)
 - **Prisma** via `@haru/database` (singleton)
 - **Sentry** opcional
 - WhatsApp Cloud API oficial, com validação HMAC sha256
@@ -133,9 +133,9 @@ pnpm db:generate       # regenera o cliente
 
 ## Templates da Meta (WhatsApp)
 
-Mensagens iniciadas pelo negócio fora da janela de 24h de atendimento exigem **templates pré-aprovados na Meta** (WhatsApp Manager → _Modelos de mensagem_). Cada Tenant configura o nome e o idioma do template que ele mesmo criou e aprovou na conta dele; o nome é livre — os defaults abaixo são só sugestão exibida na UI. **Os parâmetros (`{{1}}`, `{{2}}`, …) têm que bater exatamente** com o que o código envia, na ordem listada, senão a Meta recusa o envio (e a falha é silenciosa: o lembrete/aviso simplesmente não chega).
+Mensagens iniciadas pelo negócio fora da janela de 24h de atendimento exigem **templates pré-aprovados na Meta** (WhatsApp Manager → _Modelos de mensagem_). Cada Tenant configura o nome e o idioma do template que ele mesmo criou e aprovou na conta dele; o nome é livre - os defaults abaixo são só sugestão exibida na UI. **Os parâmetros (`{{1}}`, `{{2}}`, …) têm que bater exatamente** com o que o código envia, na ordem listada, senão a Meta recusa o envio (e a falha é silenciosa: o lembrete/aviso simplesmente não chega).
 
-Templates que o código envia hoje. O **corpo** é uma sugestão (texto que o negócio cola na Meta ao criar o template) — o que precisa ser idêntico é o **número e a ordem das variáveis**, não a redação.
+Templates que o código envia hoje. O **corpo** é uma sugestão (texto que o negócio cola na Meta ao criar o template) - o que precisa ser idêntico é o **número e a ordem das variáveis**, não a redação.
 
 ### Lembrete de agendamento
 
@@ -143,7 +143,7 @@ Templates que o código envia hoje. O **corpo** é uma sugestão (texto que o ne
 - **Variáveis:** `{{1}}` nome do cliente · `{{2}}` data/hora · `{{3}}` serviço
 - **Enviado em:** [apps/bot/src/lib/reminders.ts](apps/bot/src/lib/reminders.ts)
 - **Corpo sugerido:**
-  > Oi, {{1}}! 👋 Passando pra lembrar do seu agendamento: 📅 {{2}} — ✂️ {{3}}. Se precisar remarcar ou cancelar, é só me chamar por aqui. Até lá!
+  > Oi, {{1}}! 👋 Passando pra lembrar do seu agendamento: 📅 {{2}} - ✂️ {{3}}. Se precisar remarcar ou cancelar, é só me chamar por aqui. Até lá!
 
 ### Cancelamento
 
@@ -163,7 +163,7 @@ Templates que o código envia hoje. O **corpo** é uma sugestão (texto que o ne
 
 ### Convite de equipe
 
-- **Default do nome (UI):** _não tem_ (hoje só configurável por DB/seed) — sugestão: `haru_team_invite` · **Idioma:** `pt_BR` · **Categoria Meta:** `UTILITY`
+- **Default do nome (UI):** _não tem_ (hoje só configurável por DB/seed) - sugestão: `haru_team_invite` · **Idioma:** `pt_BR` · **Categoria Meta:** `UTILITY`
 - **Variáveis:** `{{1}}` nome do negócio · `{{2}}` link de ativação
 - **Enviado em:** [apps/web/src/lib/whatsapp-invite.ts](apps/web/src/lib/whatsapp-invite.ts)
 - **Corpo sugerido:**
@@ -171,8 +171,8 @@ Templates que o código envia hoje. O **corpo** é uma sugestão (texto que o ne
 
 Notas:
 
-- **Fallback:** se o Tenant não tem template configurado, o código cai para texto livre — que **só entrega se o cliente falou com o número nas últimas 24h**. Por isso os templates são o caminho oficial.
-- **Onde se configura:** nome + idioma de cada template ficam no model `Tenant` (`reminderTemplateName`/`Language`, `cancelTemplateName`/`Language`, `rescheduleTemplateName`/`Language`, `inviteTemplateName`/`Language` — ver [schema.prisma](packages/database/prisma/schema.prisma)). Os 3 de agendamento são editáveis no painel em `/settings`; o de convite hoje só por DB/seed.
+- **Fallback:** se o Tenant não tem template configurado, o código cai para texto livre - que **só entrega se o cliente falou com o número nas últimas 24h**. Por isso os templates são o caminho oficial.
+- **Onde se configura:** nome + idioma de cada template ficam no model `Tenant` (`reminderTemplateName`/`Language`, `cancelTemplateName`/`Language`, `rescheduleTemplateName`/`Language`, `inviteTemplateName`/`Language` - ver [schema.prisma](packages/database/prisma/schema.prisma)). Os 3 de agendamento são editáveis no painel em `/settings`; o de convite hoje só por DB/seed.
 
 > ⚠️ **Manutenção:** ao adicionar/alterar qualquer template (novo evento, mudança no número/ordem de parâmetros, no default do nome ou no corpo sugerido), **atualize esta seção na mesma alteração**.
 

@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 
 export const metadata: Metadata = {
-  title: 'Política de Privacidade — Demandaê',
+  title: 'Política de Privacidade - Demandaê',
   description:
     'Como o Demandaê coleta, usa, compartilha e protege dados pessoais na plataforma de agendamento e pagamentos pelo WhatsApp.',
 };

@@ -60,7 +60,7 @@ export function TenantCard({
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch {
-      // clipboard pode falhar fora de https/localhost — ignora silenciosamente.
+      // clipboard pode falhar fora de https/localhost - ignora silenciosamente.
     }
   }
 
@@ -70,7 +70,7 @@ export function TenantCard({
         await navigator.share({ title: name, url: publicUrl });
         return;
       } catch {
-        // usuário cancelou ou share falhou — cai pro copiar.
+        // usuário cancelou ou share falhou - cai pro copiar.
       }
     }
     void copy();
@@ -132,12 +132,12 @@ export function TenantCard({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="address">Endereço — opcional</Label>
+            <Label htmlFor="address">Endereço - opcional</Label>
             <Input
               id="address"
               name="address"
               defaultValue={address ?? ''}
-              placeholder="Rua Exemplo, 123 — Centro, Cidade/UF"
+              placeholder="Rua Exemplo, 123 - Centro, Cidade/UF"
             />
             <p className="text-muted-foreground text-xs">
               Aparece pro cliente na sua página pública.
@@ -145,7 +145,7 @@ export function TenantCard({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="description">Descrição — opcional</Label>
+            <Label htmlFor="description">Descrição - opcional</Label>
             <Input
               id="description"
               name="description"
@@ -156,7 +156,7 @@ export function TenantCard({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="email">E-mail de contato — opcional</Label>
+            <Label htmlFor="email">E-mail de contato - opcional</Label>
             <Input
               id="email"
               name="email"
@@ -167,7 +167,7 @@ export function TenantCard({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="whatsappAbout">Status do WhatsApp — opcional</Label>
+            <Label htmlFor="whatsappAbout">Status do WhatsApp - opcional</Label>
             <Input
               id="whatsappAbout"
               name="whatsappAbout"

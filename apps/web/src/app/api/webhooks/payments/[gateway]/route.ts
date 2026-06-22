@@ -15,7 +15,7 @@ const SLUG_TO_PROVIDER: Record<string, PaymentProvider> = {
   pagarme: 'PAGARME',
 };
 
-/** Status já finalizados — não reescrevemos (idempotência contra reenvios). */
+/** Status já finalizados - não reescrevemos (idempotência contra reenvios). */
 const FINAL: ReadonlySet<PaymentStatus> = new Set(['PAID', 'REFUNDED', 'CANCELED', 'FAILED']);
 
 /** Status simplificado do parseWebhook → PaymentStatus do banco. */
@@ -46,7 +46,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ gateway
 
   const rawBody = Buffer.from(await req.arrayBuffer());
 
-  // Extrai os identificadores sem confiar no payload pra autenticidade ainda — só pra
+  // Extrai os identificadores sem confiar no payload pra autenticidade ainda - só pra
   // achar o Payment (e portanto o tenant, dono do token de validação).
   let externalId: string | null = null;
   let externalReference: string | null = null;
@@ -119,7 +119,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ gateway
     if (err instanceof PaymentConfigError) {
       // 401 quase sempre = token do webhook configurado de um lado só (Demandae vs.
       // painel do gateway) ou divergente. Loga o motivo (sem vazar o token) pra não
-      // ficar às cegas — só a mensagem do erro e o payment/tenant atingido.
+      // ficar às cegas - só a mensagem do erro e o payment/tenant atingido.
       console.warn(
         `[payments-webhook] 401 ${provider} payment=${payment.id} tenant=${payment.tenantId}: ${err.message}`,
       );

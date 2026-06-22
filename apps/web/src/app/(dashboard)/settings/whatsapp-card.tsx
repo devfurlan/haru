@@ -232,7 +232,7 @@ export function WhatsappCard({
 
               <div className="space-y-2">
                 <Label htmlFor="businessAccountId">
-                  ID da conta WhatsApp Business (WABA ID) — opcional
+                  ID da conta WhatsApp Business (WABA ID) - opcional
                 </Label>
                 <Input
                   id="businessAccountId"
@@ -245,12 +245,12 @@ export function WhatsappCard({
                   <strong>Não confunda</strong> com o ID do Aplicativo (App ID) nem com o
                   phone_number_id. Na Meta: WhatsApp → Configuração da API, no topo, campo{' '}
                   <strong>WhatsApp Business Account ID</strong>. Não é obrigatório para o bot
-                  funcionar — pode deixar em branco.
+                  funcionar - pode deixar em branco.
                 </p>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="displayPhone">Telefone público — opcional</Label>
+                <Label htmlFor="displayPhone">Telefone público - opcional</Label>
                 <Input
                   id="displayPhone"
                   name="displayPhone"

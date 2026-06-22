@@ -23,7 +23,7 @@ export const TOOLS: FunctionTool[] = [
     description:
       'Salva o cadastro básico do cliente. Use ANTES de agendar pela primeira vez, depois de ' +
       'confirmar o nome e oferecer (sem insistir) email e data de nascimento. O telefone já é ' +
-      'conhecido automaticamente — NÃO peça. Email e data de nascimento são OPCIONAIS: se o ' +
+      'conhecido automaticamente - NÃO peça. Email e data de nascimento são OPCIONAIS: se o ' +
       'cliente não quiser informar, mande string vazia "" no campo.',
     strict: true,
     parameters: {
@@ -81,7 +81,7 @@ export const TOOLS: FunctionTool[] = [
       'Cria uma SÉRIE de agendamentos recorrentes confirmados (toda semana, a cada 15 dias ou ' +
       'todo mês), a partir de um horário inicial. Use quando o cliente confirmar que quer repetir ' +
       'o agendamento e disser a frequência e quantas vezes. Horários ocupados ou fora do ' +
-      'expediente são PULADOS automaticamente — o resultado traz `skipped` (datas puladas) e ' +
+      'expediente são PULADOS automaticamente - o resultado traz `skipped` (datas puladas) e ' +
       '`created_count`. Avise o cliente sobre as datas puladas. Limite de 90 dias adiante.',
     strict: true,
     parameters: {
@@ -118,7 +118,7 @@ export const TOOLS: FunctionTool[] = [
     description:
       'Gera uma cobrança (Pix copia-e-cola ou link de cartão) para um agendamento do PRÓPRIO ' +
       'cliente. Use SÓ depois de book_appointment ter dado certo e o cliente ter escolhido pagar ' +
-      'agora e o meio. Pagamento é OPCIONAL — nunca force. Se o resultado vier com ' +
+      'agora e o meio. Pagamento é OPCIONAL - nunca force. Se o resultado vier com ' +
       '"needs_document": true, peça o CPF ao cliente e chame de novo passando-o em `document`.',
     strict: true,
     parameters: {

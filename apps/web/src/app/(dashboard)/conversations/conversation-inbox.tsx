@@ -69,7 +69,7 @@ function sendErrorMessage(reason?: string, waCode?: number, httpStatus?: number)
   const code = waCode ? ` (código WhatsApp: ${waCode})` : '';
   switch (reason) {
     case 'window_closed':
-      return 'Não foi possível enviar: passaram-se mais de 24h desde a última mensagem do cliente. O WhatsApp só libera resposta livre dentro desse prazo — aguarde ele escrever de novo.';
+      return 'Não foi possível enviar: passaram-se mais de 24h desde a última mensagem do cliente. O WhatsApp só libera resposta livre dentro desse prazo - aguarde ele escrever de novo.';
     case 'not_configured':
       return 'WhatsApp não conectado. Conecte o número em Configurações para responder.';
     case 'unreachable': {
@@ -480,7 +480,7 @@ export function ConversationInbox({
               )}
               <div ref={endRef} />
             </div>
-            {/* Composer — só responde manualmente em modo handoff (silêncio do bot) */}
+            {/* Composer - só responde manualmente em modo handoff (silêncio do bot) */}
             <footer className="border-t bg-card px-4 py-3 md:px-6">
               {isManual(selectedConv) ? (
                 <div className="flex items-end gap-2">
@@ -524,7 +524,7 @@ export function ConversationInbox({
               ) : (
                 <span className="text-xs text-muted-foreground">
                   O cliente não manda mensagem há mais de 24h. O WhatsApp só libera resposta livre
-                  dentro desse prazo — aguarde ele escrever de novo para poder responder.
+                  dentro desse prazo - aguarde ele escrever de novo para poder responder.
                 </span>
               )}
               {sendError && <p className="mt-2 text-xs text-destructive">{sendError}</p>}

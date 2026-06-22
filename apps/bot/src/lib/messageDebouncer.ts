@@ -30,7 +30,7 @@ export interface DebounceArgs {
   phone: string;
   text: string;
   contactName?: string;
-  /** Se true, não regrava INBOUND aqui (caller já salvou — útil pra áudio). */
+  /** Se true, não regrava INBOUND aqui (caller já salvou - útil pra áudio). */
   skipInboundSave?: boolean;
 }
 

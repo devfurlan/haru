@@ -31,7 +31,7 @@ function extensionFromMime(mimeType: string): string {
 
 /**
  * Sobe o áudio recebido pro bucket `bot-media`. Retorna o path (ou null se
- * falhou — caller deve tratar como não-bloqueante).
+ * falhou - caller deve tratar como não-bloqueante).
  */
 export async function uploadBotAudio(
   buffer: Buffer,

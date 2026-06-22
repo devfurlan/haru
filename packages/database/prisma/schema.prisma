@@ -6,7 +6,7 @@ datasource db {
   provider = "postgresql"
 }
 
-// --- Domain models (esqueleto inicial — expandir conforme o produto evolui) ---
+// --- Domain models (esqueleto inicial - expandir conforme o produto evolui) ---
 
 model Tenant {
   id       String @id @default(cuid())
@@ -16,7 +16,7 @@ model Tenant {
   timezone String @default("America/Sao_Paulo")
 
   /// URL pública da logo do estabelecimento (bucket tenant-assets). Imagem
-  /// quadrada padronizada — usada na página pública e no painel.
+  /// quadrada padronizada - usada na página pública e no painel.
   logoUrl String?
   /// Endereço físico exibido pro cliente (texto livre, opcional).
   address String?
@@ -34,7 +34,7 @@ model Tenant {
   /// o dono confirmar no painel; CONFIRMED já reserva o horário na hora.
   publicBookingConfirmation PublicBookingConfirmation @default(PENDING)
 
-  // WhatsApp Cloud API — credenciais por tenant (onboard via Embedded Signup).
+  // WhatsApp Cloud API - credenciais por tenant (onboard via Embedded Signup).
   // O bot resolve qual tenant atende um webhook por whatsappPhoneNumberId.
   whatsappPhoneNumberId     String? @unique
   whatsappBusinessAccountId String?
@@ -52,7 +52,7 @@ model Tenant {
   /// 0 = lembretes desativados.
   reminderHoursBefore        Int     @default(24)
   /// Templates aprovados na Meta. Quando definidos, mensagens são enviadas via
-  /// template em vez de freeform — escapam da regra das 24h. Todos esperam
+  /// template em vez de freeform - escapam da regra das 24h. Todos esperam
   /// 3 variáveis no body: {{1}}=nome do cliente, {{2}}=data/hora formatada,
   /// {{3}}=nome do serviço.
   reminderTemplateName       String?
@@ -75,7 +75,7 @@ model Tenant {
   paymentSandbox  Boolean          @default(false)
 
   /// Credenciais criptografadas at rest (AES-256-GCM, formato "iv:tag:ct" em base64).
-  /// Um campo por gateway — só o do provider ativo é preenchido por vez.
+  /// Um campo por gateway - só o do provider ativo é preenchido por vez.
   paymentAsaasApiKeyEnc      String?
   paymentMercadoPagoTokenEnc String?
   paymentPagBankTokenEnc     String?
@@ -105,7 +105,7 @@ model User {
   email       String     @unique
   name        String?
   /// Telefone E.164 sem máscara (ex.: "5511914092346"). Destino do convite por
-  /// WhatsApp. Opcional — OWNER criado no signup não tem telefone.
+  /// WhatsApp. Opcional - OWNER criado no signup não tem telefone.
   phone       String?
   role        UserRole   @default(OWNER)
   /// Ciclo de vida do acesso. Membro convidado nasce INVITED (sem senha) e vira
@@ -288,7 +288,7 @@ model Appointment {
 }
 
 /// Agrupa as ocorrências de um agendamento recorrente (semanal/quinzenal/mensal).
-/// As ocorrências são expandidas em registros Appointment reais na criação — esta
+/// As ocorrências são expandidas em registros Appointment reais na criação - esta
 /// tabela guarda só a regra (frequência), pra rotular a série e cancelá-la inteira.
 model AppointmentSeries {
   id        String              @id @default(cuid())
@@ -318,7 +318,7 @@ enum AppointmentStatus {
 }
 
 /// Status inicial de um agendamento feito pela página pública. Subconjunto de
-/// AppointmentStatus (só os estados válidos na criação) — enum próprio pra impedir
+/// AppointmentStatus (só os estados válidos na criação) - enum próprio pra impedir
 /// gravar CANCELED/COMPLETED/NO_SHOW como default.
 enum PublicBookingConfirmation {
   PENDING
@@ -328,7 +328,7 @@ enum PublicBookingConfirmation {
 /// Cobrança de um agendamento via gateway de pagamento. Relação 1:N com Appointment
 /// (re-tentativas geram registros novos preservando histórico); a "cobrança ativa" é
 /// a PENDING mais recente não expirada. Pagamento é opcional e NÃO altera o status do
-/// Appointment — confirmação de agenda e de pagamento são independentes.
+/// Appointment - confirmação de agenda e de pagamento são independentes.
 model Payment {
   id            String      @id @default(cuid())
   tenantId      String
@@ -340,17 +340,17 @@ model Payment {
   method   PaymentMethod   @default(UNDEFINED)
   status   PaymentStatus   @default(PENDING)
 
-  /// Snapshot do Service.priceCents no momento da cobrança — o preço do serviço pode
+  /// Snapshot do Service.priceCents no momento da cobrança - o preço do serviço pode
   /// mudar depois; a cobrança preserva o valor cobrado de fato.
   amountCents Int
 
-  /// CPF/CNPJ do pagador (só dígitos) enviado ao gateway nesta cobrança. Snapshot —
+  /// CPF/CNPJ do pagador (só dígitos) enviado ao gateway nesta cobrança. Snapshot -
   /// o `Contact.document` pode mudar; aqui fica o documento usado de fato na charge.
   payerDocument String?
 
   /// ID da cobrança no gateway (ex.: Asaas "pay_xxx"). Único por provider.
   externalId   String?
-  /// URL do checkout/fatura hospedada (Asaas invoiceUrl) — usada pra cartão e fallback.
+  /// URL do checkout/fatura hospedada (Asaas invoiceUrl) - usada pra cartão e fallback.
   checkoutUrl  String?
   /// Pix: imagem do QR em base64 (data URI) e o copia-e-cola (payload EMV).
   pixQrCode    String?

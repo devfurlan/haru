@@ -20,7 +20,7 @@ async function ensureAuthUser(): Promise<string> {
     { auth: { autoRefreshToken: false, persistSession: false } },
   );
 
-  // Lista paginada (em dev nunca temos muitos users — primeira página resolve)
+  // Lista paginada (em dev nunca temos muitos users - primeira página resolve)
   const { data: list, error: listError } = await supabase.auth.admin.listUsers({ perPage: 200 });
   if (listError) throw listError;
   const existing = list.users.find((u) => u.email === TEST_EMAIL);

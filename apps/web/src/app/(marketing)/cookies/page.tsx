@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 
 export const metadata: Metadata = {
-  title: 'Política de Cookies — Demandaê',
+  title: 'Política de Cookies - Demandaê',
   description:
     'O que são cookies, quais o Demandaê utiliza e como você pode gerenciá-los na plataforma de agendamento e pagamentos pelo WhatsApp.',
 };
@@ -99,7 +99,7 @@ export default function CookiePolicyPage() {
           <h2 className="text-xl font-semibold">5. Como gerenciar cookies</h2>
           <p>
             Você pode configurar o seu navegador para bloquear ou apagar cookies. No entanto, ao
-            desativar cookies essenciais, partes da plataforma — incluindo o login — podem deixar de
+            desativar cookies essenciais, partes da plataforma - incluindo o login - podem deixar de
             funcionar. As instruções variam conforme o navegador (Chrome, Firefox, Safari, Edge,
             entre outros) e costumam estar disponíveis na seção de configurações de privacidade.
           </p>

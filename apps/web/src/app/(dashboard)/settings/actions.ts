@@ -15,7 +15,7 @@ import { getSupabaseAdmin } from '@/lib/supabase/admin';
 import { sendInviteWhatsapp } from '@/lib/whatsapp-invite';
 import { syncWhatsappProfile, uploadWhatsappProfilePicture } from '@/lib/whatsapp-profile';
 
-// Slugs reservados — não podem ser usados como slug de tenant (conflitam com
+// Slugs reservados - não podem ser usados como slug de tenant (conflitam com
 // rotas conhecidas em apps/web).
 const RESERVED_SLUGS = new Set([
   'login',
@@ -110,7 +110,7 @@ export async function updateTenant(
 
   // Empurra os campos compatíveis pro perfil comercial do WhatsApp. O helper é
   // tolerante a erro (não lança), então o await não derruba o save se o tenant
-  // não tiver WhatsApp conectado ou a Meta recusar — só garante que o push rode
+  // não tiver WhatsApp conectado ou a Meta recusar - só garante que o push rode
   // antes da request encerrar (serverless corta promises soltas).
   await syncWhatsappProfile(updated, `${await getBaseUrl()}/${updated.slug}`);
 
@@ -156,7 +156,7 @@ export async function updateTimezone(
 // Supabase acessível ao JS (cookies de auth ficam no servidor), então um upload
 // client-side subiria como `anon` e a RLS de escrita do bucket barraria com
 // "new row violates row-level security policy". O path é SEMPRE prefixado pelo
-// tenant.id deste usuário — nunca confiamos em path vindo do cliente —, então
+// tenant.id deste usuário - nunca confiamos em path vindo do cliente -, então
 // não há como gravar na pasta de outro tenant mesmo com a service role.
 
 const LOGO_URL_PREFIX = '/storage/v1/object/public/tenant-assets/';
@@ -221,7 +221,7 @@ export async function removeTenantLogo(): Promise<TenantActionResult> {
     if (idx !== -1) {
       const path = tenant.logoUrl.slice(idx + marker.length);
       if (path.startsWith(`${tenant.id}/`)) {
-        // Remoção server-side com service role — mesmo motivo do upload.
+        // Remoção server-side com service role - mesmo motivo do upload.
         await getSupabaseAdmin().storage.from('tenant-assets').remove([path]);
       }
     }
@@ -428,7 +428,7 @@ export async function connectPaymentGateway(
   const { provider, sandbox, credential, webhookToken } = parsed.data;
 
   // Credencial cifrada já salva PARA O PROVIDER escolhido (null se nenhum / outro provider).
-  // Editar sem trocar de provider e sem redigitar a credencial deve preservá-la — o form
+  // Editar sem trocar de provider e sem redigitar a credencial deve preservá-la - o form
   // mostra os campos vazios (são senhas), então campo em branco = "manter o que está lá".
   const currentCredEnc =
     provider === tenant.paymentProvider
@@ -442,7 +442,7 @@ export async function connectPaymentGateway(
       : null;
 
   // Credencial: usa a nova (cifrada) se veio do form; senão mantém a atual do provider.
-  // Trocar de provider zera o reuso — a credencial salva é de outro gateway.
+  // Trocar de provider zera o reuso - a credencial salva é de outro gateway.
   const credEnc = credential ? encryptSecret(credential) : currentCredEnc;
   if (!credEnc) {
     return { error: 'Informe a credencial do gateway' };
@@ -456,7 +456,7 @@ export async function connectPaymentGateway(
       ? tenant.paymentWebhookTokenEnc
       : null;
 
-  // Grava só a credencial do provider escolhido e zera as demais — um provider ativo por vez.
+  // Grava só a credencial do provider escolhido e zera as demais - um provider ativo por vez.
   await prisma.tenant.update({
     where: { id: tenant.id },
     data: {
@@ -693,7 +693,7 @@ export async function inviteUser(
 
   const admin = getSupabaseAdmin();
 
-  // 1) Cria o auth.users sem senha (email confirmado — ativação define a senha).
+  // 1) Cria o auth.users sem senha (email confirmado - ativação define a senha).
   const created = await admin.auth.admin.createUser({ email, email_confirm: true });
   if (created.error || !created.data.user) {
     return { error: traduzErroCriarUser(created.error?.message) };
@@ -724,7 +724,7 @@ export async function inviteUser(
   }
 
   // 3) Gera o link de ativação e tenta enviar por WhatsApp. Se falhar aqui, o
-  //    usuário fica criado como INVITED — o admin recupera pelo botão "Reenviar
+  //    usuário fica criado como INVITED - o admin recupera pelo botão "Reenviar
   //    convite" (resendInvite gera um link novo). Não desfazemos a criação pra
   //    não obrigar a redigitar os dados por uma falha transiente de API.
   const activationUrl = await buildActivationLink(email);

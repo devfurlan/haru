@@ -26,7 +26,7 @@ default_pool_size = 20
 max_client_conn = 100
 
 [db.migrations]
-# Não usado — usamos `prisma migrate` em `packages/database`. Schema é
+# Não usado - usamos `prisma migrate` em `packages/database`. Schema é
 # gerenciado pelo Prisma e não pelos arquivos SQL do Supabase CLI.
 enabled = false
 schema_paths = []
@@ -44,7 +44,7 @@ port = 54363
 api_url = "http://127.0.0.1"
 openai_api_key = "env(OPENAI_API_KEY)"
 
-# Servidor SMTP fake — emails de signup/recuperação caem aqui em dev em vez de
+# Servidor SMTP fake - emails de signup/recuperação caem aqui em dev em vez de
 # serem enviados de verdade. Acessar pelo web em http://127.0.0.1:54364.
 [inbucket]
 enabled = true
@@ -119,11 +119,11 @@ otp_expiry = 3600
 
 # Link de recuperação no formato token_hash (igual ao /ativar): a página
 # /redefinir-senha faz verifyOtp({ type: 'recovery' }) com o token_hash da URL.
-# IMPORTANTE: o Supabase hospedado (produção) NÃO lê este config.toml — replicar
+# IMPORTANTE: o Supabase hospedado (produção) NÃO lê este config.toml - replicar
 # este mesmo template em Auth → Email Templates → Reset Password no dashboard, e
 # adicionar /redefinir-senha à allow-list de Redirect URLs.
 [auth.email.template.recovery]
-subject = "Redefina sua senha — Demandaê"
+subject = "Redefina sua senha - Demandaê"
 content_path = "./supabase/templates/recovery.html"
 
 [auth.sms]

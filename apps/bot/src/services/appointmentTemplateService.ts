@@ -5,7 +5,7 @@ type TemplateEvent = 'cancel' | 'reschedule';
 
 /**
  * Manda o template aprovado correspondente ao evento pro cliente do
- * appointment. Fire-and-forget — o caller não deve esperar. Sem template
+ * appointment. Fire-and-forget - o caller não deve esperar. Sem template
  * configurado, faz nada (não é erro).
  *
  * Espera 3 placeholders no body do template: nome, data/hora formatada, serviço.

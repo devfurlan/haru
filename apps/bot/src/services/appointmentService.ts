@@ -43,7 +43,7 @@ export async function bookAppointment(args: BookAppointmentArgs): Promise<BookAp
     return {
       ok: false,
       reason:
-        'cadastro incompleto — confirme o nome (e ofereça email e data de nascimento, que são ' +
+        'cadastro incompleto - confirme o nome (e ofereça email e data de nascimento, que são ' +
         'opcionais) e chame save_customer_profile antes de agendar',
     };
   }
@@ -78,7 +78,7 @@ export async function bookAppointment(args: BookAppointmentArgs): Promise<BookAp
     return { ok: false, reason: 'horário ocupado por outro agendamento' };
   }
 
-  // Bloqueio pontual da agenda (folga/compromisso do dono) — indisponível.
+  // Bloqueio pontual da agenda (folga/compromisso do dono) - indisponível.
   const blocked = await prisma.scheduleException.findFirst({
     where: {
       tenantId: args.tenantId,
@@ -158,7 +158,7 @@ const MS_PER_DAY = 86_400_000;
  * Cria uma série de agendamentos recorrentes (semanal/quinzenal/mensal) confirmados.
  * A 1ª ocorrência é o horário escolhido; as demais saltam mantendo a hora-de-parede.
  * PULA (sem travar a série) ocorrências que caem fora do expediente, colidem com
- * outro agendamento ou passam do horizonte de 90 dias — e devolve quais foram puladas.
+ * outro agendamento ou passam do horizonte de 90 dias - e devolve quais foram puladas.
  */
 export async function bookRecurringAppointment(
   args: BookRecurringArgs,
@@ -171,7 +171,7 @@ export async function bookRecurringAppointment(
     return {
       ok: false,
       reason:
-        'cadastro incompleto — confirme o nome (e ofereça email e data de nascimento, que são ' +
+        'cadastro incompleto - confirme o nome (e ofereça email e data de nascimento, que são ' +
         'opcionais) e chame save_customer_profile antes de agendar',
     };
   }
@@ -202,7 +202,7 @@ export async function bookRecurringAppointment(
   });
 
   const now = new Date();
-  // Bloqueios pontuais da agenda — ocorrências dentro deles são puladas.
+  // Bloqueios pontuais da agenda - ocorrências dentro deles são puladas.
   const exceptions = await prisma.scheduleException.findMany({
     where: { tenantId: args.tenantId, endsAt: { gt: now } },
     select: { startsAt: true, endsAt: true },
@@ -262,7 +262,7 @@ export async function bookRecurringAppointment(
   if (toCreate.length === 0) {
     return {
       ok: false,
-      reason: 'nenhum horário da série está livre — proponha outro horário inicial',
+      reason: 'nenhum horário da série está livre - proponha outro horário inicial',
     };
   }
 
@@ -289,7 +289,7 @@ export async function bookRecurringAppointment(
     return { seriesId: series.id, firstId: firstCreatedId };
   });
 
-  // Fire-and-forget: um único webhook (1ª ocorrência) — evita N notificações.
+  // Fire-and-forget: um único webhook (1ª ocorrência) - evita N notificações.
   notifyAppointmentCreated(firstId).catch((err) =>
     console.error('[appointment] notify create (series) failed', err),
   );
@@ -313,7 +313,7 @@ export interface CancelAppointmentArgs {
 export type CancelAppointmentResult = { ok: true; summary: string } | { ok: false; reason: string };
 
 /**
- * Cancela um agendamento, com scope obrigatório por contactId — o cliente só
+ * Cancela um agendamento, com scope obrigatório por contactId - o cliente só
  * pode cancelar agendamentos próprios. Não permite cancelar appointments já
  * COMPLETED/CANCELED/NO_SHOW.
  */
@@ -376,7 +376,7 @@ export type CancelSeriesResult =
 
 /**
  * Cancela TODAS as ocorrências futuras (PENDING/CONFIRMED) de uma série, com scope
- * por contactId — o cliente só cancela séries próprias. Não toca em ocorrências
+ * por contactId - o cliente só cancela séries próprias. Não toca em ocorrências
  * passadas/realizadas. Notifica o cliente uma única vez (é o mesmo contato).
  */
 export async function cancelSeriesForContact(args: CancelSeriesArgs): Promise<CancelSeriesResult> {
@@ -433,7 +433,7 @@ export type RescheduleAppointmentResult =
 
 /**
  * Move um agendamento existente pra uma nova `startsAt`. Mantém o mesmo serviço
- * (e portanto a mesma duração — endsAt é recalculado). Reseta `reminderSentAt`
+ * (e portanto a mesma duração - endsAt é recalculado). Reseta `reminderSentAt`
  * pra que um novo lembrete dispare no horário relativo ao novo slot.
  */
 export async function rescheduleAppointmentForContact(
@@ -460,7 +460,7 @@ export async function rescheduleAppointmentForContact(
     return { ok: false, reason: 'agendamento não encontrado ou não pertence a este cliente' };
   }
   if (appt.status === 'CANCELED') {
-    return { ok: false, reason: 'agendamento está cancelado — peça pra criar um novo' };
+    return { ok: false, reason: 'agendamento está cancelado - peça pra criar um novo' };
   }
   if (appt.status === 'COMPLETED' || appt.status === 'NO_SHOW') {
     return { ok: false, reason: 'agendamento já realizado, não pode ser remarcado' };
@@ -481,7 +481,7 @@ export async function rescheduleAppointmentForContact(
     return { ok: false, reason: 'novo horário já ocupado por outro agendamento' };
   }
 
-  // Bloqueio pontual da agenda (folga/compromisso do dono) — indisponível.
+  // Bloqueio pontual da agenda (folga/compromisso do dono) - indisponível.
   const blocked = await prisma.scheduleException.findFirst({
     where: {
       tenantId: args.tenantId,
@@ -498,7 +498,7 @@ export async function rescheduleAppointmentForContact(
     data: {
       startsAt: newStartsAt,
       endsAt: newEndsAt,
-      // Lembrete já foi enviado pro horário antigo — zera pra disparar de novo
+      // Lembrete já foi enviado pro horário antigo - zera pra disparar de novo
       // pro novo horário (se cair dentro da janela).
       reminderSentAt: null,
     },

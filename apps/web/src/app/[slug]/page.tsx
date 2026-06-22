@@ -100,7 +100,7 @@ export default async function TenantPublicPage({ params }: { params: Promise<{ s
           </div>
         )}
 
-        {/* Vitrine estática de serviços — só quando o agendamento online está
+        {/* Vitrine estática de serviços - só quando o agendamento online está
             indisponível. Com booking ativo, a vitrine vive dentro do <PublicBooking>
             (é o 1º passo: clicar num serviço inicia o agendamento), evitando listar
             os serviços duas vezes. */}

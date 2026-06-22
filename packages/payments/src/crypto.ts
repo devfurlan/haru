@@ -9,7 +9,7 @@ import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto';
  *  - authTag de 16 bytes garante integridade/autenticidade.
  *
  * A chave vem de PAYMENTS_ENCRYPTION_KEY (32 bytes), resolvida de forma preguiçosa
- * — só falha quando alguém efetivamente cifra/decifra, pra não quebrar build/SSG de
+ * - só falha quando alguém efetivamente cifra/decifra, pra não quebrar build/SSG de
  * páginas que não usam pagamento.
  */
 

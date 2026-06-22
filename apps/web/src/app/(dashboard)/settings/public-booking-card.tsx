@@ -45,7 +45,7 @@ export function PublicBookingCard({
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch {
-      // clipboard pode falhar fora de https/localhost — ignora silenciosamente.
+      // clipboard pode falhar fora de https/localhost - ignora silenciosamente.
     }
   }
 
@@ -97,7 +97,7 @@ export function PublicBookingCard({
                 className="mt-0.5 h-4 w-4"
               />
               <span className="space-y-0.5">
-                <span className="block text-sm font-medium">Pendentes — você confirma</span>
+                <span className="block text-sm font-medium">Pendentes - você confirma</span>
                 <span className="text-muted-foreground block text-xs">
                   O pedido entra como pendente e aparece em Agendamentos pra você aprovar.
                 </span>

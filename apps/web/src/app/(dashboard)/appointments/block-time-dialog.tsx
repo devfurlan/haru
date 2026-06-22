@@ -15,7 +15,7 @@ interface BlockTimeDialogProps {
   /** Dia pré-selecionado (YYYY-MM-DD no fuso do tenant). */
   defaultDate: string;
   onClose: () => void;
-  /** Chamado após criar com sucesso — para o pai fechar/atualizar. */
+  /** Chamado após criar com sucesso - para o pai fechar/atualizar. */
   onCreated: () => void;
 }
 

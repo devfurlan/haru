@@ -40,7 +40,7 @@ export async function saveMessage(
   body: string,
   waMessageId?: string,
 ) {
-  // Cria a mensagem e atualiza updatedAt da Conversation no mesmo turno —
+  // Cria a mensagem e atualiza updatedAt da Conversation no mesmo turno -
   // assim a listagem em /conversations ordena pela atividade real e o evento
   // de UPDATE chega via Supabase Realtime. `data: {}` não basta: o Prisma omite
   // o updatedAt do SET, gerando um UPDATE no-op que não vai pro WAL (e portanto

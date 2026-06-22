@@ -1,6 +1,6 @@
 // Criação de uma série de agendamentos recorrentes (semanal/quinzenal/mensal).
 //
-// Server-only (usa Prisma) — chamado pelas server actions do painel e do booking
+// Server-only (usa Prisma) - chamado pelas server actions do painel e do booking
 // público. A primeira ocorrência já vem validada pelo caller (slot livre, alinhado à
 // grade, no expediente); aqui geramos as demais e validamos CADA uma de forma
 // independente, PULANDO (sem travar a série) as que:
@@ -47,7 +47,7 @@ export interface CreateAppointmentSeriesResult {
 }
 
 /**
- * Gera e cria as ocorrências da série. Não dispara notificações/templates — isso
+ * Gera e cria as ocorrências da série. Não dispara notificações/templates - isso
  * fica a cargo do caller (que decide a política de notificação por superfície).
  */
 export async function createAppointmentSeries(
@@ -63,7 +63,7 @@ export async function createAppointmentSeries(
     input.occurrences,
   );
 
-  // Bloqueios pontuais da agenda — uma ocorrência que cai num bloqueio é pulada,
+  // Bloqueios pontuais da agenda - uma ocorrência que cai num bloqueio é pulada,
   // como já se faz com colisão e expediente. Busca uma vez só (N de ocorrências
   // é pequeno; a janela cobre toda a série).
   const exceptions = await prisma.scheduleException.findMany({
@@ -115,7 +115,7 @@ export async function createAppointmentSeries(
   }
 
   // Cria a série + as ocorrências numa transação. Loop de `create` (em vez de
-  // `createMany`) pra obter os IDs — N é pequeno (≤ algumas dezenas).
+  // `createMany`) pra obter os IDs - N é pequeno (≤ algumas dezenas).
   const { seriesId, createdIds } = await prisma.$transaction(async (tx) => {
     const series = await tx.appointmentSeries.create({
       data: { tenantId: input.tenantId, frequency: input.frequency },

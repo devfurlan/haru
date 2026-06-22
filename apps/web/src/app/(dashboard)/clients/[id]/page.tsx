@@ -72,10 +72,10 @@ export default async function ClientDetailPage({ params }: PageProps) {
 
       <Card>
         <CardContent className="grid gap-x-6 gap-y-3 py-5 sm:grid-cols-2">
-          <Field label="E-mail" value={client.email ?? '—'} />
+          <Field label="E-mail" value={client.email ?? '-'} />
           <Field
             label="Data de nascimento"
-            value={client.birthDate ? formatDateOnly(client.birthDate) : '—'}
+            value={client.birthDate ? formatDateOnly(client.birthDate) : '-'}
           />
           <Field label="Cadastrado em" value={formatFullDateTime(client.createdAt)} />
           <Field

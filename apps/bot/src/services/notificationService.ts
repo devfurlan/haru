@@ -22,13 +22,13 @@ type AppointmentEventName =
 interface WebhookBody {
   event: AppointmentEventName;
   data: AppointmentEventData;
-  /** Texto formatado — Discord renderiza este campo como mensagem visível. */
+  /** Texto formatado - Discord renderiza este campo como mensagem visível. */
   content: string;
 }
 
 /**
  * POSTa um evento de appointment no `notificationWebhookUrl` do tenant.
- * Fire-and-forget — falhas são logadas/Sentry mas não bloqueiam o fluxo.
+ * Fire-and-forget - falhas são logadas/Sentry mas não bloqueiam o fluxo.
  */
 async function dispatchAppointmentEvent(appointmentId: string, event: AppointmentEventName) {
   try {

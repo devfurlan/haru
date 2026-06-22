@@ -6,7 +6,7 @@ type TemplateEvent = 'cancel' | 'reschedule' | 'reminder';
 
 /**
  * Envia o template aprovado do tenant pro cliente, com os 3 placeholders
- * padrão (nome, data/hora, serviço). Fire-and-forget — caller não deve esperar
+ * padrão (nome, data/hora, serviço). Fire-and-forget - caller não deve esperar
  * sucesso. Retorna `true` se enviou, `false` se faltou config ou deu erro.
  */
 export async function sendAppointmentTemplate(

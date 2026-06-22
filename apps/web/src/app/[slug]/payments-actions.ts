@@ -18,7 +18,7 @@ export type CreatePaymentResult =
 /**
  * Cria (ou reaproveita) uma cobrança para um agendamento, a partir da tela de sucesso
  * do agendamento público. Rota pública (cliente sem login): toda a confiança vem da
- * validação server-side — exigimos que o appointment exista, pertença ao tenant do
+ * validação server-side - exigimos que o appointment exista, pertença ao tenant do
  * `slug`, esteja em status pagável e que o tenant tenha gateway configurado.
  *
  * O pagamento é OPCIONAL e NÃO altera o status do Appointment.

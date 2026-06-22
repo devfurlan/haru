@@ -21,7 +21,7 @@ const activateSchema = z
 /**
  * Finaliza a ativação: define a senha do convidado e marca o User como ACTIVE.
  * Depende da sessão de recovery já estabelecida no cliente (verifyOtp na tela
- * /ativar) — os cookies chegam aqui via createClient(). Sem sessão, recusa.
+ * /ativar) - os cookies chegam aqui via createClient(). Sem sessão, recusa.
  */
 export async function activateAccount(
   _prev: ActivateActionResult | undefined,
@@ -56,7 +56,7 @@ export async function activateAccount(
   }
 
   // A senha já foi definida no Auth; marcar ACTIVE não pode ficar pela metade.
-  // Se falhar, o usuário JÁ consegue logar (senha válida) — logamos e seguimos,
+  // Se falhar, o usuário JÁ consegue logar (senha válida) - logamos e seguimos,
   // pois bloquear o login seria pior que um status defasado (recuperável).
   try {
     await prisma.user.update({

@@ -2,7 +2,7 @@ import type { PaymentProvider } from '@haru/database';
 
 /**
  * Contrato comum dos gateways de pagamento. Cada provider implementa esta interface;
- * a `factory` resolve o adapter certo a partir do tenant. Só o Asaas é real hoje —
+ * a `factory` resolve o adapter certo a partir do tenant. Só o Asaas é real hoje -
  * os demais são stubs que lançam `GatewayNotImplementedError`.
  */
 
@@ -14,7 +14,7 @@ export interface CreateChargeInput {
   /** Descrição curta exibida ao cliente (ex.: "Corte de cabelo · 02/06 14:00"). */
   description: string;
   method: ChargeMethod;
-  /** Nosso `Payment.id` — volta no webhook como externalReference pra reconciliar. */
+  /** Nosso `Payment.id` - volta no webhook como externalReference pra reconciliar. */
   externalReference: string;
   /** `cpfCnpj`: só dígitos. O Asaas exige documento do pagador pra emitir Pix. */
   customer: { name: string; phoneE164: string; email?: string | null; cpfCnpj?: string | null };

@@ -21,7 +21,7 @@ import { buildBookingDays, isoDateInTz, labelFromIso, type BookingDay } from '@/
 // decide a regra (ex.: a remarcação exclui o próprio agendamento da colisão).
 //
 // Toda conta de data sai do fuso do TENANT (passado em `timezone`), nunca do
-// browser — igual ao booking público.
+// browser - igual ao booking público.
 
 const MONTH_NAMES = [
   'Janeiro',
@@ -45,7 +45,7 @@ function pad2(n: number): string {
   return n < 10 ? `0${n}` : String(n);
 }
 
-/** "YYYY-MM-DD" de um trio civil (sem fuso — comparação pura de calendário). */
+/** "YYYY-MM-DD" de um trio civil (sem fuso - comparação pura de calendário). */
 function ymd(year: number, month0: number, day: number): string {
   return `${year}-${pad2(month0 + 1)}-${pad2(day)}`;
 }
@@ -64,7 +64,7 @@ function splitDayLabel(label: string): { weekday: string; date: string } {
 /**
  * Calendário de mês num Dialog. Permite pular pra qualquer dia da janela
  * [minDate, maxDate] que tenha expediente (`openWeekdays`). Tudo é comparação de
- * string "YYYY-MM-DD" — as datas-limite já vêm no fuso do tenant.
+ * string "YYYY-MM-DD" - as datas-limite já vêm no fuso do tenant.
  */
 function MonthCalendar({
   minDate,
@@ -116,7 +116,7 @@ function MonthCalendar({
     });
   }
 
-  // Grade do mês: UTC só pra contar dias/posição — nenhuma conversão de fuso.
+  // Grade do mês: UTC só pra contar dias/posição - nenhuma conversão de fuso.
   const firstWeekday = new Date(Date.UTC(view.year, view.month, 1)).getUTCDay(); // 0=dom
   const daysInMonth = new Date(Date.UTC(view.year, view.month + 1, 0)).getUTCDate();
   const cells: (number | null)[] = [];
@@ -210,21 +210,21 @@ function MonthCalendar({
 }
 
 interface SlotPickerProps {
-  /** Serviço escolhido — sem ele não há como saber a duração/grade. */
+  /** Serviço escolhido - sem ele não há como saber a duração/grade. */
   serviceId: string;
-  /** Fuso do tenant — toda conta de data sai dele, nunca do browser. */
+  /** Fuso do tenant - toda conta de data sai dele, nunca do browser. */
   timezone: string;
   /** Dias-da-semana com expediente (0=domingo … 6=sábado). */
   openWeekdays: number[];
   /** Até quantos dias adiante oferecer. */
   horizonDays: number;
-  /** Slot escolhido (ISO UTC) ou '' — controlado pelo pai. */
+  /** Slot escolhido (ISO UTC) ou '' - controlado pelo pai. */
   value: string;
   onChange: (slotIso: string) => void;
   /** Carrega os horários livres do dia (server action injetada). */
   loadSlots: (serviceId: string, dateStr: string) => Promise<AvailableSlot[]>;
   /**
-   * Dia inicial (YYYY-MM-DD no fuso do tenant) pré-selecionado ao montar — ex.:
+   * Dia inicial (YYYY-MM-DD no fuso do tenant) pré-selecionado ao montar - ex.:
    * o dia do horário atual na remarcação. Opcional.
    */
   initialDate?: string;

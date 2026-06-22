@@ -23,7 +23,7 @@ function tokenMatches(received: string, expected: string): boolean {
  * no header `x-internal-token`. Não passam pela validação HMAC do webhook da Meta.
  */
 export async function internalRoutes(app: FastifyInstance) {
-  // Body é JSON pequeno — usa o parser default do Fastify (este plugin é
+  // Body é JSON pequeno - usa o parser default do Fastify (este plugin é
   // encapsulado, então não interfere no parser raw-buffer do /webhook).
   app.post('/internal/payment-confirmed', async (request: FastifyRequest, reply: FastifyReply) => {
     const token = request.headers['x-internal-token'];
@@ -49,7 +49,7 @@ export async function internalRoutes(app: FastifyInstance) {
   // Envio manual do dono (handoff humano): o painel /conversations chama aqui pra
   // o bot mandar uma mensagem de texto livre ao cliente. Responde SÍNCRONO com
   // `delivered` porque o painel precisa saber se a janela de 24h do WhatsApp
-  // estava aberta — fora dela, texto livre é recusado pela Meta.
+  // estava aberta - fora dela, texto livre é recusado pela Meta.
   app.post('/internal/send-message', async (request: FastifyRequest, reply: FastifyReply) => {
     const token = request.headers['x-internal-token'];
     if (typeof token !== 'string' || !tokenMatches(token, env.BOT_INTERNAL_TOKEN)) {
@@ -71,7 +71,7 @@ export async function internalRoutes(app: FastifyInstance) {
   });
 }
 
-/// Motivo de uma falha no envio manual — o painel usa pra explicar ao dono.
+/// Motivo de uma falha no envio manual - o painel usa pra explicar ao dono.
 /// `window_closed`: o Meta recusou por estar fora da janela de 24h (código 131047
 /// e afins). `not_configured`: o tenant não tem WhatsApp conectado.
 /// `send_failed`: qualquer outra falha da Cloud API.
@@ -92,7 +92,7 @@ function whatsappErrorCode(err: unknown): number | undefined {
 
 /**
  * Manda uma mensagem de texto livre do dono ao cliente e persiste o OUTBOUND.
- * NÃO renova a janela do handoff — só mensagem do cliente reabre a janela de 24h
+ * NÃO renova a janela do handoff - só mensagem do cliente reabre a janela de 24h
  * do WhatsApp; resposta do dono não conta. Classifica a falha pra UI explicar.
  */
 async function sendManualMessage(conversationId: string, text: string): Promise<SendOutcome> {
@@ -124,7 +124,7 @@ async function sendManualMessage(conversationId: string, text: string): Promise<
 /**
  * Envia a confirmação "pagamento recebido" ao cliente no WhatsApp. Só envia se o
  * Payment está PAID (o webhook do web já garante isso antes de chamar). Texto livre
- * — funciona dentro da janela de 24h do WhatsApp; se o cliente pagou logo após
+ * - funciona dentro da janela de 24h do WhatsApp; se o cliente pagou logo após
  * agendar (caso comum), está dentro da janela. Fora dela o envio falha e é logado;
  * um template de confirmação fora-de-janela fica como evolução futura.
  */
@@ -143,7 +143,7 @@ async function notifyCustomerPaid(paymentId: string): Promise<void> {
   const phoneNumberId = tenant.whatsappPhoneNumberId;
   if (!phoneNumberId) return;
 
-  // Conversation é única por contactId — resolve (ou cria) pra registrar o OUTBOUND
+  // Conversation é única por contactId - resolve (ou cria) pra registrar o OUTBOUND
   // no histórico, igual aos outros fluxos do bot.
   const { conversationId } = await getOrCreateConversation(
     tenant.id,

@@ -1,7 +1,7 @@
 @import 'tailwindcss';
 
 /*
- * Design system "Demandaê" — paleta cream/verde/coral + tipografia Fraunces +
+ * Design system "Demandaê" - paleta cream/verde/coral + tipografia Fraunces +
  * Hanken Grotesk. Os tokens semânticos (shadcn) apontam pra paleta da marca, então
  * dashboard, auth e páginas públicas herdam o visual automaticamente.
  */

@@ -18,8 +18,8 @@ type PictureTenant = Pick<Tenant, 'whatsappPhoneNumberId' | 'whatsappAccessToken
 /**
  * Empurra os campos de texto do estabelecimento pro perfil comercial do WhatsApp
  * (endereço, site, descrição, status e e-mail) via Cloud API. Fonte da verdade é
- * o Demandaê — direção única (push). Espelha o padrão de `whatsapp-invite.ts`:
- * fire-and-forget tolerante a erro — retorna `true` se a Meta aceitou, `false` se
+ * o Demandaê - direção única (push). Espelha o padrão de `whatsapp-invite.ts`:
+ * fire-and-forget tolerante a erro - retorna `true` se a Meta aceitou, `false` se
  * faltou WhatsApp conectado ou a API recusou. O caller não deve bloquear o save
  * por causa disto.
  *
@@ -34,7 +34,7 @@ export async function syncWhatsappProfile(
     return false;
   }
 
-  // Só inclui campos preenchidos — enviar string vazia limparia o campo no perfil.
+  // Só inclui campos preenchidos - enviar string vazia limparia o campo no perfil.
   const body: Record<string, unknown> = { messaging_product: 'whatsapp' };
   if (tenant.address) body.address = tenant.address;
   if (tenant.description) body.description = tenant.description;
@@ -69,7 +69,7 @@ export async function syncWhatsappProfile(
 
 /**
  * Descobre o App ID da Meta dono de um access_token, inspecionando o próprio
- * token via `/debug_token`. Evita uma env global de App ID — cada tenant pode
+ * token via `/debug_token`. Evita uma env global de App ID - cada tenant pode
  * estar conectado a um app diferente, e aqui sempre resolvemos o app correto a
  * partir do token daquele tenant. Retorna null se a Meta não devolver o app_id.
  */
@@ -113,7 +113,7 @@ export async function uploadWhatsappProfilePicture(
 
   const appId = await resolveAppId(token);
   if (!appId) {
-    console.warn('[whatsapp-profile] não foi possível resolver o App ID do token — foto pulada.');
+    console.warn('[whatsapp-profile] não foi possível resolver o App ID do token - foto pulada.');
     return false;
   }
 
@@ -130,7 +130,7 @@ export async function uploadWhatsappProfilePicture(
     }
     const { id: sessionId } = (await startRes.json()) as { id: string };
 
-    // 2) envia os bytes — obtém o handle. Resumable Upload usa esquema `OAuth`.
+    // 2) envia os bytes - obtém o handle. Resumable Upload usa esquema `OAuth`.
     const uploadRes = await fetch(`${API_URL}/${sessionId}`, {
       method: 'POST',
       headers: { Authorization: `OAuth ${token}`, file_offset: '0' },

@@ -1,6 +1,6 @@
 // Geração dos dias oferecidos no agendamento online, no fuso do tenant.
 //
-// Puro e sem dependências de Next/Prisma — usado tanto no servidor (page.tsx, pra
+// Puro e sem dependências de Next/Prisma - usado tanto no servidor (page.tsx, pra
 // decidir se há algum dia atendível e gerar a lista inicial) quanto no client
 // (carrossel de chips e date-picker). A regra de ouro: TODA conta de data sai do
 // fuso do TENANT via Intl, NUNCA do browser do cliente.
@@ -56,7 +56,7 @@ export function labelDateInTz(date: Date, tz: string): string {
 /**
  * Rótulo "sáb., 30/05" a partir de uma data civil "YYYY-MM-DD". Ancora ao meio-dia
  * UTC pra nunca cair no dia errado por causa do offset do fuso (Brasil é -03:00, e
- * 12:00 UTC é 09:00 local — bem longe das bordas da meia-noite). Pra um dia escolhido
+ * 12:00 UTC é 09:00 local - bem longe das bordas da meia-noite). Pra um dia escolhido
  * no date-picker, o weekday/dia/mês não dependem do fuso, então isso é exato.
  */
 export function labelFromIso(dateStr: string, tz: string): string {
