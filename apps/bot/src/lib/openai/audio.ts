@@ -1,9 +1,6 @@
-import OpenAI from 'openai';
 import { toFile } from 'openai/uploads';
 
-import { env } from '../env.js';
-
-const openai = new OpenAI({ apiKey: env.OPENAI_API_KEY });
+import { openai } from './client.js';
 
 const MIME_TO_EXT: Record<string, string> = {
   'audio/ogg': 'ogg',

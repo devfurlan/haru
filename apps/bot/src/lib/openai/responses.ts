@@ -4,17 +4,9 @@ import type {
   ResponseInputItem,
 } from 'openai/resources/responses/responses';
 
-import { env } from '../env.js';
+import { openai } from './client.js';
 import { BOT_MODEL } from './prompts/index.js';
 import { executeTool, type ToolContext } from './tools.js';
-
-const openai = new OpenAI({
-  apiKey: env.OPENAI_API_KEY,
-  // Erros de rede (ex.: ERR_STREAM_PREMATURE_CLOSE da OpenAI) são transitórios;
-  // deixa o SDK retentar antes de cair no fallback.
-  maxRetries: 3,
-  timeout: 90_000,
-});
 
 /** Erros de conexão que valem uma nova tentativa (a resposta nem chegou inteira). */
 function isRetriableNetworkError(err: unknown): boolean {
@@ -190,7 +182,8 @@ export async function askBot(opts: AskBotOptions): Promise<BotResponseResult> {
     let response = await createResponse({
       model: BOT_MODEL,
       instructions: buildInstructions(opts),
-      previous_response_id: opts.previousResponseId,
+      // String vazia (vinda de um fallback anterior) não é um id válido; omitir.
+      previous_response_id: opts.previousResponseId || undefined,
       input: buildInput(opts),
       store: true,
       reasoning: { effort: 'low' },
