@@ -36,7 +36,6 @@ export async function sendMenu(
   const buttons: InteractiveButton[] = [
     { type: 'reply', reply: { id: 'schedule', title: 'Agendar horário' } },
     { type: 'reply', reply: { id: 'services', title: 'Ver serviços' } },
-    { type: 'reply', reply: { id: 'support', title: 'Falar com atendente' } },
   ];
 
   await sendInteractiveButtons(phoneNumberId, phone, body, buttons);
@@ -44,9 +43,9 @@ export async function sendMenu(
 }
 
 /**
- * Lista os serviços ativos do tenant e oferece os próximos passos (agendar /
- * atendente). Mantém o estado em `menu` para que esses botões sigam roteando
- * pelo switch do webhook.
+ * Lista os serviços ativos do tenant e oferece o próximo passo (agendar).
+ * Mantém o estado em `menu` para que esses botões sigam roteando pelo switch
+ * do webhook.
  */
 export async function sendServices(
   tenantId: string,
@@ -62,9 +61,9 @@ export async function sendServices(
   });
 
   if (services.length === 0) {
-    const body = 'Ainda não temos serviços cadastrados. Se quiser, posso te passar pra um atendente.';
+    const body = 'Ainda não temos serviços cadastrados no momento.';
     const buttons: InteractiveButton[] = [
-      { type: 'reply', reply: { id: 'support', title: 'Falar com atendente' } },
+      { type: 'reply', reply: { id: 'schedule', title: 'Agendar horário' } },
     ];
     await sendInteractiveButtons(phoneNumberId, phone, body, buttons);
     await saveMessage(conversationId, 'OUTBOUND', formatInteractiveContent(body, buttons));
@@ -81,7 +80,6 @@ export async function sendServices(
   const body = `Esses são os nossos serviços:\n\n${list}`;
   const buttons: InteractiveButton[] = [
     { type: 'reply', reply: { id: 'schedule', title: 'Agendar horário' } },
-    { type: 'reply', reply: { id: 'support', title: 'Falar com atendente' } },
   ];
 
   await sendInteractiveButtons(phoneNumberId, phone, body, buttons);

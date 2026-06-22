@@ -232,9 +232,6 @@ async function routeMessage(
       }
       case 'services':
         return sendServices(tenantId, phoneNumberId, phone, contactName);
-      case 'support':
-        // TODO: handoff humano
-        return sendMenu(tenantId, phoneNumberId, phone, contactName);
       default:
         return sendMenu(tenantId, phoneNumberId, phone, contactName);
     }
