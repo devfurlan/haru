@@ -1,6 +1,7 @@
 'use client';
 
-import { useActionState } from 'react';
+import { Check, Copy, Share2 } from 'lucide-react';
+import { useActionState, useState } from 'react';
 import { useFormStatus } from 'react-dom';
 
 import { Button } from '@/components/ui/button';
@@ -56,6 +57,34 @@ export function TenantCard({ tenantId, name, slug, timezone, address, logoUrl }:
     ? TIMEZONE_OPTIONS
     : [timezone, ...TIMEZONE_OPTIONS];
 
+  // Reflete o slug em edição na URL pública exibida, mas só aponta pro slug já salvo.
+  const [slugValue, setSlugValue] = useState(slug);
+  const baseUrl = (process.env.NEXT_PUBLIC_APP_URL ?? 'https://www.demandae.com').replace(/\/$/, '');
+  const publicUrl = `${baseUrl}/${slugValue}`;
+  const [copied, setCopied] = useState(false);
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(publicUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // clipboard pode falhar fora de https/localhost — ignora silenciosamente.
+    }
+  }
+
+  async function share() {
+    if (typeof navigator !== 'undefined' && 'share' in navigator) {
+      try {
+        await navigator.share({ title: name, url: publicUrl });
+        return;
+      } catch {
+        // usuário cancelou ou share falhou — cai pro copiar.
+      }
+    }
+    void copy();
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -66,6 +95,27 @@ export function TenantCard({ tenantId, name, slug, timezone, address, logoUrl }:
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
+        <div className="space-y-2">
+          <Label>Sua página pública</Label>
+          <div className="flex items-center gap-2">
+            <code className="bg-muted flex-1 truncate rounded-md border px-3 py-2 text-sm">
+              {publicUrl}
+            </code>
+            <Button type="button" variant="outline" size="icon" onClick={copy} title="Copiar link">
+              {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              onClick={share}
+              title="Compartilhar link"
+            >
+              <Share2 className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+
         <LogoUploader tenantId={tenantId} logoUrl={logoUrl} />
 
         <form action={formAction} className="space-y-4">
@@ -76,7 +126,14 @@ export function TenantCard({ tenantId, name, slug, timezone, address, logoUrl }:
 
           <div className="space-y-2">
             <Label htmlFor="slug">Slug</Label>
-            <Input id="slug" name="slug" defaultValue={slug} pattern="[a-z0-9-]+" required />
+            <Input
+              id="slug"
+              name="slug"
+              value={slugValue}
+              onChange={(e) => setSlugValue(e.target.value)}
+              pattern="[a-z0-9-]+"
+              required
+            />
             <p className="text-muted-foreground text-xs">
               Aceita minúsculas, dígitos e hífen. Não pode coincidir com rotas do sistema (login,
               dashboard, services etc.).
