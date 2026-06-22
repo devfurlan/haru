@@ -39,7 +39,6 @@ interface NewAppointmentFormProps {
   timezone: string;
   openWeekdays: number[];
   horizonDays: number;
-  isAdmin: boolean;
 }
 
 function formatBRL(cents: number): string {
@@ -67,7 +66,6 @@ export function NewAppointmentForm({
   timezone,
   openWeekdays,
   horizonDays,
-  isAdmin,
 }: NewAppointmentFormProps) {
   const [state, formAction] = useActionState<CreateAppointmentResult, FormData>(
     createManualAppointment,
@@ -80,7 +78,7 @@ export function NewAppointmentForm({
   const [frequency, setFrequency] = useState<FrequencyChoice>('NONE');
   const [occurrences, setOccurrences] = useState(4);
 
-  // Encaixe (só admin): libera as 24h e a sobreposição. Troca a grade de slots por
+  // Encaixe: libera as 24h e a sobreposição. Troca a grade de slots por
   // data+hora livres e força agendamento avulso (sem recorrência).
   const [encaixe, setEncaixe] = useState(false);
   const [encaixeDate, setEncaixeDate] = useState('');
@@ -174,24 +172,22 @@ export function NewAppointmentForm({
         </select>
       </div>
 
-      {isAdmin && (
-        <label className="bg-muted/40 flex items-start gap-3 rounded-lg border p-3">
-          <input
-            type="checkbox"
-            className="mt-0.5 size-4"
-            checked={encaixe}
-            onChange={(e) => setEncaixe(e.target.checked)}
-          />
-          <span className="space-y-0.5 text-sm">
-            <span className="block font-medium">Encaixe (admin)</span>
-            <span className="text-muted-foreground block text-xs">
-              Libera qualquer horário das 24h e permite sobrepor outro agendamento. Ignora o
-              expediente. Sempre avulso (sem repetição).
-            </span>
+      <label className="bg-muted/40 flex items-start gap-3 rounded-lg border p-3">
+        <input
+          type="checkbox"
+          className="mt-0.5 size-4"
+          checked={encaixe}
+          onChange={(e) => setEncaixe(e.target.checked)}
+        />
+        <span className="space-y-0.5 text-sm">
+          <span className="block font-medium">Encaixe</span>
+          <span className="text-muted-foreground block text-xs">
+            Libera qualquer horário das 24h e permite sobrepor outro agendamento. Ignora o
+            expediente. Sempre avulso (sem repetição).
           </span>
-          <input type="hidden" name="encaixe" value={encaixe ? 'on' : ''} />
-        </label>
-      )}
+        </span>
+        <input type="hidden" name="encaixe" value={encaixe ? 'on' : ''} />
+      </label>
 
       <div className="space-y-2">
         <Label>Data e hora</Label>

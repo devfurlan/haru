@@ -4,7 +4,7 @@ import Link from 'next/link';
 
 import { prisma } from '@haru/database';
 
-import { isAdmin, requireUserAndTenant } from '@/lib/auth';
+import { requireUserAndTenant } from '@/lib/auth';
 import { BOOKING_HORIZON_DAYS } from '@/lib/booking-days';
 
 import { NewAppointmentForm } from '@/app/(dashboard)/appointments/new/new-appointment-form';
@@ -61,7 +61,6 @@ async function NewAppointmentBody() {
       timezone={tenant.timezone}
       openWeekdays={openWeekdays}
       horizonDays={BOOKING_HORIZON_DAYS}
-      isAdmin={isAdmin(user)}
     />
   );
 }

@@ -8,7 +8,7 @@ import { prisma, type AppointmentStatus } from '@haru/database';
 
 import { createAppointmentSeries } from '@/lib/appointment-series';
 import { type AvailableSlot, computeAvailableSlots, localWallTimeToUtc } from '@/lib/availability';
-import { isAdmin, requireUserAndTenant } from '@/lib/auth';
+import { requireUserAndTenant } from '@/lib/auth';
 import { BOOKING_HORIZON_DAYS, isoDateInTz } from '@/lib/booking-days';
 import { normalizePhoneBR } from '@/lib/format';
 import {
@@ -244,13 +244,10 @@ export async function createManualAppointment(
     return { error: parsed.error.issues[0]?.message ?? 'Dados inválidos' };
   }
 
-  // Encaixe libera as 24h e a sobreposição de agendamentos — é exclusivo do admin.
-  // O toggle some da UI pra STAFF, mas a checagem TEM que ser no servidor: STAFF
-  // poderia forjar o formData.
+  // Encaixe libera as 24h e a sobreposição de agendamentos. Disponível pra qualquer
+  // usuário do painel (OWNER ou STAFF) — o cliente final agenda pelo WhatsApp e nem
+  // tem acesso a esta action.
   const encaixe = parsed.data.encaixe === 'on';
-  if (encaixe && !isAdmin(user)) {
-    return { error: 'Encaixe é exclusivo do administrador.' };
-  }
 
   const service = await prisma.service.findFirst({
     where: { id: parsed.data.serviceId, tenantId: tenant.id, active: true },
