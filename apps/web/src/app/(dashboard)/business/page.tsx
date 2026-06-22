@@ -18,6 +18,9 @@ export default async function BusinessPage() {
         name={tenant.name}
         slug={tenant.slug}
         address={tenant.address}
+        description={tenant.description}
+        whatsappAbout={tenant.whatsappAbout}
+        email={tenant.email}
         logoUrl={tenant.logoUrl}
       />
     </div>

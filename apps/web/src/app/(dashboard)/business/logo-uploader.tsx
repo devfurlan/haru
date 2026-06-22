@@ -15,12 +15,24 @@ const LOGO_SIZE = 512; // px — saída quadrada padronizada
 const MAX_INPUT_BYTES = 5 * 1024 * 1024; // bucket aceita até 5MiB
 const ACCEPTED = ['image/jpeg', 'image/png', 'image/webp'];
 
-// Redimensiona pra quadrado (center-crop) e devolve um Blob webp.
-function toSquareWebp(file: File): Promise<Blob> {
+function canvasToBlob(canvas: HTMLCanvasElement, type: string): Promise<Blob> {
+  return new Promise((resolve, reject) =>
+    canvas.toBlob(
+      (blob) => (blob ? resolve(blob) : reject(new Error('Falha ao gerar a imagem'))),
+      type,
+      0.9,
+    ),
+  );
+}
+
+// Redimensiona pra quadrado (center-crop) e devolve dois formatos do mesmo
+// canvas: webp (vai pro storage/página pública, menor) e jpeg (foto do perfil
+// do WhatsApp — a Meta não aceita webp).
+function toSquareImages(file: File): Promise<{ webp: Blob; jpeg: Blob }> {
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(file);
     const img = new window.Image();
-    img.onload = () => {
+    img.onload = async () => {
       URL.revokeObjectURL(url);
       const side = Math.min(img.width, img.height);
       const sx = (img.width - side) / 2;
@@ -34,12 +46,21 @@ function toSquareWebp(file: File): Promise<Blob> {
         reject(new Error('Não foi possível processar a imagem'));
         return;
       }
+      // Fundo branco: JPEG não tem alfa; sem isto, áreas transparentes do PNG/WebP
+      // virariam preto na foto do WhatsApp.
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, LOGO_SIZE, LOGO_SIZE);
       ctx.drawImage(img, sx, sy, side, side, 0, 0, LOGO_SIZE, LOGO_SIZE);
-      canvas.toBlob(
-        (blob) => (blob ? resolve(blob) : reject(new Error('Falha ao gerar a imagem'))),
-        'image/webp',
-        0.9,
-      );
+
+      try {
+        const [webp, jpeg] = await Promise.all([
+          canvasToBlob(canvas, 'image/webp'),
+          canvasToBlob(canvas, 'image/jpeg'),
+        ]);
+        resolve({ webp, jpeg });
+      } catch (err) {
+        reject(err instanceof Error ? err : new Error('Falha ao gerar a imagem'));
+      }
     };
     img.onerror = () => {
       URL.revokeObjectURL(url);
@@ -70,10 +91,11 @@ export function LogoUploader({ logoUrl }: LogoUploaderProps) {
 
     setUploading(true);
     try {
-      const blob = await toSquareWebp(file);
+      const { webp, jpeg } = await toSquareImages(file);
 
       const fd = new FormData();
-      fd.set('file', new File([blob], 'logo.webp', { type: 'image/webp' }));
+      fd.set('file', new File([webp], 'logo.webp', { type: 'image/webp' }));
+      fd.set('jpeg', new File([jpeg], 'logo.jpg', { type: 'image/jpeg' }));
       const result = await uploadTenantLogo(fd);
       if ('error' in result) {
         setError(result.error);

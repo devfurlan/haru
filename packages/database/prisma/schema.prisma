@@ -20,6 +20,12 @@ model Tenant {
   logoUrl String?
   /// Endereço físico exibido pro cliente (texto livre, opcional).
   address String?
+  /// Descrição do negócio (perfil comercial do WhatsApp `description`, máx 256).
+  description String?
+  /// Status/recado curto do WhatsApp (`about`, máx 139). Específico do perfil WhatsApp.
+  whatsappAbout String?
+  /// E-mail de contato exibido no perfil comercial do WhatsApp (`email`).
+  email String?
 
   /// Agendamento direto pela página pública (/[slug]). Quando false, a página só
   /// mostra serviços/horários e o botão de WhatsApp (sem formulário de booking).

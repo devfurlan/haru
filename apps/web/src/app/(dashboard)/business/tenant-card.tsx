@@ -16,6 +16,9 @@ interface TenantCardProps {
   name: string;
   slug: string;
   address: string | null;
+  description: string | null;
+  whatsappAbout: string | null;
+  email: string | null;
   logoUrl: string | null;
 }
 
@@ -28,7 +31,15 @@ function SubmitButton() {
   );
 }
 
-export function TenantCard({ name, slug, address, logoUrl }: TenantCardProps) {
+export function TenantCard({
+  name,
+  slug,
+  address,
+  description,
+  whatsappAbout,
+  email,
+  logoUrl,
+}: TenantCardProps) {
   const [state, formAction] = useActionState<TenantActionResult | undefined, FormData>(
     updateTenant,
     undefined,
@@ -36,7 +47,10 @@ export function TenantCard({ name, slug, address, logoUrl }: TenantCardProps) {
 
   // Reflete o slug em edição na URL pública exibida, mas só aponta pro slug já salvo.
   const [slugValue, setSlugValue] = useState(slug);
-  const baseUrl = (process.env.NEXT_PUBLIC_APP_URL ?? 'https://www.demandae.com').replace(/\/$/, '');
+  const baseUrl = (process.env.NEXT_PUBLIC_APP_URL ?? 'https://www.demandae.com').replace(
+    /\/$/,
+    '',
+  );
   const publicUrl = `${baseUrl}/${slugValue}`;
   const [copied, setCopied] = useState(false);
 
@@ -129,6 +143,44 @@ export function TenantCard({ name, slug, address, logoUrl }: TenantCardProps) {
               Aparece pro cliente na sua página pública.
             </p>
           </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="description">Descrição — opcional</Label>
+            <Input
+              id="description"
+              name="description"
+              defaultValue={description ?? ''}
+              maxLength={256}
+              placeholder="Ex.: Barbearia especializada em cortes e barba."
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="email">E-mail de contato — opcional</Label>
+            <Input
+              id="email"
+              name="email"
+              type="email"
+              defaultValue={email ?? ''}
+              placeholder="contato@seunegocio.com"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="whatsappAbout">Status do WhatsApp — opcional</Label>
+            <Input
+              id="whatsappAbout"
+              name="whatsappAbout"
+              defaultValue={whatsappAbout ?? ''}
+              maxLength={139}
+              placeholder="Ex.: Atendimento de seg a sáb, 9h às 19h"
+            />
+          </div>
+
+          <p className="text-muted-foreground text-xs">
+            Endereço, descrição, e-mail, status e a logo também atualizam automaticamente o seu
+            perfil no WhatsApp (quando conectado).
+          </p>
 
           {state && 'error' in state && <p className="text-destructive text-sm">{state.error}</p>}
           {state && 'ok' in state && <p className="text-sm text-emerald-600">Salvo.</p>}

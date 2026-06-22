@@ -13,6 +13,7 @@ import { normalizePhoneBR } from '@/lib/format';
 import { createClient } from '@/lib/supabase/server';
 import { getSupabaseAdmin } from '@/lib/supabase/admin';
 import { sendInviteWhatsapp } from '@/lib/whatsapp-invite';
+import { syncWhatsappProfile, uploadWhatsappProfilePicture } from '@/lib/whatsapp-profile';
 
 // Slugs reservados — não podem ser usados como slug de tenant (conflitam com
 // rotas conhecidas em apps/web).
@@ -55,6 +56,23 @@ const tenantSchema = z.object({
     .max(200, 'Endereço muito longo')
     .optional()
     .transform((v) => (v && v.trim() ? v.trim() : null)),
+  description: z
+    .string()
+    .max(256, 'Descrição muito longa (máx. 256)')
+    .optional()
+    .transform((v) => (v && v.trim() ? v.trim() : null)),
+  whatsappAbout: z
+    .string()
+    .max(139, 'Status muito longo (máx. 139)')
+    .optional()
+    .transform((v) => (v && v.trim() ? v.trim() : null)),
+  email: z
+    .string()
+    .max(128)
+    .email('E-mail inválido')
+    .or(z.literal(''))
+    .optional()
+    .transform((v) => (v && v.trim() ? v.trim() : null)),
 });
 
 export type TenantActionResult = { error: string } | { ok: true };
@@ -69,13 +87,17 @@ export async function updateTenant(
     name: formData.get('name'),
     slug: formData.get('slug'),
     address: formData.get('address'),
+    description: formData.get('description'),
+    whatsappAbout: formData.get('whatsappAbout'),
+    email: formData.get('email'),
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? 'Dados inválidos' };
   }
 
+  let updated;
   try {
-    await prisma.tenant.update({
+    updated = await prisma.tenant.update({
       where: { id: tenant.id },
       data: parsed.data,
     });
@@ -85,6 +107,12 @@ export async function updateTenant(
     }
     throw err;
   }
+
+  // Empurra os campos compatíveis pro perfil comercial do WhatsApp. O helper é
+  // tolerante a erro (não lança), então o await não derruba o save se o tenant
+  // não tiver WhatsApp conectado ou a Meta recusar — só garante que o push rode
+  // antes da request encerrar (serverless corta promises soltas).
+  await syncWhatsappProfile(updated, `${await getBaseUrl()}/${updated.slug}`);
 
   // Slug mudou? Revalida a página pública também. O nome aparece na sidebar
   // (layout do dashboard), então revalida o layout inteiro.
@@ -167,6 +195,14 @@ export async function uploadTenantLogo(formData: FormData): Promise<LogoUploadRe
     where: { id: tenant.id },
     data: { logoUrl },
   });
+
+  // Sincroniza a foto do perfil do WhatsApp com o JPEG enviado pelo cliente (a
+  // Meta não aceita webp). Best-effort: o helper engole erros e pula se o tenant
+  // não tiver WhatsApp ou faltar WHATSAPP_APP_ID.
+  const jpeg = formData.get('jpeg');
+  if (jpeg instanceof File && jpeg.size > 0 && jpeg.size <= MAX_LOGO_BYTES) {
+    await uploadWhatsappProfilePicture(tenant, Buffer.from(await jpeg.arrayBuffer()));
+  }
 
   // A logo aparece na sidebar (layout do dashboard) e na página pública.
   revalidatePath('/business');
