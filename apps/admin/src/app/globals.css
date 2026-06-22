@@ -1,0 +1,88 @@
+@import 'tailwindcss';
+
+/*
+ * Admin global (Demandaê) - reusa os tokens da marca do app público, mas com um
+ * visual sóbrio de ferramenta interna. Tipografia em system font (sem next/font)
+ * pra manter o app enxuto.
+ */
+
+:root {
+  /* Paleta crua da marca */
+  --brand-cream: #faf5ea;
+  --brand-cream-2: #f2eadb;
+  --brand-paper: #fffdf8;
+  --brand-ink: #0f1f18;
+  --brand-ink-soft: #27392f;
+  --brand-green: #0e7a45;
+  --brand-green-bright: #2fd37a;
+  --brand-green-deep: #0a3324;
+  --brand-coral: #ff5a36;
+
+  /* Tokens semânticos (shadcn) mapeados na marca */
+  --background: var(--brand-cream);
+  --foreground: var(--brand-ink);
+  --card: var(--brand-paper);
+  --card-foreground: var(--brand-ink);
+  --primary: var(--brand-green);
+  --primary-foreground: #f3fbf5;
+  --secondary: var(--brand-cream-2);
+  --secondary-foreground: var(--brand-ink);
+  --muted: var(--brand-cream-2);
+  --muted-foreground: #51635a;
+  --accent: #e6f4ec;
+  --accent-foreground: var(--brand-green-deep);
+  --destructive: #e5484d;
+  --destructive-foreground: #ffffff;
+  --border: rgba(15, 31, 24, 0.12);
+  --input: rgba(15, 31, 24, 0.16);
+  --ring: var(--brand-green);
+  --radius: 0.75rem;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-cream: var(--brand-cream);
+  --color-paper: var(--brand-paper);
+  --color-ink: var(--brand-ink);
+  --color-green: var(--brand-green);
+  --color-green-deep: var(--brand-green-deep);
+  --color-coral: var(--brand-coral);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+  button:not(:disabled),
+  [role='button']:not(:disabled) {
+    cursor: pointer;
+  }
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+}
