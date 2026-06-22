@@ -1,5 +1,5 @@
 import { askBot } from '../lib/openai/responses.js';
-import { SCHEDULER_SYSTEM_PROMPT } from '../lib/openai/prompts/index.js';
+import { BOT_MODEL, SCHEDULER_SYSTEM_PROMPT } from '../lib/openai/prompts/index.js';
 import { TOOLS } from '../lib/openai/tools.js';
 import {
   getConversation,
@@ -12,6 +12,7 @@ import {
   saveMessage,
 } from '../services/chatHistoryService.js';
 import { buildTenantContext } from '../services/tenantContextService.js';
+import { recordAiUsage } from '../services/aiUsageService.js';
 
 interface HandleSchedulingOptions {
   /** Se true, não regrava o INBOUND (debouncer já gravou cada mensagem). */
@@ -61,7 +62,7 @@ export async function handleSchedulingFlow(
     ? await buildTenantContext(state.tenantId, state.contactId)
     : undefined;
 
-  const { reply, responseId } = await askBot({
+  const { reply, responseId, usage } = await askBot({
     instructions: SCHEDULER_SYSTEM_PROMPT,
     userMessage: text,
     previousResponseId: state.lastResponseId,
@@ -70,6 +71,14 @@ export async function handleSchedulingFlow(
     tools: TOOLS,
     toolContext: { tenantId: state.tenantId, contactId: state.contactId! },
   });
+
+  // Consumo de tokens por tenant (fire-and-forget, não bloqueia a resposta).
+  recordAiUsage({
+    tenantId: state.tenantId,
+    conversationId: state.conversationId,
+    model: BOT_MODEL,
+    usage,
+  }).catch(console.error);
 
   const sent = await sendTextSafely(phoneNumberId, phone, reply, {
     phone,

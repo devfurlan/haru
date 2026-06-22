@@ -96,6 +96,7 @@ model Tenant {
   scheduleBlocks     ScheduleBlock[]
   scheduleExceptions ScheduleException[]
   payments           Payment[]
+  aiUsageLogs        AiUsageLog[]
 }
 
 model User {
@@ -225,8 +226,9 @@ model Conversation {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  messages Message[]
-  reads    ConversationRead[]
+  messages    Message[]
+  reads       ConversationRead[]
+  aiUsageLogs AiUsageLog[]
 }
 
 model Message {
@@ -403,4 +405,40 @@ model Lead {
   createdAt    DateTime @default(now())
 
   @@index([createdAt])
+}
+
+/// Consumo de tokens da OpenAI por tenant. Uma linha por turno do bot
+/// (já agregando todas as chamadas do loop de tool calls). Usada para
+/// medir/ratear o custo de IA de cada estabelecimento.
+model AiUsageLog {
+  id             String        @id @default(cuid())
+  tenantId       String
+  tenant         Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  /// Conversa que originou o consumo (drill-down). null se a conversa sumiu.
+  conversationId String?
+  conversation   Conversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+
+  /// Modelo usado (ex: "gpt-5-mini").
+  model String
+
+  /// Total de tokens de input do turno (inclui os cacheados).
+  inputTokens       Int
+  /// Subconjunto de `inputTokens` servido do cache (cobrado com desconto).
+  cachedInputTokens Int @default(0)
+  /// Tokens de output (inclui os de reasoning).
+  outputTokens      Int
+  /// Tokens de reasoning (subconjunto de `outputTokens`), só pra visibilidade.
+  reasoningTokens   Int @default(0)
+  /// Soma reportada pela OpenAI (input + output).
+  totalTokens       Int
+  /// Quantas chamadas à OpenAI compuseram o turno (1 + tool hops).
+  requests          Int @default(1)
+
+  /// Custo estimado em USD, calculado na escrita com o preço vigente do modelo
+  /// (congela o preço da época, imune a mudanças futuras de tabela).
+  costUsd Decimal @db.Decimal(12, 6)
+
+  createdAt DateTime @default(now())
+
+  @@index([tenantId, createdAt])
 }

@@ -65,9 +65,47 @@ export interface AskBotOptions {
   toolContext?: ToolContext;
 }
 
+/** Consumo de tokens agregado de um turno (todas as chamadas do loop). */
+export interface BotUsage {
+  /** Total de input (inclui os cacheados). */
+  inputTokens: number;
+  /** Subconjunto de `inputTokens` servido do cache. */
+  cachedInputTokens: number;
+  /** Output total (inclui reasoning). */
+  outputTokens: number;
+  /** Reasoning (subconjunto de `outputTokens`). */
+  reasoningTokens: number;
+  /** input + output, conforme reportado pela OpenAI. */
+  totalTokens: number;
+  /** Quantas chamadas à OpenAI compuseram o turno (1 + tool hops). */
+  requests: number;
+}
+
 export interface BotResponseResult {
   reply: string;
   responseId: string;
+  usage: BotUsage;
+}
+
+const ZERO_USAGE: BotUsage = {
+  inputTokens: 0,
+  cachedInputTokens: 0,
+  outputTokens: 0,
+  reasoningTokens: 0,
+  totalTokens: 0,
+  requests: 0,
+};
+
+/** Soma o `usage` de uma response ao acumulador do turno (mutação in-place). */
+function accumulateUsage(acc: BotUsage, response: OpenAI.Responses.Response): void {
+  const u = response.usage;
+  if (!u) return;
+  acc.inputTokens += u.input_tokens ?? 0;
+  acc.cachedInputTokens += u.input_tokens_details?.cached_tokens ?? 0;
+  acc.outputTokens += u.output_tokens ?? 0;
+  acc.reasoningTokens += u.output_tokens_details?.reasoning_tokens ?? 0;
+  acc.totalTokens += u.total_tokens ?? 0;
+  acc.requests += 1;
 }
 
 const FALLBACK_REPLY =
@@ -178,6 +216,7 @@ async function runToolCalls(
 }
 
 export async function askBot(opts: AskBotOptions): Promise<BotResponseResult> {
+  const usage: BotUsage = { ...ZERO_USAGE };
   try {
     let response = await createResponse({
       model: BOT_MODEL,
@@ -189,6 +228,7 @@ export async function askBot(opts: AskBotOptions): Promise<BotResponseResult> {
       reasoning: { effort: 'low' },
       tools: opts.tools,
     });
+    accumulateUsage(usage, response);
 
     // Loop de tool calls (cada hop = LLM chamou tool, executamos, resubmetemos)
     for (let hop = 0; hop < MAX_TOOL_HOPS; hop++) {
@@ -202,18 +242,21 @@ export async function askBot(opts: AskBotOptions): Promise<BotResponseResult> {
         reasoning: { effort: 'low' },
         tools: opts.tools,
       });
+      accumulateUsage(usage, response);
     }
 
     const reply = extractText(response);
     return {
       reply: reply || FALLBACK_REPLY,
       responseId: response.id,
+      usage,
     };
   } catch (err) {
     console.error('Erro ao chamar Responses API:', err);
     return {
       reply: FALLBACK_REPLY,
       responseId: opts.previousResponseId ?? '',
+      usage,
     };
   }
 }
