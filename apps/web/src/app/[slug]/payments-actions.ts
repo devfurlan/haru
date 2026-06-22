@@ -1,6 +1,7 @@
 'use server';
 
 import { type PaymentMethod, prisma } from '@haru/database';
+import { hasFeature } from '@haru/billing';
 import { getGatewayForTenant, GatewayNotImplementedError, PaymentConfigError } from '@haru/payments';
 
 import { isValidCpfCnpj, onlyDigits } from '@/lib/format';
@@ -36,7 +37,7 @@ export async function createPaymentForAppointment(
 
   const appointment = await prisma.appointment.findUnique({
     where: { id: appointmentId },
-    include: { tenant: true, service: true, contact: true },
+    include: { tenant: { include: { subscription: true } }, service: true, contact: true },
   });
 
   // Vincula ao slug público pra impedir enumerar appointments de outro tenant.
@@ -50,7 +51,9 @@ export async function createPaymentForAppointment(
     return { error: 'Este serviço não tem cobrança' };
   }
   const { tenant } = appointment;
-  if (!tenant.paymentProvider) {
+  // Gate de plano + provider configurado. Ambos resultam na mesma mensagem neutra ao
+  // cliente final (não expõe detalhe de plano de quem não está pagando o tier certo).
+  if (!tenant.paymentProvider || !hasFeature(tenant.subscription, 'onlinePayments')) {
     return { error: 'Pagamento online indisponível no momento' };
   }
 

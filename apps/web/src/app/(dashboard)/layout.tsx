@@ -4,6 +4,7 @@ import { BusinessMenuLink } from '@/components/business-menu-link';
 import { DashboardNav } from '@/components/dashboard-nav';
 import { Logo } from '@/components/logo';
 import { SignOutButton } from '@/components/sign-out-button';
+import { UsageBanner } from '@/components/usage-banner';
 import { UserMenuLink } from '@/components/user-menu-link';
 import { isAdmin, requireUserAndTenant } from '@/lib/auth';
 
@@ -36,7 +37,10 @@ export default async function DashboardLayout({
           <SignOutButton />
         </div>
       </aside>
-      <main className="flex-1 overflow-y-auto p-6">{children}</main>
+      <main className="flex-1 overflow-y-auto">
+        <UsageBanner tenant={tenant} />
+        <div className="p-6">{children}</div>
+      </main>
       {modal}
     </div>
   );

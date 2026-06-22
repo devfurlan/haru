@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 
 import { prisma } from '../src/index.js';
+import { seedPlans } from './plans.js';
 
 const TEST_EMAIL = 'admin@teste.local';
 const TEST_PASSWORD = 'haru1234';
@@ -36,6 +37,9 @@ async function ensureAuthUser(): Promise<string> {
 }
 
 async function main() {
+  console.log('[seed] populando catálogo de planos...');
+  await seedPlans(prisma);
+
   console.log('[seed] criando auth user...');
   const authId = await ensureAuthUser();
 

@@ -1,5 +1,7 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 
+import { isSubscriptionActive } from '@haru/billing';
+
 import { Sentry } from '../instrument.js';
 import { sendMenu, sendServices } from '../flows/menu.js';
 import { handleSchedulingFlow } from '../flows/scheduling.js';
@@ -80,6 +82,15 @@ async function processWebhook(payload: WebhookPayload, app: FastifyInstance) {
 
       if (!tenant) {
         app.log.warn({ phoneNumberId }, 'Tenant não encontrado para phone_number_id');
+        continue;
+      }
+
+      // Bot é pago-only: sem assinatura ativa (ou em carência), não processa nada.
+      if (!isSubscriptionActive(tenant.subscription)) {
+        app.log.warn(
+          { tenantId: tenant.id, status: tenant.subscription?.status ?? 'none' },
+          'Assinatura inativa - bot não responde',
+        );
         continue;
       }
 

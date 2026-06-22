@@ -16,6 +16,8 @@
     "push": "dotenv -e .env -- prisma db push",
     "studio": "dotenv -e .env -- prisma studio",
     "seed": "dotenv -e .env -- tsx prisma/seed.ts",
+    "seed:plans": "dotenv -e .env -- tsx scripts/seed-plans.ts",
+    "set-plan": "dotenv -e .env -- tsx scripts/set-plan.ts",
     "typecheck": "tsc --noEmit"
   },
   "prisma": {
@@ -29,6 +31,7 @@
   "devDependencies": {
     "@haru/typescript-config": "workspace:*",
     "@supabase/supabase-js": "^2.78.0",
+    "@types/node": "^22.15.3",
     "dotenv-cli": "^8.0.0",
     "prisma": "^7.0.0",
     "tsx": "^4.21.0",

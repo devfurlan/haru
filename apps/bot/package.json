@@ -12,6 +12,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@haru/billing": "workspace:*",
     "@haru/database": "workspace:*",
     "@haru/payments": "workspace:*",
     "@sentry/node": "^10.48.0",

@@ -97,6 +97,7 @@ model Tenant {
   scheduleExceptions ScheduleException[]
   payments           Payment[]
   aiUsageLogs        AiUsageLog[]
+  subscription       Subscription?
 }
 
 model User {
@@ -441,4 +442,101 @@ model AiUsageLog {
   createdAt DateTime @default(now())
 
   @@index([tenantId, createdAt])
+}
+
+// --- Billing / planos (assinatura do SaaS) -----------------------------------
+
+/// Catálogo de planos editável (preço/limites/features mudam sem deploy). A
+/// `Subscription` fotografa estes valores na ativação - mudar um Plan aqui só
+/// afeta NOVOS assinantes e a página /precos; quem já assina mantém o snapshot.
+model Plan {
+  id   String   @id @default(cuid())
+  tier PlanTier @unique
+  name String
+
+  /// Preços em centavos. priceAnnualCents = total do ciclo anual (já com desconto).
+  priceMonthlyCents Int
+  priceAnnualCents  Int
+
+  /// Limites mensais. null = ilimitado (Enterprise).
+  appointmentsPerMonth Int?
+  aiMessagesPerMonth   Int?
+  /// Máximo de usuários da equipe. 1 = só o dono. null = ilimitado.
+  maxStaff             Int?
+
+  /// Features liberadas pelo tier.
+  onlinePayments Boolean @default(false)
+  webhooks       Boolean @default(false)
+  team           Boolean @default(false)
+
+  /// Disponível para contratação / visível na página de preços.
+  active       Boolean @default(true)
+  displayOrder Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/// Assinatura do SaaS de um Tenant (1:1). Guarda um SNAPSHOT dos termos do Plan
+/// no momento da contratação - o gating lê daqui, não do Plan ao vivo, garantindo
+/// que reprecificar um Plan não muda quem já assina (grandfather).
+model Subscription {
+  id       String @id @default(cuid())
+  tenantId String @unique
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  planTier     PlanTier
+  status       SubscriptionStatus @default(PENDING)
+  billingCycle BillingCycle       @default(MONTHLY)
+
+  /// Janela do ciclo atual de cobrança.
+  currentPeriodStart DateTime?
+  currentPeriodEnd   DateTime?
+  /// Prazo da garantia de satisfação (reembolso integral até esta data, ~30d).
+  guaranteeUntil     DateTime?
+  canceledAt         DateTime?
+
+  // --- Snapshot dos termos contratados (copiado do Plan na ativação) ---
+  /// Preço efetivamente contratado, em centavos, referente ao billingCycle.
+  priceCents         Int
+  appointmentsLimit  Int?
+  aiMessagesLimit    Int?
+  maxStaff           Int?
+  featOnlinePayments Boolean @default(false)
+  featWebhooks       Boolean @default(false)
+  featTeam           Boolean @default(false)
+
+  // --- Asaas (recorrência - Fase 2) ---
+  asaasCustomerId     String?
+  asaasSubscriptionId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+}
+
+enum PlanTier {
+  ESSENCIAL
+  PROFISSIONAL
+  NEGOCIO
+  ENTERPRISE
+}
+
+enum SubscriptionStatus {
+  /// Aguardando confirmação do primeiro pagamento (Fase 2).
+  PENDING
+  /// Assinatura em dia.
+  ACTIVE
+  /// Pagamento falhou; em carência (grace) ainda com acesso.
+  PAST_DUE
+  /// Carência esgotada ou cancelada; sem acesso (bot off, dashboard read-only).
+  SUSPENDED
+  /// Cancelada pelo cliente ao fim do ciclo.
+  CANCELED
+}
+
+enum BillingCycle {
+  MONTHLY
+  ANNUAL
 }

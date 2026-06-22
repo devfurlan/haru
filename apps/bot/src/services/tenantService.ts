@@ -9,5 +9,6 @@ import prisma from '../lib/prisma.js';
 export async function findTenantByPhoneNumberId(phoneNumberId: string) {
   return prisma.tenant.findUnique({
     where: { whatsappPhoneNumberId: phoneNumberId },
+    include: { subscription: true },
   });
 }

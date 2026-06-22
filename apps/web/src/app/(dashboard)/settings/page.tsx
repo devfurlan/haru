@@ -5,6 +5,7 @@ import { getBaseUrl } from '@/lib/base-url';
 
 import { NotificationsCard } from './notifications-card';
 import { PaymentsCard } from './payments-card';
+import { PlanCard } from './plan-card';
 import { PublicBookingCard } from './public-booking-card';
 import { TimezoneCard } from './timezone-card';
 import { UsersCard, type UserRow } from './users-card';
@@ -26,6 +27,8 @@ export default async function SettingsPage() {
         <h1 className="font-serif text-2xl font-semibold tracking-tight">Configurações</h1>
         <p className="text-muted-foreground text-sm">Usuários, integrações e notificações.</p>
       </div>
+
+      <PlanCard tenant={tenant} />
 
       <UsersCard users={users as UserRow[]} currentUserId={currentUserId} />
 

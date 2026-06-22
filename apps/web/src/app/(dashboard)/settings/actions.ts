@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 
 import { prisma } from '@haru/database';
+import { hasFeature } from '@haru/billing';
 import { encryptSecret } from '@haru/payments';
 
 import { requireAdmin, requireUserAndTenant } from '@/lib/auth';
@@ -415,6 +416,12 @@ export async function connectPaymentGateway(
 ): Promise<PaymentsActionResult> {
   const { tenant } = await requireAdmin();
 
+  if (!hasFeature(tenant.subscription, 'onlinePayments')) {
+    return {
+      error: 'Pagamentos online estão disponíveis a partir do plano Profissional. Faça upgrade para ativar.',
+    };
+  }
+
   const parsed = paymentsSchema.safeParse({
     provider: formData.get('provider'),
     sandbox: formData.get('sandbox'),
@@ -572,6 +579,13 @@ export async function updateNotifications(
     return { error: parsed.error.issues[0]?.message ?? 'Dados inválidos' };
   }
 
+  // Só o webhook de notificações é gated; lembretes/templates ficam livres em todos os planos.
+  if (parsed.data.notificationWebhookUrl && !hasFeature(tenant.subscription, 'webhooks')) {
+    return {
+      error: 'Webhooks de notificação estão disponíveis a partir do plano Profissional. Faça upgrade para ativar.',
+    };
+  }
+
   await prisma.tenant.update({
     where: { id: tenant.id },
     data: {
@@ -690,6 +704,22 @@ export async function inviteUser(
     return { error: parsed.error.issues[0]?.message ?? 'Dados inválidos' };
   }
   const { name, email, phone } = parsed.data;
+
+  // Gate de equipe: feature do plano + limite de usuários (snapshot da assinatura).
+  if (!hasFeature(tenant.subscription, 'team')) {
+    return {
+      error: 'Equipe (mais de um profissional) está disponível a partir do plano Profissional. Faça upgrade para convidar.',
+    };
+  }
+  const maxStaff = tenant.subscription?.maxStaff ?? null;
+  if (maxStaff !== null) {
+    const userCount = await prisma.user.count({ where: { tenantId: tenant.id } });
+    if (userCount >= maxStaff) {
+      return {
+        error: `Seu plano permite até ${maxStaff} usuários. Faça upgrade para adicionar mais.`,
+      };
+    }
+  }
 
   const admin = getSupabaseAdmin();
 

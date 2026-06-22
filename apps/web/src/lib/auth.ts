@@ -2,11 +2,11 @@ import { cache } from 'react';
 import { redirect } from 'next/navigation';
 
 import { prisma } from '@haru/database';
-import type { Tenant, User } from '@haru/database';
+import type { Subscription, Tenant, User } from '@haru/database';
 
 import { createClient } from './supabase/server';
 
-export type CurrentUser = User & { tenant: Tenant };
+export type CurrentUser = User & { tenant: Tenant & { subscription: Subscription | null } };
 
 /**
  * Auth.user do Supabase (sem o User do Postgres).
@@ -31,7 +31,7 @@ export const getCurrentUserAndTenant = cache(async (): Promise<CurrentUser | nul
 
   const user = await prisma.user.findUnique({
     where: { authId: authUser.id },
-    include: { tenant: true },
+    include: { tenant: { include: { subscription: true } } },
   });
   return user;
 });
