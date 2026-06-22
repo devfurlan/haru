@@ -13,7 +13,6 @@ import { updateTenant, type TenantActionResult } from '../settings/actions';
 import { LogoUploader } from './logo-uploader';
 
 interface TenantCardProps {
-  tenantId: string;
   name: string;
   slug: string;
   timezone: string;
@@ -46,7 +45,7 @@ function SubmitButton() {
   );
 }
 
-export function TenantCard({ tenantId, name, slug, timezone, address, logoUrl }: TenantCardProps) {
+export function TenantCard({ name, slug, timezone, address, logoUrl }: TenantCardProps) {
   const [state, formAction] = useActionState<TenantActionResult | undefined, FormData>(
     updateTenant,
     undefined,
@@ -116,7 +115,7 @@ export function TenantCard({ tenantId, name, slug, timezone, address, logoUrl }:
           </div>
         </div>
 
-        <LogoUploader tenantId={tenantId} logoUrl={logoUrl} />
+        <LogoUploader logoUrl={logoUrl} />
 
         <form action={formAction} className="space-y-4">
           <div className="space-y-2">

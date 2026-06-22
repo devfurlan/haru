@@ -4,12 +4,10 @@ import { ImageIcon, Loader2, Upload } from 'lucide-react';
 import { useRef, useState, useTransition } from 'react';
 
 import { Button } from '@/components/ui/button';
-import { createClient } from '@/lib/supabase/client';
 
-import { removeTenantLogo, saveTenantLogo } from '../settings/actions';
+import { removeTenantLogo, uploadTenantLogo } from '../settings/actions';
 
 interface LogoUploaderProps {
-  tenantId: string;
   logoUrl: string | null;
 }
 
@@ -51,7 +49,7 @@ function toSquareWebp(file: File): Promise<Blob> {
   });
 }
 
-export function LogoUploader({ tenantId, logoUrl }: LogoUploaderProps) {
+export function LogoUploader({ logoUrl }: LogoUploaderProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<string | null>(logoUrl);
   const [error, setError] = useState<string | null>(null);
@@ -73,27 +71,16 @@ export function LogoUploader({ tenantId, logoUrl }: LogoUploaderProps) {
     setUploading(true);
     try {
       const blob = await toSquareWebp(file);
-      const supabase = createClient();
-      const path = `${tenantId}/logo-${Date.now()}.webp`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('tenant-assets')
-        .upload(path, blob, { contentType: 'image/webp', upsert: true });
-      if (uploadError) {
-        setError(uploadError.message);
-        return;
-      }
 
       const fd = new FormData();
-      fd.set('path', path);
-      const result = await saveTenantLogo(undefined, fd);
-      if (result && 'error' in result) {
+      fd.set('file', new File([blob], 'logo.webp', { type: 'image/webp' }));
+      const result = await uploadTenantLogo(fd);
+      if ('error' in result) {
         setError(result.error);
         return;
       }
 
-      const { data } = supabase.storage.from('tenant-assets').getPublicUrl(path);
-      setPreview(`${data.publicUrl}?t=${Date.now()}`);
+      setPreview(`${result.logoUrl}?t=${Date.now()}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Falha no upload');
     } finally {

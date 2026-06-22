@@ -97,41 +97,45 @@ export async function updateTenant(
 }
 
 // --- Logo do estabelecimento ---------------------------------------------
-// O upload em si acontece no cliente (canvas redimensiona pra quadrada e envia
-// direto pro bucket público tenant-assets). Estas actions só persistem/limpam a
-// URL no Tenant, sempre prefixando o path pelo tenant.id pra evitar que um
-// tenant grave URL de asset de outro.
+// O redimensionamento (canvas -> webp quadrada) acontece no cliente, mas o
+// UPLOAD é feito aqui no servidor com a service role: o browser não tem sessão
+// Supabase acessível ao JS (cookies de auth ficam no servidor), então um upload
+// client-side subiria como `anon` e a RLS de escrita do bucket barraria com
+// "new row violates row-level security policy". O path é SEMPRE prefixado pelo
+// tenant.id deste usuário — nunca confiamos em path vindo do cliente —, então
+// não há como gravar na pasta de outro tenant mesmo com a service role.
 
 const LOGO_URL_PREFIX = '/storage/v1/object/public/tenant-assets/';
+const MAX_LOGO_BYTES = 5 * 1024 * 1024; // bucket aceita até 5 MiB
 
-const logoSchema = z.object({
-  // Path dentro do bucket, ex: "<tenantId>/logo-<timestamp>.webp"
-  path: z
-    .string()
-    .min(1, 'Caminho da logo ausente')
-    .max(300)
-    .regex(/^[a-zA-Z0-9/_.-]+$/, 'Caminho inválido'),
-});
+export type LogoUploadResult = { error: string } | { ok: true; logoUrl: string };
 
-export async function saveTenantLogo(
-  _prev: TenantActionResult | undefined,
-  formData: FormData,
-): Promise<TenantActionResult> {
+export async function uploadTenantLogo(formData: FormData): Promise<LogoUploadResult> {
   const { tenant } = await requireUserAndTenant();
 
-  const parsed = logoSchema.safeParse({ path: formData.get('path') });
-  if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? 'Dados inválidos' };
+  const file = formData.get('file');
+  if (!(file instanceof File) || file.size === 0) {
+    return { error: 'Arquivo da logo ausente' };
+  }
+  if (file.size > MAX_LOGO_BYTES) {
+    return { error: 'Imagem muito grande (máx. 5 MB).' };
+  }
+  if (file.type !== 'image/webp') {
+    return { error: 'Formato inválido.' };
   }
 
-  // Garante que o path pertence a este tenant (cliente envia o path retornado
-  // pelo upload, mas não confiamos cegamente).
-  if (!parsed.data.path.startsWith(`${tenant.id}/`)) {
-    return { error: 'Caminho da logo não pertence a este estabelecimento' };
+  const path = `${tenant.id}/logo-${Date.now()}.webp`;
+  const buffer = Buffer.from(await file.arrayBuffer());
+
+  const { error: uploadError } = await getSupabaseAdmin()
+    .storage.from('tenant-assets')
+    .upload(path, buffer, { contentType: 'image/webp', upsert: true });
+  if (uploadError) {
+    return { error: uploadError.message };
   }
 
   const base = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? '').replace(/\/$/, '');
-  const logoUrl = `${base}${LOGO_URL_PREFIX}${parsed.data.path}`;
+  const logoUrl = `${base}${LOGO_URL_PREFIX}${path}`;
 
   await prisma.tenant.update({
     where: { id: tenant.id },
@@ -142,7 +146,7 @@ export async function saveTenantLogo(
   revalidatePath('/business');
   revalidatePath('/', 'layout');
   revalidatePath(`/${tenant.slug}`);
-  return { ok: true };
+  return { ok: true, logoUrl };
 }
 
 export async function removeTenantLogo(): Promise<TenantActionResult> {
@@ -155,8 +159,8 @@ export async function removeTenantLogo(): Promise<TenantActionResult> {
     if (idx !== -1) {
       const path = tenant.logoUrl.slice(idx + marker.length);
       if (path.startsWith(`${tenant.id}/`)) {
-        const supabase = await createClient();
-        await supabase.storage.from('tenant-assets').remove([path]);
+        // Remoção server-side com service role — mesmo motivo do upload.
+        await getSupabaseAdmin().storage.from('tenant-assets').remove([path]);
       }
     }
   }

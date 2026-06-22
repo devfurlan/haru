@@ -15,7 +15,6 @@ export default async function BusinessPage() {
       </div>
 
       <TenantCard
-        tenantId={tenant.id}
         name={tenant.name}
         slug={tenant.slug}
         timezone={tenant.timezone}
