@@ -19,9 +19,10 @@ export default async function AssinaturaPage() {
   const { tenant } = await requireAdmin();
   const sub = tenant.subscription;
 
-  // Planos contratáveis: ativos e com preço (Enterprise = sob consulta, fora do self-serve).
+  // Planos contratáveis no self-serve: ativos, com preço (Enterprise = sob consulta) e
+  // SEM o Essencial (esse só é atribuído pelo admin; continua no BD).
   const plans = await prisma.plan.findMany({
-    where: { active: true, priceMonthlyCents: { gt: 0 } },
+    where: { active: true, priceMonthlyCents: { gt: 0 }, tier: { not: 'ESSENCIAL' } },
     orderBy: { displayOrder: 'asc' },
     select: { tier: true, name: true, priceMonthlyCents: true, priceAnnualCents: true },
   });
@@ -69,7 +70,7 @@ export default async function AssinaturaPage() {
           />
           <p className="text-muted-foreground text-xs">
             Garantia de 30 dias: se não curtir, devolvemos o valor integral. Pagamentos processados
-            pelo Asaas — não armazenamos os dados do seu cartão.
+            pelo Asaas - não armazenamos os dados do seu cartão.
           </p>
         </>
       )}

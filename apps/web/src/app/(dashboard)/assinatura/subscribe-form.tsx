@@ -69,7 +69,7 @@ export function SubscribeForm({
     return (
       <div className="space-y-4 rounded-xl border bg-card p-6">
         <div>
-          <p className="font-medium">Quase lá — pague o Pix para ativar</p>
+          <p className="font-medium">Quase lá - pague o Pix para ativar</p>
           <p className="text-muted-foreground text-sm">
             Assim que o pagamento for confirmado, sua assinatura ativa automaticamente.
           </p>

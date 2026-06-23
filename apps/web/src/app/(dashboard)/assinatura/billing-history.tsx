@@ -5,10 +5,10 @@ function fmtBRL(cents: number): string {
 }
 
 function fmtDate(iso: string | null): string {
-  if (!iso) return '—';
+  if (!iso) return '-';
   // Datas do Asaas vêm como "YYYY-MM-DD" (sem hora) - evita shift de fuso.
   const [y, m, d] = iso.slice(0, 10).split('-');
-  return y && m && d ? `${d}/${m}/${y}` : '—';
+  return y && m && d ? `${d}/${m}/${y}` : '-';
 }
 
 /** Status bruto do Asaas → rótulo PT-BR + cor. */
@@ -60,7 +60,7 @@ export async function BillingHistory({ asaasSubscriptionId }: { asaasSubscriptio
                     fatura
                   </a>
                 ) : (
-                  '—'
+                  '-'
                 )}
               </span>
             </div>
