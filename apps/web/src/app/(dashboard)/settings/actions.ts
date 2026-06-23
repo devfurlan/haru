@@ -418,7 +418,7 @@ export async function connectPaymentGateway(
 
   if (!hasFeature(tenant.subscription, 'onlinePayments')) {
     return {
-      error: 'Pagamentos online estão disponíveis a partir do plano Profissional. Faça upgrade para ativar.',
+      error: 'Pagamentos online estão disponíveis a partir do plano Time. Faça upgrade para ativar.',
     };
   }
 
@@ -582,7 +582,7 @@ export async function updateNotifications(
   // Só o webhook de notificações é gated; lembretes/templates ficam livres em todos os planos.
   if (parsed.data.notificationWebhookUrl && !hasFeature(tenant.subscription, 'webhooks')) {
     return {
-      error: 'Webhooks de notificação estão disponíveis a partir do plano Profissional. Faça upgrade para ativar.',
+      error: 'Webhooks de notificação estão disponíveis a partir do plano Time. Faça upgrade para ativar.',
     };
   }
 
@@ -708,7 +708,7 @@ export async function inviteUser(
   // Gate de equipe: feature do plano + limite de usuários (snapshot da assinatura).
   if (!hasFeature(tenant.subscription, 'team')) {
     return {
-      error: 'Equipe (mais de um profissional) está disponível a partir do plano Profissional. Faça upgrade para convidar.',
+      error: 'Equipe (mais de um profissional) está disponível a partir do plano Time. Faça upgrade para convidar.',
     };
   }
   const maxStaff = tenant.subscription?.maxStaff ?? null;

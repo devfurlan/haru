@@ -7,8 +7,9 @@ import { HowItWorks } from '@/components/marketing/how-it-works';
 import { Pricing } from '@/components/marketing/pricing';
 import { Roadmap } from '@/components/marketing/roadmap';
 
-// Revalida periodicamente: a seção de planos lê a tabela Plan (catálogo dinâmico).
-export const revalidate = 600;
+// Sempre fresco do BD: a seção de planos lê a tabela Plan (catálogo dinâmico, editável
+// no admin). Sem cache de rota pra renomear/repreçar refletir na hora.
+export const dynamic = 'force-dynamic';
 
 export default function HomePage() {
   return (

@@ -65,14 +65,14 @@ export async function Pricing() {
             <div>
               <p className="font-semibold">Precisa de um plano customizado?</p>
               <p className="text-sm text-ink-soft">
-                Acima do Negócio? Fale com o time que a gente monta um plano sob medida pra sua
+                Acima do Multi? Fale com o time que a gente monta um plano sob medida pra sua
                 operação.
               </p>
             </div>
           </div>
           <InterestDialog
-            title="Vamos montar seu plano Enterprise"
-            description="O Enterprise é pra quem precisa de mais do que o Negócio. Deixe seus dados que nosso time monta um plano sob medida pra sua operação."
+            title="Vamos montar seu plano sob medida"
+            description="O Custom é pra quem precisa de mais do que o Multi. Deixe seus dados que nosso time monta um plano sob medida pra sua operação."
           >
             <Button variant="ink" className="shrink-0 rounded-full">
               Falar com a gente

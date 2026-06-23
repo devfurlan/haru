@@ -8,10 +8,10 @@ import type { BillingCycle, Plan, PlanTier } from '@haru/database';
  */
 
 export const TIER_LABEL: Record<PlanTier, string> = {
-  ESSENCIAL: 'Essencial',
-  PROFISSIONAL: 'Profissional',
-  NEGOCIO: 'Negócio',
-  ENTERPRISE: 'Enterprise',
+  ESSENCIAL: 'Solo',
+  PROFISSIONAL: 'Time',
+  NEGOCIO: 'Multi',
+  ENTERPRISE: 'Custom',
 };
 
 export interface PlanSnapshot {

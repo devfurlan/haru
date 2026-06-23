@@ -9,10 +9,10 @@ export type FeatureKey = 'onlinePayments' | 'webhooks' | 'team';
 
 /** Nome amigável (PT-BR) de cada tier, para mensagens de upgrade. */
 export const TIER_LABEL: Record<PlanTier, string> = {
-  ESSENCIAL: 'Essencial',
-  PROFISSIONAL: 'Profissional',
-  NEGOCIO: 'Negócio',
-  ENTERPRISE: 'Enterprise',
+  ESSENCIAL: 'Solo',
+  PROFISSIONAL: 'Time',
+  NEGOCIO: 'Multi',
+  ENTERPRISE: 'Custom',
 };
 
 /** Tier mínimo que libera cada feature - usado em mensagens "Disponível no plano X". */

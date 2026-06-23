@@ -5,8 +5,8 @@ export const metadata = {
   description: 'Planos do Demandaê — agendamento e atendimento por IA no WhatsApp.',
 };
 
-// Catálogo dinâmico (tabela Plan): revalida periodicamente em vez de fixar no build.
-export const revalidate = 600;
+// Sempre fresco do BD (catálogo dinâmico, editável no admin) - sem cache de rota.
+export const dynamic = 'force-dynamic';
 
 export default function PrecosPage() {
   return <Pricing />;

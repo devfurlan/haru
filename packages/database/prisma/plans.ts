@@ -25,7 +25,7 @@ interface PlanSeed {
 export const PLAN_SEED: PlanSeed[] = [
   {
     tier: 'ESSENCIAL',
-    name: 'Essencial',
+    name: 'Solo',
     priceMonthlyCents: 6900,
     priceAnnualCents: 66240,
     appointmentsPerMonth: 250,
@@ -38,7 +38,7 @@ export const PLAN_SEED: PlanSeed[] = [
   },
   {
     tier: 'PROFISSIONAL',
-    name: 'Profissional',
+    name: 'Time',
     priceMonthlyCents: 14900,
     priceAnnualCents: 143040,
     appointmentsPerMonth: 1000,
@@ -51,7 +51,7 @@ export const PLAN_SEED: PlanSeed[] = [
   },
   {
     tier: 'NEGOCIO',
-    name: 'Negócio',
+    name: 'Multi',
     priceMonthlyCents: 34900,
     priceAnnualCents: 335040,
     appointmentsPerMonth: 2500,
@@ -64,7 +64,7 @@ export const PLAN_SEED: PlanSeed[] = [
   },
   {
     tier: 'ENTERPRISE',
-    name: 'Enterprise',
+    name: 'Custom',
     priceMonthlyCents: 0,
     priceAnnualCents: 0,
     appointmentsPerMonth: null,
