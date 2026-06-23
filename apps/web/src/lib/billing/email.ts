@@ -19,7 +19,7 @@ async function sendEmail(to: string, subject: string, html: string): Promise<boo
   const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.BILLING_EMAIL_FROM;
   if (!apiKey || !from) {
-    console.warn('[billing-email] RESEND_API_KEY/BILLING_EMAIL_FROM ausentes — e-mail não enviado');
+    console.warn('[billing-email] RESEND_API_KEY/BILLING_EMAIL_FROM ausentes - e-mail não enviado');
     return false;
   }
   try {
@@ -64,22 +64,22 @@ function shell(title: string, body: string, cta: string): string {
       <p style="margin:24px 0">
         <a href="${link}" style="background:#1a1a1a;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;font-size:14px">${cta}</a>
       </p>
-      <p style="font-size:12px;color:#888">Demandaê — agendamento e atendimento por IA no WhatsApp.</p>
+      <p style="font-size:12px;color:#888">Demandaê - agendamento e atendimento por IA no WhatsApp.</p>
     </div>`;
 }
 
-/** Pagamento da assinatura falhou — acesso pausado (sem carência). */
+/** Pagamento da assinatura falhou - acesso pausado (sem carência). */
 export async function emailPaymentFailed(tenantId: string): Promise<void> {
   const o = await ownerOf(tenantId);
   if (!o) return;
   const hi = o.name ? `Olá, ${o.name}!` : 'Olá!';
   await sendEmail(
     o.email,
-    'Falha no pagamento da sua assinatura — Demandaê',
+    'Falha no pagamento da sua assinatura - Demandaê',
     shell(
       'Não conseguimos confirmar seu pagamento',
       `${hi} O pagamento da assinatura de <strong>${o.tenantName}</strong> não foi confirmado e o acesso ` +
-        `foi pausado. Regularize para reativar o bot e o painel — leva menos de um minuto.`,
+        `foi pausado. Regularize para reativar o bot e o painel - leva menos de um minuto.`,
       'Regularizar pagamento',
     ),
   );
@@ -92,7 +92,7 @@ export async function emailSubscriptionActivated(tenantId: string): Promise<void
   const hi = o.name ? `Olá, ${o.name}!` : 'Olá!';
   await sendEmail(
     o.email,
-    'Assinatura ativada 🎉 — Demandaê',
+    'Assinatura ativada 🎉 - Demandaê',
     shell(
       'Tudo certo, sua assinatura está ativa!',
       `${hi} O pagamento de <strong>${o.tenantName}</strong> foi confirmado. Já pode usar tudo do seu plano.`,
@@ -112,11 +112,11 @@ export async function emailPaymentReceipt(tenantId: string, amountCents: number 
       : '';
   await sendEmail(
     o.email,
-    'Recibo da sua assinatura — Demandaê',
+    'Recibo da sua assinatura - Demandaê',
     shell(
       'Pagamento recebido',
       `${hi} Recebemos o pagamento${valor} da assinatura de <strong>${o.tenantName}</strong>. ` +
-        `Sua assinatura segue ativa — obrigado!`,
+        `Sua assinatura segue ativa - obrigado!`,
       'Ver assinatura',
     ),
   );
@@ -129,7 +129,7 @@ export async function emailSubscriptionSuspended(tenantId: string): Promise<void
   const hi = o.name ? `Olá, ${o.name}!` : 'Olá!';
   await sendEmail(
     o.email,
-    'Sua assinatura foi suspensa — Demandaê',
+    'Sua assinatura foi suspensa - Demandaê',
     shell(
       'Assinatura suspensa',
       `${hi} A assinatura de <strong>${o.tenantName}</strong> foi suspensa e o acesso está bloqueado. ` +
