@@ -88,6 +88,9 @@ export async function createCustomer(input: CustomerInput): Promise<string> {
       email: input.email ?? undefined,
       mobilePhone: input.phoneE164 ? toNationalPhone(input.phoneE164) : undefined,
       externalReference: input.externalReference,
+      // NÃO deixar o Asaas notificar o tenant (e-mail/SMS de cobrança). Quem fala com
+      // o cliente sobre billing somos nós (e-mails via Resend). Desliga tudo no customer.
+      notificationDisabled: true,
     }),
   });
   return customer.id;
