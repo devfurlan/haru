@@ -35,8 +35,8 @@ export function SignupForm() {
         />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="ownerName">Seu nome (opcional)</Label>
-        <Input id="ownerName" name="ownerName" type="text" autoComplete="name" />
+        <Label htmlFor="ownerName">Seu nome</Label>
+        <Input id="ownerName" name="ownerName" type="text" autoComplete="name" required />
       </div>
       <div className="space-y-2">
         <Label htmlFor="email">Email</Label>

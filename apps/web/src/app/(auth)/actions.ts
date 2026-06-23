@@ -40,9 +40,9 @@ const signUpSchema = z.object({
   businessName: z.string().min(2, 'Nome do estabelecimento muito curto').max(80),
   ownerName: z
     .string()
-    .max(80)
-    .optional()
-    .transform((v) => (v && v.trim() ? v.trim() : undefined)),
+    .trim()
+    .min(2, 'Informe seu nome')
+    .max(80),
 });
 
 export async function signUp(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
@@ -72,7 +72,7 @@ export async function signUp(_prev: ActionResult, formData: FormData): Promise<A
         data: {
           authId: data.user!.id,
           email,
-          name: ownerName ?? null,
+          name: ownerName,
           role: 'OWNER',
           // Dono já define a senha no signup - nasce ativo (explícito p/ não
           // depender do default do schema).
