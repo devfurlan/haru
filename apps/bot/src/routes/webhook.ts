@@ -3,8 +3,6 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { isSubscriptionActive } from '@haru/billing';
 
 import { Sentry } from '../instrument.js';
-import { sendMenu, sendServices } from '../flows/menu.js';
-import { handleSchedulingFlow } from '../flows/scheduling.js';
 import { env } from '../lib/env.js';
 import { debounceMessage } from '../lib/messageDebouncer.js';
 import { transcribeAudio } from '../lib/openai/audio.js';
@@ -264,53 +262,36 @@ async function routeMessage(
     return;
   }
 
+  // A conversa é SEMPRE conduzida pelo LLM, em linguagem natural - sem menu de
+  // botões. Primeira mensagem, retomada ou texto fora de fluxo: tudo entra no
+  // mesmo fluxo conversacional, pra o bot entender o que a pessoa escreveu e
+  // responder de verdade. (Cliques em botões legados chegam como texto via
+  // `button_reply.title`, então também caem aqui naturalmente.)
   const state = await getConversation(phoneNumberId, phone);
 
-  // Cliques nos botões do menu
-  if (buttonId) {
-    switch (buttonId) {
-      case 'schedule': {
-        const { conversationId, contactId } = await getOrCreateConversation(
-          tenantId,
-          phone,
-          contactName,
-        );
-        await setConversation(phoneNumberId, phone, {
-          tenantId,
-          flow: 'scheduling',
-          conversationId,
-          contactId,
-          createdAt: new Date().toISOString(),
-        });
-        saveMessage(conversationId, 'INBOUND', 'Marcar horário').catch(console.error);
-        return handleSchedulingFlow(phoneNumberId, phone, 'Quero agendar um horário', contactName, {
-          skipInboundSave: true,
-        });
-      }
-      case 'services':
-        return sendServices(tenantId, phoneNumberId, phone, contactName);
-      default:
-        return sendMenu(tenantId, phoneNumberId, phone, contactName);
-    }
+  if (!state || state.flow !== 'scheduling') {
+    const { conversationId, contactId } = await getOrCreateConversation(
+      tenantId,
+      phone,
+      contactName,
+    );
+    await setConversation(phoneNumberId, phone, {
+      tenantId,
+      flow: 'scheduling',
+      conversationId,
+      contactId,
+      createdAt: state?.createdAt ?? new Date().toISOString(),
+      // Preserva o encadeamento do LLM ao migrar um estado legado ('menu').
+      lastResponseId: state?.lastResponseId,
+      pendingAssistantNote: state?.pendingAssistantNote,
+    });
   }
 
-  // Dentro de um fluxo ativo
-  if (state) {
-    switch (state.flow) {
-      case 'scheduling':
-        return debounceMessage({
-          phoneNumberId,
-          phone,
-          text,
-          contactName,
-          skipInboundSave: audioHandled,
-        });
-      case 'menu':
-      default:
-        return sendMenu(tenantId, phoneNumberId, phone, contactName);
-    }
-  }
-
-  // Primeira interação
-  return sendMenu(tenantId, phoneNumberId, phone, contactName);
+  return debounceMessage({
+    phoneNumberId,
+    phone,
+    text,
+    contactName,
+    skipInboundSave: audioHandled,
+  });
 }
