@@ -418,7 +418,8 @@ export async function connectPaymentGateway(
 
   if (!hasFeature(tenant.subscription, 'onlinePayments')) {
     return {
-      error: 'Pagamentos online estão disponíveis a partir do plano Time. Faça upgrade para ativar.',
+      error:
+        'Pagamentos online estão disponíveis a partir do plano Time. Faça upgrade para ativar.',
     };
   }
 
@@ -533,6 +534,8 @@ const notificationsSchema = z
       .refine((n) => Number.isInteger(n) && n >= 0 && n <= 168, {
         message: 'Use um valor entre 0 e 168 (uma semana)',
       }),
+    // Checkbox: presente ("on") = ligado; ausente = desligado.
+    handoffEmailEnabled: z.preprocess((v) => v === 'on' || v === 'true', z.boolean()),
     reminderTemplateName: templateNameSchema,
     reminderTemplateLanguage: templateLanguageSchema,
     cancelTemplateName: templateNameSchema,
@@ -568,6 +571,7 @@ export async function updateNotifications(
   const parsed = notificationsSchema.safeParse({
     notificationWebhookUrl: formData.get('notificationWebhookUrl'),
     reminderHoursBefore: formData.get('reminderHoursBefore'),
+    handoffEmailEnabled: formData.get('handoffEmailEnabled'),
     reminderTemplateName: formData.get('reminderTemplateName'),
     reminderTemplateLanguage: formData.get('reminderTemplateLanguage'),
     cancelTemplateName: formData.get('cancelTemplateName'),
@@ -582,7 +586,8 @@ export async function updateNotifications(
   // Só o webhook de notificações é gated; lembretes/templates ficam livres em todos os planos.
   if (parsed.data.notificationWebhookUrl && !hasFeature(tenant.subscription, 'webhooks')) {
     return {
-      error: 'Webhooks de notificação estão disponíveis a partir do plano Time. Faça upgrade para ativar.',
+      error:
+        'Webhooks de notificação estão disponíveis a partir do plano Time. Faça upgrade para ativar.',
     };
   }
 
@@ -591,6 +596,7 @@ export async function updateNotifications(
     data: {
       notificationWebhookUrl: parsed.data.notificationWebhookUrl,
       reminderHoursBefore: parsed.data.reminderHoursBefore,
+      handoffEmailEnabled: parsed.data.handoffEmailEnabled,
       reminderTemplateName: parsed.data.reminderTemplateName,
       reminderTemplateLanguage: parsed.data.reminderTemplateLanguage,
       cancelTemplateName: parsed.data.cancelTemplateName,
@@ -708,7 +714,8 @@ export async function inviteUser(
   // Gate de equipe: feature do plano + limite de usuários (snapshot da assinatura).
   if (!hasFeature(tenant.subscription, 'team')) {
     return {
-      error: 'Equipe (mais de um profissional) está disponível a partir do plano Time. Faça upgrade para convidar.',
+      error:
+        'Equipe (mais de um profissional) está disponível a partir do plano Time. Faça upgrade para convidar.',
     };
   }
   const maxStaff = tenant.subscription?.maxStaff ?? null;

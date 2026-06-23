@@ -64,6 +64,12 @@ function isManual(conv: ConversationListItem): boolean {
   return conv.handoffActive && isWindowOpen(conv);
 }
 
+/// Handoff aberto pelo próprio cliente ("quero falar com humano") e ninguém
+/// assumiu ainda (sem handoffByName). Estado de espera - o dono precisa entrar.
+function isAwaitingHuman(conv: ConversationListItem): boolean {
+  return isManual(conv) && !conv.handoffByName;
+}
+
 /// Mensagem de erro por motivo de falha no envio.
 function sendErrorMessage(reason?: string, waCode?: number, httpStatus?: number): string {
   const code = waCode ? ` (código WhatsApp: ${waCode})` : '';
@@ -268,10 +274,8 @@ export function ConversationInbox({
 
       channel = supabase
         .channel('conv-inbox')
-        .on(
-          'postgres_changes',
-          { event: '*', schema: 'public', table: 'Conversation' },
-          () => refetchListDebounced(),
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'Conversation' }, () =>
+          refetchListDebounced(),
         )
         .on(
           'postgres_changes',
@@ -305,19 +309,19 @@ export function ConversationInbox({
       {/* Lista */}
       <aside
         className={cn(
-          'w-full shrink-0 flex-col border-r bg-card md:flex md:w-80',
+          'bg-card w-full shrink-0 flex-col border-r md:flex md:w-80',
           selectedConv ? 'hidden md:flex' : 'flex',
         )}
       >
         <div className="border-b px-4 py-3">
           <h1 className="text-base font-semibold">Conversas</h1>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-muted-foreground text-xs">
             {conversations.length === 0 ? 'Nenhuma ainda' : `${conversations.length} contato(s)`}
           </p>
         </div>
         <div className="flex-1 overflow-y-auto">
           {conversations.length === 0 ? (
-            <div className="p-6 text-sm text-muted-foreground">
+            <div className="text-muted-foreground p-6 text-sm">
               Quando o bot receber mensagens, os contatos aparecem aqui.
             </div>
           ) : (
@@ -335,7 +339,7 @@ export function ConversationInbox({
                         active ? 'bg-accent' : 'hover:bg-muted/60',
                       )}
                     >
-                      <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-medium text-primary">
+                      <div className="bg-primary/10 text-primary flex size-10 shrink-0 items-center justify-center rounded-full text-sm font-medium">
                         {getInitials(conv)}
                       </div>
                       <div className="min-w-0 flex-1">
@@ -352,7 +356,7 @@ export function ConversationInbox({
                             <span
                               className={cn(
                                 'shrink-0 text-xs',
-                                unread ? 'font-medium text-primary' : 'text-muted-foreground',
+                                unread ? 'text-primary font-medium' : 'text-muted-foreground',
                               )}
                             >
                               {formatRelativeShort(new Date(conv.lastMessageAt))}
@@ -378,12 +382,18 @@ export function ConversationInbox({
                             )}
                           </div>
                           {unread && (
-                            <span className="size-2 shrink-0 rounded-full bg-primary" aria-label="não lida" />
+                            <span
+                              className="bg-primary size-2 shrink-0 rounded-full"
+                              aria-label="não lida"
+                            />
                           )}
                         </div>
                         {isManual(conv) && (
-                          <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-coral/10 px-2 py-0.5 text-[10px] font-medium text-coral">
-                            ● atendimento manual
+                          <span className="bg-coral/10 text-coral mt-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium">
+                            ●{' '}
+                            {isAwaitingHuman(conv)
+                              ? 'cliente pediu atendente'
+                              : 'atendimento manual'}
                           </span>
                         )}
                       </div>
@@ -397,10 +407,12 @@ export function ConversationInbox({
       </aside>
 
       {/* Thread */}
-      <section className={cn('flex-1 flex-col bg-muted/20', selectedConv ? 'flex' : 'hidden md:flex')}>
+      <section
+        className={cn('bg-muted/20 flex-1 flex-col', selectedConv ? 'flex' : 'hidden md:flex')}
+      >
         {selectedConv ? (
           <>
-            <header className="flex items-center gap-3 border-b bg-card px-4 py-3 md:px-6">
+            <header className="bg-card flex items-center gap-3 border-b px-4 py-3 md:px-6">
               <button
                 type="button"
                 onClick={() => setSelectedId(null)}
@@ -409,13 +421,13 @@ export function ConversationInbox({
               >
                 ←
               </button>
-              <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-medium text-primary">
+              <div className="bg-primary/10 text-primary flex size-9 shrink-0 items-center justify-center rounded-full text-sm font-medium">
                 {getInitials(selectedConv)}
               </div>
               <div className="min-w-0">
                 <div className="truncate text-sm font-semibold">{displayName(selectedConv)}</div>
                 {selectedConv.contactName && (
-                  <div className="truncate text-xs text-muted-foreground">
+                  <div className="text-muted-foreground truncate text-xs">
                     {formatPhoneBR(selectedConv.contactPhone)}
                   </div>
                 )}
@@ -446,21 +458,24 @@ export function ConversationInbox({
             </header>
             <div className="flex-1 space-y-2 overflow-y-auto p-6">
               {messages.length === 0 ? (
-                <div className="py-10 text-center text-sm text-muted-foreground">
+                <div className="text-muted-foreground py-10 text-center text-sm">
                   Sem mensagens nesta conversa.
                 </div>
               ) : (
                 messages.map((msg) => (
                   <div
                     key={msg.id}
-                    className={cn('flex', msg.direction === 'INBOUND' ? 'justify-start' : 'justify-end')}
+                    className={cn(
+                      'flex',
+                      msg.direction === 'INBOUND' ? 'justify-start' : 'justify-end',
+                    )}
                   >
                     <div
                       className={cn(
                         'max-w-[75%] rounded-2xl px-3 py-2 text-sm shadow-sm',
                         msg.direction === 'INBOUND'
-                          ? 'rounded-bl-md bg-card'
-                          : 'rounded-br-md bg-primary text-primary-foreground',
+                          ? 'bg-card rounded-bl-md'
+                          : 'bg-primary text-primary-foreground rounded-br-md',
                       )}
                     >
                       <div className="whitespace-pre-wrap break-words">{msg.body}</div>
@@ -481,7 +496,7 @@ export function ConversationInbox({
               <div ref={endRef} />
             </div>
             {/* Composer - só responde manualmente em modo handoff (silêncio do bot) */}
-            <footer className="border-t bg-card px-4 py-3 md:px-6">
+            <footer className="bg-card border-t px-4 py-3 md:px-6">
               {isManual(selectedConv) ? (
                 <div className="flex items-end gap-2">
                   <textarea
@@ -495,7 +510,7 @@ export function ConversationInbox({
                     }}
                     rows={1}
                     placeholder="Escreva uma resposta…"
-                    className="max-h-32 min-h-9 flex-1 resize-none rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                    className="border-input bg-background focus-visible:ring-ring/50 max-h-32 min-h-9 flex-1 resize-none rounded-md border px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2"
                   />
                   <Button
                     type="button"
@@ -508,7 +523,7 @@ export function ConversationInbox({
                 </div>
               ) : isWindowOpen(selectedConv) ? (
                 <div className="flex items-center justify-between gap-3">
-                  <span className="text-xs text-muted-foreground">
+                  <span className="text-muted-foreground text-xs">
                     O bot está atendendo. Assuma a conversa para responder manualmente.
                   </span>
                   <Button
@@ -522,16 +537,16 @@ export function ConversationInbox({
                   </Button>
                 </div>
               ) : (
-                <span className="text-xs text-muted-foreground">
+                <span className="text-muted-foreground text-xs">
                   O cliente não manda mensagem há mais de 24h. O WhatsApp só libera resposta livre
                   dentro desse prazo - aguarde ele escrever de novo para poder responder.
                 </span>
               )}
-              {sendError && <p className="mt-2 text-xs text-destructive">{sendError}</p>}
+              {sendError && <p className="text-destructive mt-2 text-xs">{sendError}</p>}
             </footer>
           </>
         ) : (
-          <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
+          <div className="text-muted-foreground flex flex-1 items-center justify-center text-sm">
             Selecione uma conversa à esquerda.
           </div>
         )}

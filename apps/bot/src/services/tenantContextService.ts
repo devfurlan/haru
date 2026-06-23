@@ -75,21 +75,21 @@ function formatBirthDate(date: Date): string {
 }
 
 /**
- * Monta o snapshot do tenant (serviços, horários, agendamentos próximos) que vai
- * no `primerContext` da primeira chamada à Responses API. Como a Responses API
- * encadeia turnos via `previous_response_id`, esse contexto só precisa ser
- * enviado uma vez por sessão.
+ * Snapshot ESTÁTICO do tenant (nome, serviços, cadastro do cliente). Vai no
+ * `primerContext` só na PRIMEIRA chamada à Responses API - como ela encadeia
+ * turnos via `previous_response_id`, esse contexto não muda durante a sessão e
+ * só precisa ser enviado uma vez.
  *
- * Se `contactId` for fornecido, inclui também a seção "## Seus agendamentos"
- * com os agendamentos futuros DESTE contato - essencial pro fluxo de
- * cancelamento (LLM precisa do ID `[apt_...]` pra chamar `cancel_appointment`).
+ * O que depende de "agora" (data atual, dias disponíveis, agendamentos) NÃO
+ * entra aqui - fica em `buildLiveContext`, reenviado a cada turno. Misturar os
+ * dois congelaria a data no início da conversa: uma sessão que atravessa a
+ * meia-noite passaria a achar que "hoje" é o dia em que começou.
  */
-export async function buildTenantContext(tenantId: string, contactId?: string): Promise<string> {
+export async function buildTenantPrimer(tenantId: string, contactId?: string): Promise<string> {
   const tenant = await prisma.tenant.findUniqueOrThrow({
     where: { id: tenantId },
     include: {
       services: { where: { active: true }, orderBy: { name: 'asc' } },
-      scheduleBlocks: { orderBy: [{ weekday: 'asc' }, { startMinute: 'asc' }] },
     },
   });
 
@@ -98,11 +98,14 @@ export async function buildTenantContext(tenantId: string, contactId?: string): 
   lines.push('## Estabelecimento');
   lines.push(`Nome: ${tenant.name}`);
   lines.push(`Fuso horário: ${tenant.timezone}`);
-  lines.push(`Data/hora atual: ${formatNowInTimezone(tenant.timezone)}`);
   lines.push(
     tenant.paymentProvider
       ? 'Pagamento online: disponível (Pix e cartão pelo chat após o agendamento)'
       : 'Pagamento online: indisponível (não ofereça pagamento)',
+  );
+  lines.push(
+    'Atenção: a data de hoje e os dias/horários disponíveis vêm na nota "AGORA" de ' +
+      'cada turno - use SEMPRE a mais recente, nunca uma data citada antes na conversa.',
   );
   lines.push('');
 
@@ -123,6 +126,69 @@ export async function buildTenantContext(tenantId: string, contactId?: string): 
   }
   lines.push('');
 
+  // Cadastro DESTE contato (o nome/email/nascimento não mudam a cada turno; se
+  // o cliente atualizar via save_customer_profile, o próprio LLM já sabe disso).
+  if (contactId) {
+    const contact = await prisma.contact.findUnique({
+      where: { id: contactId },
+      select: { name: true, phone: true, email: true, birthDate: true, profileCompletedAt: true },
+    });
+
+    lines.push('## Cadastro do cliente');
+    lines.push(`Telefone: ${contact?.phone ?? '(desconhecido)'} (já temos - não peça)`);
+    lines.push(`Nome: ${contact?.name ?? '(não informado)'}`);
+    lines.push(`Email: ${contact?.email ?? '(não informado)'}`);
+    lines.push(
+      `Data de nascimento: ${contact?.birthDate ? formatBirthDate(contact.birthDate) : '(não informado)'}`,
+    );
+    if (contact?.profileCompletedAt) {
+      lines.push(
+        'Status: cadastro confirmado. Se o nome estiver correto, NÃO confirme de novo - siga direto.',
+      );
+    } else {
+      lines.push(
+        'Status: cadastro ainda NÃO confirmado. Antes de agendar, confirme o nome (se já houver, ' +
+          'pergunte "posso te chamar de X?") e ofereça email e data de nascimento (OPCIONAIS, pode ' +
+          'pular). Peça a data como brasileiro ("qual sua data de nascimento?") e aceite qualquer ' +
+          'jeito natural (21/03/1993, "21 de março de 93"); NUNCA peça nem repita "YYYY-MM-DD". ' +
+          'Depois chame save_customer_profile.',
+      );
+    }
+  }
+
+  return lines.join('\n').trim();
+}
+
+/**
+ * Contexto VIVO (depende de "agora"): data/hora atual, próximos dias
+ * disponíveis, agendamentos e bloqueios. Reenviado em TODO turno (via
+ * `systemNote`), porque tudo aqui muda com o passar do tempo - e o
+ * `previous_response_id` sozinho não atualizaria nada disso.
+ *
+ * Se `contactId` for fornecido, inclui "## Seus agendamentos" com os IDs
+ * `[apt_...]` do próprio cliente - necessários pra cancelar/remarcar.
+ */
+export async function buildLiveContext(tenantId: string, contactId?: string): Promise<string> {
+  const tenant = await prisma.tenant.findUniqueOrThrow({
+    where: { id: tenantId },
+    include: {
+      scheduleBlocks: { orderBy: [{ weekday: 'asc' }, { startMinute: 'asc' }] },
+    },
+  });
+
+  const lines: string[] = [];
+  const now = new Date();
+  const today = civilDateInTimezone(now, tenant.timezone);
+  const dd = String(today.day).padStart(2, '0');
+  const mm = String(today.month).padStart(2, '0');
+
+  // Cabeçalho enfático: a conversa encadeada pode carregar datas antigas; esta
+  // é a fonte da verdade do "hoje".
+  lines.push('## AGORA (fonte da verdade - ignore qualquer data citada antes na conversa)');
+  lines.push(`Data/hora atual: ${formatNowInTimezone(tenant.timezone)}`);
+  lines.push(`Hoje é ${WEEKDAY_NAMES[today.weekday]}, ${dd}/${mm}.`);
+  lines.push('');
+
   // Agrupa blocos por weekday (0=domingo … 6=sábado)
   const byDay = new Map<number, { startMinute: number; endMinute: number }[]>();
   for (let i = 0; i < 7; i++) byDay.set(i, []);
@@ -135,24 +201,24 @@ export async function buildTenantContext(tenantId: string, contactId?: string): 
   // chegava a oferecer datas já passadas. Entregando as datas prontas, ele só
   // copia - nunca calcula. Dias fechados/passados simplesmente não aparecem.
   const HORIZON_DAYS = 14;
-  const today = civilDateInTimezone(new Date(), tenant.timezone);
   // Meio-dia UTC do dia civil de hoje: longe o suficiente das viradas pra somar
   // dias com aritmética de UTC sem cair em DST (o Brasil não usa, mas é seguro).
   const cursor = new Date(Date.UTC(today.year, today.month - 1, today.day, 12, 0, 0));
 
-  lines.push('## Próximos dias disponíveis (ofereça SOMENTE estas datas)');
+  lines.push('## Próximos dias disponíveis (ofereça SOMENTE estas datas; a primeira é HOJE)');
   let openDays = 0;
   for (let i = 0; i < HORIZON_DAYS; i++) {
     const d = new Date(cursor.getTime() + i * 24 * 60 * 60 * 1000);
     const civil = civilDateInTimezone(d, tenant.timezone);
     const blocks = byDay.get(civil.weekday) ?? [];
     if (blocks.length === 0) continue; // dia fechado: não lista
-    const dd = String(civil.day).padStart(2, '0');
-    const mm = String(civil.month).padStart(2, '0');
+    const cdd = String(civil.day).padStart(2, '0');
+    const cmm = String(civil.month).padStart(2, '0');
     const ranges = blocks
-      .map((b) => `${minutesToHHMM(b.startMinute)}–${minutesToHHMM(b.endMinute)}`)
+      .map((b) => `${minutesToHHMM(b.startMinute)} às ${minutesToHHMM(b.endMinute)}`)
       .join(', ');
-    lines.push(`- ${WEEKDAY_NAMES[civil.weekday]} ${dd}/${mm}: ${ranges}`);
+    const todayTag = i === 0 ? ' (HOJE)' : '';
+    lines.push(`- ${WEEKDAY_NAMES[civil.weekday]} ${cdd}/${cmm}${todayTag}: ${ranges}`);
     openDays++;
   }
   if (openDays === 0) {
@@ -161,7 +227,6 @@ export async function buildTenantContext(tenantId: string, contactId?: string): 
   lines.push('');
 
   // Próximos agendamentos (7 dias) - pra LLM não oferecer slots ocupados
-  const now = new Date();
   const horizon = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
   const appointments = await prisma.appointment.findMany({
     where: {
@@ -207,35 +272,9 @@ export async function buildTenantContext(tenantId: string, contactId?: string): 
       );
     }
   }
-  lines.push('');
 
-  // Cadastro DESTE contato + agendamentos dele.
+  // Agendamentos DESTE contato (com IDs [apt_...] pra cancelar/remarcar).
   if (contactId) {
-    const contact = await prisma.contact.findUnique({
-      where: { id: contactId },
-      select: { name: true, phone: true, email: true, birthDate: true, profileCompletedAt: true },
-    });
-
-    lines.push('## Cadastro do cliente');
-    lines.push(`Telefone: ${contact?.phone ?? '(desconhecido)'} (já temos - não peça)`);
-    lines.push(`Nome: ${contact?.name ?? '(não informado)'}`);
-    lines.push(`Email: ${contact?.email ?? '(não informado)'}`);
-    lines.push(
-      `Data de nascimento: ${contact?.birthDate ? formatBirthDate(contact.birthDate) : '(não informado)'}`,
-    );
-    if (contact?.profileCompletedAt) {
-      lines.push(
-        'Status: cadastro confirmado. Se o nome estiver correto, NÃO confirme de novo - siga direto.',
-      );
-    } else {
-      lines.push(
-        'Status: cadastro ainda NÃO confirmado. Antes de agendar, confirme o nome (se já houver, ' +
-          'pergunte "posso te chamar de X?") e ofereça email e data de nascimento (OPCIONAIS, pode ' +
-          'pular). Depois chame save_customer_profile.',
-      );
-    }
-    lines.push('');
-
     const contactAppts = await prisma.appointment.findMany({
       where: {
         tenantId,
@@ -253,6 +292,7 @@ export async function buildTenantContext(tenantId: string, contactId?: string): 
       MONTHLY: 'mensal',
     };
 
+    lines.push('');
     lines.push('## Seus agendamentos (deste cliente)');
     if (contactAppts.length === 0) {
       lines.push('(nenhum)');
@@ -270,5 +310,5 @@ export async function buildTenantContext(tenantId: string, contactId?: string): 
     }
   }
 
-  return lines.join('\n');
+  return lines.join('\n').trim();
 }

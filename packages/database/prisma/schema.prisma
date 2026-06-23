@@ -51,6 +51,9 @@ model Tenant {
   /// Horas antes do horário marcado para o bot enviar lembrete via WhatsApp.
   /// 0 = lembretes desativados.
   reminderHoursBefore        Int     @default(24)
+  /// Avisar o dono por e-mail quando um cliente pedir atendimento humano
+  /// (handoff). O aviso no painel/realtime é sempre enviado; só o e-mail é opcional.
+  handoffEmailEnabled        Boolean @default(true)
   /// Templates aprovados na Meta. Quando definidos, mensagens são enviadas via
   /// template em vez de freeform - escapam da regra das 24h. Todos esperam
   /// 3 variáveis no body: {{1}}=nome do cliente, {{2}}=data/hora formatada,

@@ -32,9 +32,21 @@ export async function sendMenu(
     createdAt: new Date().toISOString(),
   });
 
-  const body = 'Olá! Como posso te ajudar?';
+  const tenant = await prisma.tenant.findUnique({
+    where: { id: tenantId },
+    select: { name: true },
+  });
+
+  // Saudação calorosa e em linguagem simples. Usa o primeiro nome de quem
+  // escreveu (quando o WhatsApp manda) pra soar como gente, não como robô.
+  const firstName = contactName?.trim().split(/\s+/)[0];
+  const hello = firstName ? `Oi, ${firstName}! 😊` : 'Oi! 😊';
+  const place = tenant?.name ? ` Aqui é da *${tenant.name}*.` : '';
+  const body =
+    `${hello}${place} Que bom falar com você!\n\n` +
+    'É bem fácil: toca num dos botões aqui embaixo 👇 que eu te ajudo.';
   const buttons: InteractiveButton[] = [
-    { type: 'reply', reply: { id: 'schedule', title: 'Agendar horário' } },
+    { type: 'reply', reply: { id: 'schedule', title: 'Marcar horário' } },
     { type: 'reply', reply: { id: 'services', title: 'Ver serviços' } },
   ];
 
@@ -61,9 +73,11 @@ export async function sendServices(
   });
 
   if (services.length === 0) {
-    const body = 'Ainda não temos serviços cadastrados no momento.';
+    const body =
+      'Pode deixar! 😊 Ainda estou organizando a lista de serviços por aqui.\n\n' +
+      'Mas relaxa: é só tocar no botão que eu já te ajudo a marcar seu horário.';
     const buttons: InteractiveButton[] = [
-      { type: 'reply', reply: { id: 'schedule', title: 'Agendar horário' } },
+      { type: 'reply', reply: { id: 'schedule', title: 'Marcar horário' } },
     ];
     await sendInteractiveButtons(phoneNumberId, phone, body, buttons);
     await saveMessage(conversationId, 'OUTBOUND', formatInteractiveContent(body, buttons));
@@ -77,9 +91,9 @@ export async function sendServices(
     })
     .join('\n\n');
 
-  const body = `Esses são os nossos serviços:\n\n${list}`;
+  const body = `Olha o que a gente faz pra você 😊\n\n${list}\n\nGostou? É só tocar no botão aqui embaixo que eu marco seu horário 👇`;
   const buttons: InteractiveButton[] = [
-    { type: 'reply', reply: { id: 'schedule', title: 'Agendar horário' } },
+    { type: 'reply', reply: { id: 'schedule', title: 'Marcar horário' } },
   ];
 
   await sendInteractiveButtons(phoneNumberId, phone, body, buttons);

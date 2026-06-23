@@ -191,19 +191,29 @@ export async function sendManualMessage(
   conversationId: string,
   text: string,
 ): Promise<ManualSendResult> {
-  const { tenant } = await requireUserAndTenant();
+  const { id: userId, tenant } = await requireUserAndTenant();
 
   const body = text.trim();
   if (!body) return { delivered: false, reason: 'send_failed' };
 
   const conv = await prisma.conversation.findFirst({
     where: { id: conversationId, tenantId: tenant.id },
-    select: { handoffExpiresAt: true },
+    select: { handoffExpiresAt: true, handoffById: true },
   });
   if (!conv) return { delivered: false, reason: 'send_failed' };
   if (!conv.handoffExpiresAt || conv.handoffExpiresAt <= new Date()) {
     // Sem handoff ativo não enviamos - o front deve mandar "assumir" antes.
     return { delivered: false, reason: 'window_closed' };
+  }
+
+  // Handoff aberto pelo próprio cliente ("quero falar com humano") chega sem
+  // dono atribuído. Ao responder, o dono assume a conversa - o badge deixa de
+  // ser "cliente pediu atendente" e vira "atendimento manual".
+  if (!conv.handoffById) {
+    await prisma.conversation.update({
+      where: { id: conversationId },
+      data: { handoffById: userId },
+    });
   }
 
   return sendManualWhatsappMessage(conversationId, body);

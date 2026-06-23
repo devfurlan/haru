@@ -109,7 +109,9 @@ export function PricingTiers({ tiers }: { tiers: PricingTier[] }) {
       <div className="mx-auto mt-12 grid max-w-md grid-cols-1 gap-8 lg:max-w-none lg:grid-cols-3">
         {tiers.map((t) => {
           const featured = t.featured;
-          const priceCents = cycle === 'ANNUAL' ? t.priceAnnualCents : t.priceMonthlyCents;
+          const isAnnual = cycle === 'ANNUAL';
+          // No anual, destacamos o equivalente por mês para comparar com o mensal.
+          const headlineCents = isAnnual ? Math.round(t.priceAnnualCents / 12) : t.priceMonthlyCents;
           return (
             <div
               key={t.tier}
@@ -126,21 +128,33 @@ export function PricingTiers({ tiers }: { tiers: PricingTier[] }) {
 
               <h3 className="font-serif text-xl font-semibold tracking-[-0.01em]">{t.name}</h3>
 
-              <div className="mt-5 min-h-[3rem]">
+              <div className="mt-5 min-h-[3.75rem]">
                 {t.custom ? (
                   <p className="font-serif text-4xl font-black leading-none">Sob consulta</p>
                 ) : (
-                  <p className="flex items-baseline gap-x-1 font-serif leading-none">
-                    <span className="text-4xl font-black">{brl(priceCents)}</span>
-                    <span
-                      className={cn(
-                        'text-sm font-semibold',
-                        featured ? 'text-cream/70' : 'text-ink-soft',
-                      )}
-                    >
-                      /{cycle === 'ANNUAL' ? 'ano' : 'mês'}
-                    </span>
-                  </p>
+                  <>
+                    <p className="flex items-baseline gap-x-1 font-serif leading-none">
+                      <span className="text-4xl font-black">{brl(headlineCents)}</span>
+                      <span
+                        className={cn(
+                          'text-sm font-semibold',
+                          featured ? 'text-cream/70' : 'text-ink-soft',
+                        )}
+                      >
+                        /mês
+                      </span>
+                    </p>
+                    {isAnnual && (
+                      <p
+                        className={cn(
+                          'mt-1.5 text-xs font-medium',
+                          featured ? 'text-cream/60' : 'text-ink-soft/70',
+                        )}
+                      >
+                        {brl(t.priceAnnualCents)}/ano cobrado de uma vez
+                      </p>
+                    )}
+                  </>
                 )}
               </div>
 

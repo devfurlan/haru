@@ -52,9 +52,9 @@ export default async function SettingsPage() {
         sandbox={tenant.paymentSandbox}
         hasCredential={Boolean(
           tenant.paymentAsaasApiKeyEnc ||
-            tenant.paymentMercadoPagoTokenEnc ||
-            tenant.paymentPagBankTokenEnc ||
-            tenant.paymentPagarmeApiKeyEnc,
+          tenant.paymentMercadoPagoTokenEnc ||
+          tenant.paymentPagBankTokenEnc ||
+          tenant.paymentPagarmeApiKeyEnc,
         )}
         webhookBaseUrl={webhookBaseUrl}
       />
@@ -62,6 +62,7 @@ export default async function SettingsPage() {
       <NotificationsCard
         notificationWebhookUrl={tenant.notificationWebhookUrl}
         reminderHoursBefore={tenant.reminderHoursBefore}
+        handoffEmailEnabled={tenant.handoffEmailEnabled}
         reminderTemplateName={tenant.reminderTemplateName}
         reminderTemplateLanguage={tenant.reminderTemplateLanguage}
         cancelTemplateName={tenant.cancelTemplateName}

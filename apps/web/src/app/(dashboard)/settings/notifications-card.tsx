@@ -13,6 +13,7 @@ import { updateNotifications, type NotificationsActionResult } from './actions';
 interface NotificationsCardProps {
   notificationWebhookUrl: string | null;
   reminderHoursBefore: number;
+  handoffEmailEnabled: boolean;
   reminderTemplateName: string | null;
   reminderTemplateLanguage: string | null;
   cancelTemplateName: string | null;
@@ -50,7 +51,7 @@ function TemplateInputs({
   return (
     <div className="space-y-2 rounded-lg border border-dashed p-4">
       <div className="text-sm font-medium">{title}</div>
-      <p className="text-xs text-muted-foreground">{description}</p>
+      <p className="text-muted-foreground text-xs">{description}</p>
 
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="space-y-2">
@@ -102,7 +103,7 @@ export function NotificationsCard(props: NotificationsCardProps) {
               defaultValue={props.notificationWebhookUrl ?? ''}
               placeholder="https://discord.com/api/webhooks/..."
             />
-            <p className="text-xs text-muted-foreground">
+            <p className="text-muted-foreground text-xs">
               POST a cada agendamento criado/cancelado/remarcado. Funciona com Discord, Slack,
               Zapier, n8n etc.
             </p>
@@ -120,18 +121,39 @@ export function NotificationsCard(props: NotificationsCardProps) {
               defaultValue={props.reminderHoursBefore}
               required
             />
-            <p className="text-xs text-muted-foreground">
+            <p className="text-muted-foreground text-xs">
               <strong>0 desativa</strong> os lembretes. Padrão: 24h.
             </p>
           </div>
 
+          <div className="space-y-2 rounded-lg border border-dashed p-4">
+            <label htmlFor="handoffEmailEnabled" className="flex items-start gap-3">
+              <input
+                id="handoffEmailEnabled"
+                name="handoffEmailEnabled"
+                type="checkbox"
+                defaultChecked={props.handoffEmailEnabled}
+                className="border-input mt-0.5 size-4 shrink-0 rounded"
+              />
+              <span className="space-y-1">
+                <span className="block text-sm font-medium">
+                  Aviso por e-mail de atendimento humano
+                </span>
+                <span className="text-muted-foreground block text-xs">
+                  Recebe um e-mail quando um cliente pedir pra falar com uma pessoa no WhatsApp. O
+                  aviso no painel acontece sempre, mesmo com isto desligado.
+                </span>
+              </span>
+            </label>
+          </div>
+
           <div className="space-y-3">
             <div className="text-sm font-medium">Templates aprovados na Meta</div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-muted-foreground text-xs">
               Sem template, as mensagens só funcionam se o cliente conversou nas últimas 24h. Com
               template aprovado, elas disparam sempre. Todos esperam 3 variáveis no body:{' '}
-              <code>{`{{1}}`}</code> nome, <code>{`{{2}}`}</code> data/hora,{' '}
-              <code>{`{{3}}`}</code> serviço.
+              <code>{`{{1}}`}</code> nome, <code>{`{{2}}`}</code> data/hora, <code>{`{{3}}`}</code>{' '}
+              serviço.
             </p>
 
             <TemplateInputs
@@ -160,9 +182,7 @@ export function NotificationsCard(props: NotificationsCardProps) {
             />
           </div>
 
-          {state && 'error' in state && (
-            <p className="text-sm text-destructive">{state.error}</p>
-          )}
+          {state && 'error' in state && <p className="text-destructive text-sm">{state.error}</p>}
           {state && 'ok' in state && <p className="text-sm text-emerald-600">Salvo.</p>}
 
           <SubmitButton />

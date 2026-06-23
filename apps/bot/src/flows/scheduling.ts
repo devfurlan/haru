@@ -1,17 +1,10 @@
 import { askBot } from '../lib/openai/responses.js';
 import { BOT_MODEL, SCHEDULER_SYSTEM_PROMPT } from '../lib/openai/prompts/index.js';
 import { TOOLS } from '../lib/openai/tools.js';
-import {
-  getConversation,
-  setConversation,
-  type ConversationState,
-} from '../lib/redis.js';
+import { getConversation, setConversation, type ConversationState } from '../lib/redis.js';
 import { sendTextSafely } from '../lib/whatsapp/safeSend.js';
-import {
-  getOrCreateConversation,
-  saveMessage,
-} from '../services/chatHistoryService.js';
-import { buildTenantContext } from '../services/tenantContextService.js';
+import { getOrCreateConversation, saveMessage } from '../services/chatHistoryService.js';
+import { buildTenantPrimer, buildLiveContext } from '../services/tenantContextService.js';
 import { recordAiUsage } from '../services/aiUsageService.js';
 
 interface HandleSchedulingOptions {
@@ -22,10 +15,11 @@ interface HandleSchedulingOptions {
 /**
  * Fluxo principal: agendamento conduzido pelo LLM.
  *
- * Na primeira chamada (sem `lastResponseId`), injetamos um snapshot do tenant
- * (serviços, horários, agendamentos próximos) como `primerContext`. A
- * Responses API encadeia os turnos seguintes via `previous_response_id`, então
- * não precisamos repetir o snapshot.
+ * Na primeira chamada (sem `lastResponseId`), injetamos o snapshot ESTÁTICO do
+ * tenant (serviços, cadastro) como `primerContext`. O contexto VIVO (data de
+ * hoje, dias disponíveis, agendamentos) vai em TODO turno via `systemNote` -
+ * encadear via `previous_response_id` não atualizaria a data, e uma conversa
+ * que atravessa a meia-noite acabava achando que "hoje" é o dia em que começou.
  */
 export async function handleSchedulingFlow(
   phoneNumberId: string,
@@ -56,11 +50,12 @@ export async function handleSchedulingFlow(
     saveMessage(state.conversationId, 'INBOUND', text).catch(console.error);
   }
 
-  // Primeiro turno do fluxo? Carrega snapshot do tenant uma vez.
+  // Snapshot estático só no 1º turno; contexto vivo (data/dias) a cada turno.
   const isFirstTurn = !state.lastResponseId;
-  const primerContext = isFirstTurn
-    ? await buildTenantContext(state.tenantId, state.contactId)
-    : undefined;
+  const [primerContext, liveContext] = await Promise.all([
+    isFirstTurn ? buildTenantPrimer(state.tenantId, state.contactId) : undefined,
+    buildLiveContext(state.tenantId, state.contactId),
+  ]);
 
   const { reply, responseId, usage } = await askBot({
     instructions: SCHEDULER_SYSTEM_PROMPT,
@@ -68,8 +63,13 @@ export async function handleSchedulingFlow(
     previousResponseId: state.lastResponseId,
     pendingAssistantNote: state.pendingAssistantNote,
     primerContext,
+    systemNote: liveContext,
     tools: TOOLS,
-    toolContext: { tenantId: state.tenantId, contactId: state.contactId! },
+    toolContext: {
+      tenantId: state.tenantId,
+      contactId: state.contactId!,
+      conversationId: state.conversationId,
+    },
   });
 
   // Consumo de tokens por tenant (fire-and-forget, não bloqueia a resposta).

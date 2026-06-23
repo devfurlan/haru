@@ -14,18 +14,39 @@ import { downloadMedia, markAsRead, verifyWebhookSignature } from '../lib/whatsa
 import type { WebhookMessage, WebhookPayload } from '../lib/whatsapp/types.js';
 import { sendTextSafely } from '../lib/whatsapp/safeSend.js';
 import { getOrCreateConversation, saveMessage } from '../services/chatHistoryService.js';
-import { getHandoffStatus, refreshHandoffWindow } from '../services/handoffService.js';
+import {
+  getHandoffStatus,
+  initiateHandoff,
+  refreshHandoffWindow,
+} from '../services/handoffService.js';
 import { findTenantByPhoneNumberId } from '../services/tenantService.js';
+
+/**
+ * Heurística para "quero falar com um humano" em texto livre. Cobre o fluxo de
+ * menu/primeiro contato, onde a LLM (que tem a tool request_human_support) nunca
+ * roda. Lista enxuta e específica de propósito - o caso ambíguo fica pro LLM no
+ * fluxo de agendamento. Normaliza acentos antes de testar.
+ */
+function looksLikeHumanRequest(raw: string): boolean {
+  const t = raw.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  return (
+    /\batendente\b/.test(t) ||
+    /\bhumano\b/.test(t) ||
+    /(falar|conversar|atendid[oa])\s+(com\s+)?((o|a|os|as|um|uma)\s+)?(pessoa|gente|alguem|responsavel|dono|humano|atendente)/.test(
+      t,
+    ) ||
+    /(quero|queria|preciso|pode chamar|chama|chamar|me passa)\b.{0,20}\b(humano|atendente)\b/.test(
+      t,
+    ) ||
+    /pessoa de verdade/.test(t)
+  );
+}
 
 export async function webhookRoutes(app: FastifyInstance) {
   // Parser para raw body - necessário pra validação de assinatura HMAC
-  app.addContentTypeParser(
-    'application/json',
-    { parseAs: 'buffer' },
-    (_req, body, done) => {
-      done(null, body);
-    },
-  );
+  app.addContentTypeParser('application/json', { parseAs: 'buffer' }, (_req, body, done) => {
+    done(null, body);
+  });
 
   // GET - verificação do webhook pela Meta
   app.get('/webhook', async (request: FastifyRequest, reply: FastifyReply) => {
@@ -218,6 +239,31 @@ async function routeMessage(
     return;
   }
 
+  // Pedido explícito de atendimento humano em texto livre. Cobre o fluxo de
+  // menu/primeiro contato (sem LLM); dentro do agendamento a própria tool
+  // request_human_support cuida do caso, mas um pedido explícito aqui também
+  // dispara o handoff e cala o bot.
+  if (!buttonId && text && looksLikeHumanRequest(text)) {
+    const { conversationId, contactId } = await getOrCreateConversation(
+      tenantId,
+      phone,
+      contactName,
+    );
+    if (!audioHandled) {
+      await saveMessage(conversationId, 'INBOUND', text, message.id).catch(console.error);
+    }
+    await initiateHandoff({ tenantId, contactId, conversationId }).catch(console.error);
+    const reply = 'Beleza! Já avisei o responsável - em breve alguém te responde por aqui. 🙂';
+    await sendTextSafely(phoneNumberId, phone, reply, {
+      phone,
+      phoneNumberId,
+      tenantId,
+      flow: 'handoff',
+    });
+    await saveMessage(conversationId, 'OUTBOUND', reply).catch(console.error);
+    return;
+  }
+
   const state = await getConversation(phoneNumberId, phone);
 
   // Cliques nos botões do menu
@@ -236,7 +282,7 @@ async function routeMessage(
           contactId,
           createdAt: new Date().toISOString(),
         });
-        saveMessage(conversationId, 'INBOUND', 'Agendar horário').catch(console.error);
+        saveMessage(conversationId, 'INBOUND', 'Marcar horário').catch(console.error);
         return handleSchedulingFlow(phoneNumberId, phone, 'Quero agendar um horário', contactName, {
           skipInboundSave: true,
         });

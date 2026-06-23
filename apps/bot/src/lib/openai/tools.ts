@@ -9,11 +9,13 @@ import {
 } from '../../services/appointmentService.js';
 import type { RecurrenceFrequency } from '../recurrence.js';
 import { saveCustomerProfile } from '../../services/contactService.js';
+import { initiateHandoff } from '../../services/handoffService.js';
 import { createPaymentForAppointment } from '../../services/paymentService.js';
 
 export interface ToolContext {
   tenantId: string;
   contactId: string;
+  conversationId?: string;
 }
 
 export const TOOLS: FunctionTool[] = [
@@ -40,8 +42,9 @@ export const TOOLS: FunctionTool[] = [
         birth_date: {
           type: 'string',
           description:
-            'Data de nascimento no formato YYYY-MM-DD (ex: 1990-07-25), ou "" se não informada ' +
-            '(opcional).',
+            'Data de nascimento normalizada para YYYY-MM-DD (ex: cliente disse "21 de março de ' +
+            '1993" -> "1993-03-21"), ou "" se não informada (opcional). NUNCA peça nem mostre esse ' +
+            'formato ao cliente: converse em linguagem natural (21/03/1993) e converta você mesmo.',
         },
       },
       required: ['name', 'email', 'birth_date'],
@@ -219,6 +222,31 @@ export const TOOLS: FunctionTool[] = [
       additionalProperties: false,
     },
   },
+  {
+    type: 'function',
+    name: 'request_human_support',
+    description:
+      'Transfere a conversa para um atendente humano do estabelecimento. Use quando o cliente ' +
+      'pedir explicitamente pra falar com uma pessoa/humano/atendente, OU quando ele tiver um ' +
+      'problema, reclamação ou pedido que você não consegue resolver por aqui (fora de agendar, ' +
+      'remarcar, cancelar, cobrar ou tirar dúvidas simples). Depois de chamar, avise o cliente ' +
+      'de forma curta e gentil que você já chamou o responsável e que em breve alguém responde ' +
+      'por aqui. NÃO use pra dúvidas que você mesmo consegue responder.',
+    strict: true,
+    parameters: {
+      type: 'object',
+      properties: {
+        reason: {
+          type: 'string',
+          description:
+            'Resumo curto do motivo do cliente querer falar com uma pessoa (ex: "reclamação ' +
+            'sobre atendimento anterior", "quer negociar preço"). Use "" se não estiver claro.',
+        },
+      },
+      required: ['reason'],
+      additionalProperties: false,
+    },
+  },
 ];
 
 export async function executeTool(
@@ -308,6 +336,16 @@ export async function executeTool(
       appointmentId: String(args.appointment_id ?? ''),
       newStartsAtIso: String(args.new_starts_at ?? ''),
       newServiceId: newServiceId || undefined,
+    });
+    return JSON.stringify(result);
+  }
+
+  if (name === 'request_human_support') {
+    const result = await initiateHandoff({
+      tenantId: ctx.tenantId,
+      contactId: ctx.contactId,
+      conversationId: ctx.conversationId,
+      reason: String(args.reason ?? ''),
     });
     return JSON.stringify(result);
   }
