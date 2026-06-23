@@ -20,7 +20,8 @@
     "next": "^16.0.10",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "tailwind-merge": "^2.5.4"
+    "tailwind-merge": "^2.5.4",
+    "zod": "^3.23.8"
   },
   "devDependencies": {
     "@haru/eslint-config": "workspace:*",
