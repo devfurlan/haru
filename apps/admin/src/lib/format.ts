@@ -17,3 +17,13 @@ export function formatInt(value: number): string {
 export function formatPct(fraction: number): string {
   return `${Math.round(fraction * 100)}%`;
 }
+
+/** Centavos -> R$ formatado (ex.: 4990 -> "R$ 49,90"). */
+export function formatBRL(cents: number): string {
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(cents / 100);
+}
+
+/** Centavos -> string pro input de reais (ex.: 4990 -> "49.90"). */
+export function centsToReaisInput(cents: number): string {
+  return (cents / 100).toFixed(2);
+}
