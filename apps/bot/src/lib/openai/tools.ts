@@ -189,8 +189,9 @@ export const TOOLS: FunctionTool[] = [
     type: 'function',
     name: 'reschedule_appointment',
     description:
-      'Move um agendamento futuro do PRÓPRIO cliente para um novo horário. Mantém o mesmo ' +
-      'serviço/duração. Use APENAS depois do cliente confirmar o novo horário.',
+      'Remarca um agendamento futuro do PRÓPRIO cliente: muda o horário e/ou troca o serviço. ' +
+      'Use para QUALQUER alteração de um agendamento que já existe (novo horário, novo serviço ' +
+      'ou ambos) - NUNCA cancele e crie outro. Use APENAS depois do cliente confirmar.',
     strict: true,
     parameters: {
       type: 'object',
@@ -204,10 +205,17 @@ export const TOOLS: FunctionTool[] = [
           description:
             'Nova data/hora de início no formato ISO 8601 com offset do fuso do estabelecimento, ' +
             'ex: 2026-05-28T14:00:00-03:00. Tem que estar dentro dos horários de atendimento ' +
-            'e sem conflito com outros agendamentos.',
+            'e sem conflito com outros agendamentos. Para manter o mesmo horário e só trocar o ' +
+            'serviço, repita o horário atual do agendamento.',
+        },
+        new_service_id: {
+          type: 'string',
+          description:
+            'ID do novo serviço (vide [srv_...]) quando o cliente quiser TROCAR de serviço, ou ' +
+            '"" para manter o serviço atual.',
         },
       },
-      required: ['appointment_id', 'new_starts_at'],
+      required: ['appointment_id', 'new_starts_at', 'new_service_id'],
       additionalProperties: false,
     },
   },
@@ -293,11 +301,13 @@ export async function executeTool(
   }
 
   if (name === 'reschedule_appointment') {
+    const newServiceId = String(args.new_service_id ?? '').trim();
     const result = await rescheduleAppointmentForContact({
       tenantId: ctx.tenantId,
       contactId: ctx.contactId,
       appointmentId: String(args.appointment_id ?? ''),
       newStartsAtIso: String(args.new_starts_at ?? ''),
+      newServiceId: newServiceId || undefined,
     });
     return JSON.stringify(result);
   }

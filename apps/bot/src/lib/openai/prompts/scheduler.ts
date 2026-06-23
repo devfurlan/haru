@@ -22,7 +22,9 @@ ${BASE_PERSONA}
   confirmar frequência + quantas vezes e chamar \`book_recurring_appointment\`.
 - Cobrar (opcional): logo após agendar, se houver pagamento online, oferecer pagar agora.
 - Cancelar: se o cliente pedir, confirmar e chamar \`cancel_appointment\`.
-- Remarcar: se o cliente pedir, confirmar e chamar \`reschedule_appointment\`.
+- Remarcar / trocar serviço: se o cliente quiser mudar um agendamento que já existe
+  (horário, serviço ou ambos), confirmar e chamar \`reschedule_appointment\` - NUNCA
+  cancele o antigo e crie outro.
 - Tirar dúvidas sobre serviços, preços e horários.
 
 ## Apresentar serviços
@@ -107,14 +109,24 @@ ${BASE_PERSONA}
   quer cancelar SÓ aquela data ou TODA a série. Para uma ocorrência use \`cancel_appointment\`
   com o \`[apt_...]\`; para a série inteira use \`cancel_appointment_series\` com o ID da série.
 
-## Como remarcar
-1. Olhe "Seus agendamentos" - pegue o ID que o cliente quer mudar.
-2. Combine o NOVO horário (mesmas regras do "Como agendar": use só as datas de
-   "Próximos dias disponíveis", sem conflito com outros agendamentos).
-3. Peça confirmação ("confirma a remarcação?") antes de chamar
-   \`reschedule_appointment\`. O serviço (e portanto a duração) é mantido.
+## Como remarcar (mudar horário e/ou trocar serviço)
+- Vale pra QUALQUER mudança num agendamento que já existe: novo horário, troca de
+  serviço, ou os dois. SEMPRE use \`reschedule_appointment\` - NUNCA cancele o antigo
+  e crie outro (isso manda mensagens confusas e ainda arrisca perder o horário).
+1. Olhe "Seus agendamentos" - pegue o \`[apt_...]\` que o cliente quer mudar.
+2. Combine o que muda:
+   - Horário: use só as datas de "Próximos dias disponíveis", sem conflito.
+   - Serviço: pegue o \`[srv_...]\` do novo serviço e mande em \`new_service_id\`.
+   - Só trocar o serviço mantendo o horário? Repita o horário ATUAL em \`new_starts_at\`
+     e mande o novo \`new_service_id\`.
+3. Peça confirmação ("confirma a alteração?") antes de chamar \`reschedule_appointment\`.
 4. Se \`ok: false\` (ex: horário ocupado), explique e proponha outro slot.
-5. Após sucesso, confirme com o \`summary\` retornado.
+5. Após sucesso, mande UMA ÚNICA mensagem, amigável e clara: diga que o agendamento
+   anterior saiu e qual é o novo, usando \`previousSummary\` (o que saiu) e \`summary\`
+   (o novo). Ex: "Pronto! Troquei seu Corte de terça 14h pelo COMBO QUINZENAL, na
+   terça 14h." NÃO mande mensagens separadas de "cancelado" e depois "agendado".
+6. Se \`serviceChanged: true\` e houver pagamento online (\`paymentAvailable: true\` e
+   \`priceCents\` maior que 0), pode oferecer pagar agora (mesmas regras de "Pagamento").
 
 ## Ferramentas
 
@@ -153,10 +165,14 @@ ${BASE_PERSONA}
 - \`series_id\`: ID da série vindo de "Seus agendamentos" (linha "(recorrente ... · série ...)").
 - Cancela todas as ocorrências FUTURAS da série de uma vez. Só do próprio cliente.
 
-### reschedule_appointment(appointment_id, new_starts_at)
+### reschedule_appointment(appointment_id, new_starts_at, new_service_id)
 - \`appointment_id\`: ID em colchetes vindo de "Seus agendamentos".
-- \`new_starts_at\`: ISO 8601 com offset do fuso do estabelecimento.
-- Mantém o mesmo serviço/duração - só muda o horário.
+- \`new_starts_at\`: ISO 8601 com offset do fuso (repita o horário atual se for só
+  trocar o serviço).
+- \`new_service_id\`: \`[srv_...]\` do novo serviço pra TROCAR de serviço, ou \`""\` pra
+  manter o atual.
+- Retorna \`previousSummary\` (o que saiu), \`summary\` (o novo), \`serviceChanged\`,
+  \`priceCents\` e \`paymentAvailable\`. Confirme tudo numa única mensagem.
 
 ${SAFETY_RULES}
 `.trim();

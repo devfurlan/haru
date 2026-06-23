@@ -5,7 +5,6 @@ import {
   RECURRENCE_MAX_HORIZON_DAYS,
   type RecurrenceFrequency,
 } from '../lib/recurrence.js';
-import { sendAppointmentTemplate } from './appointmentTemplateService.js';
 import {
   notifyAppointmentCanceled,
   notifyAppointmentCreated,
@@ -344,12 +343,11 @@ export async function cancelAppointmentForContact(
     data: { status: 'CANCELED' },
   });
 
-  // Fire-and-forget: webhook externo + template pro cliente
+  // Fire-and-forget: webhook pro DONO. O cliente NÃO recebe template aqui - ele
+  // está conversando ao vivo com o bot, que confirma o cancelamento na resposta.
+  // O template de cancelamento é só pra mudanças fora de conversa (painel web).
   notifyAppointmentCanceled(appt.id).catch((err) =>
     console.error('[appointment] notify cancel failed', err),
-  );
-  sendAppointmentTemplate(appt.id, 'cancel').catch((err) =>
-    console.error('[appointment] template cancel failed', err),
   );
 
   const summary = `${appt.service.name} · ${new Intl.DateTimeFormat('pt-BR', {
@@ -410,11 +408,9 @@ export async function cancelSeriesForContact(args: CancelSeriesArgs): Promise<Ca
     data: { status: 'CANCELED' },
   });
 
+  // Fire-and-forget: webhook pro DONO. Cliente é avisado pela resposta do bot.
   notifyAppointmentCanceled(futures[0].id).catch((err) =>
     console.error('[appointment] notify cancel (series) failed', err),
-  );
-  sendAppointmentTemplate(futures[0].id, 'cancel').catch((err) =>
-    console.error('[appointment] template cancel (series) failed', err),
   );
 
   return { ok: true, canceledCount: futures.length };
@@ -425,16 +421,34 @@ export interface RescheduleAppointmentArgs {
   contactId: string;
   appointmentId: string;
   newStartsAtIso: string;
+  /** Opcional: troca o serviço junto com o horário. Vazio = mantém o atual. */
+  newServiceId?: string;
 }
 
 export type RescheduleAppointmentResult =
-  | { ok: true; summary: string }
+  | {
+      ok: true;
+      /** Serviço · dia/hora NOVOS. */
+      summary: string;
+      /** Serviço · dia/hora ANTIGOS (pra mensagem única "troquei o antigo pelo novo"). */
+      previousSummary: string;
+      /** Se a remarcação também trocou o serviço. */
+      serviceChanged: boolean;
+      /** Preço do serviço novo (centavos). 0 = sem cobrança. */
+      priceCents: number;
+      /** Se o estabelecimento aceita pagamento online (tenant.paymentProvider definido). */
+      paymentAvailable: boolean;
+    }
   | { ok: false; reason: string };
 
 /**
- * Move um agendamento existente pra uma nova `startsAt`. Mantém o mesmo serviço
- * (e portanto a mesma duração - endsAt é recalculado). Reseta `reminderSentAt`
- * pra que um novo lembrete dispare no horário relativo ao novo slot.
+ * Move um agendamento existente pra uma nova `startsAt` e, opcionalmente, troca o
+ * serviço (`newServiceId`). A duração/preço passam a ser os do serviço-alvo e o
+ * endsAt é recalculado. Reseta `reminderSentAt` pra que um novo lembrete dispare
+ * no horário relativo ao novo slot.
+ *
+ * O CLIENTE não recebe template aqui: o bot está em conversa ativa e confirma a
+ * mudança numa única mensagem. Só o webhook do dono é disparado.
  */
 export async function rescheduleAppointmentForContact(
   args: RescheduleAppointmentArgs,
@@ -453,7 +467,7 @@ export async function rescheduleAppointmentForContact(
       tenantId: args.tenantId,
       contactId: args.contactId,
     },
-    include: { service: true, tenant: { select: { timezone: true } } },
+    include: { service: true, tenant: { select: { timezone: true, paymentProvider: true } } },
   });
 
   if (!appt) {
@@ -466,7 +480,19 @@ export async function rescheduleAppointmentForContact(
     return { ok: false, reason: 'agendamento já realizado, não pode ser remarcado' };
   }
 
-  const newEndsAt = new Date(newStartsAt.getTime() + appt.service.durationMinutes * 60_000);
+  // Troca opcional de serviço: se vier um newServiceId diferente, valida e usa a
+  // duração/preço do serviço novo; senão mantém o serviço atual.
+  const wantsServiceChange = !!args.newServiceId && args.newServiceId !== appt.serviceId;
+  const targetService = wantsServiceChange
+    ? await prisma.service.findFirst({
+        where: { id: args.newServiceId, tenantId: args.tenantId, active: true },
+      })
+    : appt.service;
+  if (!targetService) {
+    return { ok: false, reason: 'new_service_id não encontrado ou inativo' };
+  }
+
+  const newEndsAt = new Date(newStartsAt.getTime() + targetService.durationMinutes * 60_000);
 
   // Conflito com OUTROS agendamentos (exclui o próprio)
   const conflict = await prisma.appointment.findFirst({
@@ -493,9 +519,23 @@ export async function rescheduleAppointmentForContact(
     return { ok: false, reason: 'novo horário bloqueado na agenda (indisponível)' };
   }
 
+  const fmt = (d: Date) =>
+    new Intl.DateTimeFormat('pt-BR', {
+      timeZone: appt.tenant.timezone,
+      weekday: 'short',
+      day: '2-digit',
+      month: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(d);
+
+  // Resumo do que SAIU (serviço/horário antigos) antes de sobrescrever.
+  const previousSummary = `${appt.service.name} · ${fmt(appt.startsAt)}`;
+
   await prisma.appointment.update({
     where: { id: appt.id },
     data: {
+      serviceId: targetService.id,
       startsAt: newStartsAt,
       endsAt: newEndsAt,
       // Lembrete já foi enviado pro horário antigo - zera pra disparar de novo
@@ -504,21 +544,17 @@ export async function rescheduleAppointmentForContact(
     },
   });
 
+  // Fire-and-forget: webhook pro DONO. Sem template pro cliente (ver doc acima).
   notifyAppointmentRescheduled(appt.id).catch((err) =>
     console.error('[appointment] notify reschedule failed', err),
   );
-  sendAppointmentTemplate(appt.id, 'reschedule').catch((err) =>
-    console.error('[appointment] template reschedule failed', err),
-  );
 
-  const summary = `${appt.service.name} · ${new Intl.DateTimeFormat('pt-BR', {
-    timeZone: appt.tenant.timezone,
-    weekday: 'short',
-    day: '2-digit',
-    month: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(newStartsAt)}`;
-
-  return { ok: true, summary };
+  return {
+    ok: true,
+    summary: `${targetService.name} · ${fmt(newStartsAt)}`,
+    previousSummary,
+    serviceChanged: wantsServiceChange,
+    priceCents: targetService.priceCents,
+    paymentAvailable: appt.tenant.paymentProvider != null,
+  };
 }

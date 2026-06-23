@@ -7,15 +7,15 @@ export const metadata: Metadata = {
     'Termos e condições de uso do Demandaê, plataforma de agendamento e pagamentos pelo WhatsApp para negócios de serviço.',
 };
 
-const LAST_UPDATED = '28 de maio de 2026';
+const LAST_UPDATED = '23 de junho de 2026';
 
 export default function TermsOfServicePage() {
   return (
     <main className="mx-auto max-w-3xl px-6 py-12">
       <h1 className="text-3xl font-bold tracking-tight">Termos de Serviço</h1>
-      <p className="mt-2 text-sm text-muted-foreground">Última atualização: {LAST_UPDATED}</p>
+      <p className="text-muted-foreground mt-2 text-sm">Última atualização: {LAST_UPDATED}</p>
 
-      <div className="mt-8 space-y-8 text-sm leading-relaxed text-foreground">
+      <div className="text-foreground mt-8 space-y-8 text-sm leading-relaxed">
         <section className="space-y-3">
           <p>
             Estes Termos de Serviço (&ldquo;Termos&rdquo;) regem o uso do Demandaê
@@ -89,12 +89,29 @@ export default function TermsOfServicePage() {
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-xl font-semibold">5. Responsabilidades do Contratante</h2>
+          <h2 className="text-xl font-semibold">
+            5. Atendimento automatizado por inteligência artificial
+          </h2>
+          <p>
+            A plataforma utiliza serviços de terceiros (atualmente a OpenAI) para gerar respostas
+            automáticas aos seus clientes pelo WhatsApp. As respostas são geradas automaticamente e
+            podem conter imprecisões, erros ou informações desatualizadas. Você é responsável por
+            configurar adequadamente as informações do seu negócio, revisar o atendimento e
+            confirmar dados sensíveis, como preços, horários e disponibilidade. O Demandaê não
+            garante a exatidão das respostas geradas por inteligência artificial e não se
+            responsabiliza por agendamentos, cancelamentos ou compromissos firmados automaticamente.
+            Ao utilizar a integração, você também se sujeita às políticas de uso aplicáveis dos
+            provedores de inteligência artificial.
+          </p>
+        </section>
+
+        <section className="space-y-3">
+          <h2 className="text-xl font-semibold">6. Responsabilidades do Contratante</h2>
           <ul className="list-disc space-y-2 pl-6">
             <li>
               Você é responsável pelos dados dos seus clientes finais inseridos ou processados na
-              plataforma e atua como controlador desses dados, sendo o Demandaê operador, nos termos da
-              LGPD.
+              plataforma e atua como controlador desses dados, sendo o Demandaê operador, nos termos
+              da LGPD.
             </li>
             <li>
               Cabe a você obter o consentimento ou possuir base legal adequada para tratar e
@@ -108,7 +125,7 @@ export default function TermsOfServicePage() {
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-xl font-semibold">6. Uso aceitável</h2>
+          <h2 className="text-xl font-semibold">7. Uso aceitável</h2>
           <p>É vedado, ao utilizar a plataforma:</p>
           <ul className="list-disc space-y-2 pl-6">
             <li>enviar spam, mensagens não solicitadas ou conteúdo ilegal, enganoso ou abusivo;</li>
@@ -126,7 +143,7 @@ export default function TermsOfServicePage() {
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-xl font-semibold">7. Planos, pagamentos e cancelamento</h2>
+          <h2 className="text-xl font-semibold">8. Planos, pagamentos e cancelamento</h2>
           <ul className="list-disc space-y-2 pl-6">
             <li>
               O acesso a determinados recursos pode estar condicionado ao pagamento de assinatura ou
@@ -147,18 +164,18 @@ export default function TermsOfServicePage() {
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-xl font-semibold">8. Propriedade intelectual</h2>
+          <h2 className="text-xl font-semibold">9. Propriedade intelectual</h2>
           <p>
             A plataforma, incluindo software, marca, layout e demais elementos, é de titularidade do
-            Demandaê e protegida pela legislação aplicável. Estes Termos não transferem qualquer direito
-            de propriedade intelectual a você, concedendo apenas uma licença limitada, não exclusiva
-            e revogável de uso do serviço enquanto vigente o contrato. O conteúdo e os dados que você
-            insere permanecem de sua titularidade.
+            Demandaê e protegida pela legislação aplicável. Estes Termos não transferem qualquer
+            direito de propriedade intelectual a você, concedendo apenas uma licença limitada, não
+            exclusiva e revogável de uso do serviço enquanto vigente o contrato. O conteúdo e os
+            dados que você insere permanecem de sua titularidade.
           </p>
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-xl font-semibold">9. Privacidade e proteção de dados</h2>
+          <h2 className="text-xl font-semibold">10. Privacidade e proteção de dados</h2>
           <p>
             O tratamento de dados pessoais é regido pela nossa{' '}
             <Link href="/privacidade" className="font-medium underline underline-offset-4">
@@ -173,7 +190,7 @@ export default function TermsOfServicePage() {
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-xl font-semibold">10. Disponibilidade e suporte</h2>
+          <h2 className="text-xl font-semibold">11. Disponibilidade e suporte</h2>
           <p>
             Empenhamo-nos para manter a plataforma disponível e segura, mas o serviço é fornecido
             &ldquo;no estado em que se encontra&rdquo;. Podem ocorrer interrupções para manutenção,
@@ -183,17 +200,17 @@ export default function TermsOfServicePage() {
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-xl font-semibold">11. Limitação de responsabilidade</h2>
+          <h2 className="text-xl font-semibold">12. Limitação de responsabilidade</h2>
           <p>
-            Na máxima extensão permitida pela lei, o Demandaê não se responsabiliza por danos indiretos,
-            lucros cessantes, perda de dados ou prejuízos decorrentes de indisponibilidade do
-            serviço, de serviços de terceiros ou do uso indevido da plataforma. Não garantimos
-            resultados específicos de negócio decorrentes do uso da plataforma.
+            Na máxima extensão permitida pela lei, o Demandaê não se responsabiliza por danos
+            indiretos, lucros cessantes, perda de dados ou prejuízos decorrentes de
+            indisponibilidade do serviço, de serviços de terceiros ou do uso indevido da plataforma.
+            Não garantimos resultados específicos de negócio decorrentes do uso da plataforma.
           </p>
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-xl font-semibold">12. Suspensão e rescisão</h2>
+          <h2 className="text-xl font-semibold">13. Suspensão e rescisão</h2>
           <p>
             Podemos suspender ou encerrar o acesso à plataforma em caso de violação destes Termos,
             uso indevido, inadimplência ou determinação legal. Você pode encerrar sua conta a
@@ -203,7 +220,7 @@ export default function TermsOfServicePage() {
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-xl font-semibold">13. Alterações dos Termos</h2>
+          <h2 className="text-xl font-semibold">14. Alterações dos Termos</h2>
           <p>
             Podemos atualizar estes Termos periodicamente. A versão vigente será sempre publicada
             nesta página, com a data de última atualização indicada no topo. O uso continuado da
@@ -212,7 +229,7 @@ export default function TermsOfServicePage() {
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-xl font-semibold">14. Lei aplicável e foro</h2>
+          <h2 className="text-xl font-semibold">15. Lei aplicável e foro</h2>
           <p>
             Estes Termos são regidos pelas leis da República Federativa do Brasil. Fica eleito o
             foro da comarca de Barueri/SP para dirimir quaisquer controvérsias, com renúncia a
@@ -221,7 +238,7 @@ export default function TermsOfServicePage() {
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-xl font-semibold">15. Contato</h2>
+          <h2 className="text-xl font-semibold">16. Contato</h2>
           <p>
             Em caso de dúvidas sobre estes Termos, entre em contato pelo e-mail{' '}
             <strong>contato@demandae.com</strong>.
