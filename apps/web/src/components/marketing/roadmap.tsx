@@ -3,10 +3,6 @@ import { SectionHeading } from './section-heading';
 
 const road = [
   {
-    h: 'Atendimento humano',
-    p: 'Transferência da conversa pra você quando o cliente pedir um humano.',
-  },
-  {
     h: 'Anexos do cliente',
     p: 'Envio de fotos, PDFs e comprovantes pelo chat (hoje são ignorados).',
   },
@@ -27,13 +23,13 @@ export function Roadmap() {
           {road.map((r) => (
             <div
               key={r.h}
-              className="relative rounded-xl border border-dashed border-border bg-paper p-6"
+              className="border-border bg-paper relative rounded-xl border border-dashed p-6"
             >
-              <span className="mb-3 inline-block rounded-md bg-coral/10 px-2.5 py-1 text-[0.68rem] font-extrabold uppercase tracking-[0.1em] text-coral">
+              <span className="bg-coral/10 text-coral mb-3 inline-block rounded-md px-2.5 py-1 text-[0.68rem] font-extrabold uppercase tracking-[0.1em]">
                 Em breve
               </span>
               <h4 className="mb-1.5 text-[1.02rem] font-bold">{r.h}</h4>
-              <p className="text-[0.88rem] leading-relaxed text-ink-soft">{r.p}</p>
+              <p className="text-ink-soft text-[0.88rem] leading-relaxed">{r.p}</p>
             </div>
           ))}
         </div>

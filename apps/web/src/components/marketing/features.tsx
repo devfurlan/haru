@@ -26,19 +26,22 @@ function FeatureCard({
     <div
       style={style}
       className={cn(
-        'relative overflow-hidden rounded-[18px] border border-white/[0.07] bg-ink-soft p-8 transition-transform duration-300 hover:-translate-y-1 hover:border-green-bright/40',
+        'bg-ink-soft hover:border-green-bright/40 relative overflow-hidden rounded-[18px] border border-white/[0.07] p-8 transition-transform duration-300 hover:-translate-y-1',
         className,
       )}
     >
       <span
-        className={cn('mb-3.5 block text-[0.74rem] font-bold uppercase tracking-[0.12em]', kickerClass)}
+        className={cn(
+          'mb-3.5 block text-[0.74rem] font-bold uppercase tracking-[0.12em]',
+          kickerClass,
+        )}
       >
         {kicker}
       </span>
       <h3 className="mb-3 font-serif text-2xl font-semibold tracking-[-0.01em]">{title}</h3>
       <ul className="flex flex-col gap-2.5">
         {items.map((it) => (
-          <li key={it} className="flex gap-2.5 text-[0.95rem] leading-snug text-cream/85">
+          <li key={it} className="text-cream/85 flex gap-2.5 text-[0.95rem] leading-snug">
             <span className={cn('mt-0.5 shrink-0 font-extrabold', checkClass)}>✓</span>
             <span>{it}</span>
           </li>
@@ -51,7 +54,7 @@ function FeatureCard({
 
 export function Features() {
   return (
-    <section id="recursos" className="bg-ink py-24 text-cream">
+    <section id="recursos" className="bg-ink text-cream py-24">
       <Container>
         <SectionHeading
           dark
@@ -103,6 +106,7 @@ export function Features() {
               'Agenda completa: crie e remarque agendamentos manualmente',
               'Controle de presença: marque "atendido" ou "não compareceu" e acompanhe as faltas',
               'Caixa de conversas com o histórico de cada cliente, estilo WhatsApp',
+              'Atendimento humano: quando o cliente pede uma pessoa, o bot transfere a conversa pra você e avisa por e-mail',
               'Página pública /seunegocio com serviços, horários e botão "Agendar pelo WhatsApp"',
             ]}
           />
