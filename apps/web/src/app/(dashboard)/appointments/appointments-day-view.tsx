@@ -176,7 +176,7 @@ export function AppointmentsDayView({
           </div>
         </div>
 
-        <div className="mt-4 max-h-[32rem] overflow-y-auto">
+        <div className="mt-4 max-h-[32rem] overflow-y-auto pt-3">
           <DayTimeline
             dayKey={selected}
             appointments={dayAppointments}
