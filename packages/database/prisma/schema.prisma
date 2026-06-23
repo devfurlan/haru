@@ -117,6 +117,11 @@ model User {
   invitedAt   DateTime?
   /// Quando o usuário ativou a conta (definiu a senha).
   activatedAt DateTime?
+  /// Prova de consentimento: quando o usuário aceitou os Termos/Privacidade no
+  /// cadastro. Null para contas anteriores ao aceite obrigatório.
+  termsAcceptedAt DateTime?
+  /// Versão dos Termos aceita (ver TERMS_VERSION em apps/web/src/lib/legal.ts).
+  termsVersion String?
   tenantId    String
   tenant      Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   createdAt   DateTime   @default(now())

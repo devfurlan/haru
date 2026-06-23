@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useActionState } from 'react';
 import { useFormStatus } from 'react-dom';
 
@@ -52,9 +53,37 @@ export function SignupForm() {
           minLength={8}
           required
         />
-        <p className="text-xs text-muted-foreground">Mínimo de 8 caracteres.</p>
+        <p className="text-muted-foreground text-xs">Mínimo de 8 caracteres.</p>
       </div>
-      {state?.error && <p className="text-sm text-destructive">{state.error}</p>}
+      <div className="flex items-start gap-2">
+        <input
+          id="acceptTerms"
+          name="acceptTerms"
+          type="checkbox"
+          value="on"
+          required
+          className="border-input accent-foreground mt-0.5 size-4 shrink-0 rounded"
+        />
+        <Label
+          htmlFor="acceptTerms"
+          className="text-muted-foreground text-xs font-normal leading-relaxed"
+        >
+          Li e concordo com os{' '}
+          <Link href="/termos" target="_blank" className="font-medium underline underline-offset-4">
+            Termos de Serviço
+          </Link>{' '}
+          e a{' '}
+          <Link
+            href="/privacidade"
+            target="_blank"
+            className="font-medium underline underline-offset-4"
+          >
+            Política de Privacidade
+          </Link>
+          .
+        </Label>
+      </div>
+      {state?.error && <p className="text-destructive text-sm">{state.error}</p>}
       <SubmitButton />
     </form>
   );

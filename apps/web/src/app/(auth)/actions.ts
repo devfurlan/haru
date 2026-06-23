@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { Prisma, prisma } from '@haru/database';
 
 import { getBaseUrl } from '@/lib/base-url';
+import { TERMS_VERSION } from '@/lib/legal';
 import { createClient } from '@/lib/supabase/server';
 import { uniqueSlug } from '@/lib/slug';
 
@@ -38,11 +39,10 @@ const signUpSchema = z.object({
   email: z.string().email('Email inválido'),
   password: z.string().min(8, 'Senha deve ter ao menos 8 caracteres'),
   businessName: z.string().min(2, 'Nome do estabelecimento muito curto').max(80),
-  ownerName: z
-    .string()
-    .trim()
-    .min(2, 'Informe seu nome')
-    .max(80),
+  ownerName: z.string().trim().min(2, 'Informe seu nome').max(80),
+  acceptTerms: z.literal('on', {
+    errorMap: () => ({ message: 'É preciso aceitar os Termos e a Política de Privacidade.' }),
+  }),
 });
 
 export async function signUp(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
@@ -51,6 +51,7 @@ export async function signUp(_prev: ActionResult, formData: FormData): Promise<A
     password: formData.get('password'),
     businessName: formData.get('businessName'),
     ownerName: formData.get('ownerName'),
+    acceptTerms: formData.get('acceptTerms'),
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? 'Dados inválidos' };
@@ -77,6 +78,9 @@ export async function signUp(_prev: ActionResult, formData: FormData): Promise<A
           // Dono já define a senha no signup - nasce ativo (explícito p/ não
           // depender do default do schema).
           status: 'ACTIVE',
+          // Prova de consentimento coletada no momento do cadastro.
+          termsAcceptedAt: new Date(),
+          termsVersion: TERMS_VERSION,
           tenantId: tenant.id,
         },
       });

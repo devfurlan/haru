@@ -48,6 +48,21 @@ export function LoginForm() {
       </div>
       {state?.error && <p className="text-destructive text-sm">{state.error}</p>}
       <SubmitButton />
+      <p className="text-muted-foreground text-center text-xs leading-relaxed">
+        Ao continuar, você concorda com os{' '}
+        <Link href="/termos" target="_blank" className="font-medium underline underline-offset-4">
+          Termos de Serviço
+        </Link>{' '}
+        e a{' '}
+        <Link
+          href="/privacidade"
+          target="_blank"
+          className="font-medium underline underline-offset-4"
+        >
+          Política de Privacidade
+        </Link>
+        .
+      </p>
     </form>
   );
 }
