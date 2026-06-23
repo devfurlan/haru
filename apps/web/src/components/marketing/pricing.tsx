@@ -1,8 +1,13 @@
+import { Check, Minus } from 'lucide-react';
 import Link from 'next/link';
 
 import { prisma } from '@haru/database';
 
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
+
 import { Container } from './container';
+import { SectionHeading } from './section-heading';
 
 function fmtBRL(cents: number): string {
   return (cents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -10,6 +15,20 @@ function fmtBRL(cents: number): string {
 
 function fmtLimit(n: number | null): string {
   return n === null ? 'ilimitado' : n.toLocaleString('pt-BR');
+}
+
+/** Uma linha de recurso do card: incluída (✓ verde) ou ausente (– apagado). */
+function FeatureRow({ on, children }: { on: boolean; children: React.ReactNode }) {
+  return (
+    <li className="flex gap-2.5 text-[0.92rem] leading-snug">
+      {on ? (
+        <Check className="mt-0.5 size-4 shrink-0 text-green-bright" strokeWidth={3} />
+      ) : (
+        <Minus className="mt-0.5 size-4 shrink-0 text-ink-soft/35" strokeWidth={3} />
+      )}
+      <span className={on ? 'text-ink-soft' : 'text-ink-soft/45'}>{children}</span>
+    </li>
+  );
 }
 
 /** Seção de planos da landing - lê o catálogo dinâmico (tabela Plan). */
@@ -30,57 +49,72 @@ export async function Pricing() {
   if (plans.length === 0) return null;
 
   return (
-    <section id="precos" className="py-20">
+    <section id="precos" className="py-24">
       <Container>
-        <div className="mx-auto max-w-2xl text-center">
-          <h2 className="font-serif text-3xl font-semibold tracking-tight sm:text-4xl">
-            Planos simples, sem pegadinha
-          </h2>
-          <p className="text-muted-foreground mt-3">
-            Atendimento e agendamento por IA no WhatsApp em todos os planos. Garantia de 30 dias.
-          </p>
-        </div>
+        <SectionHeading
+          eyebrow="Planos"
+          title="Planos simples, sem pegadinha."
+        >
+          Atendimento e agendamento por IA no WhatsApp em todos os planos. Garantia de 30 dias — se
+          não curtir, devolvemos o valor.
+        </SectionHeading>
 
-        <div className="mt-12 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid items-stretch gap-5 sm:grid-cols-2 lg:grid-cols-4">
           {plans.map((p) => {
             const custom = p.priceMonthlyCents <= 0;
+            const popular = p.tier === 'PROFISSIONAL';
             return (
               <div
                 key={p.tier}
-                className="flex flex-col rounded-2xl border border-border bg-white p-6 shadow-sm"
+                className={cn(
+                  'relative flex flex-col rounded-[22px] border bg-paper p-7 transition-transform duration-300 hover:-translate-y-1',
+                  popular ? 'border-coral shadow-coral' : 'border-border',
+                )}
               >
-                <h3 className="font-serif text-xl font-semibold">{p.name}</h3>
-                <div className="mt-2">
+                {popular && (
+                  <span className="absolute -top-3 left-7 rounded-full bg-coral px-3 py-1 text-[0.7rem] font-bold uppercase tracking-wide text-white shadow-coral">
+                    Mais popular
+                  </span>
+                )}
+
+                <h3 className="font-serif text-xl font-semibold tracking-[-0.01em]">{p.name}</h3>
+
+                <div className="mt-3 min-h-[3.5rem]">
                   {custom ? (
-                    <p className="text-2xl font-semibold">Sob consulta</p>
+                    <p className="font-serif text-3xl font-black">Sob consulta</p>
                   ) : (
-                    <p>
-                      <span className="text-3xl font-semibold">{fmtBRL(p.priceMonthlyCents)}</span>
-                      <span className="text-muted-foreground">/mês</span>
-                    </p>
-                  )}
-                  {!custom && (
-                    <p className="text-muted-foreground mt-1 text-xs">
-                      ou {fmtBRL(p.priceAnnualCents)}/ano (~20% off)
-                    </p>
+                    <>
+                      <p className="font-serif text-[2.4rem] font-black leading-none">
+                        {fmtBRL(p.priceMonthlyCents)}
+                        <span className="text-base font-semibold text-ink-soft">/mês</span>
+                      </p>
+                      <p className="mt-1.5 text-xs text-ink-soft/70">
+                        ou {fmtBRL(p.priceAnnualCents)}/ano (~20% off)
+                      </p>
+                    </>
                   )}
                 </div>
 
-                <ul className="text-muted-foreground mt-6 flex-1 space-y-2 text-sm">
-                  <li>🤖 Bot IA no WhatsApp + lembretes</li>
-                  <li>📅 {fmtLimit(p.appointmentsPerMonth)} agendamentos/mês</li>
-                  <li>💬 {fmtLimit(p.aiMessagesPerMonth)} mensagens de IA/mês</li>
-                  <li>{p.onlinePayments ? '✅' : '—'} Pagamentos online</li>
-                  <li>{p.team ? `✅ Equipe (${fmtLimit(p.maxStaff)} usuários)` : '— 1 profissional'}</li>
-                  <li>{p.webhooks ? '✅' : '—'} Webhooks (Discord/Slack/n8n)</li>
+                <div className="my-6 h-px bg-border" />
+
+                <ul className="flex flex-1 flex-col gap-3">
+                  <FeatureRow on>Bot de IA no WhatsApp + lembretes</FeatureRow>
+                  <FeatureRow on>{fmtLimit(p.appointmentsPerMonth)} agendamentos/mês</FeatureRow>
+                  <FeatureRow on>{fmtLimit(p.aiMessagesPerMonth)} mensagens de IA/mês</FeatureRow>
+                  <FeatureRow on={p.onlinePayments}>Pagamentos online (Pix/cartão)</FeatureRow>
+                  <FeatureRow on={p.team}>
+                    {p.team ? `Equipe (${fmtLimit(p.maxStaff)} usuários)` : '1 profissional'}
+                  </FeatureRow>
+                  <FeatureRow on={p.webhooks}>Webhooks (Discord/Slack/n8n)</FeatureRow>
                 </ul>
 
-                <Link
-                  href="/signup"
-                  className="bg-foreground text-background mt-6 rounded-md px-4 py-2 text-center text-sm font-medium hover:opacity-90"
+                <Button
+                  asChild
+                  variant={popular ? 'coral' : 'ink'}
+                  className="mt-7 w-full rounded-full"
                 >
-                  {custom ? 'Falar com a gente' : 'Começar'}
-                </Link>
+                  <Link href="/signup">{custom ? 'Falar com a gente' : 'Começar'}</Link>
+                </Button>
               </div>
             );
           })}
