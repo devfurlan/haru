@@ -4,7 +4,11 @@ import { FinalCta } from '@/components/marketing/final-cta';
 import { ForWho } from '@/components/marketing/for-who';
 import { Hero } from '@/components/marketing/hero';
 import { HowItWorks } from '@/components/marketing/how-it-works';
+import { Pricing } from '@/components/marketing/pricing';
 import { Roadmap } from '@/components/marketing/roadmap';
+
+// Revalida periodicamente: a seção de planos lê a tabela Plan (catálogo dinâmico).
+export const revalidate = 600;
 
 export default function HomePage() {
   return (
@@ -14,6 +18,7 @@ export default function HomePage() {
       <Differentiators />
       <Features />
       <HowItWorks />
+      <Pricing />
       <Roadmap />
       <FinalCta />
     </>

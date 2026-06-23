@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { BarChart3, CreditCard, Users } from 'lucide-react';
+import { BarChart3, CreditCard, TrendingUp, Users } from 'lucide-react';
 
 import { SignOutButton } from '@/components/sign-out-button';
 import { requireAdmin } from '@/lib/admin-auth';
@@ -21,6 +21,13 @@ export default async function DashboardLayout({ children }: { children: React.Re
           >
             <BarChart3 className="size-4" />
             Consumo de IA
+          </Link>
+          <Link
+            href="/receita"
+            className="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground"
+          >
+            <TrendingUp className="size-4" />
+            Receita (MRR)
           </Link>
           <Link
             href="/clientes"

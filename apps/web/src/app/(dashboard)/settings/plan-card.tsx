@@ -4,6 +4,7 @@ import {
   type TenantWithSubscription,
   type UsageMetric,
 } from '@haru/billing';
+import Link from 'next/link';
 
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -64,6 +65,12 @@ export async function PlanCard({ tenant }: { tenant: TenantWithSubscription }) {
           <span className="text-muted-foreground">Mensagens de IA este mês</span>
           <span>{usageText(usage.aiMessages)}</span>
         </div>
+        <Link
+          href="/assinatura"
+          className="bg-foreground text-background mt-2 inline-block rounded-md px-3 py-1.5 text-xs font-medium hover:opacity-90"
+        >
+          {sub ? 'Gerenciar assinatura' : 'Assinar'}
+        </Link>
       </CardContent>
     </Card>
   );

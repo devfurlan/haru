@@ -1,7 +1,7 @@
 import { prisma } from '@haru/database';
 import type { Subscription } from '@haru/database';
 
-import type { FeatureKey } from './types.js';
+import type { FeatureKey } from './types';
 
 /** Subconjunto mínimo de Tenant que os helpers de uso precisam. */
 export interface TenantWithSubscription {
@@ -10,13 +10,18 @@ export interface TenantWithSubscription {
 }
 
 /**
- * True se a assinatura ainda dá acesso às features pagas. ACTIVE = em dia;
- * PAST_DUE = pagamento falhou mas ainda em carência (grace). PENDING/SUSPENDED/
- * CANCELED = sem acesso.
+ * True quando a assinatura dá acesso. ACTIVE = em dia. CANCELED mas ainda dentro do
+ * período já pago (currentPeriodEnd no futuro) também mantém acesso até essa data -
+ * cancelamento vale "no fim do período" sem precisar de cron. Sem carência: PAST_DUE,
+ * PENDING e SUSPENDED não dão acesso (quem não paga não usa).
  */
 export function isSubscriptionActive(sub: Subscription | null | undefined): boolean {
   if (!sub) return false;
-  return sub.status === 'ACTIVE' || sub.status === 'PAST_DUE';
+  if (sub.status === 'ACTIVE') return true;
+  if (sub.status === 'CANCELED' && sub.currentPeriodEnd && sub.currentPeriodEnd.getTime() > Date.now()) {
+    return true;
+  }
+  return false;
 }
 
 /** True se a assinatura ativa libera a feature (lê os flags do snapshot). */

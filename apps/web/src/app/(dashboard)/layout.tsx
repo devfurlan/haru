@@ -1,5 +1,6 @@
 import Link from 'next/link';
 
+import { BillingBanner } from '@/components/billing-banner';
 import { BusinessMenuLink } from '@/components/business-menu-link';
 import { DashboardNav } from '@/components/dashboard-nav';
 import { Logo } from '@/components/logo';
@@ -38,6 +39,7 @@ export default async function DashboardLayout({
         </div>
       </aside>
       <main className="flex-1 overflow-y-auto">
+        <BillingBanner tenant={tenant} />
         <UsageBanner tenant={tenant} />
         <div className="p-6">{children}</div>
       </main>

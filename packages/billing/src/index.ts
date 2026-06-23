@@ -7,9 +7,9 @@
  * que reprecificar um Plan não muda quem já assina (grandfather).
  */
 
-export { type FeatureKey, TIER_LABEL, FEATURE_MIN_TIER } from './types.js';
+export { type FeatureKey, TIER_LABEL, FEATURE_MIN_TIER } from './types';
 
-export { type PlanSnapshot, snapshotPlan } from './snapshot.js';
+export { type PlanSnapshot, snapshotPlan } from './snapshot';
 
 export {
   type TenantWithSubscription,
@@ -21,4 +21,4 @@ export {
   getMonthlyAiUsage,
   getUsageStatus,
   alertLevel,
-} from './gating.js';
+} from './gating';

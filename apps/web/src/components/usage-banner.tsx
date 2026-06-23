@@ -46,7 +46,7 @@ export async function UsageBanner({ tenant }: { tenant: TenantWithSubscription }
           ))}
         </div>
         <Link
-          href="/settings#plano"
+          href="/assinatura"
           className="bg-foreground text-background shrink-0 rounded-md px-3 py-1.5 text-xs font-medium hover:opacity-90"
         >
           Fazer upgrade

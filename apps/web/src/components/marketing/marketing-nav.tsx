@@ -11,6 +11,7 @@ const links = [
   { href: '/#diferenciais', label: 'Diferenciais' },
   { href: '/#recursos', label: 'Recursos' },
   { href: '/#como', label: 'Como funciona' },
+  { href: '/precos', label: 'Preços' },
   { href: '/#breve', label: 'Em breve' },
 ];
 

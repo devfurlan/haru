@@ -509,6 +509,10 @@ model Subscription {
   // --- Asaas (recorrência - Fase 2) ---
   asaasCustomerId     String?
   asaasSubscriptionId String?
+  /// Última cobrança do Asaas já contabilizada. Dedup de webhook: o Asaas manda
+  /// CONFIRMED e RECEIVED para o mesmo pagamento - guardamos o id pra não enviar
+  /// e-mail/recibo duplicado nem reprocessar.
+  lastBilledPaymentId String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
