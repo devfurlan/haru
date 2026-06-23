@@ -66,11 +66,6 @@ export async function subscribe(
   }
   const { tier, cycle, method, cpfCnpj } = parsed.data;
 
-  // Essencial não é contratável no self-serve - só o admin atribui.
-  if (tier === 'ESSENCIAL') {
-    return { error: 'O plano Essencial é contratado apenas com a nossa equipe.' };
-  }
-
   const plan = await prisma.plan.findUnique({ where: { tier: tier as PlanTier } });
   if (!plan || !plan.active) {
     return { error: 'Plano indisponível.' };
@@ -224,11 +219,6 @@ export async function changePlan(
   });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? 'Dados inválidos' };
   const { tier, cycle } = parsed.data;
-
-  // Essencial não é selecionável no self-serve - só o admin atribui.
-  if (tier === 'ESSENCIAL') {
-    return { error: 'O plano Essencial é atribuído apenas pela nossa equipe.' };
-  }
 
   const plan = await prisma.plan.findUnique({ where: { tier: tier as PlanTier } });
   if (!plan || !plan.active || plan.priceMonthlyCents <= 0) {

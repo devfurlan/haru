@@ -1,7 +1,12 @@
+import { MessagesSquare } from 'lucide-react';
+
 import { prisma } from '@haru/database';
+
+import { Button } from '@/components/ui/button';
 
 import { Eyebrow } from './eyebrow';
 import { Container } from './container';
+import { InterestDialog } from './interest-dialog';
 import { PricingTiers, type PricingTier } from './pricing-tiers';
 
 /** Seção de planos da landing - lê o catálogo dinâmico (tabela Plan). */
@@ -10,9 +15,9 @@ export async function Pricing() {
   // simplesmente não renderiza - não derruba o build/landing inteiro.
   let plans;
   try {
-    // Essencial fica fora da vitrine (mas segue no BD); mostramos Profissional+.
+    // Enterprise não é card: vira o banner de "plano customizado" abaixo dos planos.
     plans = await prisma.plan.findMany({
-      where: { active: true, tier: { not: 'ESSENCIAL' } },
+      where: { active: true, tier: { not: 'ENTERPRISE' } },
       orderBy: { displayOrder: 'asc' },
     });
   } catch (err) {
@@ -52,6 +57,28 @@ export async function Pricing() {
         </div>
 
         <PricingTiers tiers={tiers} />
+
+        {/* Banner Enterprise / plano sob medida */}
+        <div className="mt-10 flex flex-col items-center justify-between gap-4 rounded-2xl border border-border bg-paper p-6 text-center sm:flex-row sm:text-left">
+          <div className="flex items-center gap-3">
+            <MessagesSquare className="size-6 shrink-0 text-coral" />
+            <div>
+              <p className="font-semibold">Precisa de um plano customizado?</p>
+              <p className="text-sm text-ink-soft">
+                Acima do Negócio? Fale com o time que a gente monta um plano sob medida pra sua
+                operação.
+              </p>
+            </div>
+          </div>
+          <InterestDialog
+            title="Vamos montar seu plano Enterprise"
+            description="O Enterprise é pra quem precisa de mais do que o Negócio. Deixe seus dados que nosso time monta um plano sob medida pra sua operação."
+          >
+            <Button variant="ink" className="shrink-0 rounded-full">
+              Falar com a gente
+            </Button>
+          </InterestDialog>
+        </div>
       </Container>
     </section>
   );

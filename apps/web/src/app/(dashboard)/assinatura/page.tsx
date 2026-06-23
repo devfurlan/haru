@@ -19,10 +19,10 @@ export default async function AssinaturaPage() {
   const { tenant } = await requireAdmin();
   const sub = tenant.subscription;
 
-  // Planos contratáveis no self-serve: ativos, com preço (Enterprise = sob consulta) e
-  // SEM o Essencial (esse só é atribuído pelo admin; continua no BD).
+  // Planos contratáveis no self-serve: ativos e com preço (Enterprise = sob consulta,
+  // fora do self-serve; contato pelo banner da landing).
   const plans = await prisma.plan.findMany({
-    where: { active: true, priceMonthlyCents: { gt: 0 }, tier: { not: 'ESSENCIAL' } },
+    where: { active: true, priceMonthlyCents: { gt: 0 } },
     orderBy: { displayOrder: 'asc' },
     select: { tier: true, name: true, priceMonthlyCents: true, priceAnnualCents: true },
   });
