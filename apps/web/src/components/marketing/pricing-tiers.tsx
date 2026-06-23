@@ -7,6 +7,8 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
+import { InterestDialog } from './interest-dialog';
+
 export interface PricingTier {
   tier: string;
   name: string;
@@ -144,13 +146,24 @@ export function PricingTiers({ tiers }: { tiers: PricingTier[] }) {
                 )}
               </div>
 
-              <Button
-                asChild
-                variant={featured ? 'coral' : 'ink'}
-                className="mt-6 w-full rounded-full"
-              >
-                <Link href="/signup">{t.custom ? 'Falar com a gente' : 'Começar'}</Link>
-              </Button>
+              {t.custom ? (
+                <InterestDialog
+                  title="Vamos montar seu plano Enterprise"
+                  description="O Enterprise é pra quem precisa de mais do que o Negócio. Deixe seus dados que nosso time monta um plano sob medida pra sua operação."
+                >
+                  <Button variant={featured ? 'coral' : 'ink'} className="mt-6 w-full rounded-full">
+                    Falar com a gente
+                  </Button>
+                </InterestDialog>
+              ) : (
+                <Button
+                  asChild
+                  variant={featured ? 'coral' : 'ink'}
+                  className="mt-6 w-full rounded-full"
+                >
+                  <Link href="/signup">Começar</Link>
+                </Button>
+              )}
 
               <ul className="mt-8 flex flex-1 flex-col gap-3 text-[0.92rem] leading-snug">
                 <FeatureRow on featured={featured}>

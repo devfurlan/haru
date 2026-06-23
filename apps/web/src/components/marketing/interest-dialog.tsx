@@ -11,17 +11,22 @@ import {
 
 import { InterestForm } from './interest-form';
 
-export function InterestDialog({ children }: { children: React.ReactNode }) {
+export function InterestDialog({
+  children,
+  title = 'Quero usar o Demandaê',
+  description = 'Estamos liberando acesso aos poucos. Deixe seus dados que a gente entra em contato pelo WhatsApp para te ajudar a começar.',
+}: {
+  children: React.ReactNode;
+  title?: string;
+  description?: string;
+}) {
   return (
     <Dialog>
       <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent dismissable={false}>
         <DialogHeader>
-          <DialogTitle>Quero usar o Demandaê</DialogTitle>
-          <DialogDescription>
-            Estamos liberando acesso aos poucos. Deixe seus dados que a gente entra em contato pelo
-            WhatsApp para te ajudar a começar.
-          </DialogDescription>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
         <InterestForm />
       </DialogContent>

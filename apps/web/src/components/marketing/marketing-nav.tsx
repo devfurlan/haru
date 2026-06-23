@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/logo';
 
 import { Container } from './container';
-import { InterestDialog } from './interest-dialog';
 
 const links = [
   { href: '/#diferenciais', label: 'Diferenciais' },
@@ -33,11 +32,9 @@ export function MarketingNav() {
           <Button asChild variant="ghost" className="h-11 rounded-full px-5 font-semibold">
             <Link href="/login">Entrar</Link>
           </Button>
-          <InterestDialog>
-            <Button variant="coral" className="h-11 rounded-full px-6">
-              Começar agora
-            </Button>
-          </InterestDialog>
+          <Button asChild variant="coral" className="h-11 rounded-full px-6">
+            <Link href="/signup">Começar agora</Link>
+          </Button>
         </div>
       </Container>
     </nav>

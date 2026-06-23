@@ -1,7 +1,8 @@
+import Link from 'next/link';
+
 import { Button } from '@/components/ui/button';
 
 import { Container } from './container';
-import { InterestDialog } from './interest-dialog';
 
 export function FinalCta() {
   return (
@@ -21,11 +22,9 @@ export function FinalCta() {
           cliente.
         </p>
         <div className="flex flex-wrap items-center justify-center gap-3.5">
-          <InterestDialog>
-            <Button variant="coral" size="pill">
-              Conectar meu WhatsApp →
-            </Button>
-          </InterestDialog>
+          <Button asChild variant="coral" size="pill">
+            <Link href="/signup">Conectar meu WhatsApp →</Link>
+          </Button>
         </div>
       </Container>
     </section>

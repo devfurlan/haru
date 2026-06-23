@@ -1,8 +1,9 @@
+import Link from 'next/link';
+
 import { Button } from '@/components/ui/button';
 
 import { Container } from './container';
 import { HeroPhone } from './hero-phone';
-import { InterestDialog } from './interest-dialog';
 
 export function Hero() {
   return (
@@ -30,11 +31,9 @@ export function Hero() {
             painel.
           </p>
           <div className="flex flex-wrap items-center gap-3.5">
-            <InterestDialog>
-              <Button variant="coral" size="pill">
-                Conectar meu WhatsApp →
-              </Button>
-            </InterestDialog>
+            <Button asChild variant="coral" size="pill">
+              <Link href="/signup">Conectar meu WhatsApp →</Link>
+            </Button>
             <Button
               asChild
               size="pill"
