@@ -65,7 +65,7 @@ export async function Pricing() {
             <div>
               <p className="font-semibold">Precisa de um plano customizado?</p>
               <p className="text-sm text-ink-soft">
-                Acima do Multi? Fale com o time que a gente monta um plano sob medida pra sua
+                Fale com o time que a gente monta um plano sob medida pra sua
                 operação.
               </p>
             </div>
