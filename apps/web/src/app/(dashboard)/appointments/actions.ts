@@ -127,15 +127,21 @@ export async function confirmAppointment(appointmentId: string) {
   await changeStatus(appointmentId, 'CONFIRMED');
 }
 
-export async function cancelAppointment(appointmentId: string) {
+export async function cancelAppointment(appointmentId: string, opts?: { notifyClient?: boolean }) {
   const changed = await changeStatus(appointmentId, 'CANCELED');
-  if (changed) {
-    // Fire-and-forget: avisa o webhook externo (Discord/Slack/etc.)
-    notifyAppointmentCanceled(appointmentId).catch((err) =>
-      console.error('[appointments] notify cancel failed', err),
-    );
-    // Fire-and-forget: manda template aprovado pro cliente (se configurado).
-    // Funciona fora da janela de 24h da Meta.
+  if (!changed) return;
+
+  // Fire-and-forget: avisa o webhook externo (Discord/Slack/etc.) - é interno
+  // pro dono, sempre dispara.
+  notifyAppointmentCanceled(appointmentId).catch((err) =>
+    console.error('[appointments] notify cancel failed', err),
+  );
+
+  // Template aprovado pro CLIENTE só num cancelamento "puro". Quando o
+  // cancelamento faz parte de uma remarcação (o cliente já foi movido pra outro
+  // horário), o aviso de cancelamento é redundante e confunde - por isso é
+  // opcional (default: avisa). Funciona fora da janela de 24h da Meta.
+  if (opts?.notifyClient ?? true) {
     sendAppointmentTemplate(appointmentId, 'cancel').catch((err) =>
       console.error('[appointments] template cancel failed', err),
     );
@@ -155,7 +161,7 @@ export async function markNoShow(appointmentId: string) {
  * Não toca em ocorrências já passadas/realizadas. Notifica o cliente uma única vez
  * (não N) - é o mesmo contato em todas as ocorrências.
  */
-export async function cancelAppointmentSeries(seriesId: string) {
+export async function cancelAppointmentSeries(seriesId: string, opts?: { notifyClient?: boolean }) {
   const { tenant } = await requireUserAndTenant();
   const now = new Date();
   const futures = await prisma.appointment.findMany({
@@ -187,9 +193,12 @@ export async function cancelAppointmentSeries(seriesId: string) {
   notifyAppointmentCanceled(futures[0].id).catch((err) =>
     console.error('[appointments] notify cancel (series) failed', err),
   );
-  sendAppointmentTemplate(futures[0].id, 'cancel').catch((err) =>
-    console.error('[appointments] template cancel (series) failed', err),
-  );
+  // Aviso pro cliente só num cancelamento "puro" (ver cancelAppointment).
+  if (opts?.notifyClient ?? true) {
+    sendAppointmentTemplate(futures[0].id, 'cancel').catch((err) =>
+      console.error('[appointments] template cancel (series) failed', err),
+    );
+  }
 }
 
 const createSchema = z.object({
