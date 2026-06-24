@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label';
 import { BOT_WEBHOOK_URL } from '@/lib/whatsapp-status';
 
 import { connectWhatsapp, disconnectWhatsapp, type WhatsappActionResult } from './actions';
+import { EmbeddedSignup } from './embedded-signup';
 
 interface WhatsappCardProps {
   phoneNumberId: string | null;
@@ -119,6 +120,39 @@ function MetaGuide() {
   );
 }
 
+/**
+ * Embrulha o formulário manual de credenciais. Quando ainda não está conectado, fica
+ * recolhido atrás de "Conexão manual (avançado)" - o caminho principal é o Embedded
+ * Signup. Em edição (já conectado) abre direto, já que é o único caminho de edição.
+ */
+function ManualConnect({
+  defaultOpen,
+  children,
+}: {
+  defaultOpen: boolean;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+
+  if (defaultOpen) {
+    return <div className="space-y-4">{children}</div>;
+  }
+
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="text-muted-foreground flex w-full items-center justify-between text-sm font-medium"
+      >
+        Conexão manual (avançado)
+        <ChevronDown className={`h-4 w-4 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && <div className="mt-4 space-y-4">{children}</div>}
+    </div>
+  );
+}
+
 export function WhatsappCard({
   phoneNumberId,
   businessAccountId,
@@ -195,88 +229,94 @@ export function WhatsappCard({
 
         {showForm && (
           <>
-            <MetaGuide />
+            {/* Onboarding automático (Embedded Signup) - caminho principal quando
+                ainda não está conectado. Em edição, vai direto pro form manual. */}
+            {!connected && <EmbeddedSignup />}
 
-            <form action={formAction} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="phoneNumberId">ID do número de telefone (phone_number_id)</Label>
-                <Input
-                  id="phoneNumberId"
-                  name="phoneNumberId"
-                  defaultValue={phoneNumberId ?? ''}
-                  placeholder="123456789012345"
-                  required
-                />
-                <p className="text-muted-foreground text-xs">
-                  É um número longo (15+ dígitos), <strong>não</strong> é o telefone do WhatsApp. Na
-                  Meta: WhatsApp → Configuração da API, logo abaixo do número selecionado.
-                </p>
-              </div>
+            <ManualConnect defaultOpen={connected}>
+              <MetaGuide />
 
-              <div className="space-y-2">
-                <Label htmlFor="accessToken">Token de acesso (access_token)</Label>
-                <Input
-                  id="accessToken"
-                  name="accessToken"
-                  type="password"
-                  placeholder="EAAB…"
-                  required
-                />
-                <p className="text-muted-foreground text-xs">
-                  É o que autoriza o bot a enviar mensagens pelo seu número. Começa com{' '}
-                  <code>EAA</code>. Para testar, use o token temporário (24h) que aparece em
-                  Configuração da API. Em produção, gere um token permanente de um System User com a
-                  permissão <code>whatsapp_business_messaging</code>.
-                </p>
-              </div>
+              <form action={formAction} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="phoneNumberId">ID do número de telefone (phone_number_id)</Label>
+                  <Input
+                    id="phoneNumberId"
+                    name="phoneNumberId"
+                    defaultValue={phoneNumberId ?? ''}
+                    placeholder="123456789012345"
+                    required
+                  />
+                  <p className="text-muted-foreground text-xs">
+                    É um número longo (15+ dígitos), <strong>não</strong> é o telefone do WhatsApp.
+                    Na Meta: WhatsApp → Configuração da API, logo abaixo do número selecionado.
+                  </p>
+                </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="businessAccountId">
-                  ID da conta WhatsApp Business (WABA ID) - opcional
-                </Label>
-                <Input
-                  id="businessAccountId"
-                  name="businessAccountId"
-                  defaultValue={businessAccountId ?? ''}
-                  placeholder="123456789012345"
-                />
-                <p className="text-muted-foreground text-xs">
-                  É o ID da <strong>conta WhatsApp Business</strong>, que agrupa os seus números.{' '}
-                  <strong>Não confunda</strong> com o ID do Aplicativo (App ID) nem com o
-                  phone_number_id. Na Meta: WhatsApp → Configuração da API, no topo, campo{' '}
-                  <strong>WhatsApp Business Account ID</strong>. Não é obrigatório para o bot
-                  funcionar - pode deixar em branco.
-                </p>
-              </div>
+                <div className="space-y-2">
+                  <Label htmlFor="accessToken">Token de acesso (access_token)</Label>
+                  <Input
+                    id="accessToken"
+                    name="accessToken"
+                    type="password"
+                    placeholder="EAAB…"
+                    required
+                  />
+                  <p className="text-muted-foreground text-xs">
+                    É o que autoriza o bot a enviar mensagens pelo seu número. Começa com{' '}
+                    <code>EAA</code>. Para testar, use o token temporário (24h) que aparece em
+                    Configuração da API. Em produção, gere um token permanente de um System User com
+                    a permissão <code>whatsapp_business_messaging</code>.
+                  </p>
+                </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="displayPhone">Telefone público - opcional</Label>
-                <Input
-                  id="displayPhone"
-                  name="displayPhone"
-                  defaultValue={displayPhone ?? ''}
-                  placeholder="5511987654321"
-                />
-                <p className="text-muted-foreground text-xs">
-                  O número que aparece para os clientes, usado no link <code>wa.me/...</code> da sua
-                  página pública. Só dígitos, com DDI e DDD, sem +, espaços ou parênteses (ex.:
-                  5519936195726).
-                </p>
-              </div>
+                <div className="space-y-2">
+                  <Label htmlFor="businessAccountId">
+                    ID da conta WhatsApp Business (WABA ID) - opcional
+                  </Label>
+                  <Input
+                    id="businessAccountId"
+                    name="businessAccountId"
+                    defaultValue={businessAccountId ?? ''}
+                    placeholder="123456789012345"
+                  />
+                  <p className="text-muted-foreground text-xs">
+                    É o ID da <strong>conta WhatsApp Business</strong>, que agrupa os seus números.{' '}
+                    <strong>Não confunda</strong> com o ID do Aplicativo (App ID) nem com o
+                    phone_number_id. Na Meta: WhatsApp → Configuração da API, no topo, campo{' '}
+                    <strong>WhatsApp Business Account ID</strong>. Não é obrigatório para o bot
+                    funcionar - pode deixar em branco.
+                  </p>
+                </div>
 
-              {state && 'error' in state && (
-                <p className="text-destructive text-sm">{state.error}</p>
-              )}
+                <div className="space-y-2">
+                  <Label htmlFor="displayPhone">Telefone público - opcional</Label>
+                  <Input
+                    id="displayPhone"
+                    name="displayPhone"
+                    defaultValue={displayPhone ?? ''}
+                    placeholder="5511987654321"
+                  />
+                  <p className="text-muted-foreground text-xs">
+                    O número que aparece para os clientes, usado no link <code>wa.me/...</code> da
+                    sua página pública. Só dígitos, com DDI e DDD, sem +, espaços ou parênteses
+                    (ex.: 5519936195726).
+                  </p>
+                </div>
 
-              <div className="flex gap-2">
-                <SubmitButton editing={connected} />
-                {connected && (
-                  <Button type="button" variant="ghost" onClick={() => setShowForm(false)}>
-                    Cancelar
-                  </Button>
+                {state && 'error' in state && (
+                  <p className="text-destructive text-sm">{state.error}</p>
                 )}
-              </div>
-            </form>
+
+                <div className="flex gap-2">
+                  <SubmitButton editing={connected} />
+                  {connected && (
+                    <Button type="button" variant="ghost" onClick={() => setShowForm(false)}>
+                      Cancelar
+                    </Button>
+                  )}
+                </div>
+              </form>
+            </ManualConnect>
           </>
         )}
       </CardContent>

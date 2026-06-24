@@ -22,6 +22,10 @@ export interface WebhookChange {
       wa_id: string;
     }>;
     messages?: WebhookMessage[];
+    // Coexistence: mensagens que o próprio dono enviou pelo WhatsApp Business App
+    // depois do número entrar em coexistence chegam aqui (campo `smb_message_echoes`),
+    // não em `messages`. No echo, `from` = número do negócio e `to` = cliente.
+    message_echoes?: WebhookMessage[];
     statuses?: Array<{
       id: string;
       status: string;
@@ -43,6 +47,8 @@ export interface MediaObject {
 
 export interface WebhookMessage {
   from: string;
+  /// Presente nos echos de coexistence (`smb_message_echoes`): o cliente destino.
+  to?: string;
   id: string;
   timestamp: string;
   type: 'text' | 'image' | 'audio' | 'video' | 'document' | 'sticker' | 'interactive' | 'button';

@@ -15,6 +15,7 @@ import { getOrCreateConversation, saveMessage } from '../services/chatHistorySer
 import {
   getHandoffStatus,
   initiateHandoff,
+  pauseBotForOwnerReply,
   refreshHandoffWindow,
 } from '../services/handoffService.js';
 import { findTenantByPhoneNumberId } from '../services/tenantService.js';
@@ -94,7 +95,9 @@ async function processWebhook(payload: WebhookPayload, app: FastifyInstance) {
   for (const entry of payload.entry) {
     for (const change of entry.changes) {
       const messages = change.value.messages;
-      if (!messages?.length) continue;
+      // Coexistence: mensagens que o dono mandou pelo celular chegam aqui.
+      const echoes = change.value.message_echoes;
+      if (!messages?.length && !echoes?.length) continue;
 
       const phoneNumberId = change.value.metadata.phone_number_id;
       const tenant = await findTenantByPhoneNumberId(phoneNumberId);
@@ -113,7 +116,38 @@ async function processWebhook(payload: WebhookPayload, app: FastifyInstance) {
         continue;
       }
 
+      // Coexistence: o dono respondeu o cliente pelo WhatsApp Business App.
+      // Registra a mensagem no histórico e pausa o bot pra aquele cliente.
+      if (echoes?.length) {
+        for (const echo of echoes) {
+          if (processedMessages.has(echo.id)) continue;
+          processedMessages.add(echo.id);
+          if (processedMessages.size > MAX_PROCESSED) {
+            const first = processedMessages.values().next().value;
+            if (first) processedMessages.delete(first);
+          }
+          try {
+            await handleOwnerEcho(tenant.id, echo);
+          } catch (err) {
+            app.log.error({ err, echoId: echo.id }, 'Erro ao processar echo do dono');
+            Sentry.captureException(err, {
+              tags: { component: 'webhook', phase: 'handleOwnerEcho' },
+              extra: { tenantId: tenant.id, echoId: echo.id },
+            });
+          }
+        }
+      }
+
+      if (!messages?.length) continue;
+
       for (const message of messages) {
+        // Cinto e suspensório: em coexistence as mensagens do dono vêm em
+        // `message_echoes`, não aqui. Mas se a Meta mandar uma com `from` = número
+        // do próprio negócio, ignoramos pra o bot nunca responder a si mesmo.
+        if (message.from === change.value.metadata.display_phone_number) {
+          continue;
+        }
+
         if (processedMessages.has(message.id)) {
           app.log.info({ messageId: message.id }, 'Mensagem duplicada, ignorando');
           continue;
@@ -156,6 +190,26 @@ async function processWebhook(payload: WebhookPayload, app: FastifyInstance) {
       }
     }
   }
+}
+
+/**
+ * Coexistence: o dono respondeu o cliente pelo WhatsApp Business App (echo via
+ * `smb_message_echoes`). Salva a mensagem como OUTBOUND no histórico (pra o painel
+ * mostrar o atendimento humano) e pausa o bot pra aquele cliente, reusando o handoff.
+ */
+async function handleOwnerEcho(tenantId: string, echo: WebhookMessage) {
+  const customerPhone = echo.to;
+  if (!customerPhone) return; // sem destino não dá pra associar a um cliente
+
+  const text =
+    echo.text?.body ??
+    echo.interactive?.button_reply?.title ??
+    echo.button?.text ??
+    (echo.type !== 'text' ? `[${echo.type}]` : '');
+
+  const { conversationId } = await getOrCreateConversation(tenantId, customerPhone);
+  await saveMessage(conversationId, 'OUTBOUND', text, echo.id).catch(console.error);
+  await pauseBotForOwnerReply(conversationId).catch(console.error);
 }
 
 async function routeMessage(

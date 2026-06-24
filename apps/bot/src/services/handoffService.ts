@@ -36,6 +36,17 @@ export async function refreshHandoffWindow(conversationId: string): Promise<void
 }
 
 /**
+ * Pausa o bot porque o DONO está atendendo o cliente manualmente (coexistence:
+ * mensagem dele chegou via `smb_message_echoes`). Seta a janela de handoff sem
+ * enviar e-mail e sem marcar "cliente pediu atendente" - o dono já está na conversa.
+ * Idempotente: só estende a janela. Recebe a conversationId já resolvida (o webhook
+ * garante o contato/conversa antes de chamar).
+ */
+export async function pauseBotForOwnerReply(conversationId: string): Promise<void> {
+  await refreshHandoffWindow(conversationId);
+}
+
+/**
  * Inicia o handoff humano a pedido do cliente: silencia o bot por 24h (o gate em
  * webhook.ts passa a engolir as mensagens) e avisa o dono por e-mail (best-effort,
  * respeitando o opt-out). `handoffById` fica null - nenhum humano assumiu ainda; o

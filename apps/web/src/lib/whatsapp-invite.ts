@@ -1,6 +1,6 @@
 import type { Tenant } from '@haru/database';
 
-const API_URL = 'https://graph.facebook.com/v21.0';
+import { GRAPH_API_URL as API_URL } from './whatsapp-graph';
 
 interface SendInviteArgs {
   tenant: Pick<

@@ -13,6 +13,7 @@ import { getBaseUrl } from '@/lib/base-url';
 import { normalizePhoneBR } from '@/lib/format';
 import { createClient } from '@/lib/supabase/server';
 import { getSupabaseAdmin } from '@/lib/supabase/admin';
+import { saveWhatsappCredentials } from '@/lib/whatsapp-credentials';
 import { sendInviteWhatsapp } from '@/lib/whatsapp-invite';
 import { syncWhatsappProfile, uploadWhatsappProfilePicture } from '@/lib/whatsapp-profile';
 
@@ -351,21 +352,9 @@ export async function connectWhatsapp(
     return { error: parsed.error.issues[0]?.message ?? 'Dados inválidos' };
   }
 
-  try {
-    await prisma.tenant.update({
-      where: { id: tenant.id },
-      data: {
-        whatsappPhoneNumberId: parsed.data.phoneNumberId,
-        whatsappBusinessAccountId: parsed.data.businessAccountId,
-        whatsappDisplayPhone: parsed.data.displayPhone,
-        whatsappAccessToken: parsed.data.accessToken,
-      },
-    });
-  } catch (err) {
-    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
-      return { error: 'Esse phone_number_id já está vinculado a outro estabelecimento' };
-    }
-    throw err;
+  const saved = await saveWhatsappCredentials(tenant.id, parsed.data);
+  if (!saved.ok) {
+    return { error: saved.error };
   }
 
   revalidatePath('/settings');

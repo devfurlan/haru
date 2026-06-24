@@ -62,32 +62,32 @@ pnpm dev:local   # supabase start + turbo dev
 
 Após `pnpm db:local:setup`, esses usuários ficam disponíveis em `http://localhost:4361/login`:
 
-| Estabelecimento  | Email               | Senha     | Conteúdo seedado |
-|------------------|---------------------|-----------|------------------|
-| Barbearia Teste  | `admin@teste.local` | `haru1234` | 4 serviços (corte, barba, combo, sobrancelha) + horários seg-sex 9-12 / 13-18 + sáb 9-13 |
+| Estabelecimento | Email               | Senha      | Conteúdo seedado                                                                         |
+| --------------- | ------------------- | ---------- | ---------------------------------------------------------------------------------------- |
+| Barbearia Teste | `admin@teste.local` | `haru1234` | 4 serviços (corte, barba, combo, sobrancelha) + horários seg-sex 9-12 / 13-18 + sáb 9-13 |
 
 Pra zerar tudo e re-seedar: `pnpm supabase:reset` (derruba o stack, recria DB do zero e roda `db:local:setup`).
 
 ### Endpoints locais
 
-| Serviço      | URL                          |
-|--------------|------------------------------|
-| Web          | http://localhost:4361        |
-| Bot          | http://localhost:3001        |
-| Supabase API | http://127.0.0.1:54361       |
-| Postgres     | postgresql://postgres:postgres@127.0.0.1:54362/postgres |
-| Studio       | http://127.0.0.1:54363       |
-| Inbucket (emails) | http://127.0.0.1:54364  |
+| Serviço           | URL                                                     |
+| ----------------- | ------------------------------------------------------- |
+| Web               | http://localhost:4361                                   |
+| Bot               | http://localhost:3001                                   |
+| Supabase API      | http://127.0.0.1:54361                                  |
+| Postgres          | postgresql://postgres:postgres@127.0.0.1:54362/postgres |
+| Studio            | http://127.0.0.1:54363                                  |
+| Inbucket (emails) | http://127.0.0.1:54364                                  |
 
 Convenção de portas para coexistir com os outros projetos:
 
-| Projeto   | API   | DB    | Studio | Inbucket |
-|-----------|-------|-------|--------|----------|
-| cuidly    | 54321 | 54322 | 54323  | 54324    |
-| clicare   | 54331 | 54332 | 54333  | 54334    |
-| cuidexa   | 54341 | 54342 | 54343  | 54344    |
-| vitera    | 54351 | 54352 | 54353  | 54354    |
-| **haru**  | 54361 | 54362 | 54363  | 54364    |
+| Projeto  | API   | DB    | Studio | Inbucket |
+| -------- | ----- | ----- | ------ | -------- |
+| cuidly   | 54321 | 54322 | 54323  | 54324    |
+| clicare  | 54331 | 54332 | 54333  | 54334    |
+| cuidexa  | 54341 | 54342 | 54343  | 54344    |
+| vitera   | 54351 | 54352 | 54353  | 54354    |
+| **haru** | 54361 | 54362 | 54363  | 54364    |
 
 ### Comandos do Supabase
 
@@ -131,6 +131,39 @@ pnpm db:generate       # regenera o cliente
 
 **Multi-tenant nativo:** o webhook resolve qual Tenant atende cada mensagem via `metadata.phone_number_id`.
 
+## Onboarding do WhatsApp (Embedded Signup + Coexistence)
+
+O tenant conecta o WhatsApp em **Configurações → WhatsApp Business**. Há dois caminhos:
+
+- **Embedded Signup (principal):** fluxo da Meta (`FB.login` com `config_id`) em
+  [embedded-signup.tsx](<apps/web/src/app/(dashboard)/settings/embedded-signup.tsx>); a route
+  [/api/whatsapp/embedded-signup](apps/web/src/app/api/whatsapp/embedded-signup/route.ts) troca o
+  `code` por token, chama `subscribe_apps` na WABA do tenant e grava as credenciais. Dois modos:
+  - **Coexistence (`coex`):** mesmo número que o dono já usa no **WhatsApp Business App** roda também
+    na Cloud API. O dono continua atendendo pelo celular; o bot agenda por baixo. **Não** chama
+    `register` (registrar quebraria a coexistence). Requisitos exibidos na UI: número nunca usado em
+    API antes, ativo no Business App há 7+ dias, Business App 2.24.17+, abrir o app a cada 13 dias.
+  - **Número novo (`new`):** registra o número na Cloud API (`register` com PIN de two-step).
+- **Conexão manual (avançado):** formulário que cola `phone_number_id` / `access_token` / WABA -
+  fallback quando o Embedded Signup não está configurado. Ambos os caminhos persistem via
+  `saveWhatsappCredentials` ([whatsapp-credentials.ts](apps/web/src/lib/whatsapp-credentials.ts)).
+
+**Campos de webhook a assinar na Meta** (App → WhatsApp → Configuração → Webhook fields):
+
+- `messages` - mensagens dos clientes (caminho normal do bot).
+- `smb_message_echoes` - **(coexistence)** mensagens que o **dono** envia pelo Business App.
+  O bot consome isso em [webhook.ts](apps/bot/src/routes/webhook.ts) (`handleOwnerEcho`): registra a
+  mensagem como `OUTBOUND` no histórico e **pausa o bot** para aquele cliente (handoff), pra o bot e
+  o dono não responderem o mesmo cliente ao mesmo tempo.
+- `history` / `smb_app_state_sync` - backfill de conversas e contatos do dono (**fase 2**, ainda não
+  consumidos).
+
+Envs novas (web): `NEXT_PUBLIC_FACEBOOK_APP_ID`, `NEXT_PUBLIC_WHATSAPP_CONFIG_ID`,
+`FACEBOOK_APP_SECRET` (ver `apps/web/.env.example`). Um único `config_id` (Login do Facebook
+para empresas → Configurações, variação **General** + permissões `whatsapp_business_management`
+/ `whatsapp_business_messaging`) serve aos dois fluxos; coexistence vs número novo é decidido em
+runtime pelo `featureType`.
+
 ## Templates da Meta (WhatsApp)
 
 Mensagens iniciadas pelo negócio fora da janela de 24h de atendimento exigem **templates pré-aprovados na Meta** (WhatsApp Manager → _Modelos de mensagem_). Cada Tenant configura o nome e o idioma do template que ele mesmo criou e aprovou na conta dele; o nome é livre - os defaults abaixo são só sugestão exibida na UI. **Os parâmetros (`{{1}}`, `{{2}}`, …) têm que bater exatamente** com o que o código envia, na ordem listada, senão a Meta recusa o envio (e a falha é silenciosa: o lembrete/aviso simplesmente não chega).
@@ -167,7 +200,7 @@ Templates que o código envia hoje. O **corpo** é uma sugestão (texto que o ne
 - **Variáveis:** `{{1}}` nome do negócio · `{{2}}` link de ativação
 - **Enviado em:** [apps/web/src/lib/whatsapp-invite.ts](apps/web/src/lib/whatsapp-invite.ts)
 - **Corpo sugerido:**
-  > Olá! Você foi convidado para acessar o painel de *{{1}}* no Demandaê. Ative sua conta e defina sua senha aqui: {{2}}
+  > Olá! Você foi convidado para acessar o painel de _{{1}}_ no Demandaê. Ative sua conta e defina sua senha aqui: {{2}}
 
 Notas:
 
