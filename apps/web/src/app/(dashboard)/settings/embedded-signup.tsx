@@ -56,17 +56,21 @@ export function EmbeddedSignup() {
     if (!configured) return;
 
     function onMessage(event: MessageEvent) {
-      if (!/facebook\.com$/.test(new URL(event.origin).hostname)) return;
       try {
+        if (!event.origin || !/facebook\.com$/.test(new URL(event.origin).hostname)) return;
         const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
-        if (data?.type === 'WA_EMBEDDED_SIGNUP' && data?.data) {
-          sessionRef.current = {
-            phoneNumberId: data.data.phone_number_id,
-            wabaId: data.data.waba_id,
-          };
+        if (data?.type === 'WA_EMBEDDED_SIGNUP') {
+          // Log pra diagnóstico: mostra FINISH/CANCEL/ERROR e o payload da Meta.
+          console.info('[embedded-signup] evento Meta:', data.event, data.data);
+          if (data.data?.phone_number_id) {
+            sessionRef.current = {
+              phoneNumberId: data.data.phone_number_id,
+              wabaId: data.data.waba_id,
+            };
+          }
         }
       } catch {
-        // mensagens não-JSON do postMessage do FB - ignorar
+        // origin inválida ou mensagem não-JSON do postMessage do FB - ignorar
       }
     }
     window.addEventListener('message', onMessage);

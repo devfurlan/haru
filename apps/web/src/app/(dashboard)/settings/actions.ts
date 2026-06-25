@@ -5,7 +5,13 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 
 import { prisma } from '@haru/database';
-import { hasFeature } from '@haru/billing';
+import {
+  canAddProfessional,
+  canAddReceptionist,
+  getProfessionalUsage,
+  getReceptionistUsage,
+  hasFeature,
+} from '@haru/billing';
 import { encryptSecret } from '@haru/payments';
 
 import { requireAdmin, requireUserAndTenant } from '@/lib/auth';
@@ -674,10 +680,17 @@ const phoneSchema = z
     message: 'Telefone inválido. Use DDD + número (ex.: 11 91409-2346).',
   });
 
+/** "true"/"on" -> profissional (com agenda); resto -> recepcionista (sem agenda). */
+const isProfessionalField = z.preprocess(
+  (v) => v === 'true' || v === 'on' || v === true,
+  z.boolean(),
+);
+
 const inviteUserSchema = z.object({
   name: z.string().min(2, 'Nome muito curto').max(80),
   email: z.string().email('Email inválido'),
   phone: phoneSchema,
+  isProfessional: isProfessionalField,
 });
 
 export type InviteUserActionResult =
@@ -694,25 +707,35 @@ export async function inviteUser(
     name: formData.get('name'),
     email: formData.get('email'),
     phone: formData.get('phone'),
+    isProfessional: formData.get('isProfessional'),
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? 'Dados inválidos' };
   }
-  const { name, email, phone } = parsed.data;
+  const { name, email, phone, isProfessional } = parsed.data;
 
-  // Gate de equipe: feature do plano + limite de usuários (snapshot da assinatura).
+  // Gate de equipe: feature do plano + teto da categoria escolhida (snapshot da
+  // assinatura). Profissionais (com agenda) e recepcionistas (apoio) têm tetos
+  // independentes.
   if (!hasFeature(tenant.subscription, 'team')) {
     return {
       error:
-        'Equipe (mais de um profissional) está disponível a partir do plano Time. Faça upgrade para convidar.',
+        'Equipe (mais de um usuário) está disponível a partir do plano Time. Faça upgrade para convidar.',
     };
   }
-  const maxStaff = tenant.subscription?.maxStaff ?? null;
-  if (maxStaff !== null) {
-    const userCount = await prisma.user.count({ where: { tenantId: tenant.id } });
-    if (userCount >= maxStaff) {
+  const sub = tenant.subscription;
+  if (isProfessional) {
+    const used = await getProfessionalUsage(tenant.id);
+    if (!canAddProfessional(sub, used)) {
       return {
-        error: `Seu plano permite até ${maxStaff} usuários. Faça upgrade para adicionar mais.`,
+        error: `Seu plano permite até ${sub?.maxProfessionals ?? 0} profissionais (com agenda). Faça upgrade para adicionar mais.`,
+      };
+    }
+  } else {
+    const used = await getReceptionistUsage(tenant.id);
+    if (!canAddReceptionist(sub, used)) {
+      return {
+        error: `Seu plano permite até ${sub?.maxReceptionists ?? 0} recepcionistas (sem agenda). Faça upgrade para adicionar mais.`,
       };
     }
   }
@@ -736,6 +759,7 @@ export async function inviteUser(
         name,
         phone,
         role: 'STAFF',
+        isProfessional,
         status: 'INVITED',
         invitedAt: new Date(),
         tenantId: tenant.id,
@@ -778,6 +802,7 @@ const updateUserSchema = z.object({
   name: z.string().min(2, 'Nome muito curto').max(80),
   phone: phoneSchema,
   role: z.enum(['OWNER', 'STAFF']),
+  isProfessional: isProfessionalField,
 });
 
 export type UserActionResult = { error: string } | { ok: true };
@@ -794,11 +819,12 @@ export async function updateUser(
     name: formData.get('name'),
     phone: formData.get('phone'),
     role: formData.get('role'),
+    isProfessional: formData.get('isProfessional'),
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? 'Dados inválidos' };
   }
-  const { userId, name, phone, role } = parsed.data;
+  const { userId, name, phone, role, isProfessional } = parsed.data;
 
   const target = await prisma.user.findUnique({ where: { id: userId } });
   if (!target || target.tenantId !== tenant.id) {
@@ -819,7 +845,27 @@ export async function updateUser(
     }
   }
 
-  await prisma.user.update({ where: { id: userId }, data: { name, phone, role } });
+  // Mudou de categoria: valida o teto do destino. O `target` ainda está na
+  // categoria de origem, então a contagem do destino não o inclui.
+  if (isProfessional !== target.isProfessional) {
+    if (isProfessional) {
+      const used = await getProfessionalUsage(tenant.id);
+      if (!canAddProfessional(tenant.subscription, used)) {
+        return {
+          error: `Seu plano permite até ${tenant.subscription?.maxProfessionals ?? 0} profissionais (com agenda).`,
+        };
+      }
+    } else {
+      const used = await getReceptionistUsage(tenant.id);
+      if (!canAddReceptionist(tenant.subscription, used)) {
+        return {
+          error: `Seu plano permite até ${tenant.subscription?.maxReceptionists ?? 0} recepcionistas (sem agenda).`,
+        };
+      }
+    }
+  }
+
+  await prisma.user.update({ where: { id: userId }, data: { name, phone, role, isProfessional } });
 
   revalidatePath('/settings');
   revalidatePath('/', 'layout');

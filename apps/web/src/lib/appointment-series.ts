@@ -32,7 +32,9 @@ export interface CreateAppointmentSeriesInput {
   firstStartsAtIso: string;
   /** Status com que cada ocorrência entra (CONFIRMED no painel; config do tenant no público). */
   status: AppointmentStatus;
-  /** ScheduleBlocks do tenant, pra validar expediente de cada ocorrência. */
+  /** Profissional fixo da série inteira (mesma pessoa em todas as ocorrências). */
+  professionalId: string;
+  /** ScheduleBlocks DO PROFISSIONAL, pra validar expediente de cada ocorrência. */
   blocks: OpenBlock[];
 }
 
@@ -67,7 +69,12 @@ export async function createAppointmentSeries(
   // como já se faz com colisão e expediente. Busca uma vez só (N de ocorrências
   // é pequeno; a janela cobre toda a série).
   const exceptions = await prisma.scheduleException.findMany({
-    where: { tenantId: input.tenantId, endsAt: { gt: now } },
+    where: {
+      tenantId: input.tenantId,
+      endsAt: { gt: now },
+      // Folgas do tenant inteiro + as do profissional da série.
+      OR: [{ professionalId: null }, { professionalId: input.professionalId }],
+    },
     select: { startsAt: true, endsAt: true },
   });
 
@@ -98,6 +105,7 @@ export async function createAppointmentSeries(
     const conflict = await prisma.appointment.findFirst({
       where: {
         tenantId: input.tenantId,
+        professionalId: input.professionalId,
         status: { in: ['PENDING', 'CONFIRMED'] },
         AND: [{ startsAt: { lt: endsAt } }, { endsAt: { gt: startsAt } }],
       },
@@ -127,6 +135,7 @@ export async function createAppointmentSeries(
           tenantId: input.tenantId,
           contactId: input.contactId,
           serviceId: input.serviceId,
+          professionalId: input.professionalId,
           startsAt,
           endsAt,
           status: input.status,

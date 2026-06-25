@@ -9,8 +9,16 @@ import { requireUserAndTenant } from '@/lib/auth';
 
 const blockSchema = z.object({
   weekday: z.number().int().min(0).max(6),
-  startMinute: z.number().int().min(0).max(24 * 60),
-  endMinute: z.number().int().min(0).max(24 * 60),
+  startMinute: z
+    .number()
+    .int()
+    .min(0)
+    .max(24 * 60),
+  endMinute: z
+    .number()
+    .int()
+    .min(0)
+    .max(24 * 60),
 });
 
 const blocksSchema = z.array(blockSchema).max(7 * 6, 'Excesso de blocos');
@@ -18,9 +26,19 @@ const blocksSchema = z.array(blockSchema).max(7 * 6, 'Excesso de blocos');
 export type SaveScheduleResult = { error: string } | { ok: true };
 
 export async function saveSchedule(
+  professionalId: string,
   blocks: Array<{ weekday: number; startMinute: number; endMinute: number }>,
 ): Promise<SaveScheduleResult> {
   const { tenant } = await requireUserAndTenant();
+
+  // O alvo precisa ser um profissional (com agenda) deste tenant.
+  const professional = await prisma.user.findFirst({
+    where: { id: professionalId, tenantId: tenant.id, isProfessional: true },
+    select: { id: true },
+  });
+  if (!professional) {
+    return { error: 'Profissional não encontrado.' };
+  }
 
   const parsed = blocksSchema.safeParse(blocks);
   if (!parsed.success) {
@@ -49,10 +67,11 @@ export async function saveSchedule(
   }
 
   await prisma.$transaction([
-    prisma.scheduleBlock.deleteMany({ where: { tenantId: tenant.id } }),
+    prisma.scheduleBlock.deleteMany({ where: { tenantId: tenant.id, professionalId } }),
     prisma.scheduleBlock.createMany({
       data: parsed.data.map((b) => ({
         tenantId: tenant.id,
+        professionalId,
         weekday: b.weekday,
         startMinute: b.startMinute,
         endMinute: b.endMinute,

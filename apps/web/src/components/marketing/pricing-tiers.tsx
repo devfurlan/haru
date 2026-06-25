@@ -15,7 +15,8 @@ export interface PricingTier {
   priceAnnualCents: number;
   appointmentsPerMonth: number | null;
   aiMessagesPerMonth: number | null;
-  maxStaff: number | null;
+  maxProfessionals: number | null;
+  maxReceptionists: number | null;
   onlinePayments: boolean;
   webhooks: boolean;
   team: boolean;
@@ -52,7 +53,10 @@ function FeatureRow({
         <Check
           aria-hidden
           strokeWidth={3}
-          className={cn('mt-0.5 size-4 shrink-0', featured ? 'text-coral-soft' : 'text-green-bright')}
+          className={cn(
+            'mt-0.5 size-4 shrink-0',
+            featured ? 'text-coral-soft' : 'text-green-bright',
+          )}
         />
       ) : (
         <Minus
@@ -93,7 +97,9 @@ export function PricingTiers({ tiers }: { tiers: PricingTier[] }) {
               onClick={() => setCycle(c)}
               className={cn(
                 'rounded-full px-5 py-1.5 transition-colors',
-                cycle === c ? 'bg-foreground text-background' : 'text-ink-soft hover:text-foreground',
+                cycle === c
+                  ? 'bg-foreground text-background'
+                  : 'text-ink-soft hover:text-foreground',
               )}
             >
               {c === 'MONTHLY' ? 'Mensal' : 'Anual'}
@@ -111,7 +117,9 @@ export function PricingTiers({ tiers }: { tiers: PricingTier[] }) {
           const featured = t.featured;
           const isAnnual = cycle === 'ANNUAL';
           // No anual, destacamos o equivalente por mês para comparar com o mensal.
-          const headlineCents = isAnnual ? Math.round(t.priceAnnualCents / 12) : t.priceMonthlyCents;
+          const headlineCents = isAnnual
+            ? Math.round(t.priceAnnualCents / 12)
+            : t.priceMonthlyCents;
           return (
             <div
               key={t.tier}
@@ -180,7 +188,9 @@ export function PricingTiers({ tiers }: { tiers: PricingTier[] }) {
                   Pagamentos online (Pix/cartão)
                 </FeatureRow>
                 <FeatureRow on={t.team} featured={featured}>
-                  {t.team ? `Equipe (${fmtLimit(t.maxStaff)} usuários)` : '1 profissional'}
+                  {t.team
+                    ? `Equipe: até ${fmtLimit(t.maxProfessionals)} profissionais`
+                    : '1 profissional'}
                 </FeatureRow>
                 <FeatureRow on={t.webhooks} featured={featured}>
                   Webhooks (Discord/Slack/n8n)

@@ -224,6 +224,11 @@ interface SlotPickerProps {
   /** Carrega os horários livres do dia (server action injetada). */
   loadSlots: (serviceId: string, dateStr: string) => Promise<AvailableSlot[]>;
   /**
+   * Profissional selecionado. Não é usado diretamente aqui (o `loadSlots` já o
+   * captura), mas dispara a recarga dos slots quando muda. Opcional.
+   */
+  professionalId?: string;
+  /**
    * Dia inicial (YYYY-MM-DD no fuso do tenant) pré-selecionado ao montar - ex.:
    * o dia do horário atual na remarcação. Opcional.
    */
@@ -238,6 +243,7 @@ export function SlotPicker({
   value,
   onChange,
   loadSlots,
+  professionalId,
   initialDate,
 }: SlotPickerProps) {
   const openWeekdaysSet = useMemo(() => new Set(openWeekdays), [openWeekdays]);
@@ -270,9 +276,9 @@ export function SlotPicker({
       const result = await loadSlots(serviceId, dateStr);
       setSlots(result);
     });
-    // onChange/loadSlots são estáveis o bastante; só re-busca em serviço/dia.
+    // onChange/loadSlots são estáveis o bastante; re-busca em serviço/dia/profissional.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [serviceId, dateStr]);
+  }, [serviceId, dateStr, professionalId]);
 
   // Rola o carrossel até o chip selecionado (ex.: quando vem do date-picker).
   const railRef = useRef<HTMLDivElement>(null);

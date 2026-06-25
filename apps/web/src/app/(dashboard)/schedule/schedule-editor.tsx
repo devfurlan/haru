@@ -16,8 +16,14 @@ interface ScheduleBlockInput {
   endMinute: number;
 }
 
+export interface ProfessionalSchedule {
+  id: string;
+  name: string | null;
+  blocks: ScheduleBlockInput[];
+}
+
 interface ScheduleEditorProps {
-  initialBlocks: ScheduleBlockInput[];
+  professionals: ProfessionalSchedule[];
 }
 
 interface RangeRow {
@@ -48,36 +54,61 @@ function blocksToState(blocks: ScheduleBlockInput[]): Record<number, RangeRow[]>
   return state;
 }
 
-export function ScheduleEditor({ initialBlocks }: ScheduleEditorProps) {
-  const [byDay, setByDay] = useState<Record<number, RangeRow[]>>(() => blocksToState(initialBlocks));
+/** Estado inicial: um mapa de byDay por profissional. */
+function initialByProf(
+  professionals: ProfessionalSchedule[],
+): Record<string, Record<number, RangeRow[]>> {
+  const out: Record<string, Record<number, RangeRow[]>> = {};
+  for (const p of professionals) out[p.id] = blocksToState(p.blocks);
+  return out;
+}
+
+export function ScheduleEditor({ professionals }: ScheduleEditorProps) {
+  const [selectedId, setSelectedId] = useState<string>(professionals[0]?.id ?? '');
+  // Guarda o estado editado de cada profissional para não perder ao trocar de aba.
+  const [byProf, setByProf] = useState<Record<string, Record<number, RangeRow[]>>>(() =>
+    initialByProf(professionals),
+  );
   const [feedback, setFeedback] = useState<{ kind: 'success' | 'error'; message: string } | null>(
     null,
   );
   const [pending, startTransition] = useTransition();
 
+  if (professionals.length === 0) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        Nenhum profissional com agenda. Marque um membro da equipe como profissional em
+        Configurações para definir os horários dele.
+      </p>
+    );
+  }
+
+  const multi = professionals.length > 1;
+  const byDay = byProf[selectedId] ?? {};
+
   function updateRange(weekday: number, index: number, key: 'start' | 'end', value: string) {
-    setByDay((prev) => {
-      const next = { ...prev };
-      const ranges = [...(next[weekday] ?? [])];
+    setByProf((prev) => {
+      const cur = prev[selectedId] ?? {};
+      const ranges = [...(cur[weekday] ?? [])];
       ranges[index] = { ...ranges[index], [key]: value };
-      next[weekday] = ranges;
-      return next;
+      return { ...prev, [selectedId]: { ...cur, [weekday]: ranges } };
     });
   }
 
   function addRange(weekday: number) {
-    setByDay((prev) => {
-      const last = (prev[weekday] ?? []).at(-1);
+    setByProf((prev) => {
+      const cur = prev[selectedId] ?? {};
+      const last = (cur[weekday] ?? []).at(-1);
       const fallback = last ? { start: last.end, end: last.end } : { start: '09:00', end: '18:00' };
-      return { ...prev, [weekday]: [...(prev[weekday] ?? []), fallback] };
+      return { ...prev, [selectedId]: { ...cur, [weekday]: [...(cur[weekday] ?? []), fallback] } };
     });
   }
 
   function removeRange(weekday: number, index: number) {
-    setByDay((prev) => {
-      const next = { ...prev };
-      next[weekday] = (next[weekday] ?? []).filter((_, i) => i !== index);
-      return next;
+    setByProf((prev) => {
+      const cur = prev[selectedId] ?? {};
+      const next = { ...cur, [weekday]: (cur[weekday] ?? []).filter((_, i) => i !== index) };
+      return { ...prev, [selectedId]: next };
     });
   }
 
@@ -97,7 +128,7 @@ export function ScheduleEditor({ initialBlocks }: ScheduleEditorProps) {
     }
 
     startTransition(async () => {
-      const result = await saveSchedule(blocks);
+      const result = await saveSchedule(selectedId, blocks);
       if (result && 'error' in result) {
         setFeedback({ kind: 'error', message: result.error });
       } else {
@@ -108,6 +139,24 @@ export function ScheduleEditor({ initialBlocks }: ScheduleEditorProps) {
 
   return (
     <div className="space-y-3">
+      {multi && (
+        <div className="flex flex-wrap gap-2">
+          {professionals.map((p) => (
+            <Button
+              key={p.id}
+              size="sm"
+              variant={p.id === selectedId ? 'default' : 'outline'}
+              onClick={() => {
+                setFeedback(null);
+                setSelectedId(p.id);
+              }}
+            >
+              {p.name ?? 'Sem nome'}
+            </Button>
+          ))}
+        </div>
+      )}
+
       {WEEKDAYS.map((day) => {
         const ranges = byDay[day.value] ?? [];
         return (

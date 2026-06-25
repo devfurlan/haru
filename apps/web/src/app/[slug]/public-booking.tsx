@@ -57,11 +57,20 @@ interface ServiceOption {
   description: string | null;
   durationMinutes: number;
   priceCents: number;
+  /** Profissionais que atendem este serviço. */
+  professionalIds: string[];
+}
+
+interface ProfessionalOption {
+  id: string;
+  name: string | null;
 }
 
 interface PublicBookingProps {
   slug: string;
   services: ServiceOption[];
+  /** Profissionais com agenda - usados no passo "escolha o profissional". */
+  professionals: ProfessionalOption[];
   /** Fuso do tenant - toda conta de data sai dele, nunca do browser. */
   timezone: string;
   /** Dias-da-semana com expediente (0=domingo … 6=sábado). */
@@ -610,6 +619,7 @@ function StepDiaHora({
   selectedSlotIso,
   onSelectSlot,
   notice,
+  professionalPicker,
   onBack,
   headingRef,
 }: {
@@ -629,6 +639,8 @@ function StepDiaHora({
   onSelectSlot: (slot: AvailableSlot) => void;
   /** Aviso opcional exibido no topo (ex.: horário escolhido expirou). */
   notice: string | null;
+  /** Seletor de profissional (renderizado acima do calendário quando houver >1). */
+  professionalPicker?: React.ReactNode;
   onBack: () => void;
   headingRef: React.RefObject<HTMLHeadingElement | null>;
 }) {
@@ -663,6 +675,8 @@ function StepDiaHora({
           />
         </div>
       </div>
+
+      {professionalPicker}
 
       {/* Aviso quando o usuário foi trazido de volta por expiração de horário. */}
       {notice ? (
@@ -775,6 +789,7 @@ function StepDiaHora({
 function StepResumo({
   slug,
   service,
+  professionalId,
   dayLabel,
   slot,
   name,
@@ -790,6 +805,8 @@ function StepResumo({
 }: {
   slug: string;
   service: ServiceOption;
+  /** Profissional escolhido ('' = sem preferência). Vai no submit. */
+  professionalId: string;
   dayLabel: string;
   slot: AvailableSlot;
   name: string;
@@ -892,6 +909,7 @@ function StepResumo({
       <form action={formAction} className="space-y-3">
         <input type="hidden" name="slug" value={slug} />
         <input type="hidden" name="serviceId" value={service.id} />
+        <input type="hidden" name="professionalId" value={professionalId} />
         <input type="hidden" name="slotIso" value={slot.startsAtIso} />
         <input type="hidden" name="name" value={name.trim()} />
         <input type="hidden" name="phone" value={phone} />
@@ -1201,6 +1219,7 @@ function PaymentBlock({ slug, appointmentId }: { slug: string; appointmentId: st
 export function PublicBooking({
   slug,
   services,
+  professionals,
   timezone,
   openWeekdays,
   horizonDays,
@@ -1223,6 +1242,8 @@ export function PublicBooking({
 
   // Passo 0 / 1 - serviço escolhido
   const [serviceId, setServiceId] = useState('');
+  // Profissional escolhido no passo 2. '' = sem preferência (sistema atribui).
+  const [professionalId, setProfessionalId] = useState('');
 
   // Passo 1 - contato
   const [phone, setPhone] = useState(''); // dígitos crus
@@ -1268,6 +1289,15 @@ export function PublicBooking({
     () => services.find((s) => s.id === serviceId) ?? null,
     [services, serviceId],
   );
+  // Profissionais que atendem o serviço escolhido. O seletor só aparece com >1.
+  const serviceProfs = useMemo(
+    () =>
+      selectedService
+        ? professionals.filter((p) => selectedService.professionalIds.includes(p.id))
+        : [],
+    [professionals, selectedService],
+  );
+  const showProfPicker = serviceProfs.length > 1;
   // Rótulo do dia escolhido pro resumo. Usa o do carrossel quando existe; senão
   // (dia vindo do date-picker, fora dos chips) rotula a data ISO no fuso do tenant.
   const selectedDayLabel = useMemo(() => {
@@ -1292,10 +1322,10 @@ export function PublicBooking({
       return;
     }
     startLoadingSlots(async () => {
-      const result = await getAvailableSlots(slug, serviceId, dateStr);
+      const result = await getAvailableSlots(slug, serviceId, dateStr, professionalId || undefined);
       setSlots(result);
     });
-  }, [slug, serviceId, dateStr]);
+  }, [slug, serviceId, dateStr, professionalId]);
 
   // Sucesso do submit → tela final.
   useEffect(() => {
@@ -1322,6 +1352,8 @@ export function PublicBooking({
 
   function handleSelectService(service: ServiceOption) {
     setServiceId(service.id);
+    // Troca de serviço pode mudar quem atende: volta pra "sem preferência".
+    setProfessionalId('');
     setStep(1);
   }
 
@@ -1428,6 +1460,34 @@ export function PublicBooking({
           selectedSlotIso={selectedSlotIso}
           onSelectSlot={handleSelectSlot}
           notice={expiryNotice}
+          professionalPicker={
+            showProfPicker ? (
+              <div className="space-y-1.5">
+                <label
+                  htmlFor="public-professional"
+                  className="text-foreground text-sm font-medium"
+                >
+                  Profissional
+                </label>
+                <select
+                  id="public-professional"
+                  className="border-input focus-visible:ring-ring bg-card flex h-10 w-full rounded-lg border px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-2"
+                  value={professionalId}
+                  onChange={(e) => {
+                    setExpiryNotice(null);
+                    setProfessionalId(e.target.value);
+                  }}
+                >
+                  <option value="">Sem preferência</option>
+                  {serviceProfs.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name ?? 'Profissional'}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : null
+          }
           onBack={() => setStep(1)}
           headingRef={headingRef}
         />
@@ -1437,6 +1497,7 @@ export function PublicBooking({
         <StepResumo
           slug={slug}
           service={selectedService}
+          professionalId={professionalId}
           dayLabel={selectedDayLabel}
           slot={selectedSlot}
           name={effectiveName}

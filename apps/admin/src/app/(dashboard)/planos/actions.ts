@@ -32,7 +32,8 @@ const planFields = {
   priceAnnualCents: reaisToCents,
   appointmentsPerMonth: optionalLimit,
   aiMessagesPerMonth: optionalLimit,
-  maxStaff: optionalLimit,
+  maxProfessionals: optionalLimit,
+  maxReceptionists: optionalLimit,
   onlinePayments: bool,
   webhooks: bool,
   team: bool,
@@ -51,7 +52,8 @@ function readFields(formData: FormData) {
     priceAnnualCents: formData.get('priceAnnual'),
     appointmentsPerMonth: formData.get('appointmentsPerMonth'),
     aiMessagesPerMonth: formData.get('aiMessagesPerMonth'),
-    maxStaff: formData.get('maxStaff'),
+    maxProfessionals: formData.get('maxProfessionals'),
+    maxReceptionists: formData.get('maxReceptionists'),
     onlinePayments: formData.get('onlinePayments'),
     webhooks: formData.get('webhooks'),
     team: formData.get('team'),
@@ -62,7 +64,10 @@ function readFields(formData: FormData) {
 
 const updateSchema = z.object({ id: z.string().min(1), ...planFields });
 
-export async function updatePlan(_prev: FormResult | undefined, formData: FormData): Promise<FormResult> {
+export async function updatePlan(
+  _prev: FormResult | undefined,
+  formData: FormData,
+): Promise<FormResult> {
   await requireAdmin();
 
   const parsed = updateSchema.safeParse({ id: formData.get('id'), ...readFields(formData) });
@@ -80,7 +85,10 @@ const createSchema = z.object({
   ...planFields,
 });
 
-export async function createPlan(_prev: FormResult | undefined, formData: FormData): Promise<FormResult> {
+export async function createPlan(
+  _prev: FormResult | undefined,
+  formData: FormData,
+): Promise<FormResult> {
   await requireAdmin();
 
   const parsed = createSchema.safeParse({ tier: formData.get('tier'), ...readFields(formData) });

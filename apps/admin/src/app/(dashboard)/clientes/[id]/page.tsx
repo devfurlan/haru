@@ -8,6 +8,7 @@ import { TIER_LABEL } from '@/lib/billing-lite';
 import { STATUS_LABEL, STATUS_VARIANT } from '@/lib/labels';
 import { getTenantDetail, listPlans } from '@/lib/tenant-queries';
 
+import { LimitsForm } from './sections/limits-form';
 import { OperationForm } from './sections/operation-form';
 import { PaymentsForm } from './sections/payments-form';
 import { PlanForm } from './sections/plan-form';
@@ -23,7 +24,10 @@ export default async function TenantDetailPage({ params }: { params: Promise<{ i
   if (!tenant) notFound();
 
   const sub = tenant.subscription;
-  const tiers = plans.length > 0 ? plans.map((p) => p.tier) : (['ESSENCIAL', 'PROFISSIONAL', 'NEGOCIO', 'ENTERPRISE'] as const);
+  const tiers =
+    plans.length > 0
+      ? plans.map((p) => p.tier)
+      : (['ESSENCIAL', 'PROFISSIONAL', 'NEGOCIO', 'ENTERPRISE'] as const);
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -97,9 +101,9 @@ export default async function TenantDetailPage({ params }: { params: Promise<{ i
             paymentSandbox: tenant.paymentSandbox,
             hasCredential: Boolean(
               tenant.paymentAsaasApiKeyEnc ||
-                tenant.paymentMercadoPagoTokenEnc ||
-                tenant.paymentPagBankTokenEnc ||
-                tenant.paymentPagarmeApiKeyEnc,
+              tenant.paymentMercadoPagoTokenEnc ||
+              tenant.paymentPagBankTokenEnc ||
+              tenant.paymentPagarmeApiKeyEnc,
             ),
             hasWebhookToken: Boolean(tenant.paymentWebhookTokenEnc),
           }}
@@ -123,6 +127,20 @@ export default async function TenantDetailPage({ params }: { params: Promise<{ i
         />
       </Section>
 
+      <Section
+        title="Limites de equipe"
+        description="Tetos de profissionais (com agenda) e recepcionistas (sem agenda). Override por cliente."
+      >
+        <LimitsForm
+          tenantId={tenant.id}
+          limits={
+            sub
+              ? { maxProfessionals: sub.maxProfessionals, maxReceptionists: sub.maxReceptionists }
+              : null
+          }
+        />
+      </Section>
+
       <Section title="Equipe">
         <TeamSection
           tenantId={tenant.id}
@@ -132,6 +150,7 @@ export default async function TenantDetailPage({ params }: { params: Promise<{ i
             email: u.email,
             role: u.role,
             status: u.status,
+            isProfessional: u.isProfessional,
           }))}
         />
       </Section>

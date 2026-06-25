@@ -37,8 +37,18 @@ export async function loadPublicTenant(slug: string) {
   return prisma.tenant.findUnique({
     where: { slug },
     include: {
-      services: { where: { active: true }, orderBy: { name: 'asc' } },
+      services: {
+        where: { active: true },
+        orderBy: { name: 'asc' },
+        include: { professionals: { select: { professionalId: true } } },
+      },
       scheduleBlocks: { orderBy: [{ weekday: 'asc' }, { startMinute: 'asc' }] },
+      // Profissionais (com agenda) para o passo "escolha o profissional" no booking.
+      users: {
+        where: { isProfessional: true },
+        orderBy: [{ name: 'asc' }, { createdAt: 'asc' }],
+        select: { id: true, name: true },
+      },
     },
   });
 }

@@ -10,12 +10,15 @@ import {
   notifyAppointmentCreated,
   notifyAppointmentRescheduled,
 } from './notificationService.js';
+import { resolveProfessionalForBooking } from './professionalService.js';
 
 export interface BookAppointmentArgs {
   tenantId: string;
   contactId: string;
   serviceId: string;
   startsAtIso: string;
+  /** Profissional escolhido. Vazio/ausente = sem preferência (sistema resolve). */
+  professionalId?: string;
 }
 
 export type BookAppointmentResult =
@@ -64,29 +67,25 @@ export async function bookAppointment(args: BookAppointmentArgs): Promise<BookAp
 
   const endsAt = new Date(startsAt.getTime() + service.durationMinutes * 60 * 1000);
 
-  // Conflito com outro agendamento PENDING/CONFIRMED no mesmo tenant
-  const conflict = await prisma.appointment.findFirst({
-    where: {
-      tenantId: args.tenantId,
-      status: { in: ['PENDING', 'CONFIRMED'] },
-      // Overlap: existing.startsAt < new.endsAt AND existing.endsAt > new.startsAt
-      AND: [{ startsAt: { lt: endsAt } }, { endsAt: { gt: startsAt } }],
-    },
+  const tenant = await prisma.tenant.findUniqueOrThrow({
+    where: { id: args.tenantId },
+    select: { timezone: true, paymentProvider: true },
   });
-  if (conflict) {
-    return { ok: false, reason: 'horário ocupado por outro agendamento' };
-  }
 
-  // Bloqueio pontual da agenda (folga/compromisso do dono) - indisponível.
-  const blocked = await prisma.scheduleException.findFirst({
-    where: {
-      tenantId: args.tenantId,
-      AND: [{ startsAt: { lt: endsAt } }, { endsAt: { gt: startsAt } }],
-    },
-    select: { id: true },
+  // Resolve o profissional (escolhido ou "sem preferência" = primeiro livre). Isso
+  // valida, por profissional: atende o serviço, cabe no expediente, sem conflito e
+  // sem folga. No caso solo é sempre o único profissional.
+  const resolved = await resolveProfessionalForBooking({
+    tenantId: args.tenantId,
+    serviceId: service.id,
+    startsAt,
+    endsAt,
+    tz: tenant.timezone,
+    durationMinutes: service.durationMinutes,
+    requestedProfessionalId: args.professionalId,
   });
-  if (blocked) {
-    return { ok: false, reason: 'horário bloqueado na agenda (indisponível)' };
+  if (!resolved.ok) {
+    return { ok: false, reason: resolved.reason };
   }
 
   const appointment = await prisma.appointment.create({
@@ -94,6 +93,7 @@ export async function bookAppointment(args: BookAppointmentArgs): Promise<BookAp
       tenantId: args.tenantId,
       contactId: args.contactId,
       serviceId: service.id,
+      professionalId: resolved.professionalId,
       startsAt,
       endsAt,
       status: 'CONFIRMED',
@@ -104,11 +104,6 @@ export async function bookAppointment(args: BookAppointmentArgs): Promise<BookAp
   notifyAppointmentCreated(appointment.id).catch((err) =>
     console.error('[appointment] notify failed', err),
   );
-
-  const tenant = await prisma.tenant.findUniqueOrThrow({
-    where: { id: args.tenantId },
-    select: { timezone: true, paymentProvider: true },
-  });
 
   const summary = `${service.name} · ${new Intl.DateTimeFormat('pt-BR', {
     timeZone: tenant.timezone,
@@ -135,6 +130,8 @@ export interface BookRecurringArgs {
   startsAtIso: string;
   frequency: RecurrenceFrequency;
   occurrences: number;
+  /** Profissional escolhido. Vazio/ausente = sem preferência (resolve na 1ª data). */
+  professionalId?: string;
 }
 
 export type BookRecurringResult =
@@ -195,15 +192,39 @@ export async function bookRecurringAppointment(
     where: { id: args.tenantId },
     select: { timezone: true },
   });
+
+  // A série fica com UM profissional fixo, resolvido pela 1ª ocorrência (escolhido
+  // ou "sem preferência" = primeiro livre). As demais ocorrências em que ele
+  // estiver ocupado/fora do expediente são puladas (igual ao avulso).
+  const firstEndsAt = new Date(first.getTime() + service.durationMinutes * 60_000);
+  const resolved = await resolveProfessionalForBooking({
+    tenantId: args.tenantId,
+    serviceId: service.id,
+    startsAt: first,
+    endsAt: firstEndsAt,
+    tz: tenant.timezone,
+    durationMinutes: service.durationMinutes,
+    requestedProfessionalId: args.professionalId,
+  });
+  if (!resolved.ok) {
+    return { ok: false, reason: resolved.reason };
+  }
+  const professionalId = resolved.professionalId;
+
   const blocks = await prisma.scheduleBlock.findMany({
-    where: { tenantId: args.tenantId },
+    where: { tenantId: args.tenantId, professionalId },
     select: { weekday: true, startMinute: true, endMinute: true },
   });
 
   const now = new Date();
-  // Bloqueios pontuais da agenda - ocorrências dentro deles são puladas.
+  // Bloqueios pontuais da agenda (do tenant + do profissional) - ocorrências dentro
+  // deles são puladas.
   const exceptions = await prisma.scheduleException.findMany({
-    where: { tenantId: args.tenantId, endsAt: { gt: now } },
+    where: {
+      tenantId: args.tenantId,
+      endsAt: { gt: now },
+      OR: [{ professionalId: null }, { professionalId }],
+    },
     select: { startsAt: true, endsAt: true },
   });
   const maxInstant = new Date(now.getTime() + RECURRENCE_MAX_HORIZON_DAYS * MS_PER_DAY);
@@ -246,6 +267,7 @@ export async function bookRecurringAppointment(
     const conflict = await prisma.appointment.findFirst({
       where: {
         tenantId: args.tenantId,
+        professionalId,
         status: { in: ['PENDING', 'CONFIRMED'] },
         AND: [{ startsAt: { lt: endsAt } }, { endsAt: { gt: startsAt } }],
       },
@@ -276,6 +298,7 @@ export async function bookRecurringAppointment(
           tenantId: args.tenantId,
           contactId: args.contactId,
           serviceId: service.id,
+          professionalId,
           startsAt,
           endsAt,
           status: 'CONFIRMED',
@@ -492,12 +515,29 @@ export async function rescheduleAppointmentForContact(
     return { ok: false, reason: 'new_service_id não encontrado ou inativo' };
   }
 
+  // A remarcação mantém o MESMO profissional. Se trocar de serviço, ele precisa
+  // atender o novo serviço (senão é caso de cancelar e criar um novo).
+  if (wantsServiceChange) {
+    const offers = await prisma.professionalService.findFirst({
+      where: { professionalId: appt.professionalId, serviceId: targetService.id },
+      select: { id: true },
+    });
+    if (!offers) {
+      return {
+        ok: false,
+        reason:
+          'o profissional deste agendamento não atende o novo serviço - cancele e crie um novo',
+      };
+    }
+  }
+
   const newEndsAt = new Date(newStartsAt.getTime() + targetService.durationMinutes * 60_000);
 
-  // Conflito com OUTROS agendamentos (exclui o próprio)
+  // Conflito com OUTROS agendamentos DO MESMO PROFISSIONAL (exclui o próprio).
   const conflict = await prisma.appointment.findFirst({
     where: {
       tenantId: args.tenantId,
+      professionalId: appt.professionalId,
       id: { not: appt.id },
       status: { in: ['PENDING', 'CONFIRMED'] },
       AND: [{ startsAt: { lt: newEndsAt } }, { endsAt: { gt: newStartsAt } }],
@@ -507,10 +547,11 @@ export async function rescheduleAppointmentForContact(
     return { ok: false, reason: 'novo horário já ocupado por outro agendamento' };
   }
 
-  // Bloqueio pontual da agenda (folga/compromisso do dono) - indisponível.
+  // Bloqueio pontual da agenda (folga do tenant ou do profissional) - indisponível.
   const blocked = await prisma.scheduleException.findFirst({
     where: {
       tenantId: args.tenantId,
+      OR: [{ professionalId: null }, { professionalId: appt.professionalId }],
       AND: [{ startsAt: { lt: newEndsAt } }, { endsAt: { gt: newStartsAt } }],
     },
     select: { id: true },

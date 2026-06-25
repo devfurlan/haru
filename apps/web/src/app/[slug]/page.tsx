@@ -81,7 +81,9 @@ export default async function TenantPublicPage({ params }: { params: Promise<{ s
               description: s.description,
               durationMinutes: s.durationMinutes,
               priceCents: s.priceCents,
+              professionalIds: s.professionals.map((p) => p.professionalId),
             }))}
+            professionals={tenant.users.map((u) => ({ id: u.id, name: u.name }))}
             timezone={tenant.timezone}
             openWeekdays={openWeekdays}
             horizonDays={BOOKING_HORIZON_DAYS}

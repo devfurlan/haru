@@ -53,7 +53,9 @@ async function main() {
 
   const plan = await prisma.plan.findUnique({ where: { tier } });
   if (!plan) {
-    console.error(`Plano ${tier} não existe. Rode o seed primeiro (pnpm --filter @haru/database seed).`);
+    console.error(
+      `Plano ${tier} não existe. Rode o seed primeiro (pnpm --filter @haru/database seed).`,
+    );
     process.exit(1);
   }
 
@@ -65,7 +67,8 @@ async function main() {
     priceCents: cycle === 'ANNUAL' ? plan.priceAnnualCents : plan.priceMonthlyCents,
     appointmentsLimit: plan.appointmentsPerMonth,
     aiMessagesLimit: plan.aiMessagesPerMonth,
-    maxStaff: plan.maxStaff,
+    maxProfessionals: plan.maxProfessionals,
+    maxReceptionists: plan.maxReceptionists,
     featOnlinePayments: plan.onlinePayments,
     featWebhooks: plan.webhooks,
     featTeam: plan.team,

@@ -15,7 +15,8 @@ interface PlanSeed {
   priceAnnualCents: number;
   appointmentsPerMonth: number | null;
   aiMessagesPerMonth: number | null;
-  maxStaff: number | null;
+  maxProfessionals: number | null;
+  maxReceptionists: number | null;
   onlinePayments: boolean;
   webhooks: boolean;
   team: boolean;
@@ -30,7 +31,8 @@ export const PLAN_SEED: PlanSeed[] = [
     priceAnnualCents: 66240,
     appointmentsPerMonth: 250,
     aiMessagesPerMonth: 1500,
-    maxStaff: 1,
+    maxProfessionals: 1,
+    maxReceptionists: 0,
     onlinePayments: false,
     webhooks: false,
     team: false,
@@ -43,7 +45,8 @@ export const PLAN_SEED: PlanSeed[] = [
     priceAnnualCents: 143040,
     appointmentsPerMonth: 1000,
     aiMessagesPerMonth: 7500,
-    maxStaff: 5,
+    maxProfessionals: 5,
+    maxReceptionists: 2,
     onlinePayments: true,
     webhooks: true,
     team: true,
@@ -56,7 +59,8 @@ export const PLAN_SEED: PlanSeed[] = [
     priceAnnualCents: 335040,
     appointmentsPerMonth: 2500,
     aiMessagesPerMonth: 25000,
-    maxStaff: null,
+    maxProfessionals: null,
+    maxReceptionists: null,
     onlinePayments: true,
     webhooks: true,
     team: true,
@@ -69,7 +73,8 @@ export const PLAN_SEED: PlanSeed[] = [
     priceAnnualCents: 0,
     appointmentsPerMonth: null,
     aiMessagesPerMonth: null,
-    maxStaff: null,
+    maxProfessionals: null,
+    maxReceptionists: null,
     onlinePayments: true,
     webhooks: true,
     team: true,

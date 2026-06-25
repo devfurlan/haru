@@ -7,8 +7,13 @@ import { z } from 'zod';
 import { prisma, type AppointmentStatus } from '@haru/database';
 
 import { createAppointmentSeries } from '@/lib/appointment-series';
-import { type AvailableSlot, computeAvailableSlots, localWallTimeToUtc } from '@/lib/availability';
+import { type AvailableSlotWithProfessionals, localWallTimeToUtc } from '@/lib/availability';
 import { requireUserAndTenant } from '@/lib/auth';
+import {
+  getServiceDaySlots,
+  getServiceProfessionals,
+  resolveBookingProfessional,
+} from '@/lib/professionals';
 import { BOOKING_HORIZON_DAYS, isoDateInTz } from '@/lib/booking-days';
 import { normalizePhoneBR } from '@/lib/format';
 import {
@@ -53,7 +58,8 @@ export async function getTenantAvailableSlots(
   serviceId: string,
   dateStr: string,
   excludeAppointmentId?: string,
-): Promise<AvailableSlot[]> {
+  professionalId?: string,
+): Promise<AvailableSlotWithProfessionals[]> {
   if (!DATE_RE.test(dateStr)) return [];
 
   const { tenant } = await requireUserAndTenant();
@@ -72,42 +78,40 @@ export async function getTenantAvailableSlots(
   });
   if (!service) return [];
 
-  const blocks = await prisma.scheduleBlock.findMany({
-    where: { tenantId: tenant.id },
-    select: { weekday: true, startMinute: true, endMinute: true },
-  });
-
-  // Agendamentos ativos que tocam a janela [00:00, 24:00) local do dia.
-  const dayStart = localWallTimeToUtc(dateStr, 0, tenant.timezone);
-  const dayEnd = localWallTimeToUtc(dateStr, 24 * 60, tenant.timezone);
-  const appointments = await prisma.appointment.findMany({
-    where: {
-      tenantId: tenant.id,
-      ...(excludeAppointmentId ? { id: { not: excludeAppointmentId } } : {}),
-      status: { in: ['PENDING', 'CONFIRMED'] },
-      AND: [{ startsAt: { lt: dayEnd } }, { endsAt: { gt: dayStart } }],
-    },
-    select: { startsAt: true, endsAt: true },
-  });
-
-  // Bloqueios pontuais da agenda que tocam a janela do dia.
-  const exceptions = await prisma.scheduleException.findMany({
-    where: {
-      tenantId: tenant.id,
-      AND: [{ startsAt: { lt: dayEnd } }, { endsAt: { gt: dayStart } }],
-    },
-    select: { startsAt: true, endsAt: true },
-  });
-
-  return computeAvailableSlots({
+  // Disponibilidade por profissional: todos que atendem o serviço (ou só o
+  // escolhido). Cada slot traz quem está livre nele.
+  return getServiceDaySlots({
+    tenantId: tenant.id,
+    serviceId,
     tz: tenant.timezone,
-    dateStr,
     durationMinutes: service.durationMinutes,
-    blocks,
-    appointments,
-    exceptions,
+    dateStr,
     now: new Date(),
+    professionalId: professionalId || undefined,
+    excludeAppointmentId,
   });
+}
+
+/**
+ * Escolhe um profissional para um encaixe (bypass da agenda). Prioriza o solicitado
+ * (se for profissional do tenant); senão o primeiro que atende o serviço; senão
+ * qualquer profissional. null só se o tenant não tiver nenhum profissional.
+ */
+async function resolveEncaixeProfessional(
+  tenantId: string,
+  serviceId: string,
+  requestedId: string | undefined,
+): Promise<string | null> {
+  const pros = await prisma.user.findMany({
+    where: { tenantId, isProfessional: true },
+    select: { id: true },
+    orderBy: [{ name: 'asc' }, { createdAt: 'asc' }],
+  });
+  if (pros.length === 0) return null;
+  const allIds = pros.map((p) => p.id);
+  if (requestedId && allIds.includes(requestedId)) return requestedId;
+  const offering = await getServiceProfessionals(tenantId, serviceId);
+  return offering[0]?.id ?? allIds[0];
 }
 
 async function changeStatus(appointmentId: string, status: AppointmentStatus): Promise<boolean> {
@@ -203,6 +207,11 @@ export async function cancelAppointmentSeries(seriesId: string, opts?: { notifyC
 
 const createSchema = z.object({
   serviceId: z.string().min(1, 'Selecione um serviço'),
+  // Profissional escolhido. '' / ausente = sem preferência (o sistema resolve).
+  professionalId: z
+    .string()
+    .optional()
+    .transform((v) => (v && v.trim() ? v.trim() : undefined)),
   contactPhone: z
     .string()
     .min(8, 'Telefone obrigatório')
@@ -240,6 +249,7 @@ export async function createManualAppointment(
 
   const parsed = createSchema.safeParse({
     serviceId: formData.get('serviceId'),
+    professionalId: formData.get('professionalId') ?? undefined,
     contactPhone: formData.get('contactPhone'),
     contactName: formData.get('contactName'),
     startsAtIso: formData.get('startsAtIso'),
@@ -290,18 +300,37 @@ export async function createManualAppointment(
   }
 
   const endsAt = new Date(startsAt.getTime() + service.durationMinutes * 60_000);
+  const dateStr = dateStrInTz(startsAt, tenant.timezone);
 
-  // Fluxo normal revalida o slot no servidor: recalcula os horários livres do dia
-  // e exige que o escolhido esteja entre eles (expediente + grade + sem-colisão),
-  // sem confiar no client. No encaixe esse passo é DELIBERADAMENTE pulado - é o
-  // bypass total da agenda pedido pelo admin.
-  if (!encaixe) {
-    const dateStr = dateStrInTz(startsAt, tenant.timezone);
-    const slots = await getTenantAvailableSlots(service.id, dateStr);
-    const slotOk = slots.some((s) => s.startsAtIso === startsAt.toISOString());
-    if (!slotOk) {
-      return { error: 'Esse horário não está disponível na sua agenda. Escolha outro.' };
+  // Resolve o profissional que vai atender. No fluxo normal isso também REVALIDA o
+  // slot (expediente + grade + sem-colisão do profissional escolhido/"sem
+  // preferência"). No encaixe o slot é bypass total, então só escolhemos alguém.
+  let professionalId: string;
+  if (encaixe) {
+    const resolved = await resolveEncaixeProfessional(
+      tenant.id,
+      service.id,
+      parsed.data.professionalId,
+    );
+    if (!resolved) {
+      return { error: 'Cadastre um profissional antes de agendar.' };
     }
+    professionalId = resolved;
+  } else {
+    const resolved = await resolveBookingProfessional({
+      tenantId: tenant.id,
+      serviceId: service.id,
+      tz: tenant.timezone,
+      durationMinutes: service.durationMinutes,
+      startsAt,
+      dateStr,
+      now: new Date(),
+      requestedProfessionalId: parsed.data.professionalId,
+    });
+    if (!resolved.ok) {
+      return { error: resolved.reason };
+    }
+    professionalId = resolved.professionalId;
   }
 
   // Upsert do contato - não cria Conversation (não faz sentido sem mensagens)
@@ -327,8 +356,10 @@ export async function createManualAppointment(
     if (!parsed.data.occurrences) {
       return { error: 'Escolha quantas vezes o agendamento se repete' };
     }
+    // Série fica com o profissional resolvido na 1ª ocorrência (fixo). Valida o
+    // expediente de cada ocorrência contra a grade DESSE profissional.
     const blocks = await prisma.scheduleBlock.findMany({
-      where: { tenantId: tenant.id },
+      where: { tenantId: tenant.id, professionalId },
       select: { weekday: true, startMinute: true, endMinute: true },
     });
     const result = await createAppointmentSeries({
@@ -341,6 +372,7 @@ export async function createManualAppointment(
       occurrences: parsed.data.occurrences,
       firstStartsAtIso: startsAt.toISOString(),
       status: 'CONFIRMED',
+      professionalId,
       blocks,
     });
 
@@ -368,6 +400,7 @@ export async function createManualAppointment(
       tenantId: tenant.id,
       contactId: contact.id,
       serviceId: service.id,
+      professionalId,
       startsAt,
       endsAt,
       status: 'CONFIRMED',
@@ -412,6 +445,11 @@ const blockSchema = z
       .max(120)
       .optional()
       .transform((v) => (v && v.trim() ? v.trim() : null)),
+    // Folga de um profissional específico. '' / ausente = folga do tenant inteiro.
+    professionalId: z
+      .string()
+      .optional()
+      .transform((v) => (v && v.trim() ? v.trim() : null)),
   })
   .refine((d) => !d.endDate || d.endDate >= d.startDate, {
     message: 'A data final não pode ser antes da inicial',
@@ -439,12 +477,24 @@ export async function createScheduleException(
     startTime: formData.get('startTime') ?? undefined,
     endTime: formData.get('endTime') ?? undefined,
     reason: formData.get('reason') ?? undefined,
+    professionalId: formData.get('professionalId') ?? undefined,
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? 'Dados inválidos' };
   }
 
   const { startDate, endDate, allDay, reason } = parsed.data;
+
+  // Valida o profissional da folga (se informado). null = folga do tenant inteiro.
+  let professionalId: string | null = null;
+  if (parsed.data.professionalId) {
+    const professional = await prisma.user.findFirst({
+      where: { id: parsed.data.professionalId, tenantId: tenant.id, isProfessional: true },
+      select: { id: true },
+    });
+    if (!professional) return { error: 'Profissional não encontrado.' };
+    professionalId = professional.id;
+  }
 
   let startsAt: Date;
   let endsAt: Date;
@@ -466,10 +516,12 @@ export async function createScheduleException(
     endsAt = localWallTimeToUtc(startDate, endMin, tz);
   }
 
-  // Conflito: barra a criação se houver agendamento ativo dentro do período.
+  // Conflito: barra a criação se houver agendamento ativo dentro do período. Folga
+  // de um profissional só conflita com a agenda DELE; folga do tenant, com todas.
   const conflicts = await prisma.appointment.count({
     where: {
       tenantId: tenant.id,
+      ...(professionalId ? { professionalId } : {}),
       status: { in: ['PENDING', 'CONFIRMED'] },
       AND: [{ startsAt: { lt: endsAt } }, { endsAt: { gt: startsAt } }],
     },
@@ -483,7 +535,7 @@ export async function createScheduleException(
   }
 
   await prisma.scheduleException.create({
-    data: { tenantId: tenant.id, startsAt, endsAt, reason },
+    data: { tenantId: tenant.id, professionalId, startsAt, endsAt, reason },
   });
 
   revalidatePath('/appointments');
@@ -545,11 +597,18 @@ export async function rescheduleAppointment(
   // próprio agendamento da checagem de colisão) e exige que o escolhido esteja
   // entre eles. Garante de uma vez expediente + grade + sem-colisão, sem confiar
   // no que o client enviou.
+  // Remarcação mantém o MESMO profissional do agendamento - valida o slot só contra
+  // a agenda dele (dois profissionais podem ter o mesmo horário).
   const dateStr = dateStrInTz(newStartsAt, tenant.timezone);
-  const slots = await getTenantAvailableSlots(appt.serviceId, dateStr, appt.id);
+  const slots = await getTenantAvailableSlots(
+    appt.serviceId,
+    dateStr,
+    appt.id,
+    appt.professionalId,
+  );
   const slotOk = slots.some((s) => s.startsAtIso === newStartsAt.toISOString());
   if (!slotOk) {
-    return { error: 'Esse horário não está disponível na sua agenda. Escolha outro.' };
+    return { error: 'Esse horário não está disponível na agenda do profissional. Escolha outro.' };
   }
 
   await prisma.appointment.update({

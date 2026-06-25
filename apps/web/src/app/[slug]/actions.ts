@@ -6,10 +6,11 @@ import { z } from 'zod';
 import { type AppointmentStatus, prisma } from '@haru/database';
 
 import { createAppointmentSeries } from '@/lib/appointment-series';
-import { type AvailableSlot, computeAvailableSlots, localWallTimeToUtc } from '@/lib/availability';
+import { type AvailableSlotWithProfessionals, localWallTimeToUtc } from '@/lib/availability';
 import { BOOKING_HORIZON_DAYS, isoDateInTz } from '@/lib/booking-days';
 import { normalizePhoneBR } from '@/lib/format';
 import { notifyAppointmentCreated } from '@/lib/notify';
+import { getServiceDaySlots, resolveBookingProfessional } from '@/lib/professionals';
 
 import { loadPublicTenant } from './_tenant';
 
@@ -44,7 +45,8 @@ export async function getAvailableSlots(
   slug: string,
   serviceId: string,
   dateStr: string,
-): Promise<AvailableSlot[]> {
+  professionalId?: string,
+): Promise<AvailableSlotWithProfessionals[]> {
   if (!DATE_RE.test(dateStr)) return [];
 
   const tenant = await loadPublicTenant(slug);
@@ -62,35 +64,16 @@ export async function getAvailableSlots(
   const service = tenant.services.find((s) => s.id === serviceId && s.active);
   if (!service) return [];
 
-  // Agendamentos ativos que tocam a janela [00:00, 24:00) local do dia.
-  const dayStart = localWallTimeToUtc(dateStr, 0, tenant.timezone);
-  const dayEnd = localWallTimeToUtc(dateStr, 24 * 60, tenant.timezone);
-  const appointments = await prisma.appointment.findMany({
-    where: {
-      tenantId: tenant.id,
-      status: { in: ['PENDING', 'CONFIRMED'] },
-      AND: [{ startsAt: { lt: dayEnd } }, { endsAt: { gt: dayStart } }],
-    },
-    select: { startsAt: true, endsAt: true },
-  });
-
-  // Bloqueios pontuais da agenda que tocam a janela do dia.
-  const exceptions = await prisma.scheduleException.findMany({
-    where: {
-      tenantId: tenant.id,
-      AND: [{ startsAt: { lt: dayEnd } }, { endsAt: { gt: dayStart } }],
-    },
-    select: { startsAt: true, endsAt: true },
-  });
-
-  return computeAvailableSlots({
+  // Disponibilidade por profissional: todos que atendem o serviço (ou só o
+  // escolhido). Cada slot traz quem está livre nele.
+  return getServiceDaySlots({
+    tenantId: tenant.id,
+    serviceId,
     tz: tenant.timezone,
-    dateStr,
     durationMinutes: service.durationMinutes,
-    blocks: tenant.scheduleBlocks,
-    appointments,
-    exceptions,
+    dateStr,
     now: new Date(),
+    professionalId: professionalId || undefined,
   });
 }
 
@@ -130,6 +113,11 @@ export async function lookupContact(slug: string, phone: string): Promise<Contac
 const bookingSchema = z.object({
   slug: z.string().min(1),
   serviceId: z.string().min(1, 'Selecione um serviço'),
+  // Profissional escolhido. '' / ausente = sem preferência (sistema atribui).
+  professionalId: z
+    .string()
+    .optional()
+    .transform((v) => (v && v.trim() ? v.trim() : undefined)),
   slotIso: z
     .string()
     .min(1, 'Selecione um horário')
@@ -188,6 +176,7 @@ export async function createPublicBooking(
   const parsed = bookingSchema.safeParse({
     slug: formData.get('slug'),
     serviceId: formData.get('serviceId'),
+    professionalId: formData.get('professionalId') ?? undefined,
     slotIso: formData.get('slotIso'),
     name: formData.get('name'),
     phone: formData.get('phone'),
@@ -210,16 +199,25 @@ export async function createPublicBooking(
   const startsAt = slotIso;
   const endsAt = new Date(startsAt.getTime() + service.durationMinutes * 60_000);
 
-  // Revalida o slot no servidor: deriva o dia no fuso do tenant e exige que o
-  // horário escolhido esteja entre os slots livres calculados. Isso garante,
-  // de uma vez, que o horário cai no expediente, está alinhado à grade e não
-  // colide - sem confiar no que o client enviou.
+  // Revalida o slot no servidor E resolve o profissional. resolveBookingProfessional
+  // recalcula os slots livres (expediente + grade + sem-colisão) do profissional
+  // escolhido (ou, "sem preferência", do primeiro livre por ordem de nome) - de uma
+  // vez garante que o horário é válido e atribui quem atende, sem confiar no client.
   const dateStr = dateStrInTz(startsAt, tenant.timezone);
-  const slots = await getAvailableSlots(slug, serviceId, dateStr);
-  const slotOk = slots.some((s) => s.startsAtIso === startsAt.toISOString());
-  if (!slotOk) {
-    return { error: 'Esse horário não está mais disponível. Escolha outro.' };
+  const resolved = await resolveBookingProfessional({
+    tenantId: tenant.id,
+    serviceId,
+    tz: tenant.timezone,
+    durationMinutes: service.durationMinutes,
+    startsAt,
+    dateStr,
+    now: new Date(),
+    requestedProfessionalId: parsed.data.professionalId,
+  });
+  if (!resolved.ok) {
+    return { error: resolved.reason };
   }
+  const professionalId = resolved.professionalId;
 
   // Mitigação leve de spam: um mesmo telefone não acumula vários pedidos ativos
   // no mesmo dia (sem rate-limit por IP, que exigiria Redis).
@@ -237,10 +235,12 @@ export async function createPublicBooking(
     return { error: 'Você já tem um agendamento ativo nesse dia. Fale conosco pra ajustar.' };
   }
 
-  // Re-checa conflito imediatamente antes de criar (defesa extra contra corrida).
+  // Re-checa conflito imediatamente antes de criar (defesa extra contra corrida) -
+  // por profissional (dois profissionais podem ter o mesmo horário).
   const conflict = await prisma.appointment.findFirst({
     where: {
       tenantId: tenant.id,
+      professionalId,
       status: { in: ['PENDING', 'CONFIRMED'] },
       AND: [{ startsAt: { lt: endsAt } }, { endsAt: { gt: startsAt } }],
     },
@@ -279,6 +279,11 @@ export async function createPublicBooking(
     if (!parsed.data.occurrences) {
       return { error: 'Escolha quantas vezes o agendamento se repete' };
     }
+    // Série fica com o profissional resolvido (fixo) e valida cada ocorrência
+    // contra a grade DELE.
+    const professionalBlocks = tenant.scheduleBlocks.filter(
+      (b) => b.professionalId === professionalId,
+    );
     const result = await createAppointmentSeries({
       tenantId: tenant.id,
       contactId: contact.id,
@@ -289,7 +294,8 @@ export async function createPublicBooking(
       occurrences: parsed.data.occurrences,
       firstStartsAtIso: startsAt.toISOString(),
       status,
-      blocks: tenant.scheduleBlocks,
+      professionalId,
+      blocks: professionalBlocks,
     });
 
     if (result.createdIds.length === 0) {
@@ -320,6 +326,7 @@ export async function createPublicBooking(
       tenantId: tenant.id,
       contactId: contact.id,
       serviceId: service.id,
+      professionalId,
       startsAt,
       endsAt,
       status,

@@ -72,8 +72,15 @@ export const TOOLS: FunctionTool[] = [
             'Data/hora de início no formato ISO 8601 com offset do fuso do estabelecimento, ' +
             'ex: 2026-05-28T14:00:00-03:00',
         },
+        professional_id: {
+          type: 'string',
+          description:
+            'ID do profissional escolhido (vide [usr_...] em "## Profissionais"). Use "" para ' +
+            '"sem preferência" - o sistema escolhe um livre. Em estabelecimentos com um único ' +
+            'profissional, sempre "".',
+        },
       },
-      required: ['service_id', 'starts_at'],
+      required: ['service_id', 'starts_at', 'professional_id'],
       additionalProperties: false,
     },
   },
@@ -110,8 +117,15 @@ export const TOOLS: FunctionTool[] = [
           type: 'integer',
           description: 'Quantas vezes no total (incluindo a primeira). Entre 2 e 12.',
         },
+        professional_id: {
+          type: 'string',
+          description:
+            'ID do profissional da série (vide [usr_...] em "## Profissionais"). A série inteira ' +
+            'fica com o mesmo profissional. Use "" para "sem preferência". Em estabelecimentos ' +
+            'com um único profissional, sempre "".',
+        },
       },
-      required: ['service_id', 'starts_at', 'frequency', 'occurrences'],
+      required: ['service_id', 'starts_at', 'frequency', 'occurrences', 'professional_id'],
       additionalProperties: false,
     },
   },
@@ -271,6 +285,7 @@ export async function executeTool(
       contactId: ctx.contactId,
       serviceId: String(args.service_id ?? ''),
       startsAtIso: String(args.starts_at ?? ''),
+      professionalId: String(args.professional_id ?? '').trim() || undefined,
     });
     return JSON.stringify(result);
   }
@@ -286,6 +301,7 @@ export async function executeTool(
       startsAtIso: String(args.starts_at ?? ''),
       frequency,
       occurrences: Number(args.occurrences ?? 0),
+      professionalId: String(args.professional_id ?? '').trim() || undefined,
     });
     return JSON.stringify(result);
   }

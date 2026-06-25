@@ -56,12 +56,17 @@ export default async function AppointmentsPage({ searchParams }: PageProps) {
     all: {},
   }[tab];
 
-  const appointments = await prisma.appointment.findMany({
-    where: { tenantId: tenant.id, ...whereByTab },
-    include: { service: true, contact: true },
-    orderBy: { startsAt: tab === 'past' ? 'desc' : 'asc' },
-    take: 200,
-  });
+  const [appointments, professionalCount] = await Promise.all([
+    prisma.appointment.findMany({
+      where: { tenantId: tenant.id, ...whereByTab },
+      include: { service: true, contact: true, professional: { select: { name: true } } },
+      orderBy: { startsAt: tab === 'past' ? 'desc' : 'asc' },
+      take: 200,
+    }),
+    prisma.user.count({ where: { tenantId: tenant.id, isProfessional: true } }),
+  ]);
+  // No caso solo (1 profissional) não mostramos o nome - é redundante.
+  const multiProf = professionalCount > 1;
 
   // Janela ampla (±12 meses) para o calendário ter dados ao navegar entre meses.
   const calendarFrom = new Date(now);
@@ -193,6 +198,7 @@ export default async function AppointmentsPage({ searchParams }: PageProps) {
                 <div className="mt-1 text-sm">
                   {appt.service.name} · {formatDuration(appt.service.durationMinutes)} ·{' '}
                   {formatBRL(appt.service.priceCents)}
+                  {multiProf && appt.professional.name ? ` · com ${appt.professional.name}` : ''}
                 </div>
                 <div className="text-muted-foreground text-sm">
                   {appt.contact.name ? `${appt.contact.name} · ` : ''}

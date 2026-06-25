@@ -72,7 +72,10 @@ function emptyToNull(max: number, msg: string) {
     .transform((v) => (v && v.trim() ? v.trim() : null));
 }
 
-export async function updateProfile(_prev: FormResult | undefined, formData: FormData): Promise<FormResult> {
+export async function updateProfile(
+  _prev: FormResult | undefined,
+  formData: FormData,
+): Promise<FormResult> {
   await requireAdmin();
   const tenantId = String(formData.get('tenantId'));
 
@@ -157,7 +160,10 @@ const operationSchema = z
     }
   });
 
-export async function updateOperation(_prev: FormResult | undefined, formData: FormData): Promise<FormResult> {
+export async function updateOperation(
+  _prev: FormResult | undefined,
+  formData: FormData,
+): Promise<FormResult> {
   await requireAdmin();
   const tenantId = String(formData.get('tenantId'));
 
@@ -210,7 +216,10 @@ const whatsappSchema = z.object({
     .transform((v) => (v && v.trim() ? v.trim() : null)),
 });
 
-export async function updateWhatsapp(_prev: FormResult | undefined, formData: FormData): Promise<FormResult> {
+export async function updateWhatsapp(
+  _prev: FormResult | undefined,
+  formData: FormData,
+): Promise<FormResult> {
   await requireAdmin();
   const tenantId = String(formData.get('tenantId'));
 
@@ -282,7 +291,10 @@ const paymentsSchema = z.object({
     .transform((v) => (v && v.trim() ? v.trim() : null)),
 });
 
-export async function updatePayments(_prev: FormResult | undefined, formData: FormData): Promise<FormResult> {
+export async function updatePayments(
+  _prev: FormResult | undefined,
+  formData: FormData,
+): Promise<FormResult> {
   await requireAdmin();
   const tenantId = String(formData.get('tenantId'));
 
@@ -360,7 +372,10 @@ const planSchema = z.object({
   billingCycle: z.enum(['MONTHLY', 'ANNUAL']),
 });
 
-export async function updatePlan(_prev: FormResult | undefined, formData: FormData): Promise<FormResult> {
+export async function updatePlan(
+  _prev: FormResult | undefined,
+  formData: FormData,
+): Promise<FormResult> {
   await requireAdmin();
   const tenantId = String(formData.get('tenantId'));
 
@@ -375,7 +390,9 @@ export async function updatePlan(_prev: FormResult | undefined, formData: FormDa
 
   const existing = await prisma.subscription.findUnique({ where: { tenantId } });
   if (!existing) {
-    return { error: 'Este cliente não tem assinatura (criar do zero está fora do escopo do admin).' };
+    return {
+      error: 'Este cliente não tem assinatura (criar do zero está fora do escopo do admin).',
+    };
   }
 
   const plan = await prisma.plan.findUnique({ where: { tier: planTier } });
@@ -396,6 +413,56 @@ export async function updatePlan(_prev: FormResult | undefined, formData: FormDa
   return done(tenantId);
 }
 
+// --- Limites da assinatura (override manual por tenant) ---------------------
+
+/** Limite opcional: vazio = ilimitado (null); senão inteiro >= 0. */
+const optionalLimit = z
+  .string()
+  .optional()
+  .transform((v) => (v && v.trim() ? Number(v) : null))
+  .refine((n) => n === null || (Number.isInteger(n) && n >= 0), {
+    message: 'Limite inválido (use um inteiro ou deixe vazio para ilimitado)',
+  });
+
+const limitsSchema = z.object({
+  maxProfessionals: optionalLimit,
+  maxReceptionists: optionalLimit,
+});
+
+/**
+ * Edita os tetos de equipe (profissionais/recepcionistas) direto no snapshot da
+ * assinatura. É um OVERRIDE manual: sobrevive a re-snapshot só até a próxima troca
+ * de plano (que regrava do catálogo). Permite liberar capacidade pra um cliente
+ * específico sem mexer no plano de todo mundo.
+ */
+export async function updateSubscriptionLimits(
+  _prev: FormResult | undefined,
+  formData: FormData,
+): Promise<FormResult> {
+  await requireAdmin();
+  const tenantId = String(formData.get('tenantId'));
+
+  const parsed = limitsSchema.safeParse({
+    maxProfessionals: formData.get('maxProfessionals'),
+    maxReceptionists: formData.get('maxReceptionists'),
+  });
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? 'Dados inválidos' };
+
+  const existing = await prisma.subscription.findUnique({ where: { tenantId } });
+  if (!existing) {
+    return { error: 'Este cliente não tem assinatura.' };
+  }
+
+  await prisma.subscription.update({
+    where: { tenantId },
+    data: {
+      maxProfessionals: parsed.data.maxProfessionals,
+      maxReceptionists: parsed.data.maxReceptionists,
+    },
+  });
+  return done(tenantId);
+}
+
 // --- Equipe (trocar papel) --------------------------------------------------
 
 const roleSchema = z.object({
@@ -403,7 +470,10 @@ const roleSchema = z.object({
   role: z.enum(['OWNER', 'STAFF']),
 });
 
-export async function updateUserRole(_prev: FormResult | undefined, formData: FormData): Promise<FormResult> {
+export async function updateUserRole(
+  _prev: FormResult | undefined,
+  formData: FormData,
+): Promise<FormResult> {
   await requireAdmin();
   const tenantId = String(formData.get('tenantId'));
 

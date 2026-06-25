@@ -10,13 +10,18 @@ import { formatBRL, formatDuration } from '@/lib/format';
 import { cn } from '@/lib/utils';
 
 import { deleteService, toggleServiceActive } from './actions';
-import { ServiceForm } from './service-form';
+import { ServiceForm, type ProfessionalOption } from './service-form';
 
-interface ServicesPanelProps {
-  services: Service[];
+export interface ServiceWithProfessionals extends Service {
+  professionalIds: string[];
 }
 
-export function ServicesPanel({ services }: ServicesPanelProps) {
+interface ServicesPanelProps {
+  services: ServiceWithProfessionals[];
+  professionals: ProfessionalOption[];
+}
+
+export function ServicesPanel({ services, professionals }: ServicesPanelProps) {
   const [creating, setCreating] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
@@ -28,7 +33,11 @@ export function ServicesPanel({ services }: ServicesPanelProps) {
             <CardTitle>Novo serviço</CardTitle>
           </CardHeader>
           <CardContent>
-            <ServiceForm onSuccess={() => setCreating(false)} onCancel={() => setCreating(false)} />
+            <ServiceForm
+              professionals={professionals}
+              onSuccess={() => setCreating(false)}
+              onCancel={() => setCreating(false)}
+            />
           </CardContent>
         </Card>
       ) : (
@@ -61,6 +70,8 @@ export function ServicesPanel({ services }: ServicesPanelProps) {
                       durationMinutes: service.durationMinutes,
                       priceCents: service.priceCents,
                     }}
+                    professionals={professionals}
+                    selectedProfessionalIds={service.professionalIds}
                     onSuccess={() => setEditingId(null)}
                     onCancel={() => setEditingId(null)}
                   />

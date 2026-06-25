@@ -31,16 +31,32 @@ async function NewAppointmentBody() {
   const user = await requireUserAndTenant();
   const { tenant } = user;
 
-  const services = await prisma.service.findMany({
-    where: { tenantId: tenant.id, active: true },
-    orderBy: { name: 'asc' },
-    select: { id: true, name: true, durationMinutes: true, priceCents: true },
-  });
-
-  const blocks = await prisma.scheduleBlock.findMany({
-    where: { tenantId: tenant.id },
-    select: { weekday: true },
-  });
+  const [servicesRaw, professionals, blocks] = await Promise.all([
+    prisma.service.findMany({
+      where: { tenantId: tenant.id, active: true },
+      orderBy: { name: 'asc' },
+      select: {
+        id: true,
+        name: true,
+        durationMinutes: true,
+        priceCents: true,
+        professionals: { select: { professionalId: true } },
+      },
+    }),
+    prisma.user.findMany({
+      where: { tenantId: tenant.id, isProfessional: true },
+      orderBy: [{ name: 'asc' }, { createdAt: 'asc' }],
+      select: { id: true, name: true },
+    }),
+    prisma.scheduleBlock.findMany({
+      where: { tenantId: tenant.id },
+      select: { weekday: true },
+    }),
+  ]);
+  const services = servicesRaw.map(({ professionals: links, ...rest }) => ({
+    ...rest,
+    professionalIds: links.map((l) => l.professionalId),
+  }));
   const openWeekdays = [...new Set(blocks.map((b) => b.weekday))];
 
   if (services.length === 0) {
@@ -58,6 +74,7 @@ async function NewAppointmentBody() {
   return (
     <NewAppointmentForm
       services={services}
+      professionals={professionals}
       timezone={tenant.timezone}
       openWeekdays={openWeekdays}
       horizonDays={BOOKING_HORIZON_DAYS}

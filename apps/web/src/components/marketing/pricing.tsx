@@ -35,7 +35,8 @@ export async function Pricing() {
     priceAnnualCents: p.priceAnnualCents,
     appointmentsPerMonth: p.appointmentsPerMonth,
     aiMessagesPerMonth: p.aiMessagesPerMonth,
-    maxStaff: p.maxStaff,
+    maxProfessionals: p.maxProfessionals,
+    maxReceptionists: p.maxReceptionists,
     onlinePayments: p.onlinePayments,
     webhooks: p.webhooks,
     team: p.team,
@@ -51,8 +52,8 @@ export async function Pricing() {
             Planos simples, sem pegadinha.
           </h2>
           <p className="mt-4 text-[1.1rem] leading-relaxed text-ink-soft">
-            Atendimento e agendamento por IA no WhatsApp em todos os planos. Garantia de 30 dias - se
-            não curtir, devolvemos o valor.
+            Atendimento e agendamento por IA no WhatsApp em todos os planos. Garantia de 30 dias -
+            se não curtir, devolvemos o valor.
           </p>
         </div>
 
@@ -65,8 +66,7 @@ export async function Pricing() {
             <div>
               <p className="font-semibold">Precisa de um plano customizado?</p>
               <p className="text-sm text-ink-soft">
-                Fale com o time que a gente monta um plano sob medida pra sua
-                operação.
+                Fale com o time que a gente monta um plano sob medida pra sua operação.
               </p>
             </div>
           </div>

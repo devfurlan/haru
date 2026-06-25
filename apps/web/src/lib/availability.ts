@@ -179,3 +179,69 @@ export function computeAvailableSlots(input: ComputeSlotsInput): AvailableSlot[]
   slots.sort((a, b) => a.startsAtIso.localeCompare(b.startsAtIso));
   return slots;
 }
+
+/** Disponibilidade de UM profissional num dia: sua grade + sua agenda + suas folgas. */
+export interface ProfessionalAvailabilityInput {
+  professionalId: string;
+  /** Blocos de expediente do profissional (filtrados pelo weekday aqui dentro). */
+  blocks: ScheduleBlockLite[];
+  /** Agendamentos ativos DESTE profissional que tocam o dia. */
+  appointments: BusyInterval[];
+  /** Bloqueios que se aplicam a ele (do tenant inteiro + os pessoais dele). */
+  exceptions?: BusyInterval[];
+}
+
+export interface ComputeSlotsAcrossInput {
+  tz: string;
+  dateStr: string;
+  durationMinutes: number;
+  now: Date;
+  stepMinutes?: number;
+  professionals: ProfessionalAvailabilityInput[];
+}
+
+/** Slot livre considerando vários profissionais; lista quem está livre nele. */
+export interface AvailableSlotWithProfessionals extends AvailableSlot {
+  /** IDs dos profissionais livres neste horário, na ordem em que vieram na entrada. */
+  professionalIds: string[];
+}
+
+/**
+ * Mescla a disponibilidade de vários profissionais num único dia. Um horário entra
+ * na lista se PELO MENOS UM profissional está livre nele; `professionalIds` diz
+ * quais (preservando a ordem de entrada - passe os profissionais já ordenados, ex.
+ * por nome, para a escolha "sem preferência" ser determinística). Para um único
+ * profissional, equivale a `computeAvailableSlots` com o id anexado.
+ */
+export function computeSlotsAcrossProfessionals(
+  input: ComputeSlotsAcrossInput,
+): AvailableSlotWithProfessionals[] {
+  // startsAtIso -> { label, professionalIds[] }
+  const byIso = new Map<string, { label: string; professionalIds: string[] }>();
+
+  for (const prof of input.professionals) {
+    const slots = computeAvailableSlots({
+      tz: input.tz,
+      dateStr: input.dateStr,
+      durationMinutes: input.durationMinutes,
+      blocks: prof.blocks,
+      appointments: prof.appointments,
+      exceptions: prof.exceptions,
+      now: input.now,
+      stepMinutes: input.stepMinutes,
+    });
+    for (const slot of slots) {
+      const entry = byIso.get(slot.startsAtIso) ?? { label: slot.label, professionalIds: [] };
+      entry.professionalIds.push(prof.professionalId);
+      byIso.set(slot.startsAtIso, entry);
+    }
+  }
+
+  return [...byIso.entries()]
+    .map(([startsAtIso, v]) => ({
+      startsAtIso,
+      label: v.label,
+      professionalIds: v.professionalIds,
+    }))
+    .sort((a, b) => a.startsAtIso.localeCompare(b.startsAtIso));
+}

@@ -57,8 +57,9 @@ async function RescheduleBody({ id }: { id: string }) {
   });
   if (!appointment) notFound();
 
+  // Dias com expediente do PROFISSIONAL do agendamento (a remarcação mantém ele).
   const blocks = await prisma.scheduleBlock.findMany({
-    where: { tenantId: tenant.id },
+    where: { tenantId: tenant.id, professionalId: appointment.professionalId },
     select: { weekday: true },
   });
   const openWeekdays = [...new Set(blocks.map((b) => b.weekday))];
@@ -80,6 +81,7 @@ async function RescheduleBody({ id }: { id: string }) {
       <RescheduleForm
         appointmentId={appointment.id}
         serviceId={appointment.serviceId}
+        professionalId={appointment.professionalId}
         currentDateStr={currentDateStr}
         timezone={tenant.timezone}
         openWeekdays={openWeekdays}

@@ -26,10 +26,34 @@ const durationSchema = z
 
 const serviceSchema = z.object({
   name: z.string().min(2, 'Nome muito curto').max(80),
-  description: z.string().max(280).optional().transform((v) => (v && v.trim() ? v.trim() : null)),
+  description: z
+    .string()
+    .max(280)
+    .optional()
+    .transform((v) => (v && v.trim() ? v.trim() : null)),
   durationMinutes: durationSchema,
   priceCents: priceSchema.transform((reais) => Math.round(reais * 100)),
 });
+
+/**
+ * Resolve quais profissionais (do tenant) atendem o serviço a partir do que veio do
+ * formulário. Filtra ids inválidos; se nada válido sobrar (caso solo ou nenhum
+ * marcado), assume TODOS os profissionais - assim o serviço nunca fica sem ninguém
+ * que o execute (e some do booking sem querer).
+ */
+async function resolveServiceProfessionalIds(
+  tenantId: string,
+  requested: string[],
+): Promise<string[]> {
+  const pros = await prisma.user.findMany({
+    where: { tenantId, isProfessional: true },
+    select: { id: true },
+  });
+  const allIds = pros.map((p) => p.id);
+  if (allIds.length === 0) return [];
+  const filtered = requested.filter((id) => allIds.includes(id));
+  return filtered.length > 0 ? filtered : allIds;
+}
 
 export async function createService(
   _prev: ServiceActionResult | undefined,
@@ -47,14 +71,27 @@ export async function createService(
     return { error: parsed.error.issues[0]?.message ?? 'Dados inválidos' };
   }
 
-  await prisma.service.create({
-    data: {
-      tenantId: tenant.id,
-      name: parsed.data.name,
-      description: parsed.data.description,
-      durationMinutes: parsed.data.durationMinutes,
-      priceCents: parsed.data.priceCents,
-    },
+  const professionalIds = await resolveServiceProfessionalIds(
+    tenant.id,
+    formData.getAll('professionalIds').map(String),
+  );
+
+  await prisma.$transaction(async (tx) => {
+    const service = await tx.service.create({
+      data: {
+        tenantId: tenant.id,
+        name: parsed.data.name,
+        description: parsed.data.description,
+        durationMinutes: parsed.data.durationMinutes,
+        priceCents: parsed.data.priceCents,
+      },
+    });
+    if (professionalIds.length > 0) {
+      await tx.professionalService.createMany({
+        data: professionalIds.map((professionalId) => ({ professionalId, serviceId: service.id })),
+        skipDuplicates: true,
+      });
+    }
   });
 
   revalidatePath('/services');
@@ -78,16 +115,37 @@ export async function updateService(
     return { error: parsed.error.issues[0]?.message ?? 'Dados inválidos' };
   }
 
-  const result = await prisma.service.updateMany({
+  const exists = await prisma.service.findFirst({
     where: { id: serviceId, tenantId: tenant.id },
-    data: {
-      name: parsed.data.name,
-      description: parsed.data.description,
-      durationMinutes: parsed.data.durationMinutes,
-      priceCents: parsed.data.priceCents,
-    },
+    select: { id: true },
   });
-  if (result.count === 0) return { error: 'Serviço não encontrado' };
+  if (!exists) return { error: 'Serviço não encontrado' };
+
+  const professionalIds = await resolveServiceProfessionalIds(
+    tenant.id,
+    formData.getAll('professionalIds').map(String),
+  );
+
+  await prisma.$transaction(async (tx) => {
+    await tx.service.update({
+      where: { id: serviceId },
+      data: {
+        name: parsed.data.name,
+        description: parsed.data.description,
+        durationMinutes: parsed.data.durationMinutes,
+        priceCents: parsed.data.priceCents,
+      },
+    });
+    // Reconcilia o vínculo N:N (delete + recreate). Não afeta agendamentos passados,
+    // que guardam o profissional em Appointment.professionalId, não aqui.
+    await tx.professionalService.deleteMany({ where: { serviceId } });
+    if (professionalIds.length > 0) {
+      await tx.professionalService.createMany({
+        data: professionalIds.map((professionalId) => ({ professionalId, serviceId })),
+        skipDuplicates: true,
+      });
+    }
+  });
 
   revalidatePath('/services');
   return { ok: true };

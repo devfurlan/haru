@@ -18,8 +18,17 @@ export interface ServiceFormDefaults {
   priceCents?: number;
 }
 
+export interface ProfessionalOption {
+  id: string;
+  name: string | null;
+}
+
 interface ServiceFormProps {
   defaults?: ServiceFormDefaults;
+  /** Profissionais do tenant - o seletor só aparece quando há mais de um. */
+  professionals?: ProfessionalOption[];
+  /** Ids dos profissionais já vinculados (edição). Vazio = todos (default). */
+  selectedProfessionalIds?: string[];
   onSuccess?: () => void;
   onCancel?: () => void;
 }
@@ -33,8 +42,17 @@ function SubmitButton({ editing }: { editing: boolean }) {
   );
 }
 
-export function ServiceForm({ defaults, onSuccess, onCancel }: ServiceFormProps) {
+export function ServiceForm({
+  defaults,
+  professionals = [],
+  selectedProfessionalIds,
+  onSuccess,
+  onCancel,
+}: ServiceFormProps) {
   const editing = Boolean(defaults?.id);
+  const multiProf = professionals.length > 1;
+  // Sem seleção definida (serviço novo) = todos marcados por default.
+  const selectedSet = new Set(selectedProfessionalIds ?? professionals.map((p) => p.id));
   const action = editing
     ? updateService.bind(null, defaults!.id!)
     : (createService as (
@@ -110,9 +128,30 @@ export function ServiceForm({ defaults, onSuccess, onCancel }: ServiceFormProps)
         </div>
       </div>
 
-      {state && 'error' in state && (
-        <p className="text-sm text-destructive">{state.error}</p>
+      {multiProf && (
+        <div className="space-y-2">
+          <Label>Quem atende este serviço</Label>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {professionals.map((p) => (
+              <label key={p.id} className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  name="professionalIds"
+                  value={p.id}
+                  defaultChecked={selectedSet.has(p.id)}
+                  className="size-4"
+                />
+                {p.name ?? 'Sem nome'}
+              </label>
+            ))}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Só os marcados aparecem no agendamento deste serviço. Nenhum marcado = todos.
+          </p>
+        </div>
       )}
+
+      {state && 'error' in state && <p className="text-sm text-destructive">{state.error}</p>}
 
       <div className="flex gap-2">
         <SubmitButton editing={editing} />

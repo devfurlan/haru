@@ -9,7 +9,10 @@ export interface PlanSnapshot {
   priceCents: number;
   appointmentsLimit: number | null;
   aiMessagesLimit: number | null;
-  maxStaff: number | null;
+  /** Máximo de profissionais (usuários com agenda própria). null = ilimitado. */
+  maxProfessionals: number | null;
+  /** Máximo de recepcionistas (usuários de apoio, sem agenda). null = ilimitado. */
+  maxReceptionists: number | null;
   featOnlinePayments: boolean;
   featWebhooks: boolean;
   featTeam: boolean;
@@ -21,7 +24,8 @@ export function snapshotPlan(plan: Plan, cycle: BillingCycle): PlanSnapshot {
     priceCents: cycle === 'ANNUAL' ? plan.priceAnnualCents : plan.priceMonthlyCents,
     appointmentsLimit: plan.appointmentsPerMonth,
     aiMessagesLimit: plan.aiMessagesPerMonth,
-    maxStaff: plan.maxStaff,
+    maxProfessionals: plan.maxProfessionals,
+    maxReceptionists: plan.maxReceptionists,
     featOnlinePayments: plan.onlinePayments,
     featWebhooks: plan.webhooks,
     featTeam: plan.team,

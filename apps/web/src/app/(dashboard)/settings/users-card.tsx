@@ -35,6 +35,7 @@ export interface UserRow {
   phone: string | null;
   role: 'OWNER' | 'STAFF';
   status: 'INVITED' | 'ACTIVE';
+  isProfessional: boolean;
 }
 
 interface UsersCardProps {
@@ -55,6 +56,36 @@ function StatusBadge({ status }: { status: UserRow['status'] }) {
     <Badge variant="success">Ativo</Badge>
   ) : (
     <Badge variant="pending">Convite pendente</Badge>
+  );
+}
+
+function TypeBadge({ isProfessional }: { isProfessional: boolean }) {
+  return isProfessional ? (
+    <Badge variant="success">Profissional</Badge>
+  ) : (
+    <Badge variant="neutral">Recepção</Badge>
+  );
+}
+
+// Seletor de tipo (com agenda x sem agenda) compartilhado por convidar/editar.
+function TypeField({ defaultProfessional }: { defaultProfessional: boolean }) {
+  return (
+    <div className="space-y-2">
+      <Label htmlFor="user-type">Tipo</Label>
+      <select
+        id="user-type"
+        name="isProfessional"
+        defaultValue={defaultProfessional ? 'true' : 'false'}
+        className="border-input flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-sm"
+      >
+        <option value="true">Profissional (tem agenda própria)</option>
+        <option value="false">Recepção (sem agenda; só gerencia)</option>
+      </select>
+      <p className="text-muted-foreground text-xs">
+        Profissionais recebem agendamentos e têm horários próprios. Recepção acessa e gerencia as
+        agendas, mas não tem agenda própria.
+      </p>
+    </div>
   );
 }
 
@@ -173,6 +204,7 @@ function InviteDialog({ open, onClose }: { open: boolean; onClose: () => void })
               <PhoneInput id="invite-phone" />
               <p className="text-muted-foreground text-xs">Para onde o convite será enviado.</p>
             </div>
+            <TypeField defaultProfessional={true} />
             {state && 'error' in state && <p className="text-destructive text-sm">{state.error}</p>}
             <SubmitButton label="Enviar convite" />
           </form>
@@ -241,6 +273,7 @@ function EditDialog({
               </p>
             )}
           </div>
+          <TypeField defaultProfessional={user.isProfessional} />
           {state && 'error' in state && <p className="text-destructive text-sm">{state.error}</p>}
           <SubmitButton label="Salvar" />
         </form>
@@ -386,6 +419,7 @@ export function UsersCard({ users, currentUserId }: UsersCardProps) {
                   )}
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
+                  <TypeBadge isProfessional={u.isProfessional} />
                   <RoleBadge role={u.role} />
                   <StatusBadge status={u.status} />
                   <RowActions user={u} isSelf={isSelf} onEdit={() => setEditing(u)} />

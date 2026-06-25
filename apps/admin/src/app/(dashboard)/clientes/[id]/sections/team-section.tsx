@@ -15,6 +15,7 @@ interface TeamUser {
   email: string;
   role: 'OWNER' | 'STAFF';
   status: 'INVITED' | 'ACTIVE';
+  isProfessional: boolean;
 }
 
 export function TeamSection({ tenantId, users }: { tenantId: string; users: TeamUser[] }) {
@@ -50,6 +51,9 @@ function UserRow({ tenantId, user }: { tenantId: string; user: TeamUser }) {
       </div>
       <Badge variant={user.status === 'ACTIVE' ? 'success' : 'warning'}>
         {user.status === 'ACTIVE' ? 'Ativo' : 'Convidado'}
+      </Badge>
+      <Badge variant={user.isProfessional ? 'success' : 'neutral'}>
+        {user.isProfessional ? 'Profissional' : 'Recepção'}
       </Badge>
       <Select name="role" defaultValue={user.role} className="w-32">
         <option value="OWNER">Admin</option>

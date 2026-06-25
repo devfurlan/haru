@@ -16,6 +16,8 @@ import {
 interface RescheduleFormProps {
   appointmentId: string;
   serviceId: string;
+  /** Profissional do agendamento - a remarcação mantém o mesmo. */
+  professionalId: string;
   /** Dia atual do agendamento (YYYY-MM-DD no fuso do tenant) - pré-seleciona. */
   currentDateStr: string;
   timezone: string;
@@ -35,6 +37,7 @@ function SubmitButton({ disabled }: { disabled: boolean }) {
 export function RescheduleForm({
   appointmentId,
   serviceId,
+  professionalId,
   currentDateStr,
   timezone,
   openWeekdays,
@@ -47,9 +50,10 @@ export function RescheduleForm({
   const [slotIso, setSlotIso] = useState('');
 
   // O próprio agendamento não conta como ocupado - senão o horário atual sumiria
-  // das opções. Por isso o reschedule passa `appointmentId` como exclusão.
+  // das opções. Por isso o reschedule passa `appointmentId` como exclusão. Mantém o
+  // mesmo profissional (filtra os slots pela agenda dele).
   const loadSlots = (svcId: string, dateStr: string) =>
-    getTenantAvailableSlots(svcId, dateStr, appointmentId);
+    getTenantAvailableSlots(svcId, dateStr, appointmentId, professionalId);
 
   return (
     <form action={formAction} className="space-y-4">
@@ -60,6 +64,7 @@ export function RescheduleForm({
         horizonDays={horizonDays}
         value={slotIso}
         onChange={setSlotIso}
+        professionalId={professionalId}
         loadSlots={loadSlots}
         initialDate={currentDateStr}
       />

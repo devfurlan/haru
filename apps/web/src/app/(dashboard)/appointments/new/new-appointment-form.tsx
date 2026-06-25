@@ -32,10 +32,18 @@ interface ServiceOption {
   name: string;
   durationMinutes: number;
   priceCents: number;
+  /** Profissionais que atendem este serviço. */
+  professionalIds: string[];
+}
+
+interface ProfessionalOption {
+  id: string;
+  name: string | null;
 }
 
 interface NewAppointmentFormProps {
   services: ServiceOption[];
+  professionals: ProfessionalOption[];
   timezone: string;
   openWeekdays: number[];
   horizonDays: number;
@@ -63,6 +71,7 @@ function SubmitButton({ disabled }: { disabled: boolean }) {
 
 export function NewAppointmentForm({
   services,
+  professionals,
   timezone,
   openWeekdays,
   horizonDays,
@@ -73,6 +82,8 @@ export function NewAppointmentForm({
   );
 
   const [serviceId, setServiceId] = useState('');
+  // '' = sem preferência (o sistema atribui um profissional livre).
+  const [professionalId, setProfessionalId] = useState('');
   // Slot escolhido na grade (ISO UTC) - o servidor revalida que é um horário livre.
   const [startsAtIso, setStartsAtIso] = useState('');
   const [frequency, setFrequency] = useState<FrequencyChoice>('NONE');
@@ -83,6 +94,14 @@ export function NewAppointmentForm({
   const [encaixe, setEncaixe] = useState(false);
   const [encaixeDate, setEncaixeDate] = useState('');
   const [encaixeTime, setEncaixeTime] = useState('');
+
+  // Profissionais que atendem o serviço escolhido. O seletor só aparece quando há
+  // mais de um (caso solo / serviço com 1 profissional = sem passo extra).
+  const selectedService = services.find((s) => s.id === serviceId);
+  const serviceProfs = selectedService
+    ? professionals.filter((p) => selectedService.professionalIds.includes(p.id))
+    : [];
+  const showProfPicker = serviceProfs.length > 1;
 
   // Sucesso de uma série criada: mostra resumo em vez de redirecionar.
   if (state && 'ok' in state) {
@@ -159,7 +178,11 @@ export function NewAppointmentForm({
           required
           className="border-input focus-visible:ring-ring flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1"
           value={serviceId}
-          onChange={(e) => setServiceId(e.target.value)}
+          onChange={(e) => {
+            setServiceId(e.target.value);
+            // Troca de serviço pode mudar quem atende: volta pra "sem preferência".
+            setProfessionalId('');
+          }}
         >
           <option value="" disabled>
             Selecione um serviço
@@ -171,6 +194,26 @@ export function NewAppointmentForm({
           ))}
         </select>
       </div>
+
+      {showProfPicker && (
+        <div className="space-y-2">
+          <Label htmlFor="professionalId">Profissional</Label>
+          <select
+            id="professionalId"
+            name="professionalId"
+            className="border-input focus-visible:ring-ring flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1"
+            value={professionalId}
+            onChange={(e) => setProfessionalId(e.target.value)}
+          >
+            <option value="">Sem preferência</option>
+            {serviceProfs.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name ?? 'Sem nome'}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       <label className="bg-muted/40 flex items-start gap-3 rounded-lg border p-3">
         <input
@@ -225,7 +268,10 @@ export function NewAppointmentForm({
             horizonDays={horizonDays}
             value={startsAtIso}
             onChange={setStartsAtIso}
-            loadSlots={getTenantAvailableSlots}
+            professionalId={professionalId}
+            loadSlots={(sid, d) =>
+              getTenantAvailableSlots(sid, d, undefined, professionalId || undefined)
+            }
           />
         ) : (
           <p className="bg-muted text-muted-foreground rounded-lg border p-4 text-sm">

@@ -113,6 +113,11 @@ model User {
   /// WhatsApp. Opcional - OWNER criado no signup não tem telefone.
   phone       String?
   role        UserRole   @default(OWNER)
+  /// Profissional = tem agenda própria (horários, serviços) e recebe agendamentos.
+  /// false = usuário de apoio (recepcionista/secretária): acessa e gerencia as
+  /// agendas dos outros, mas não tem agenda própria nem aparece no booking.
+  /// O OWNER nasce profissional (caso solo). Conta no limite do plano por categoria.
+  isProfessional Boolean @default(false)
   /// Ciclo de vida do acesso. Membro convidado nasce INVITED (sem senha) e vira
   /// ACTIVE quando define a senha pela tela de ativação.
   status      UserStatus @default(ACTIVE)
@@ -132,6 +137,11 @@ model User {
 
   conversationReads ConversationRead[]
   handoffConversations Conversation[] @relation("ConversationHandoff")
+  /// Agenda própria do profissional (vazia para recepcionistas).
+  scheduleBlocks     ScheduleBlock[]
+  scheduleExceptions ScheduleException[]
+  appointments       Appointment[]
+  professionalServices ProfessionalService[]
 }
 
 enum UserRole {
@@ -159,15 +169,34 @@ model Service {
   updatedAt       DateTime @updatedAt
 
   appointments Appointment[]
+  /// Quais profissionais executam este serviço (N:N). Vazio = nenhum oferece.
+  professionals ProfessionalService[]
 }
 
-/// Janela de atendimento de um Tenant em um dia da semana. Múltiplos blocos no
-/// mesmo dia representam expediente partido (ex: 08:00-12:00 e 14:00-18:00).
-/// Ausência de blocos para um weekday = fechado naquele dia.
+/// Vínculo N:N entre um profissional (User) e um Service que ele executa. Define
+/// quem pode ser agendado para cada serviço no booking público e no bot.
+model ProfessionalService {
+  id             String   @id @default(cuid())
+  professionalId String
+  professional   User     @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+  serviceId      String
+  service        Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  createdAt      DateTime @default(now())
+
+  @@unique([professionalId, serviceId])
+  @@index([serviceId])
+}
+
+/// Janela de atendimento de um PROFISSIONAL em um dia da semana. Múltiplos blocos
+/// no mesmo dia representam expediente partido (ex: 08:00-12:00 e 14:00-18:00).
+/// Ausência de blocos para um weekday = profissional fechado naquele dia.
 model ScheduleBlock {
   id          String   @id @default(cuid())
   tenantId    String
   tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  /// Profissional dono desta grade (User com isProfessional=true).
+  professionalId String
+  professional   User  @relation(fields: [professionalId], references: [id], onDelete: Cascade)
   /// 0 = domingo, 6 = sábado (igual `Date#getDay()`).
   weekday     Int
   /// Minutos desde a meia-noite (ex: 480 = 08:00).
@@ -176,7 +205,7 @@ model ScheduleBlock {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  @@index([tenantId, weekday])
+  @@index([tenantId, professionalId, weekday])
 }
 
 /// Bloqueio pontual da agenda do Tenant: um intervalo [startsAt, endsAt) em UTC
@@ -186,6 +215,10 @@ model ScheduleException {
   id        String   @id @default(cuid())
   tenantId  String
   tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  /// Folga de um profissional específico. null = folga do estabelecimento inteiro
+  /// (aplica a todos os profissionais).
+  professionalId String?
+  professional   User?  @relation(fields: [professionalId], references: [id], onDelete: Cascade)
   startsAt  DateTime
   endsAt    DateTime
   reason    String?
@@ -280,6 +313,9 @@ model Appointment {
   contact        Contact           @relation(fields: [contactId], references: [id], onDelete: Cascade)
   serviceId      String
   service        Service           @relation(fields: [serviceId], references: [id])
+  /// Profissional que atende este agendamento (User com isProfessional=true).
+  professionalId String
+  professional   User              @relation(fields: [professionalId], references: [id])
   startsAt       DateTime
   endsAt         DateTime
   status         AppointmentStatus @default(PENDING)
@@ -295,6 +331,7 @@ model Appointment {
   payments Payment[]
 
   @@index([tenantId, startsAt])
+  @@index([professionalId, startsAt])
   @@index([seriesId])
 }
 
@@ -469,8 +506,10 @@ model Plan {
   /// Limites mensais. null = ilimitado (Enterprise).
   appointmentsPerMonth Int?
   aiMessagesPerMonth   Int?
-  /// Máximo de usuários da equipe. 1 = só o dono. null = ilimitado.
-  maxStaff             Int?
+  /// Máximo de profissionais (usuários com agenda própria). 1 = só o dono. null = ilimitado.
+  maxProfessionals     Int?
+  /// Máximo de recepcionistas (usuários de apoio, sem agenda). 0 = nenhum. null = ilimitado.
+  maxReceptionists     Int?
 
   /// Features liberadas pelo tier.
   onlinePayments Boolean @default(false)
@@ -509,7 +548,8 @@ model Subscription {
   priceCents         Int
   appointmentsLimit  Int?
   aiMessagesLimit    Int?
-  maxStaff           Int?
+  maxProfessionals   Int?
+  maxReceptionists   Int?
   featOnlinePayments Boolean @default(false)
   featWebhooks       Boolean @default(false)
   featTeam           Boolean @default(false)

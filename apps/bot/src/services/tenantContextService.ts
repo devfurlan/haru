@@ -89,9 +89,23 @@ export async function buildTenantPrimer(tenantId: string, contactId?: string): P
   const tenant = await prisma.tenant.findUniqueOrThrow({
     where: { id: tenantId },
     include: {
-      services: { where: { active: true }, orderBy: { name: 'asc' } },
+      services: {
+        where: { active: true },
+        orderBy: { name: 'asc' },
+        include: { professionals: { select: { professionalId: true } } },
+      },
+      // Profissionais (com agenda). Caso solo (<=1) => contexto idêntico ao de antes.
+      users: {
+        where: { isProfessional: true },
+        orderBy: [{ name: 'asc' }, { createdAt: 'asc' }],
+        select: { id: true, name: true },
+      },
     },
   });
+
+  const professionals = tenant.users;
+  const multiProf = professionals.length > 1;
+  const profName = new Map(professionals.map((p) => [p.id, p.name ?? 'Profissional']));
 
   const lines: string[] = [];
 
@@ -109,6 +123,28 @@ export async function buildTenantPrimer(tenantId: string, contactId?: string): P
   );
   lines.push('');
 
+  // Profissionais só aparecem quando há mais de um (caso solo = sem menção).
+  if (multiProf) {
+    lines.push('## Profissionais');
+    for (const p of professionals) {
+      lines.push(`- [${p.id}] ${p.name ?? 'Profissional'}`);
+    }
+    lines.push('');
+    lines.push('### Como lidar com profissionais (este estabelecimento tem vários)');
+    lines.push(
+      '- Pergunte se o cliente tem preferência por algum profissional, ou se "tanto faz".\n' +
+        '- Se ele escolher um, ofereça SOMENTE os dias/horários daquele profissional (seção ' +
+        '"## Disponibilidade por profissional" na nota AGORA) e passe o [usr_...] dele em ' +
+        '`professional_id`.\n' +
+        '- Se ele disser "tanto faz"/"sem preferência", passe `professional_id` = "" - o sistema ' +
+        'escolhe um livre.\n' +
+        '- Se o serviço escolhido só é atendido por alguns profissionais (vide "· profissionais:" ' +
+        'na lista de serviços), ofereça apenas esses.\n' +
+        '- Num agendamento recorrente, a série inteira fica com o MESMO profissional.',
+    );
+    lines.push('');
+  }
+
   lines.push('## Serviços disponíveis');
   if (tenant.services.length === 0) {
     lines.push(
@@ -117,10 +153,18 @@ export async function buildTenantPrimer(tenantId: string, contactId?: string): P
   } else {
     for (const s of tenant.services) {
       const desc = s.description ? ` - ${s.description}` : '';
+      // No multi, anexa quem atende quando é um subconjunto (se todos atendem, omite).
+      let who = '';
+      if (multiProf) {
+        const ids = s.professionals.map((ps) => ps.professionalId);
+        if (ids.length > 0 && ids.length < professionals.length) {
+          who = ` · profissionais: ${ids.map((id) => profName.get(id) ?? '?').join(', ')}`;
+        }
+      }
       lines.push(
         `- [${s.id}] ${s.name}${desc} · ${formatDuration(s.durationMinutes)} · ${formatBRL(
           s.priceCents,
-        )}`,
+        )}${who}`,
       );
     }
   }
@@ -176,6 +220,14 @@ export async function buildLiveContext(tenantId: string, contactId?: string): Pr
     },
   });
 
+  // Profissionais (com agenda). Caso solo (<=1) => saída idêntica à de antes.
+  const professionals = await prisma.user.findMany({
+    where: { tenantId, isProfessional: true },
+    select: { id: true, name: true },
+    orderBy: [{ name: 'asc' }, { createdAt: 'asc' }],
+  });
+  const multiProf = professionals.length > 1;
+
   const lines: string[] = [];
   const now = new Date();
   const today = civilDateInTimezone(now, tenant.timezone);
@@ -189,13 +241,6 @@ export async function buildLiveContext(tenantId: string, contactId?: string): Pr
   lines.push(`Hoje é ${WEEKDAY_NAMES[today.weekday]}, ${dd}/${mm}.`);
   lines.push('');
 
-  // Agrupa blocos por weekday (0=domingo … 6=sábado)
-  const byDay = new Map<number, { startMinute: number; endMinute: number }[]>();
-  for (let i = 0; i < 7; i++) byDay.set(i, []);
-  for (const b of tenant.scheduleBlocks) {
-    byDay.get(b.weekday)!.push({ startMinute: b.startMinute, endMinute: b.endMinute });
-  }
-
   // Lista os PRÓXIMOS dias com a data civil concreta no fuso do tenant. O LLM é
   // ruim em aritmética de calendário ("hoje é sábado, então sexta é dia X") e
   // chegava a oferecer datas já passadas. Entregando as datas prontas, ele só
@@ -205,24 +250,54 @@ export async function buildLiveContext(tenantId: string, contactId?: string): Pr
   // dias com aritmética de UTC sem cair em DST (o Brasil não usa, mas é seguro).
   const cursor = new Date(Date.UTC(today.year, today.month - 1, today.day, 12, 0, 0));
 
-  lines.push('## Próximos dias disponíveis (ofereça SOMENTE estas datas; a primeira é HOJE)');
-  let openDays = 0;
-  for (let i = 0; i < HORIZON_DAYS; i++) {
-    const d = new Date(cursor.getTime() + i * 24 * 60 * 60 * 1000);
-    const civil = civilDateInTimezone(d, tenant.timezone);
-    const blocks = byDay.get(civil.weekday) ?? [];
-    if (blocks.length === 0) continue; // dia fechado: não lista
-    const cdd = String(civil.day).padStart(2, '0');
-    const cmm = String(civil.month).padStart(2, '0');
-    const ranges = blocks
-      .map((b) => `${minutesToHHMM(b.startMinute)} às ${minutesToHHMM(b.endMinute)}`)
-      .join(', ');
-    const todayTag = i === 0 ? ' (HOJE)' : '';
-    lines.push(`- ${WEEKDAY_NAMES[civil.weekday]} ${cdd}/${cmm}${todayTag}: ${ranges}`);
-    openDays++;
-  }
-  if (openDays === 0) {
-    lines.push('(nenhum dia de atendimento configurado - peça pro cliente aguardar)');
+  // Gera as linhas "- Weekday dd/mm: ranges" para um conjunto de blocos (de um
+  // profissional ou do tenant todo no caso solo).
+  const dayLinesFor = (
+    blocks: { weekday: number; startMinute: number; endMinute: number }[],
+  ): string[] => {
+    const byDay = new Map<number, { startMinute: number; endMinute: number }[]>();
+    for (let i = 0; i < 7; i++) byDay.set(i, []);
+    for (const b of blocks) {
+      byDay.get(b.weekday)!.push({ startMinute: b.startMinute, endMinute: b.endMinute });
+    }
+    const out: string[] = [];
+    for (let i = 0; i < HORIZON_DAYS; i++) {
+      const d = new Date(cursor.getTime() + i * 24 * 60 * 60 * 1000);
+      const civil = civilDateInTimezone(d, tenant.timezone);
+      const dayBlocks = byDay.get(civil.weekday) ?? [];
+      if (dayBlocks.length === 0) continue; // dia fechado: não lista
+      const cdd = String(civil.day).padStart(2, '0');
+      const cmm = String(civil.month).padStart(2, '0');
+      const ranges = dayBlocks
+        .map((b) => `${minutesToHHMM(b.startMinute)} às ${minutesToHHMM(b.endMinute)}`)
+        .join(', ');
+      const todayTag = i === 0 ? ' (HOJE)' : '';
+      out.push(`- ${WEEKDAY_NAMES[civil.weekday]} ${cdd}/${cmm}${todayTag}: ${ranges}`);
+    }
+    return out;
+  };
+
+  if (multiProf) {
+    // Disponibilidade POR profissional. O LLM oferece os dias do profissional
+    // escolhido (ou pergunta a preferência se o cliente não disse).
+    lines.push(
+      '## Disponibilidade por profissional (ofereça SOMENTE estas datas; a primeira é HOJE)',
+    );
+    for (const p of professionals) {
+      const pBlocks = tenant.scheduleBlocks.filter((b) => b.professionalId === p.id);
+      lines.push(`### ${p.name ?? 'Profissional'} [${p.id}]`);
+      const dl = dayLinesFor(pBlocks);
+      if (dl.length === 0) lines.push('(sem dias de atendimento configurados)');
+      else lines.push(...dl);
+    }
+  } else {
+    lines.push('## Próximos dias disponíveis (ofereça SOMENTE estas datas; a primeira é HOJE)');
+    const dl = dayLinesFor(tenant.scheduleBlocks);
+    if (dl.length === 0) {
+      lines.push('(nenhum dia de atendimento configurado - peça pro cliente aguardar)');
+    } else {
+      lines.push(...dl);
+    }
   }
   lines.push('');
 
@@ -234,7 +309,7 @@ export async function buildLiveContext(tenantId: string, contactId?: string): Pr
       status: { in: ['PENDING', 'CONFIRMED'] },
       startsAt: { gte: now, lt: horizon },
     },
-    include: { service: true },
+    include: { service: true, professional: { select: { name: true } } },
     orderBy: { startsAt: 'asc' },
   });
 
@@ -243,19 +318,22 @@ export async function buildLiveContext(tenantId: string, contactId?: string): Pr
     lines.push('(nenhum)');
   } else {
     for (const a of appointments) {
+      // No multi, anexa o profissional - o slot só está ocupado para ELE.
+      const withProf = multiProf && a.professional.name ? ` · ${a.professional.name}` : '';
       lines.push(
         `- ${formatAppointmentDate(a.startsAt, tenant.timezone)} - ${a.service.name} (${formatDuration(
           a.service.durationMinutes,
-        )})`,
+        )})${withProf}`,
       );
     }
   }
   lines.push('');
 
-  // Bloqueios da agenda (folga/compromisso do dono) nos próximos 7 dias - a LLM
-  // NÃO deve oferecer horários dentro deles (bookAppointment também recusaria).
+  // Bloqueios da agenda (folga/compromisso) nos próximos 7 dias - a LLM NÃO deve
+  // oferecer horários dentro deles (bookAppointment também recusaria).
   const exceptions = await prisma.scheduleException.findMany({
     where: { tenantId, endsAt: { gt: now }, startsAt: { lt: horizon } },
+    include: { professional: { select: { name: true } } },
     orderBy: { startsAt: 'asc' },
   });
   lines.push('## Horários BLOQUEADOS na agenda (NÃO oferecer) nos próximos 7 dias');
@@ -264,11 +342,18 @@ export async function buildLiveContext(tenantId: string, contactId?: string): Pr
   } else {
     for (const e of exceptions) {
       const reason = e.reason ? ` - ${e.reason}` : '';
+      // No multi, indica de quem é a folga (sem profissional = estabelecimento todo).
+      const whose =
+        multiProf && e.professional?.name
+          ? ` (só ${e.professional.name})`
+          : multiProf
+            ? ' (todos)'
+            : '';
       lines.push(
         `- de ${formatAppointmentDate(e.startsAt, tenant.timezone)} até ${formatAppointmentDate(
           e.endsAt,
           tenant.timezone,
-        )}${reason}`,
+        )}${whose}${reason}`,
       );
     }
   }
@@ -282,7 +367,11 @@ export async function buildLiveContext(tenantId: string, contactId?: string): Pr
         status: { in: ['PENDING', 'CONFIRMED'] },
         startsAt: { gte: now },
       },
-      include: { service: true, series: { select: { frequency: true } } },
+      include: {
+        service: true,
+        series: { select: { frequency: true } },
+        professional: { select: { name: true } },
+      },
       orderBy: { startsAt: 'asc' },
     });
 
@@ -303,8 +392,9 @@ export async function buildLiveContext(tenantId: string, contactId?: string): Pr
         const rec = a.series
           ? ` (recorrente ${FREQUENCY_LABEL[a.series.frequency] ?? ''} · série ${a.seriesId})`
           : '';
+        const withProf = multiProf && a.professional.name ? ` · com ${a.professional.name}` : '';
         lines.push(
-          `- [${a.id}] ${formatAppointmentDate(a.startsAt, tenant.timezone)} - ${a.service.name}${rec}`,
+          `- [${a.id}] ${formatAppointmentDate(a.startsAt, tenant.timezone)} - ${a.service.name}${withProf}${rec}`,
         );
       }
     }

@@ -18,7 +18,11 @@ export interface TenantWithSubscription {
 export function isSubscriptionActive(sub: Subscription | null | undefined): boolean {
   if (!sub) return false;
   if (sub.status === 'ACTIVE') return true;
-  if (sub.status === 'CANCELED' && sub.currentPeriodEnd && sub.currentPeriodEnd.getTime() > Date.now()) {
+  if (
+    sub.status === 'CANCELED' &&
+    sub.currentPeriodEnd &&
+    sub.currentPeriodEnd.getTime() > Date.now()
+  ) {
     return true;
   }
   return false;
@@ -37,6 +41,30 @@ export function hasFeature(sub: Subscription | null | undefined, feature: Featur
   }
 }
 
+// --- Equipe: profissionais x recepcionistas ----------------------------------
+
+/** Profissionais (usuários com agenda própria) já cadastrados no tenant. */
+export async function getProfessionalUsage(tenantId: string): Promise<number> {
+  return prisma.user.count({ where: { tenantId, isProfessional: true } });
+}
+
+/** Recepcionistas (usuários de apoio, sem agenda) já cadastrados no tenant. */
+export async function getReceptionistUsage(tenantId: string): Promise<number> {
+  return prisma.user.count({ where: { tenantId, isProfessional: false } });
+}
+
+/** True se ainda cabe mais um profissional no plano (limite null = ilimitado). */
+export function canAddProfessional(sub: Subscription | null | undefined, used: number): boolean {
+  const limit = sub?.maxProfessionals ?? null;
+  return limit === null || used < limit;
+}
+
+/** True se ainda cabe mais um recepcionista no plano (limite null = ilimitado). */
+export function canAddReceptionist(sub: Subscription | null | undefined, used: number): boolean {
+  const limit = sub?.maxReceptionists ?? null;
+  return limit === null || used < limit;
+}
+
 // --- Uso mensal --------------------------------------------------------------
 
 /** Intervalo [início, fim) do mês corrente (UTC). Mês civil = janela de cota. */
@@ -47,7 +75,10 @@ function monthRange(now: Date): { gte: Date; lt: Date } {
 }
 
 /** Agendamentos criados no mês (exclui cancelados). Conta sob demanda via índice. */
-export async function getMonthlyAppointmentUsage(tenantId: string, now = new Date()): Promise<number> {
+export async function getMonthlyAppointmentUsage(
+  tenantId: string,
+  now = new Date(),
+): Promise<number> {
   const { gte, lt } = monthRange(now);
   return prisma.appointment.count({
     where: { tenantId, createdAt: { gte, lt }, status: { not: 'CANCELED' } },

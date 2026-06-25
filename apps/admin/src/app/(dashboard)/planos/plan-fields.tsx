@@ -10,7 +10,8 @@ export interface PlanDefaults {
   priceAnnualCents: number;
   appointmentsPerMonth: number | null;
   aiMessagesPerMonth: number | null;
-  maxStaff: number | null;
+  maxProfessionals: number | null;
+  maxReceptionists: number | null;
   onlinePayments: boolean;
   webhooks: boolean;
   team: boolean;
@@ -27,7 +28,13 @@ export function PlanFields({ d }: { d: PlanDefaults }) {
           <Input id="name" name="name" defaultValue={d.name} required />
         </Field>
         <Field label="Ordem de exibição" htmlFor="displayOrder">
-          <Input id="displayOrder" name="displayOrder" type="number" min={0} defaultValue={d.displayOrder} />
+          <Input
+            id="displayOrder"
+            name="displayOrder"
+            type="number"
+            min={0}
+            defaultValue={d.displayOrder}
+          />
         </Field>
       </div>
 
@@ -41,7 +48,11 @@ export function PlanFields({ d }: { d: PlanDefaults }) {
             required
           />
         </Field>
-        <Field label="Preço anual (R$)" htmlFor="priceAnnual" hint="Total do ciclo anual (já com desconto).">
+        <Field
+          label="Preço anual (R$)"
+          htmlFor="priceAnnual"
+          hint="Total do ciclo anual (já com desconto)."
+        >
           <Input
             id="priceAnnual"
             name="priceAnnual"
@@ -52,7 +63,7 @@ export function PlanFields({ d }: { d: PlanDefaults }) {
         </Field>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Agendamentos/mês" htmlFor="appointmentsPerMonth" hint="Vazio = ilimitado.">
           <Input
             id="appointmentsPerMonth"
@@ -71,8 +82,34 @@ export function PlanFields({ d }: { d: PlanDefaults }) {
             defaultValue={d.aiMessagesPerMonth ?? ''}
           />
         </Field>
-        <Field label="Máx. usuários" htmlFor="maxStaff" hint="Vazio = ilimitado.">
-          <Input id="maxStaff" name="maxStaff" type="number" min={0} defaultValue={d.maxStaff ?? ''} />
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field
+          label="Máx. profissionais"
+          htmlFor="maxProfessionals"
+          hint="Usuários com agenda própria. Vazio = ilimitado."
+        >
+          <Input
+            id="maxProfessionals"
+            name="maxProfessionals"
+            type="number"
+            min={0}
+            defaultValue={d.maxProfessionals ?? ''}
+          />
+        </Field>
+        <Field
+          label="Máx. recepcionistas"
+          htmlFor="maxReceptionists"
+          hint="Usuários de apoio, sem agenda. Vazio = ilimitado."
+        >
+          <Input
+            id="maxReceptionists"
+            name="maxReceptionists"
+            type="number"
+            min={0}
+            defaultValue={d.maxReceptionists ?? ''}
+          />
         </Field>
       </div>
 
