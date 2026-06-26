@@ -33,6 +33,14 @@ export const env = {
     return process.env.HEALTHCHECKS_URL ?? '';
   },
   /**
+   * Destinatário dos alertas operacionais da plataforma (ex.: número de um tenant
+   * banido pela Meta). Vai pro operador, não pro dono do tenant. Default: o e-mail
+   * do operador atual - sobrescreva via env em outros ambientes.
+   */
+  get ALERT_EMAIL_TO() {
+    return process.env.ALERT_EMAIL_TO ?? '13furlan@gmail.com';
+  },
+  /**
    * Fallback de access_token usado em dev quando o Tenant ainda não cadastrou o
    * seu token via `/settings`. Em produção cada Tenant tem o seu (resolvido no
    * `lib/whatsapp/client.ts` por phone_number_id).

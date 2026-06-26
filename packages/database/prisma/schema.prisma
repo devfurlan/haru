@@ -43,6 +43,12 @@ model Tenant {
   /// Telefone E.164 do WhatsApp (sem +) usado em links públicos wa.me/...
   /// É diferente do whatsappPhoneNumberId (ID interno da Meta).
   whatsappDisplayPhone      String?
+  /// Marca quando o número foi detectado como BANIDO pela Meta (status do phone
+  /// number = BANNED). Enquanto setado, o loop de lembretes pula o tenant - a
+  /// Meta recusa todo envio com erro genérico (#135000), então re-tentar só gera
+  /// ruído. O alerta por e-mail é disparado uma única vez na transição p/ banido.
+  /// Volta a null quando o número for reabilitado (limpar manualmente após appeal).
+  whatsappBannedAt          DateTime?
 
   /// URL opcional para POST quando agendamentos são criados/cancelados. Aceita
   /// webhooks de Discord, Slack, Zapier, n8n, etc. Para Discord: o body inclui

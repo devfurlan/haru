@@ -1,3 +1,4 @@
+import { env } from './env.js';
 import { Sentry } from '../instrument.js';
 import { formatPhoneBR } from './format.js';
 import prisma from './prisma.js';
@@ -67,6 +68,44 @@ function shell(title: string, body: string, cta: string, link: string): string {
       </p>
       <p style="font-size:12px;color:#888">Demandaê - agendamento e atendimento por IA no WhatsApp.</p>
     </div>`;
+}
+
+/**
+ * Alerta operacional pro OPERADOR da plataforma (env ALERT_EMAIL_TO, não o dono do
+ * tenant): o número de WhatsApp de um tenant foi detectado como BANIDO pela Meta.
+ * Disparado uma única vez por banimento (o caller grava tenant.whatsappBannedAt).
+ * Best-effort.
+ */
+export async function emailNumberBanned(data: {
+  tenantId: string;
+  tenantName: string;
+  displayPhone: string | null;
+  status: string | null;
+  nameStatus: string | null;
+}): Promise<void> {
+  const to = env.ALERT_EMAIL_TO;
+  if (!to) return;
+
+  const phone = data.displayPhone ? formatPhoneBR(data.displayPhone) : '(número desconhecido)';
+  const detalhes =
+    `<br/><br/><strong>Tenant:</strong> ${data.tenantName} (<code>${data.tenantId}</code>)` +
+    `<br/><strong>Número:</strong> ${phone}` +
+    `<br/><strong>status:</strong> ${data.status ?? '?'}` +
+    `<br/><strong>name_status:</strong> ${data.nameStatus ?? '?'}`;
+
+  await sendEmail(
+    to,
+    `⚠️ Número banido pela Meta - ${data.tenantName} (Demandaê)`,
+    shell(
+      'Número de WhatsApp banido',
+      `O número do tenant <strong>${data.tenantName}</strong> está com <code>status=BANNED</code> ` +
+        `na Meta - todo envio (lembrete, resposta do bot, confirmação) é recusado com o erro ` +
+        `genérico #135000. O loop de lembretes vai pular esse tenant até o número ser reabilitado. ` +
+        `Resolva pelo WhatsApp Manager (Qualidade da conta → solicitar revisão).${detalhes}`,
+      'Abrir WhatsApp Manager',
+      'https://business.facebook.com/wa/manage/phone-numbers/',
+    ),
+  );
 }
 
 /**

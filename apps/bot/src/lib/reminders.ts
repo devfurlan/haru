@@ -1,6 +1,7 @@
 import { Sentry } from '../instrument.js';
+import { emailNumberBanned } from './email.js';
 import prisma from './prisma.js';
-import { sendTemplateMessage } from './whatsapp/client.js';
+import { getPhoneNumberStatus, sendTemplateMessage } from './whatsapp/client.js';
 import { sendTextSafely } from './whatsapp/safeSend.js';
 
 const TICK_INTERVAL_MS = 5 * 60 * 1000;
@@ -21,6 +22,47 @@ function formatWhen(date: Date, timezone: string): string {
   }).format(date);
 }
 
+/**
+ * Confirma na Graph API se o número do tenant está BANIDO. Em caso positivo grava
+ * `whatsappBannedAt` (o loop passa a pular o tenant nos próximos ticks), avisa o
+ * operador por e-mail e retorna true. Como a query do loop filtra por
+ * `whatsappBannedAt: null`, o e-mail é disparado uma única vez por banimento.
+ * Best-effort: qualquer incerteza (status indisponível) retorna false.
+ */
+async function flagIfBanned(tenant: {
+  id: string;
+  name: string;
+  whatsappPhoneNumberId: string | null;
+  whatsappDisplayPhone: string | null;
+}): Promise<boolean> {
+  if (!tenant.whatsappPhoneNumberId) return false;
+
+  const status = await getPhoneNumberStatus(tenant.whatsappPhoneNumberId);
+  if (status?.status !== 'BANNED') return false;
+
+  await prisma.tenant.update({
+    where: { id: tenant.id },
+    data: { whatsappBannedAt: new Date() },
+  });
+  console.warn(
+    `[reminders] número BANIDO pela Meta - tenant ${tenant.id} (${tenant.name}); ` +
+      `pulando nos próximos ticks`,
+  );
+
+  await emailNumberBanned({
+    tenantId: tenant.id,
+    tenantName: tenant.name,
+    displayPhone: tenant.whatsappDisplayPhone,
+    status: status.status ?? null,
+    nameStatus: status.name_status ?? null,
+  }).catch((err) => {
+    console.error('[reminders] e-mail de aviso de banimento falhou', err);
+    Sentry.captureException(err, { tags: { component: 'reminders', mode: 'ban-alert' } });
+  });
+
+  return true;
+}
+
 async function processReminders() {
   const now = new Date();
 
@@ -28,6 +70,8 @@ async function processReminders() {
     where: {
       reminderHoursBefore: { gt: 0 },
       whatsappPhoneNumberId: { not: null },
+      // Número banido pela Meta recusa todo envio (#135000); não re-tentar.
+      whatsappBannedAt: null,
     },
   });
 
@@ -90,6 +134,11 @@ async function processReminders() {
               template: tenant.reminderTemplateName,
             },
           });
+          // O erro da Meta é genérico (#135000) e não diz o motivo. Confirma na
+          // Graph API se o número foi banido; se foi, marca o tenant (o loop passa
+          // a pulá-lo), avisa o operador por e-mail e abandona os demais appts -
+          // nenhum vai entregar enquanto o número estiver banido.
+          if (await flagIfBanned(tenant)) break;
         }
       } else {
         // Fallback: freeform (só funciona se cliente mandou mensagem nas últimas 24h)

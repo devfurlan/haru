@@ -40,6 +40,32 @@ export function invalidateTokenCache(phoneNumberId: string) {
   tokenCache.delete(phoneNumberId);
 }
 
+export type PhoneNumberStatus = {
+  status?: string; // CONNECTED | BANNED | RESTRICTED | ...
+  name_status?: string; // APPROVED | DECLINED | ...
+  code_verification_status?: string;
+  quality_rating?: string; // GREEN | YELLOW | RED
+};
+
+/**
+ * Lê o status do número no nó do phone_number_id (Graph API). Usado pra confirmar
+ * banimento quando um envio falha com o erro genérico (#135000), que não diz o
+ * motivo real. Best-effort: qualquer falha retorna null (não sabemos = não marca).
+ */
+export async function getPhoneNumberStatus(
+  phoneNumberId: string,
+): Promise<PhoneNumberStatus | null> {
+  try {
+    const token = await tokenFor(phoneNumberId);
+    const fields = 'status,name_status,code_verification_status,quality_rating';
+    const res = await fetch(`${API_URL}/${phoneNumberId}?fields=${fields}&access_token=${token}`);
+    if (!res.ok) return null;
+    return (await res.json()) as PhoneNumberStatus;
+  } catch {
+    return null;
+  }
+}
+
 async function callApi(
   phoneNumberId: string,
   endpoint: string,
