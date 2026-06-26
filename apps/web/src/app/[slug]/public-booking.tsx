@@ -1216,6 +1216,44 @@ function PaymentBlock({ slug, appointmentId }: { slug: string; appointmentId: st
 // Componente raiz - máquina de estados
 // ---------------------------------------------------------------------------
 
+// Contato salvo no dispositivo pra não redigitar WhatsApp/nome a cada agendamento.
+// localStorage (não cookie): o dado só interessa ao cliente, não precisa ir pro
+// servidor. Chave global (sem o slug) porque a pessoa usa o mesmo número em
+// qualquer negócio Demandaê.
+const CONTACT_STORAGE_KEY = 'demandae:booking-contact';
+
+type SavedContact = { phone: string; name: string };
+
+function readSavedContact(): SavedContact | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = window.localStorage.getItem(CONTACT_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<SavedContact>;
+    const phone =
+      typeof parsed.phone === 'string' ? parsed.phone.replace(/\D/g, '').slice(0, 13) : '';
+    if (phone.length < 10) return null;
+    return { phone, name: typeof parsed.name === 'string' ? parsed.name : '' };
+  } catch {
+    // localStorage indisponível (modo privado / cota) ou JSON corrompido - ignora.
+    return null;
+  }
+}
+
+function saveContact(contact: SavedContact) {
+  if (typeof window === 'undefined') return;
+  try {
+    const phone = contact.phone.replace(/\D/g, '').slice(0, 13);
+    if (phone.length < 10) return;
+    window.localStorage.setItem(
+      CONTACT_STORAGE_KEY,
+      JSON.stringify({ phone, name: contact.name.trim() }),
+    );
+  } catch {
+    // localStorage indisponível (modo privado / cota) - ignora.
+  }
+}
+
 export function PublicBooking({
   slug,
   services,
@@ -1254,6 +1292,17 @@ export function PublicBooking({
   const [needsName, setNeedsName] = useState(false);
   const [lookupError, setLookupError] = useState<string | null>(null);
   const [lookingUp, startLookup] = useTransition();
+
+  // Pré-preenche o contato salvo de um agendamento anterior (mesmo dispositivo).
+  // Roda só no mount, via effect, pra não causar mismatch de hidratação (o SSR
+  // não tem acesso ao localStorage). O usuário começa no passo 0 (vitrine), então
+  // o campo de contato já chega preenchido quando ele avança pro passo 1.
+  useEffect(() => {
+    const saved = readSavedContact();
+    if (!saved) return;
+    setPhone(saved.phone);
+    if (saved.name) setName(saved.name);
+  }, []);
 
   // Passo 2 - dia / hora
   const [dateStr, setDateStr] = useState('');
@@ -1327,9 +1376,11 @@ export function PublicBooking({
     });
   }, [slug, serviceId, dateStr, professionalId]);
 
-  // Sucesso do submit → tela final.
+  // Sucesso do submit → tela final. Salva o contato pra pré-preencher no próximo
+  // agendamento feito deste dispositivo.
   useEffect(() => {
     if (state && 'ok' in state && state.ok) {
+      saveContact({ phone, name: effectiveName });
       setStep('done');
     }
   }, [state]);
