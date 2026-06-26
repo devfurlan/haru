@@ -253,7 +253,7 @@ export async function createManualAppointment(
     contactPhone: formData.get('contactPhone'),
     contactName: formData.get('contactName'),
     startsAtIso: formData.get('startsAtIso'),
-    encaixe: formData.get('encaixe') ?? undefined,
+    encaixe: formData.get('encaixe') === 'on' ? 'on' : undefined,
     encaixeDate: formData.get('encaixeDate') ?? undefined,
     encaixeTime: formData.get('encaixeTime') ?? undefined,
     frequency: formData.get('frequency') ?? 'NONE',
