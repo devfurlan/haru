@@ -43,11 +43,13 @@ export default async function TenantPublicPage({ params }: { params: Promise<{ s
   }
   const dayOrder = [1, 2, 3, 4, 5, 6, 0];
 
-  // Só oferece o botão de WhatsApp quando o bot está de fato conectado
-  // (phone_number_id + access_token). Ter só o whatsappDisplayPhone não basta:
-  // sem o bot ativo, a mensagem cai num número que não atende/agenda.
+  // Só oferece o botão de WhatsApp quando o número está de fato ativo: bot
+  // conectado (phone_number_id + access_token) E não banido pela Meta. Ter só o
+  // whatsappDisplayPhone não basta - sem bot ativo (ou com número banido) a
+  // mensagem cai num número que não atende/agenda.
+  const whatsappActive = isWhatsappConnected(tenant) && !tenant.whatsappBannedAt;
   const waLink =
-    isWhatsappConnected(tenant) && tenant.whatsappDisplayPhone
+    whatsappActive && tenant.whatsappDisplayPhone
       ? `https://wa.me/${tenant.whatsappDisplayPhone}?text=${encodeURIComponent('Olá! Quero agendar um horário.')}`
       : null;
 
