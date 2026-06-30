@@ -12,9 +12,9 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { maskPhoneBRInput } from '@/lib/format';
+import { formatPhoneBR, maskPhoneBRInput } from '@/lib/format';
 
-function SubmitButton({ disabled }: { disabled: boolean }) {
+function CreateButton({ disabled }: { disabled: boolean }) {
   const { pending } = useFormStatus();
   return (
     <Button type="submit" className="w-full" disabled={pending || disabled}>
@@ -24,72 +24,73 @@ function SubmitButton({ disabled }: { disabled: boolean }) {
 }
 
 export function CustomerSignupForm({ defaultPhone = '' }: { defaultPhone?: string }) {
+  const [step, setStep] = useState<'dados' | 'codigo'>('dados');
+
+  // Campos coletados no passo 1 (a conta só é criada no passo 2, após o código).
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [phone, setPhone] = useState(() => maskPhoneBRInput(defaultPhone));
+  const [acceptTerms, setAcceptTerms] = useState(false);
+  const [code, setCode] = useState('');
+
+  const [sending, startSending] = useTransition();
+  const [stepError, setStepError] = useState<string | null>(null);
+
+  // Submit final (passo 2): cria a conta validando o código no servidor.
   const [state, formAction] = useActionState<CustomerActionResult, FormData>(
     customerSignUp,
     undefined,
   );
-  const [phone, setPhone] = useState(() => maskPhoneBRInput(defaultPhone));
-  const [code, setCode] = useState('');
-  const [codeSent, setCodeSent] = useState(false);
-  const [sending, startSending] = useTransition();
-  const [sendError, setSendError] = useState<string | null>(null);
 
-  const phoneDigits = phone.replace(/\D/g, '');
-  const canSend = phoneDigits.length >= 10 && !sending;
-
-  function handleSendCode() {
-    setSendError(null);
+  function sendCode() {
+    setStepError(null);
     startSending(async () => {
       const res = await sendCustomerSignupCode(phone);
       if (res && 'error' in res) {
-        setSendError(res.error);
+        setStepError(res.error);
         return;
       }
-      setCodeSent(true);
+      setStep('codigo');
     });
   }
 
-  return (
-    <form action={formAction} className="space-y-4">
-      <div className="space-y-2">
-        <Label htmlFor="name">Seu nome</Label>
-        <Input id="name" name="name" type="text" autoComplete="name" required />
-      </div>
+  // Passo 1 -> valida localmente (só pra não disparar SMS à toa) e envia o código.
+  function handleContinue(e: React.FormEvent) {
+    e.preventDefault();
+    if (name.trim().length < 2) return setStepError('Informe seu nome');
+    if (!/^\S+@\S+\.\S+$/.test(email)) return setStepError('E-mail inválido');
+    if (password.length < 8) return setStepError('A senha deve ter ao menos 8 caracteres');
+    if (phone.replace(/\D/g, '').length < 10)
+      return setStepError('Celular inválido - confira o DDD');
+    if (!acceptTerms)
+      return setStepError('É preciso aceitar os Termos e a Política de Privacidade.');
+    sendCode();
+  }
 
-      <div className="space-y-2">
-        <Label htmlFor="phone">Celular</Label>
-        <Input
-          id="phone"
-          name="phone"
-          type="tel"
-          inputMode="tel"
-          autoComplete="tel"
-          placeholder="(11) 91234-5678"
-          value={phone}
-          onChange={(e) => setPhone(maskPhoneBRInput(e.target.value))}
-          readOnly={codeSent}
-          required
-        />
-        <p className="text-muted-foreground text-xs">
-          Enviamos um código por SMS para confirmar que o número é seu - é o que liga sua conta aos
-          seus agendamentos.
-        </p>
-      </div>
-
-      {!codeSent ? (
+  // -------------------------------------------------------------------------
+  // Passo 2: confirmar o código recebido por SMS.
+  // -------------------------------------------------------------------------
+  if (step === 'codigo') {
+    return (
+      <form action={formAction} className="space-y-4">
         <div className="space-y-1">
-          <Button
+          <p className="text-sm">
+            Enviamos um código por SMS para <strong>{formatPhoneBR(phone)}</strong>.
+          </p>
+          <button
             type="button"
-            variant="outline"
-            className="w-full"
-            onClick={handleSendCode}
-            disabled={!canSend}
+            onClick={() => {
+              setStep('dados');
+              setCode('');
+              setStepError(null);
+            }}
+            className="text-muted-foreground hover:text-foreground text-xs underline-offset-4 hover:underline"
           >
-            {sending ? 'Enviando…' : 'Enviar código por SMS'}
-          </Button>
-          {sendError && <p className="text-destructive text-sm">{sendError}</p>}
+            Voltar e corrigir os dados
+          </button>
         </div>
-      ) : (
+
         <div className="space-y-2">
           <Label htmlFor="code">Código recebido por SMS</Label>
           <Input
@@ -102,55 +103,96 @@ export function CustomerSignupForm({ defaultPhone = '' }: { defaultPhone?: strin
             maxLength={8}
             value={code}
             onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
+            autoFocus
             required
           />
-          <div className="flex items-center justify-between">
-            <button
-              type="button"
-              onClick={handleSendCode}
-              disabled={sending}
-              className="text-muted-foreground hover:text-foreground text-xs underline-offset-4 hover:underline disabled:opacity-50"
-            >
-              {sending ? 'Reenviando…' : 'Reenviar código'}
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setCodeSent(false);
-                setCode('');
-                setSendError(null);
-              }}
-              className="text-muted-foreground hover:text-foreground text-xs underline-offset-4 hover:underline"
-            >
-              Trocar número
-            </button>
-          </div>
-          {sendError && <p className="text-destructive text-sm">{sendError}</p>}
+          <button
+            type="button"
+            onClick={sendCode}
+            disabled={sending}
+            className="text-muted-foreground hover:text-foreground text-xs underline-offset-4 hover:underline disabled:opacity-50"
+          >
+            {sending ? 'Reenviando…' : 'Reenviar código'}
+          </button>
         </div>
-      )}
 
+        {/* Dados do passo 1, enviados junto na criação da conta. */}
+        <input type="hidden" name="name" value={name} />
+        <input type="hidden" name="email" value={email} />
+        <input type="hidden" name="password" value={password} />
+        <input type="hidden" name="phone" value={phone} />
+        <input type="hidden" name="acceptTerms" value="on" />
+
+        {state && 'error' in state && <p className="text-destructive text-sm">{state.error}</p>}
+        {stepError && <p className="text-destructive text-sm">{stepError}</p>}
+
+        <CreateButton disabled={code.length < 4} />
+      </form>
+    );
+  }
+
+  // -------------------------------------------------------------------------
+  // Passo 1: dados da conta.
+  // -------------------------------------------------------------------------
+  return (
+    <form onSubmit={handleContinue} className="space-y-4">
+      <div className="space-y-2">
+        <Label htmlFor="name">Seu nome</Label>
+        <Input
+          id="name"
+          type="text"
+          autoComplete="name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          required
+        />
+      </div>
       <div className="space-y-2">
         <Label htmlFor="email">Email</Label>
-        <Input id="email" name="email" type="email" autoComplete="email" required />
+        <Input
+          id="email"
+          type="email"
+          autoComplete="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+        />
       </div>
       <div className="space-y-2">
         <Label htmlFor="password">Senha</Label>
         <Input
           id="password"
-          name="password"
           type="password"
           autoComplete="new-password"
           minLength={8}
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
           required
         />
         <p className="text-muted-foreground text-xs">Mínimo de 8 caracteres.</p>
       </div>
+      <div className="space-y-2">
+        <Label htmlFor="phone">Celular</Label>
+        <Input
+          id="phone"
+          type="tel"
+          inputMode="tel"
+          autoComplete="tel"
+          placeholder="(11) 91234-5678"
+          value={phone}
+          onChange={(e) => setPhone(maskPhoneBRInput(e.target.value))}
+          required
+        />
+        <p className="text-muted-foreground text-xs">
+          Enviaremos um código por SMS para confirmar que o número é seu.
+        </p>
+      </div>
       <div className="flex items-start gap-2">
         <input
           id="acceptTerms"
-          name="acceptTerms"
           type="checkbox"
-          value="on"
+          checked={acceptTerms}
+          onChange={(e) => setAcceptTerms(e.target.checked)}
           required
           className="border-input accent-foreground mt-0.5 size-4 shrink-0 rounded"
         />
@@ -173,8 +215,12 @@ export function CustomerSignupForm({ defaultPhone = '' }: { defaultPhone?: strin
           .
         </Label>
       </div>
-      {state && 'error' in state && <p className="text-destructive text-sm">{state.error}</p>}
-      <SubmitButton disabled={!codeSent || code.length < 4} />
+
+      {stepError && <p className="text-destructive text-sm">{stepError}</p>}
+
+      <Button type="submit" className="w-full" disabled={sending}>
+        {sending ? 'Enviando código…' : 'Continuar'}
+      </Button>
     </form>
   );
 }
