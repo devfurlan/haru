@@ -68,9 +68,6 @@ export function CustomerSignupForm() {
           onChange={(e) => setPhone(maskPhoneBRInput(e.target.value))}
           required
         />
-        <p className="text-muted-foreground text-xs">
-          Você confirma esse número depois de entrar, para receber lembretes dos seus agendamentos.
-        </p>
       </div>
       <div className="flex items-start gap-2">
         <input
