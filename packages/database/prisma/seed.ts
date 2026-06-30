@@ -54,14 +54,16 @@ async function main() {
     },
   });
 
-  await prisma.user.upsert({
+  // OWNER nasce profissional (caso solo): tem agenda própria e recebe agendamentos.
+  const owner = await prisma.user.upsert({
     where: { authId },
-    update: { tenantId: tenant.id, email: TEST_EMAIL },
+    update: { tenantId: tenant.id, email: TEST_EMAIL, isProfessional: true },
     create: {
       authId,
       email: TEST_EMAIL,
       name: 'Admin Teste',
       role: 'OWNER',
+      isProfessional: true,
       tenantId: tenant.id,
     },
   });
@@ -101,19 +103,50 @@ async function main() {
     ],
   });
 
+  // Vincula o profissional (owner) a todos os serviços - sem isso o booking não
+  // resolve quem atende e não oferece horários.
+  console.log('[seed] vinculando profissional aos serviços...');
+  const services = await prisma.service.findMany({
+    where: { tenantId: tenant.id },
+    select: { id: true },
+  });
+  await prisma.professionalService.deleteMany({ where: { professionalId: owner.id } });
+  await prisma.professionalService.createMany({
+    data: services.map((s) => ({ professionalId: owner.id, serviceId: s.id })),
+  });
+
   console.log('[seed] recriando horários (seg-sex 9-12 + 13-18, sáb 9-13)...');
   await prisma.scheduleBlock.deleteMany({ where: { tenantId: tenant.id } });
   const blocks: Array<{
     tenantId: string;
+    professionalId: string;
     weekday: number;
     startMinute: number;
     endMinute: number;
   }> = [];
   for (let weekday = 1; weekday <= 5; weekday++) {
-    blocks.push({ tenantId: tenant.id, weekday, startMinute: 9 * 60, endMinute: 12 * 60 });
-    blocks.push({ tenantId: tenant.id, weekday, startMinute: 13 * 60, endMinute: 18 * 60 });
+    blocks.push({
+      tenantId: tenant.id,
+      professionalId: owner.id,
+      weekday,
+      startMinute: 9 * 60,
+      endMinute: 12 * 60,
+    });
+    blocks.push({
+      tenantId: tenant.id,
+      professionalId: owner.id,
+      weekday,
+      startMinute: 13 * 60,
+      endMinute: 18 * 60,
+    });
   }
-  blocks.push({ tenantId: tenant.id, weekday: 6, startMinute: 9 * 60, endMinute: 13 * 60 });
+  blocks.push({
+    tenantId: tenant.id,
+    professionalId: owner.id,
+    weekday: 6,
+    startMinute: 9 * 60,
+    endMinute: 13 * 60,
+  });
   await prisma.scheduleBlock.createMany({ data: blocks });
 
   console.log('');
