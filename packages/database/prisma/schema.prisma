@@ -178,7 +178,7 @@ model CustomerAccount {
   authId    String   @unique
   email     String   @unique
   name      String?
-  /// Telefone E.164 sem máscara (ex.: "5511914092346"). Usado pra reivindicar
+  /// Telefone E.164 sem máscara (ex.: "5511912345678"). Usado pra reivindicar
   /// (claim) os Contacts de mesmo telefone em todos os tenants. Opcional: a conta
   /// pode existir antes de informar o telefone.
   phone     String?

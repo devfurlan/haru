@@ -64,7 +64,7 @@ export function CustomerSignupForm({ defaultPhone = '' }: { defaultPhone?: strin
           type="tel"
           inputMode="tel"
           autoComplete="tel"
-          placeholder="(11) 91409-2346"
+          placeholder="(11) 91234-5678"
           value={phone}
           onChange={(e) => setPhone(maskPhoneBRInput(e.target.value))}
           readOnly={codeSent}

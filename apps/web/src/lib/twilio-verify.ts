@@ -31,7 +31,7 @@ export type OtpResult = { ok: true } | { ok: false; error: string };
 
 /**
  * Envia um código de verificação por SMS para o número (E.164 sem '+', ex.:
- * "5511914092346"). Fail-soft: se as envs não estiverem configuradas, retorna erro
+ * "5511912345678"). Fail-soft: se as envs não estiverem configuradas, retorna erro
  * claro em vez de quebrar.
  */
 export async function sendPhoneOtp(phoneE164: string): Promise<OtpResult> {
