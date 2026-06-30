@@ -129,11 +129,12 @@ function MonthCalendar({
         <Button
           type="button"
           variant="outline"
-          size="icon"
+          size="sm"
           aria-label="Abrir calendário"
           title="Escolher outra data"
         >
           <CalendarDays className="h-4 w-4" />
+          Outras datas
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-xs gap-4">
@@ -362,6 +363,11 @@ export function SlotPicker({
         <p className="text-foreground flex items-center gap-1.5 text-sm font-medium">
           <Clock className="h-4 w-4" aria-hidden="true" />
           Horários disponíveis
+          {dateStr ? (
+            <span className="text-muted-foreground font-normal capitalize">
+              · {railDays.find((d) => d.value === dateStr)?.label ?? dateStr}
+            </span>
+          ) : null}
         </p>
         {!dateStr ? (
           <p className="bg-muted text-muted-foreground rounded-lg border p-4 text-sm">

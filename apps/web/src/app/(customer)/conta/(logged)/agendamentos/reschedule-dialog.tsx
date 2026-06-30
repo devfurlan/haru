@@ -1,5 +1,6 @@
 'use client';
 
+import { ArrowRight } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useActionState, useEffect, useState } from 'react';
 import { useFormStatus } from 'react-dom';
@@ -49,6 +50,18 @@ export function RescheduleDialog({ item }: { item: CustomerAppointmentItem }) {
 
   const loadSlots = (svcId: string, dateStr: string) => customerLoadSlots(item.id, svcId, dateStr);
 
+  // Rótulo do novo horário escolhido, no fuso do tenant - pra mostrar "antes → depois".
+  const newWhenLabel = slotIso
+    ? new Intl.DateTimeFormat('pt-BR', {
+        timeZone: item.tenant.timezone,
+        weekday: 'short',
+        day: '2-digit',
+        month: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+      }).format(new Date(slotIso))
+    : null;
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -64,6 +77,16 @@ export function RescheduleDialog({ item }: { item: CustomerAppointmentItem }) {
           </DialogDescription>
         </DialogHeader>
         <form action={formAction} className="space-y-4">
+          <div className="bg-muted/40 space-y-1 rounded-lg border p-3 text-sm">
+            <p className="text-muted-foreground text-xs">Agendamento atual</p>
+            <p className="text-foreground font-medium capitalize">{item.whenLabel}</p>
+            {newWhenLabel ? (
+              <p className="text-primary flex items-center gap-1.5 pt-1 font-semibold capitalize">
+                <ArrowRight className="h-4 w-4 shrink-0" aria-hidden="true" />
+                {newWhenLabel}
+              </p>
+            ) : null}
+          </div>
           <SlotPicker
             serviceId={item.serviceId}
             timezone={item.tenant.timezone}

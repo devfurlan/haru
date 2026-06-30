@@ -12,7 +12,6 @@ import {
   Copy,
   CreditCard,
   PartyPopper,
-  Phone,
   QrCode,
   Repeat,
   User as UserIcon,
@@ -45,7 +44,6 @@ import { RECURRENCE_OCCURRENCE_OPTIONS, type RecurrenceFrequency } from '@/lib/r
 
 import {
   createPublicBooking,
-  type ContactLookupResult,
   type CreatePublicBookingResult,
   getAvailableSlots,
   lookupContact,
@@ -81,14 +79,14 @@ interface PublicBookingProps {
 }
 
 /**
- * Passos do fluxo:
+ * Passos do fluxo (curto: o cliente vê serviço e horário antes de dar qualquer
+ * dado; o contato é pedido junto com a confirmação, no fim):
  *  0      - Vitrine de serviços (estado inicial).
- *  1      - Contato (telefone primeiro; nome aparece se o contato não existir).
- *  2      - Dia e horário.
- *  3      - Resumo / confirmação.
+ *  1      - Dia e horário.
+ *  2      - Contato + resumo / confirmação.
  *  'done' - Tela de sucesso pós-submit.
  */
-type Step = 0 | 1 | 2 | 3 | 'done';
+type Step = 0 | 1 | 2 | 'done';
 
 type FrequencyChoice = 'NONE' | RecurrenceFrequency;
 
@@ -101,21 +99,19 @@ const FREQUENCY_LABELS: Record<FrequencyChoice, string> = {
 
 const FREQUENCY_ORDER: FrequencyChoice[] = ['NONE', 'WEEKLY', 'BIWEEKLY', 'MONTHLY'];
 
-const TOTAL_STEPS = 4;
+const TOTAL_STEPS = 3;
 
 const STEP_TITLES: Record<Exclude<Step, 'done'>, string> = {
   0: 'Escolha o serviço',
-  1: 'Seu contato',
-  2: 'Escolha dia e horário',
-  3: 'Confira e confirme',
+  1: 'Escolha dia e horário',
+  2: 'Confirme seus dados',
 };
 
-/** Número humano do passo (1..4) a partir do estado interno. */
-const STEP_NUMBER: Record<Exclude<Step, 'done'>, 1 | 2 | 3 | 4> = {
+/** Número humano do passo (1..3) a partir do estado interno. */
+const STEP_NUMBER: Record<Exclude<Step, 'done'>, 1 | 2 | 3> = {
   0: 1,
   1: 2,
   2: 3,
-  3: 4,
 };
 
 /**
@@ -143,7 +139,7 @@ function ProgressDots({ step }: { step: Exclude<Step, 'done'> }) {
       aria-label={`Passo ${current} de ${TOTAL_STEPS}: ${STEP_TITLES[step]}`}
     >
       <div className="flex items-center gap-2" aria-hidden="true">
-        {([1, 2, 3, 4] as const).map((n) => (
+        {Array.from({ length: TOTAL_STEPS }, (_, i) => i + 1).map((n) => (
           <span
             key={n}
             className={
@@ -199,7 +195,7 @@ function StepHeader({
 }
 
 /** Botão de submit final - usa useFormStatus para o estado "pending". */
-function ConfirmButton() {
+function ConfirmButton({ disabled }: { disabled?: boolean }) {
   const { pending } = useFormStatus();
   return (
     <Button
@@ -207,7 +203,7 @@ function ConfirmButton() {
       variant="coral"
       size="pill"
       className="w-full"
-      disabled={pending}
+      disabled={pending || disabled}
       aria-busy={pending}
     >
       {pending ? 'Confirmando…' : 'Confirmar agendamento'}
@@ -272,148 +268,6 @@ function StepVitrine({
           ))}
         </ul>
       )}
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Passo 1 - Contato (telefone primeiro; nome só se o contato não existir)
-// ---------------------------------------------------------------------------
-
-function StepContato({
-  service,
-  phone,
-  onChangePhone,
-  name,
-  onChangeName,
-  needsName,
-  lookingUp,
-  lookupError,
-  onLookup,
-  onConfirmName,
-  onBack,
-  headingRef,
-}: {
-  service: ServiceOption;
-  phone: string;
-  onChangePhone: (digits: string) => void;
-  name: string;
-  onChangeName: (value: string) => void;
-  /** true depois de um lookup que retornou exists=false (ou erro de rede). */
-  needsName: boolean;
-  lookingUp: boolean;
-  lookupError: string | null;
-  onLookup: () => void;
-  onConfirmName: () => void;
-  onBack: () => void;
-  headingRef: React.RefObject<HTMLHeadingElement | null>;
-}) {
-  const phoneOk = phone.length >= 10;
-  const nameOk = name.trim().length >= 2;
-
-  // A ref do nome existe pra focar o campo assim que ele aparece (lookup→needsName).
-  const nameRef = useRef<HTMLInputElement>(null);
-  useEffect(() => {
-    if (needsName) nameRef.current?.focus();
-  }, [needsName]);
-
-  return (
-    <div className="space-y-6">
-      <StepHeader
-        title={STEP_TITLES[1]}
-        description="Pra confirmar o agendamento pelo WhatsApp."
-        onBack={onBack}
-        headingRef={headingRef}
-      />
-
-      {/* Lembrete do serviço escolhido. */}
-      <p className="bg-muted text-muted-foreground flex flex-wrap items-center gap-2 rounded-lg border px-3 py-2 text-sm">
-        <CalendarCheck className="text-coral h-4 w-4 shrink-0" aria-hidden="true" />
-        <span className="text-foreground font-medium">{service.name}</span>
-        <span aria-hidden="true">·</span>
-        {formatDuration(service.durationMinutes)}
-        <span aria-hidden="true">·</span>
-        {formatBRL(service.priceCents)}
-      </p>
-
-      <form
-        className="space-y-4"
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (needsName) {
-            if (nameOk) onConfirmName();
-          } else if (phoneOk && !lookingUp) {
-            onLookup();
-          }
-        }}
-      >
-        <div className="space-y-1.5">
-          <Label htmlFor="booking-phone">WhatsApp</Label>
-          <Input
-            id="booking-phone"
-            name="display-phone"
-            type="tel"
-            inputMode="numeric"
-            autoComplete="tel"
-            placeholder="(11) 91234-5678"
-            value={formatPhoneBR(phone) || phone}
-            onChange={(e) => onChangePhone(e.target.value.replace(/\D/g, '').slice(0, 13))}
-            aria-invalid={phone.length > 0 && !phoneOk}
-            aria-describedby="booking-phone-hint"
-          />
-          <p id="booking-phone-hint" className="text-muted-foreground text-xs">
-            Inclua o DDD. Ex.: (11) 91234-5678.
-          </p>
-        </div>
-
-        {/* Campo de nome aparece NA MESMA TELA quando o contato não existe. */}
-        {needsName ? (
-          <div className="space-y-1.5">
-            <Label htmlFor="booking-name">Nome</Label>
-            <Input
-              id="booking-name"
-              ref={nameRef}
-              name="display-name"
-              autoComplete="name"
-              placeholder="Como podemos te chamar?"
-              value={name}
-              onChange={(e) => onChangeName(e.target.value)}
-              aria-invalid={name.length > 0 && !nameOk}
-            />
-            <p className="text-muted-foreground text-xs">
-              Não encontramos esse número. Conta pra gente seu nome.
-            </p>
-          </div>
-        ) : null}
-
-        {lookupError ? (
-          <p
-            role="alert"
-            className="border-destructive/40 bg-destructive/5 text-destructive rounded-lg border p-3 text-sm"
-          >
-            {lookupError}
-          </p>
-        ) : null}
-
-        {needsName ? (
-          <Button type="submit" variant="coral" size="pill" className="w-full" disabled={!nameOk}>
-            Continuar
-            <ChevronRight className="h-4 w-4" aria-hidden="true" />
-          </Button>
-        ) : (
-          <Button
-            type="submit"
-            variant="coral"
-            size="pill"
-            className="w-full"
-            disabled={!phoneOk || lookingUp}
-            aria-busy={lookingUp}
-          >
-            {lookingUp ? 'Verificando…' : 'Continuar'}
-            {!lookingUp ? <ChevronRight className="h-4 w-4" aria-hidden="true" /> : null}
-          </Button>
-        )}
-      </form>
     </div>
   );
 }
@@ -523,11 +377,12 @@ function MonthCalendar({
         <Button
           type="button"
           variant="outline"
-          size="icon"
+          size="sm"
           aria-label="Abrir calendário"
           title="Escolher outra data"
         >
           <CalendarDays className="h-4 w-4" />
+          Outras datas
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-xs gap-4">
@@ -665,7 +520,7 @@ function StepDiaHora({
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-3">
-        <StepHeader title={STEP_TITLES[2]} onBack={onBack} headingRef={headingRef} />
+        <StepHeader title={STEP_TITLES[1]} onBack={onBack} headingRef={headingRef} />
         <div className="shrink-0 pt-7">
           <MonthCalendar
             minDate={minDate}
@@ -714,7 +569,7 @@ function StepDiaHora({
                 aria-label={day.label}
                 onClick={() => onSelectDate(day.value)}
                 className={
-                  'focus-visible:ring-ring min-w-18 flex shrink-0 flex-col items-center gap-0.5 rounded-xl border px-3 py-2 text-center transition-colors focus-visible:outline-none focus-visible:ring-2 ' +
+                  'focus-visible:ring-ring min-w-18 flex min-h-11 shrink-0 flex-col items-center justify-center gap-0.5 rounded-xl border px-3 py-2 text-center transition-colors focus-visible:outline-none focus-visible:ring-2 ' +
                   (isSelected
                     ? 'border-coral bg-coral text-white'
                     : 'bg-card text-foreground hover:border-coral/50')
@@ -740,6 +595,11 @@ function StepDiaHora({
         <p className="text-foreground flex items-center gap-1.5 text-sm font-medium">
           <Clock className="h-4 w-4" aria-hidden="true" />
           Horários disponíveis
+          {selectedDate ? (
+            <span className="text-muted-foreground font-normal capitalize">
+              · {railDays.find((d) => d.value === selectedDate)?.label ?? selectedDate}
+            </span>
+          ) : null}
         </p>
         {!selectedDate ? (
           <p className="bg-muted text-muted-foreground rounded-lg border p-4 text-sm">
@@ -769,6 +629,7 @@ function StepDiaHora({
                   type="button"
                   variant={isSelected ? 'coral' : 'outline'}
                   size="sm"
+                  className="h-11"
                   aria-pressed={isSelected}
                   onClick={() => onSelectSlot(slot)}
                 >
@@ -784,17 +645,20 @@ function StepDiaHora({
 }
 
 // ---------------------------------------------------------------------------
-// Passo 3 - Resumo / confirmação (form de submit real)
+// Passo 2 - Contato + resumo / confirmação (form de submit real)
 // ---------------------------------------------------------------------------
 
-function StepResumo({
+function StepConfirmar({
   slug,
   service,
   professionalId,
   dayLabel,
   slot,
   name,
+  onChangeName,
   phone,
+  onChangePhone,
+  lookingUp,
   frequency,
   occurrences,
   onChangeFrequency,
@@ -811,7 +675,11 @@ function StepResumo({
   dayLabel: string;
   slot: AvailableSlot;
   name: string;
+  onChangeName: (value: string) => void;
   phone: string;
+  onChangePhone: (digits: string) => void;
+  /** true enquanto o lookup automático do nome está em andamento. */
+  lookingUp: boolean;
   frequency: FrequencyChoice;
   occurrences: number;
   onChangeFrequency: (f: FrequencyChoice) => void;
@@ -821,10 +689,14 @@ function StepResumo({
   onBack: () => void;
   headingRef: React.RefObject<HTMLHeadingElement | null>;
 }) {
+  const phoneOk = phone.length >= 10;
+  const nameOk = name.trim().length >= 2;
+
   return (
     <div className="space-y-6">
-      <StepHeader title={STEP_TITLES[3]} onBack={onBack} headingRef={headingRef} />
+      <StepHeader title={STEP_TITLES[2]} onBack={onBack} headingRef={headingRef} />
 
+      {/* Resumo do que já foi escolhido (serviço + dia/hora), só leitura. */}
       <dl className="bg-card space-y-3 rounded-xl border p-4 text-sm">
         <div className="flex items-start gap-3">
           <CalendarCheck className="text-coral mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
@@ -846,23 +718,42 @@ function StepResumo({
             </dd>
           </div>
         </div>
-
-        <div className="flex items-start gap-3">
-          <UserIcon className="text-coral mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-          <div className="flex-1">
-            <dt className="text-muted-foreground">Nome</dt>
-            <dd className="text-foreground font-medium">{name.trim()}</dd>
-          </div>
-        </div>
-
-        <div className="flex items-start gap-3">
-          <Phone className="text-coral mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-          <div className="flex-1">
-            <dt className="text-muted-foreground">WhatsApp</dt>
-            <dd className="text-foreground font-medium">{formatPhoneBR(phone) || phone}</dd>
-          </div>
-        </div>
       </dl>
+
+      {/* Contato: só agora pedimos os dados, já preenchidos com o que houver salvo. */}
+      <div className="space-y-4">
+        <div className="space-y-1.5">
+          <Label htmlFor="booking-phone">WhatsApp</Label>
+          <Input
+            id="booking-phone"
+            name="display-phone"
+            type="tel"
+            inputMode="numeric"
+            autoComplete="tel"
+            placeholder="(11) 91234-5678"
+            value={formatPhoneBR(phone) || phone}
+            onChange={(e) => onChangePhone(e.target.value.replace(/\D/g, '').slice(0, 13))}
+            aria-invalid={phone.length > 0 && !phoneOk}
+            aria-describedby="booking-phone-hint"
+          />
+          <p id="booking-phone-hint" className="text-muted-foreground text-xs">
+            Pra confirmar o agendamento pelo WhatsApp. Inclua o DDD.
+          </p>
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="booking-name">Nome</Label>
+          <Input
+            id="booking-name"
+            name="display-name"
+            autoComplete="name"
+            placeholder="Como podemos te chamar?"
+            value={name}
+            onChange={(e) => onChangeName(e.target.value)}
+            aria-invalid={name.length > 0 && !nameOk}
+          />
+        </div>
+      </div>
 
       <div className="space-y-3">
         <p className="text-foreground flex items-center gap-1.5 text-sm font-medium">
@@ -928,7 +819,7 @@ function StepResumo({
           </p>
         ) : null}
 
-        <ConfirmButton />
+        <ConfirmButton disabled={!phoneOk || !nameOk || lookingUp} />
       </form>
     </div>
   );
@@ -985,12 +876,12 @@ function SuccessScreen({
       </div>
       <div className="space-y-2">
         <h2 className="text-foreground font-serif text-2xl">
-          {confirmed ? 'Agendamento confirmado!' : 'Pedido recebido!'}
+          {confirmed ? 'Agendamento confirmado!' : 'Horário reservado!'}
         </h2>
         <p className="text-muted-foreground text-sm">
           {confirmed
-            ? 'Está tudo certo. Te esperamos no horário combinado.'
-            : 'Recebemos seu pedido. Em breve confirmamos pelo WhatsApp.'}
+            ? 'Está tudo certo! Enviamos os detalhes no seu WhatsApp e te esperamos no horário.'
+            : 'Seu horário já está reservado. O estabelecimento confirma pelo WhatsApp - você não precisa fazer mais nada.'}
         </p>
       </div>
       <p className="bg-card text-foreground whitespace-pre-line rounded-xl border p-4 text-left text-sm">
@@ -1047,11 +938,11 @@ function SeriesSuccessScreen({
       </div>
       <div className="space-y-2">
         <h2 className="text-foreground font-serif text-2xl">
-          {confirmed ? 'Agendamentos confirmados!' : 'Pedidos recebidos!'}
+          {confirmed ? 'Agendamentos confirmados!' : 'Horários reservados!'}
         </h2>
         <p className="text-muted-foreground text-sm">
           Criamos {createdCount} {createdCount === 1 ? 'agendamento' : 'agendamentos'} recorrente
-          {createdCount === 1 ? '' : 's'}.
+          {createdCount === 1 ? '' : 's'}. Enviamos os detalhes no seu WhatsApp.
         </p>
       </div>
       <p className="bg-card text-foreground whitespace-pre-line rounded-xl border p-4 text-left text-sm">
@@ -1308,20 +1199,17 @@ export function PublicBooking({
     [timezone, horizonDays],
   );
 
-  // Passo 0 / 1 - serviço escolhido
+  // Serviço escolhido (passo 0).
   const [serviceId, setServiceId] = useState('');
-  // Profissional escolhido no passo 2. '' = sem preferência (sistema atribui).
+  // Profissional escolhido no passo 1 (dia/hora). '' = sem preferência (sistema atribui).
   const [professionalId, setProfessionalId] = useState('');
 
-  // Passo 1 - contato
-  const [phone, setPhone] = useState(''); // dígitos crus
+  // Contato (pedido só no passo final). phone = dígitos crus.
+  const [phone, setPhone] = useState('');
   const [name, setName] = useState('');
-  // Nome resolvido pelo servidor quando o contato já existe; usado no submit.
-  const [resolvedName, setResolvedName] = useState<string | null>(null);
-  // Mostra o campo de nome (contato novo ou fallback de erro de rede).
-  const [needsName, setNeedsName] = useState(false);
-  const [lookupError, setLookupError] = useState<string | null>(null);
   const [lookingUp, startLookup] = useTransition();
+  // Último telefone já consultado, pra não repetir o lookup automático do nome.
+  const lookedUpPhoneRef = useRef('');
 
   // Pré-preenche o contato salvo de um agendamento anterior (mesmo dispositivo).
   // Roda só no mount, via effect, pra não causar mismatch de hidratação (o SSR
@@ -1334,16 +1222,35 @@ export function PublicBooking({
     if (saved.name) setName(saved.name);
   }, []);
 
-  // Passo 2 - dia / hora
+  // Auto-preenche o nome de quem já é cliente assim que o telefone fica válido -
+  // sem o campo de nome "aparecer do nada". Não sobrescreve o que o cliente já
+  // tiver digitado (ou preenchido a partir do dispositivo).
+  useEffect(() => {
+    if (phone.length < 10 || name.trim()) return;
+    if (lookedUpPhoneRef.current === phone) return;
+    lookedUpPhoneRef.current = phone;
+    startLookup(async () => {
+      try {
+        const result = await lookupContact(slug, phone);
+        if (result.exists && result.name) {
+          setName((cur) => (cur.trim() ? cur : (result.name as string)));
+        }
+      } catch {
+        // Erro de rede: silencioso - o cliente preenche o nome manualmente.
+      }
+    });
+  }, [phone, name, slug]);
+
+  // Passo 1 - dia / hora
   const [dateStr, setDateStr] = useState('');
   const [slots, setSlots] = useState<AvailableSlot[]>([]);
   const [selectedSlotIso, setSelectedSlotIso] = useState('');
   const [loadingSlots, startLoadingSlots] = useTransition();
-  // Aviso exibido no passo 2 quando o usuário é trazido de volta por expiração
+  // Aviso exibido no passo 1 quando o usuário é trazido de volta por expiração
   // do horário/serviço que tinha escolhido (em vez de pular de tela em silêncio).
   const [expiryNotice, setExpiryNotice] = useState<string | null>(null);
 
-  // Passo 3 - recorrência (opcional). 'NONE' = agendamento único.
+  // Recorrência (opcional, no passo de confirmação). 'NONE' = agendamento único.
   const [frequency, setFrequency] = useState<FrequencyChoice>('NONE');
   const [occurrences, setOccurrences] = useState(4);
 
@@ -1388,9 +1295,6 @@ export function PublicBooking({
     [slots, selectedSlotIso],
   );
 
-  // Nome efetivo para o submit: o do servidor (contato existente) tem prioridade.
-  const effectiveName = resolvedName ?? name;
-
   // Busca slots sempre que serviço + dia estiverem escolhidos. Reseta o slot
   // selecionado a cada mudança - trocar de dia ou de serviço (voltando atrás)
   // recarrega tudo, então um horário que expirou some da grade na re-busca.
@@ -1410,22 +1314,22 @@ export function PublicBooking({
   // agendamento feito deste dispositivo.
   useEffect(() => {
     if (state && 'ok' in state && state.ok) {
-      saveContact({ phone, name: effectiveName });
+      saveContact({ phone, name });
       setStep('done');
     }
   }, [state]);
 
   const submitError = state && 'error' in state ? state.error : null;
 
-  // Robustez: se chegamos no passo 3 (resumo) mas o slot/serviço escolhido sumiu
-  // (ex.: a re-busca o removeu por ter expirado), volta pro passo 2 pra reescolher.
-  // Não dispara durante uma re-busca em andamento (loadingSlots) nem após o
-  // sucesso (step vira 'done'), evitando bounce indevido antes da tela de sucesso.
+  // Robustez: se chegamos no passo 2 (confirmação) mas o slot/serviço escolhido
+  // sumiu (ex.: a re-busca o removeu por ter expirado), volta pro passo 1 pra
+  // reescolher. Não dispara durante uma re-busca em andamento (loadingSlots) nem
+  // após o sucesso (step vira 'done'), evitando bounce indevido antes do sucesso.
   // Diferente do bounce silencioso: avisa o usuário POR QUÊ ele voltou de tela.
   useEffect(() => {
-    if (step === 3 && !loadingSlots && (!selectedService || !selectedSlot)) {
+    if (step === 2 && !loadingSlots && (!selectedService || !selectedSlot)) {
       setExpiryNotice('Esse horário não está mais disponível. Escolha outro, por favor.');
-      setStep(2);
+      setStep(1);
     }
   }, [step, loadingSlots, selectedService, selectedSlot]);
 
@@ -1435,57 +1339,8 @@ export function PublicBooking({
     setServiceId(service.id);
     // Troca de serviço pode mudar quem atende: volta pra "sem preferência".
     setProfessionalId('');
+    // Vai direto pro dia/hora: o cliente vê os horários antes de dar qualquer dado.
     setStep(1);
-  }
-
-  /** Volta pra vitrine: limpa o estado de contato pra não vazar entre serviços. */
-  function handleBackToVitrine() {
-    setNeedsName(false);
-    setLookupError(null);
-    setResolvedName(null);
-    setStep(0);
-  }
-
-  /** Telefone mudou no passo 1 → invalida o lookup anterior. */
-  function handleChangePhone(digits: string) {
-    setPhone(digits);
-    setNeedsName(false);
-    setResolvedName(null);
-    setLookupError(null);
-  }
-
-  /** Botão "Continuar" do telefone: consulta o contato e decide o próximo passo. */
-  function handleLookup() {
-    if (phone.length < 10 || lookingUp) return;
-    setLookupError(null);
-    startLookup(async () => {
-      try {
-        const result: ContactLookupResult = await lookupContact(slug, phone);
-        if (result.exists && result.name) {
-          // Contato conhecido: usa o nome do servidor e pula direto pro dia/hora.
-          setResolvedName(result.name);
-          setNeedsName(false);
-          setStep(2);
-        } else {
-          // Contato novo (ou sem nome no cadastro): pede o nome na mesma tela.
-          setResolvedName(null);
-          setNeedsName(true);
-        }
-      } catch {
-        // Erro de rede: fallback robusto - pede o nome mesmo assim pra não travar.
-        setResolvedName(null);
-        setNeedsName(true);
-        setLookupError(
-          'Não conseguimos verificar seu número agora. Confirme seu nome para continuar.',
-        );
-      }
-    });
-  }
-
-  /** Confirma o nome digitado (contato novo) e avança pro dia/hora. */
-  function handleConfirmName() {
-    if (name.trim().length < 2) return;
-    setStep(2);
   }
 
   /** Escolher um dia limpa o aviso de expiração (o usuário já está reescolhendo). */
@@ -1497,7 +1352,7 @@ export function PublicBooking({
   function handleSelectSlot(slot: AvailableSlot) {
     setExpiryNotice(null);
     setSelectedSlotIso(slot.startsAtIso);
-    setStep(3);
+    setStep(2);
   }
 
   // --- Render -----------------------------------------------------------------
@@ -1510,24 +1365,7 @@ export function PublicBooking({
         <StepVitrine services={services} onSelect={handleSelectService} headingRef={headingRef} />
       ) : null}
 
-      {step === 1 && selectedService ? (
-        <StepContato
-          service={selectedService}
-          phone={phone}
-          onChangePhone={handleChangePhone}
-          name={name}
-          onChangeName={setName}
-          needsName={needsName}
-          lookingUp={lookingUp}
-          lookupError={lookupError}
-          onLookup={handleLookup}
-          onConfirmName={handleConfirmName}
-          onBack={handleBackToVitrine}
-          headingRef={headingRef}
-        />
-      ) : null}
-
-      {step === 2 ? (
+      {step === 1 ? (
         <StepDiaHora
           days={days}
           timezone={timezone}
@@ -1569,27 +1407,30 @@ export function PublicBooking({
               </div>
             ) : null
           }
-          onBack={() => setStep(1)}
+          onBack={() => setStep(0)}
           headingRef={headingRef}
         />
       ) : null}
 
-      {step === 3 && selectedService && selectedSlot ? (
-        <StepResumo
+      {step === 2 && selectedService && selectedSlot ? (
+        <StepConfirmar
           slug={slug}
           service={selectedService}
           professionalId={professionalId}
           dayLabel={selectedDayLabel}
           slot={selectedSlot}
-          name={effectiveName}
+          name={name}
+          onChangeName={setName}
           phone={phone}
+          onChangePhone={setPhone}
+          lookingUp={lookingUp}
           frequency={frequency}
           occurrences={occurrences}
           onChangeFrequency={setFrequency}
           onChangeOccurrences={setOccurrences}
           error={submitError}
           formAction={formAction}
-          onBack={() => setStep(2)}
+          onBack={() => setStep(1)}
           headingRef={headingRef}
         />
       ) : null}
