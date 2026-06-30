@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 
 import { BOOKING_HORIZON_DAYS, buildBookingDays } from '@/lib/booking-days';
 import { getCustomerAccount } from '@/lib/customer-auth';
+import { isWhatsappConnected } from '@/lib/whatsapp-status';
 
 import { loadPublicTenant } from './_tenant';
 import { PublicBooking } from './public-booking';
@@ -42,9 +43,13 @@ export default async function TenantPublicPage({ params }: { params: Promise<{ s
   }
   const dayOrder = [1, 2, 3, 4, 5, 6, 0];
 
-  const waLink = tenant.whatsappDisplayPhone
-    ? `https://wa.me/${tenant.whatsappDisplayPhone}?text=${encodeURIComponent('Olá! Quero agendar um horário.')}`
-    : null;
+  // Só oferece o botão de WhatsApp quando o bot está de fato conectado
+  // (phone_number_id + access_token). Ter só o whatsappDisplayPhone não basta:
+  // sem o bot ativo, a mensagem cai num número que não atende/agenda.
+  const waLink =
+    isWhatsappConnected(tenant) && tenant.whatsappDisplayPhone
+      ? `https://wa.me/${tenant.whatsappDisplayPhone}?text=${encodeURIComponent('Olá! Quero agendar um horário.')}`
+      : null;
 
   // Agendamento online: só mostra se ligado, com serviços e pelo menos um dia
   // com expediente nos próximos dias. A lista de dias em si é gerada no client
@@ -80,7 +85,11 @@ export default async function TenantPublicPage({ params }: { params: Promise<{ s
             <h1 className="font-serif text-4xl font-semibold tracking-[-0.01em]">{tenant.name}</h1>
           </div>
           <p className="text-muted-foreground text-sm">
-            {showBooking ? 'Agende seu horário em segundos.' : 'Agende pelo WhatsApp em segundos.'}
+            {showBooking
+              ? 'Agende seu horário em segundos.'
+              : waLink
+                ? 'Agende pelo WhatsApp em segundos.'
+                : 'Confira nossos serviços e horários.'}
           </p>
         </header>
 
