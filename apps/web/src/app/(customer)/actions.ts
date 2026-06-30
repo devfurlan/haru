@@ -20,6 +20,7 @@ import { isValidCpfCnpj, normalizePhoneBR, onlyDigits } from '@/lib/format';
 import { TERMS_VERSION } from '@/lib/legal';
 import { getServiceDaySlots, resolveBookingProfessional } from '@/lib/professionals';
 import { createClient } from '@/lib/supabase/server';
+import { checkPhoneOtp, sendPhoneOtp } from '@/lib/twilio-verify';
 
 export type CustomerActionResult = { error: string } | { ok: true } | undefined;
 
@@ -30,16 +31,38 @@ const PHONE_RE = /^55\d{10,11}$/;
 // Autenticação do cliente (Supabase email/senha, espelhando (auth)/actions.ts).
 // ---------------------------------------------------------------------------
 
+const signupPhoneSchema = z
+  .string()
+  .min(8, 'Informe seu celular')
+  .transform(normalizePhoneBR)
+  .refine((v) => PHONE_RE.test(v), { message: 'Celular inválido - confira o DDD' });
+
+/**
+ * Envia o código de verificação por SMS para o celular informado no cadastro. É o
+ * 1º passo: prova de posse do número antes de criar a conta e reivindicar o
+ * histórico (claim). Não revela se o número já tem conta (anti-enumeração).
+ */
+export async function sendCustomerSignupCode(phoneRaw: string): Promise<CustomerActionResult> {
+  const parsed = signupPhoneSchema.safeParse(phoneRaw);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? 'Celular inválido' };
+  }
+  const res = await sendPhoneOtp(parsed.data);
+  if (!res.ok) return { error: res.error };
+  return { ok: true };
+}
+
 const customerSignUpSchema = z.object({
   email: z.string().email('Email inválido'),
   password: z.string().min(8, 'Senha deve ter ao menos 8 caracteres'),
   name: z.string().trim().min(2, 'Informe seu nome').max(80),
   // Telefone é o elo da conta com o histórico (claim cross-tenant) - obrigatório.
-  phone: z
+  phone: signupPhoneSchema,
+  // Código recebido por SMS (Twilio Verify) - prova de posse do número.
+  code: z
     .string()
-    .min(8, 'Informe seu WhatsApp')
-    .transform(normalizePhoneBR)
-    .refine((v) => PHONE_RE.test(v), { message: 'WhatsApp inválido - confira o DDD' }),
+    .min(4, 'Informe o código recebido por SMS')
+    .transform((v) => v.replace(/\D/g, '')),
   acceptTerms: z.literal('on', {
     errorMap: () => ({ message: 'É preciso aceitar os Termos e a Política de Privacidade.' }),
   }),
@@ -54,12 +77,20 @@ export async function customerSignUp(
     password: formData.get('password'),
     name: formData.get('name'),
     phone: formData.get('phone'),
+    code: formData.get('code'),
     acceptTerms: formData.get('acceptTerms'),
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? 'Dados inválidos' };
   }
-  const { email, password, name, phone } = parsed.data;
+  const { email, password, name, phone, code } = parsed.data;
+
+  // Verifica a posse do telefone ANTES de criar qualquer coisa. Sem isso, o claim
+  // por telefone abaixo permitiria reivindicar dados de terceiros (LGPD).
+  const verified = await checkPhoneOtp(phone, code);
+  if (!verified.ok) {
+    return { error: verified.error };
+  }
 
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signUp({ email, password });
@@ -78,7 +109,8 @@ export async function customerSignUp(
         termsVersion: TERMS_VERSION,
       },
     });
-    // Vincula os Contacts deste telefone (em todos os estabelecimentos) à conta.
+    // Telefone já verificado por OTP: pode reivindicar com segurança os Contacts
+    // deste número em todos os estabelecimentos.
     await claimContactsByPhone(account.id, phone);
   } catch (err) {
     console.error('[customerSignUp] falha ao criar conta do cliente', err);

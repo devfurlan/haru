@@ -2,12 +2,11 @@ import { prisma } from '@haru/database';
 
 import { normalizePhoneBR } from '@/lib/format';
 
-// DÍVIDA TÉCNICA / LGPD (BLOQUEANTE PARA PRODUÇÃO):
-// Hoje o vínculo conta<->Contacts é feito pelo telefone informado no cadastro, SEM
-// verificar posse do número. Em produção isso permitiria alguém digitar o telefone
-// de outra pessoa e ver nome/CPF/histórico dela. ANTES DO GO-LIVE, exigir verificação
-// de posse do telefone (OTP por WhatsApp/SMS) antes de efetivar este claim.
-// Aceitável agora só porque o produto não está em produção e os dados são de teste.
+// SEGURANÇA (LGPD): este claim expõe dados de terceiros (nome/CPF/histórico) ligados
+// a um telefone. Por isso SÓ pode ser chamado APÓS provar a posse do número. Hoje a
+// única porta é o customerSignUp, que valida um OTP por SMS (Twilio Verify) antes de
+// chamar esta função - ver checkPhoneOtp em apps/web/src/lib/twilio-verify.ts.
+// NÃO chame este claim em nenhum fluxo sem essa verificação de posse.
 
 /**
  * Vincula à conta (claim) TODOS os Contacts de um mesmo telefone, em qualquer tenant.

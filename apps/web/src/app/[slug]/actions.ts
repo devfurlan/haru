@@ -247,10 +247,11 @@ export async function createPublicBooking(
     create: { tenantId: tenant.id, phone, name, profileCompletedAt: new Date() },
   });
 
-  // Se um cliente logado está agendando, vincula este contato à conta dele (claim
-  // imediato), desde que o contato ainda não pertença a outra conta.
+  // Se um cliente logado está agendando com o PRÓPRIO número (o telefone verificado
+  // da conta), vincula este contato a ela. Só com telefone igual ao da conta - senão
+  // alguém logado agendaria com número alheio e reivindicaria o histórico de terceiros.
   const account = await getCustomerAccount();
-  if (account) {
+  if (account && account.phone === phone) {
     await prisma.contact.updateMany({
       where: { id: contact.id, customerAccountId: null },
       data: { customerAccountId: account.id },
