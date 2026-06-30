@@ -10,6 +10,7 @@ const RESERVED_SLUGS = new Set([
   'sitemap.xml',
   'login',
   'signup',
+  'conta',
   'dashboard',
   'appointments',
   'conversations',

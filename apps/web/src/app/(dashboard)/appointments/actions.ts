@@ -6,6 +6,11 @@ import { z } from 'zod';
 
 import { prisma, type AppointmentStatus } from '@haru/database';
 
+import {
+  cancelAppointmentCore,
+  cancelSeriesCore,
+  rescheduleAppointmentCore,
+} from '@/lib/appointment-mutations';
 import { createAppointmentSeries } from '@/lib/appointment-series';
 import { type AvailableSlotWithProfessionals, localWallTimeToUtc } from '@/lib/availability';
 import { requireUserAndTenant } from '@/lib/auth';
@@ -16,12 +21,7 @@ import {
 } from '@/lib/professionals';
 import { BOOKING_HORIZON_DAYS, isoDateInTz } from '@/lib/booking-days';
 import { normalizePhoneBR } from '@/lib/format';
-import {
-  notifyAppointmentCanceled,
-  notifyAppointmentCreated,
-  notifyAppointmentRescheduled,
-} from '@/lib/notify';
-import { sendAppointmentTemplate } from '@/lib/whatsapp-templates';
+import { notifyAppointmentCreated } from '@/lib/notify';
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -132,24 +132,19 @@ export async function confirmAppointment(appointmentId: string) {
 }
 
 export async function cancelAppointment(appointmentId: string, opts?: { notifyClient?: boolean }) {
-  const changed = await changeStatus(appointmentId, 'CANCELED');
+  const { tenant } = await requireUserAndTenant();
+  // O core cuida do update + webhook + template (este último opcional: quando o
+  // cancelamento faz parte de uma remarcação, o aviso é redundante).
+  const changed = await cancelAppointmentCore({
+    appointmentId,
+    tenantId: tenant.id,
+    notifyClient: opts?.notifyClient ?? true,
+  });
   if (!changed) return;
 
-  // Fire-and-forget: avisa o webhook externo (Discord/Slack/etc.) - é interno
-  // pro dono, sempre dispara.
-  notifyAppointmentCanceled(appointmentId).catch((err) =>
-    console.error('[appointments] notify cancel failed', err),
-  );
-
-  // Template aprovado pro CLIENTE só num cancelamento "puro". Quando o
-  // cancelamento faz parte de uma remarcação (o cliente já foi movido pra outro
-  // horário), o aviso de cancelamento é redundante e confunde - por isso é
-  // opcional (default: avisa). Funciona fora da janela de 24h da Meta.
-  if (opts?.notifyClient ?? true) {
-    sendAppointmentTemplate(appointmentId, 'cancel').catch((err) =>
-      console.error('[appointments] template cancel failed', err),
-    );
-  }
+  revalidatePath('/appointments');
+  revalidatePath('/dashboard');
+  revalidatePath('/clients/[id]', 'page');
 }
 
 export async function completeAppointment(appointmentId: string) {
@@ -167,42 +162,16 @@ export async function markNoShow(appointmentId: string) {
  */
 export async function cancelAppointmentSeries(seriesId: string, opts?: { notifyClient?: boolean }) {
   const { tenant } = await requireUserAndTenant();
-  const now = new Date();
-  const futures = await prisma.appointment.findMany({
-    where: {
-      tenantId: tenant.id,
-      seriesId,
-      status: { in: ['PENDING', 'CONFIRMED'] },
-      startsAt: { gte: now },
-    },
-    select: { id: true },
-    orderBy: { startsAt: 'asc' },
+  const count = await cancelSeriesCore({
+    seriesId,
+    tenantId: tenant.id,
+    notifyClient: opts?.notifyClient ?? true,
   });
-  if (futures.length === 0) return;
-
-  await prisma.appointment.updateMany({
-    where: {
-      tenantId: tenant.id,
-      seriesId,
-      status: { in: ['PENDING', 'CONFIRMED'] },
-      startsAt: { gte: now },
-    },
-    data: { status: 'CANCELED' },
-  });
+  if (count === 0) return;
 
   revalidatePath('/appointments');
   revalidatePath('/dashboard');
   revalidatePath('/clients/[id]', 'page');
-
-  notifyAppointmentCanceled(futures[0].id).catch((err) =>
-    console.error('[appointments] notify cancel (series) failed', err),
-  );
-  // Aviso pro cliente só num cancelamento "puro" (ver cancelAppointment).
-  if (opts?.notifyClient ?? true) {
-    sendAppointmentTemplate(futures[0].id, 'cancel').catch((err) =>
-      console.error('[appointments] template cancel (series) failed', err),
-    );
-  }
 }
 
 const createSchema = z.object({
@@ -578,56 +547,16 @@ export async function rescheduleAppointment(
     return { error: parsed.error.issues[0]?.message ?? 'Dados inválidos' };
   }
 
-  const appt = await prisma.appointment.findFirst({
-    where: { id: appointmentId, tenantId: tenant.id },
-    include: { service: true },
+  // O gate de ownership é o tenant do usuário logado; o core revalida o slot
+  // (mesmo profissional, excluindo o próprio agendamento) e dispara as notificações.
+  const result = await rescheduleAppointmentCore({
+    appointmentId,
+    tenantId: tenant.id,
+    newStartsAt: parsed.data.newStartsAtIso,
   });
-  if (!appt) return { error: 'Agendamento não encontrado' };
-  if (appt.status === 'CANCELED') {
-    return { error: 'Agendamento cancelado - crie um novo em vez de remarcar' };
+  if ('error' in result) {
+    return { error: result.error };
   }
-  if (appt.status === 'COMPLETED' || appt.status === 'NO_SHOW') {
-    return { error: 'Agendamento já realizado - não dá pra remarcar' };
-  }
-
-  const newStartsAt = parsed.data.newStartsAtIso;
-  const newEndsAt = new Date(newStartsAt.getTime() + appt.service.durationMinutes * 60_000);
-
-  // Revalida o slot no servidor: recalcula os horários livres do dia (excluindo o
-  // próprio agendamento da checagem de colisão) e exige que o escolhido esteja
-  // entre eles. Garante de uma vez expediente + grade + sem-colisão, sem confiar
-  // no que o client enviou.
-  // Remarcação mantém o MESMO profissional do agendamento - valida o slot só contra
-  // a agenda dele (dois profissionais podem ter o mesmo horário).
-  const dateStr = dateStrInTz(newStartsAt, tenant.timezone);
-  const slots = await getTenantAvailableSlots(
-    appt.serviceId,
-    dateStr,
-    appt.id,
-    appt.professionalId,
-  );
-  const slotOk = slots.some((s) => s.startsAtIso === newStartsAt.toISOString());
-  if (!slotOk) {
-    return { error: 'Esse horário não está disponível na agenda do profissional. Escolha outro.' };
-  }
-
-  await prisma.appointment.update({
-    where: { id: appt.id },
-    data: {
-      startsAt: newStartsAt,
-      endsAt: newEndsAt,
-      // Lembrete já foi enviado pro horário antigo - zera pra disparar de novo.
-      reminderSentAt: null,
-    },
-  });
-
-  // Fire-and-forget: webhook externo + template aprovado pro cliente
-  notifyAppointmentRescheduled(appt.id).catch((err) =>
-    console.error('[appointments] notify reschedule failed', err),
-  );
-  sendAppointmentTemplate(appt.id, 'reschedule').catch((err) =>
-    console.error('[appointments] template reschedule failed', err),
-  );
 
   revalidatePath('/appointments');
   revalidatePath('/dashboard');

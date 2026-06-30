@@ -1,5 +1,6 @@
-import { Calendar, MessageCircle } from 'lucide-react';
+import { Calendar, MessageCircle, UserRound } from 'lucide-react';
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
 import { formatBRL, formatDuration, minutesToHHMM } from '@/lib/format';
@@ -7,6 +8,7 @@ import { formatBRL, formatDuration, minutesToHHMM } from '@/lib/format';
 import { Button } from '@/components/ui/button';
 
 import { BOOKING_HORIZON_DAYS, buildBookingDays } from '@/lib/booking-days';
+import { getCustomerAccount } from '@/lib/customer-auth';
 
 import { loadPublicTenant } from './_tenant';
 import { PublicBooking } from './public-booking';
@@ -52,9 +54,19 @@ export default async function TenantPublicPage({ params }: { params: Promise<{ s
   const hasBookableDay = buildBookingDays(tenant.timezone, new Set(openWeekdays)).length > 0;
   const showBooking = tenant.publicBookingEnabled && tenant.services.length > 0 && hasBookableDay;
 
+  const customerAccount = await getCustomerAccount();
+
   return (
     <main className="bg-muted/20 min-h-screen">
       <div className="mx-auto max-w-2xl space-y-8 px-4 py-12">
+        <div className="flex justify-end">
+          <Button asChild variant="ghost" size="sm">
+            <Link href={customerAccount ? '/conta' : '/conta/entrar'}>
+              <UserRound className="h-4 w-4" />
+              {customerAccount ? 'Minha conta' : 'Entrar na minha conta'}
+            </Link>
+          </Button>
+        </div>
         <header className="space-y-2 text-center">
           <div className="flex items-center justify-center gap-3">
             {tenant.logoUrl && (

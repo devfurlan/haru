@@ -5,9 +5,11 @@ import { z } from 'zod';
 
 import { type AppointmentStatus, prisma } from '@haru/database';
 
+import { createBookingCore } from '@/lib/appointment-mutations';
 import { createAppointmentSeries } from '@/lib/appointment-series';
 import { type AvailableSlotWithProfessionals, localWallTimeToUtc } from '@/lib/availability';
 import { BOOKING_HORIZON_DAYS, isoDateInTz } from '@/lib/booking-days';
+import { getCustomerAccount } from '@/lib/customer-auth';
 import { normalizePhoneBR } from '@/lib/format';
 import { notifyAppointmentCreated } from '@/lib/notify';
 import { getServiceDaySlots, resolveBookingProfessional } from '@/lib/professionals';
@@ -197,7 +199,6 @@ export async function createPublicBooking(
   if (!service) return { error: 'Serviço não encontrado' };
 
   const startsAt = slotIso;
-  const endsAt = new Date(startsAt.getTime() + service.durationMinutes * 60_000);
 
   // Revalida o slot no servidor E resolve o profissional. resolveBookingProfessional
   // recalcula os slots livres (expediente + grade + sem-colisão) do profissional
@@ -235,20 +236,6 @@ export async function createPublicBooking(
     return { error: 'Você já tem um agendamento ativo nesse dia. Fale conosco pra ajustar.' };
   }
 
-  // Re-checa conflito imediatamente antes de criar (defesa extra contra corrida) -
-  // por profissional (dois profissionais podem ter o mesmo horário).
-  const conflict = await prisma.appointment.findFirst({
-    where: {
-      tenantId: tenant.id,
-      professionalId,
-      status: { in: ['PENDING', 'CONFIRMED'] },
-      AND: [{ startsAt: { lt: endsAt } }, { endsAt: { gt: startsAt } }],
-    },
-  });
-  if (conflict) {
-    return { error: 'Esse horário acabou de ser preenchido. Escolha outro.' };
-  }
-
   // Upsert do contato preservando profileCompletedAt já existente (gate do bot).
   const existing = await prisma.contact.findUnique({
     where: { tenantId_phone: { tenantId: tenant.id, phone } },
@@ -259,6 +246,16 @@ export async function createPublicBooking(
     update: { name, profileCompletedAt: existing?.profileCompletedAt ?? new Date() },
     create: { tenantId: tenant.id, phone, name, profileCompletedAt: new Date() },
   });
+
+  // Se um cliente logado está agendando, vincula este contato à conta dele (claim
+  // imediato), desde que o contato ainda não pertença a outra conta.
+  const account = await getCustomerAccount();
+  if (account) {
+    await prisma.contact.updateMany({
+      where: { id: contact.id, customerAccountId: null },
+      data: { customerAccountId: account.id },
+    });
+  }
 
   // publicBookingConfirmation (PENDING|CONFIRMED) é subconjunto de AppointmentStatus.
   const status = tenant.publicBookingConfirmation as unknown as AppointmentStatus;
@@ -321,22 +318,20 @@ export async function createPublicBooking(
     };
   }
 
-  const appointment = await prisma.appointment.create({
-    data: {
-      tenantId: tenant.id,
-      contactId: contact.id,
-      serviceId: service.id,
-      professionalId,
-      startsAt,
-      endsAt,
-      status,
-    },
+  // Cria o agendamento avulso (o core re-checa conflito por profissional e dispara
+  // o webhook de criação).
+  const created = await createBookingCore({
+    tenantId: tenant.id,
+    contactId: contact.id,
+    serviceId: service.id,
+    professionalId,
+    startsAt,
+    durationMinutes: service.durationMinutes,
+    status,
   });
-
-  // Fire-and-forget: webhook externo (Discord/Slack/etc.) se configurado.
-  notifyAppointmentCreated(appointment.id).catch((err) =>
-    console.error('[public-booking] notify create failed', err),
-  );
+  if ('error' in created) {
+    return { error: created.error };
+  }
 
   // Revalida a página pública (e o painel, ainda que o dono possa não estar logado).
   revalidatePath(`/${slug}`);
@@ -358,7 +353,7 @@ export async function createPublicBooking(
     ok: true,
     status,
     summary: `${service.name} · ${when}`,
-    appointmentId: appointment.id,
+    appointmentId: created.appointmentId,
     paymentAvailable,
   };
 }

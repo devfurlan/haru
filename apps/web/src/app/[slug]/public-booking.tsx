@@ -17,6 +17,7 @@ import {
   Repeat,
   User as UserIcon,
 } from 'lucide-react';
+import Link from 'next/link';
 import { useActionState, useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import { useFormStatus } from 'react-dom';
 
@@ -937,18 +938,41 @@ function StepResumo({
 // Tela de sucesso
 // ---------------------------------------------------------------------------
 
+/**
+ * Convite pra criar a área do cliente, com o telefone usado pré-preenchido (vira o
+ * elo que liga a conta aos agendamentos). Aparece ao fim de cada agendamento.
+ */
+function CreateAccountCta({ phone }: { phone: string }) {
+  const href = phone ? `/conta/criar?phone=${encodeURIComponent(phone)}` : '/conta/criar';
+  return (
+    <div className="space-y-2 border-t pt-4 text-center">
+      <p className="text-muted-foreground text-sm">
+        Crie sua conta para acompanhar, remarcar e repetir seus agendamentos.
+      </p>
+      <Button asChild variant="outline" size="pill">
+        <Link href={href}>
+          <UserIcon className="h-4 w-4" />
+          Criar minha conta
+        </Link>
+      </Button>
+    </div>
+  );
+}
+
 function SuccessScreen({
   confirmed,
   summary,
   slug,
   appointmentId,
   paymentAvailable,
+  phone,
 }: {
   confirmed: boolean;
   summary: string;
   slug: string;
   appointmentId: string;
   paymentAvailable: boolean;
+  phone: string;
 }) {
   return (
     <div className="space-y-5 text-center">
@@ -974,6 +998,8 @@ function SuccessScreen({
       </p>
 
       {paymentAvailable ? <PaymentBlock slug={slug} appointmentId={appointmentId} /> : null}
+
+      <CreateAccountCta phone={phone} />
     </div>
   );
 }
@@ -990,6 +1016,7 @@ function SeriesSuccessScreen({
   skipped,
   beyondHorizon,
   timezone,
+  phone,
 }: {
   confirmed: boolean;
   summary: string;
@@ -997,6 +1024,7 @@ function SeriesSuccessScreen({
   skipped: string[];
   beyondHorizon: number;
   timezone: string;
+  phone: string;
 }) {
   const skippedFmt = skipped.map((iso) =>
     new Intl.DateTimeFormat('pt-BR', {
@@ -1048,6 +1076,8 @@ function SeriesSuccessScreen({
           90 dias.
         </p>
       ) : null}
+
+      <CreateAccountCta phone={phone} />
     </div>
   );
 }
@@ -1573,6 +1603,7 @@ export function PublicBooking({
             skipped={state.skipped}
             beyondHorizon={state.beyondHorizon}
             timezone={timezone}
+            phone={phone}
           />
         ) : (
           <SuccessScreen
@@ -1581,6 +1612,7 @@ export function PublicBooking({
             slug={slug}
             appointmentId={state.appointmentId}
             paymentAvailable={state.paymentAvailable}
+            phone={phone}
           />
         )
       ) : null}

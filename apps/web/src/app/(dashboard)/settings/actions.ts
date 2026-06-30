@@ -29,6 +29,7 @@ const RESERVED_SLUGS = new Set([
   'login',
   'signup',
   'ativar',
+  'conta',
   'dashboard',
   'appointments',
   'conversations',

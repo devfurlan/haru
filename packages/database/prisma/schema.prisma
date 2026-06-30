@@ -162,6 +162,34 @@ enum UserStatus {
   ACTIVE
 }
 
+/// Identidade GLOBAL do cliente final (quem agenda serviços), com login próprio.
+/// Diferente de `User` (dono/staff): uma CustomerAccount é cross-tenant - enxerga os
+/// agendamentos de TODOS os estabelecimentos onde o cliente agendou. Vinculada ao
+/// auth.users do Supabase pelo authId (mesma tabela de auth dos donos, tabelas de
+/// domínio distintas). O vínculo com os Contacts (um por tenant) é feito por
+/// telefone - ver claimContactsByPhone em apps/web/src/lib/customer-claim.ts.
+model CustomerAccount {
+  id        String   @id @default(cuid())
+  /// Vinculado ao auth.users do Supabase (mesma origem que User.authId).
+  authId    String   @unique
+  email     String   @unique
+  name      String?
+  /// Telefone E.164 sem máscara (ex.: "5511914092346"). Usado pra reivindicar
+  /// (claim) os Contacts de mesmo telefone em todos os tenants. Opcional: a conta
+  /// pode existir antes de informar o telefone.
+  phone     String?
+  /// Prova de consentimento (Termos/Privacidade) no cadastro do cliente.
+  termsAcceptedAt DateTime?
+  /// Versão dos Termos aceita (ver TERMS_VERSION em apps/web/src/lib/legal.ts).
+  termsVersion    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  contacts  Contact[]
+
+  @@index([phone])
+}
+
 model Service {
   id              String   @id @default(cuid())
   tenantId        String
@@ -249,6 +277,12 @@ model Contact {
   /// Marca quando o cliente confirmou o cadastro básico via bot. null = ainda não.
   /// É o sinal usado pelo gate de agendamento (NÃO confiar em `name`, que o profile do WhatsApp autopreenche).
   profileCompletedAt DateTime?
+  /// Conta global do cliente que reivindicou este Contact (por telefone). null =
+  /// ainda não vinculado a um login. Um Contact pertence a um único tenant, mas
+  /// vários Contacts (de tenants diferentes) podem apontar pra mesma CustomerAccount.
+  /// onDelete: SetNull -> apagar a conta do cliente NÃO apaga o Contact (que é do tenant).
+  customerAccountId  String?
+  customerAccount    CustomerAccount? @relation(fields: [customerAccountId], references: [id], onDelete: SetNull)
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 
@@ -256,6 +290,8 @@ model Contact {
   appointments  Appointment[]
 
   @@unique([tenantId, phone])
+  @@index([customerAccountId])
+  @@index([phone])
 }
 
 model Conversation {
