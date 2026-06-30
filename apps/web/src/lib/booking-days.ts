@@ -25,6 +25,9 @@ export interface BookingDay {
   value: string;
   /** Ex.: "sáb., 30/05". */
   label: string;
+  /** Se o dia tem expediente (weekday em `openWeekdays`). Dias fechados entram na
+   * lista apenas para aparecer desabilitados no carrossel - nunca são selecionáveis. */
+  open: boolean;
 }
 
 /** Weekday (0=domingo … 6=sábado) de um instante lido no fuso `tz`. */
@@ -65,9 +68,14 @@ export function labelFromIso(dateStr: string, tz: string): string {
 }
 
 /**
- * Próximos dias (a partir de hoje, no fuso `tz`) que têm ao menos um ScheduleBlock
- * no weekday, rotulados "sáb., 30/05". `openWeekdays` é o conjunto de dias-da-semana
- * com expediente (0..6). Limitado a `horizonDays` dias adiante.
+ * Próximos dias (a partir de hoje, no fuso `tz`), rotulados "sáb., 30/05", cada um
+ * marcado `open` conforme tenha (ou não) ScheduleBlock no weekday. `openWeekdays` é o
+ * conjunto de dias-da-semana com expediente (0..6). Limitado a `horizonDays` adiante.
+ *
+ * Os dias fechados ENTRAM na lista (para o carrossel mostrá-los desabilitados e evitar
+ * saltos enganosos, ex.: TER 30/06 → QUI 02/07 sem a QUA fechada no meio), mas as pontas
+ * fechadas são aparadas: a lista sempre começa e termina num dia com expediente, então
+ * nunca há chip cinza pendurado no início ou no fim.
  */
 export function buildBookingDays(
   tz: string,
@@ -79,8 +87,13 @@ export function buildBookingDays(
   const days: BookingDay[] = [];
   for (let i = 0; i < horizonDays; i++) {
     const date = new Date(now + i * MS_PER_DAY);
-    if (!openWeekdays.has(weekdayOf(date, tz))) continue;
-    days.push({ value: isoDateInTz(date, tz), label: labelDateInTz(date, tz) });
+    const open = openWeekdays.has(weekdayOf(date, tz));
+    days.push({ value: isoDateInTz(date, tz), label: labelDateInTz(date, tz), open });
   }
-  return days;
+  // Apara as pontas fechadas: começa/termina sempre num dia atendível.
+  let start = 0;
+  let end = days.length - 1;
+  while (start <= end && !days[start].open) start++;
+  while (end >= start && !days[end].open) end--;
+  return days.slice(start, end + 1);
 }

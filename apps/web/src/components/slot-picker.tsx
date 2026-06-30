@@ -294,7 +294,7 @@ export function SlotPicker({
   const selectedDay = days.find((d) => d.value === dateStr) ?? null;
   const railDays =
     dateStr && !selectedDay
-      ? [...days, { value: dateStr, label: labelFromIso(dateStr, timezone) }]
+      ? [...days, { value: dateStr, label: labelFromIso(dateStr, timezone), open: true }]
       : days;
 
   return (
@@ -326,27 +326,35 @@ export function SlotPicker({
           railDays.map((day) => {
             const { weekday, date } = splitDayLabel(day.label);
             const isSelected = day.value === dateStr;
+            const isClosed = !day.open;
             return (
               <button
                 key={day.value}
                 type="button"
                 role="radio"
                 data-day={day.value}
+                disabled={isClosed}
                 aria-checked={isSelected}
                 aria-current={isSelected ? 'date' : undefined}
-                aria-label={day.label}
-                onClick={() => setDateStr(day.value)}
+                aria-label={isClosed ? `${day.label} - sem atendimento` : day.label}
+                onClick={isClosed ? undefined : () => setDateStr(day.value)}
                 className={
                   'focus-visible:ring-ring min-w-18 flex shrink-0 flex-col items-center gap-0.5 rounded-xl border px-3 py-2 text-center transition-colors focus-visible:outline-none focus-visible:ring-2 ' +
                   (isSelected
                     ? 'border-primary bg-primary text-primary-foreground'
-                    : 'bg-card text-foreground hover:border-primary/50')
+                    : isClosed
+                      ? 'bg-muted/40 text-muted-foreground/50 cursor-not-allowed border-dashed'
+                      : 'bg-card text-foreground hover:border-primary/50')
                 }
               >
                 <span
                   className={
                     'text-[11px] font-medium uppercase ' +
-                    (isSelected ? 'text-primary-foreground/90' : 'text-muted-foreground')
+                    (isSelected
+                      ? 'text-primary-foreground/90'
+                      : isClosed
+                        ? 'text-muted-foreground/50'
+                        : 'text-muted-foreground')
                   }
                 >
                   {weekday.slice(0, 3)}

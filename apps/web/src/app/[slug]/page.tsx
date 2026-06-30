@@ -73,7 +73,9 @@ export default async function TenantPublicPage({ params }: { params: Promise<{ s
   // (carrossel + date-picker) a partir do fuso + dias-da-semana com expediente;
   // aqui só precisamos saber se EXISTE algum dia atendível no horizonte.
   const openWeekdays = [...new Set(tenant.scheduleBlocks.map((b) => b.weekday))];
-  const hasBookableDay = buildBookingDays(tenant.timezone, new Set(openWeekdays)).length > 0;
+  const hasBookableDay = buildBookingDays(tenant.timezone, new Set(openWeekdays)).some(
+    (d) => d.open,
+  );
   const showBooking = tenant.publicBookingEnabled && tenant.services.length > 0 && hasBookableDay;
 
   const customerAccount = await getCustomerAccount();

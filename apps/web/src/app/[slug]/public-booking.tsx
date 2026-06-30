@@ -515,7 +515,7 @@ function StepDiaHora({
   const selectedDay = days.find((d) => d.value === selectedDate) ?? null;
   const railDays =
     selectedDate && !selectedDay
-      ? [...days, { value: selectedDate, label: labelFromIso(selectedDate, timezone) }]
+      ? [...days, { value: selectedDate, label: labelFromIso(selectedDate, timezone), open: true }]
       : days;
 
   return (
@@ -559,27 +559,35 @@ function StepDiaHora({
           railDays.map((day) => {
             const { weekday, date } = splitDayLabel(day.label);
             const isSelected = day.value === selectedDate;
+            const isClosed = !day.open;
             return (
               <button
                 key={day.value}
                 type="button"
                 role="radio"
                 data-day={day.value}
+                disabled={isClosed}
                 aria-checked={isSelected}
                 aria-current={isSelected ? 'date' : undefined}
-                aria-label={day.label}
-                onClick={() => onSelectDate(day.value)}
+                aria-label={isClosed ? `${day.label} - sem atendimento` : day.label}
+                onClick={isClosed ? undefined : () => onSelectDate(day.value)}
                 className={
                   'focus-visible:ring-ring min-w-18 flex min-h-11 shrink-0 flex-col items-center justify-center gap-0.5 rounded-xl border px-3 py-2 text-center transition-colors focus-visible:outline-none focus-visible:ring-2 ' +
                   (isSelected
                     ? 'border-coral bg-coral text-white'
-                    : 'bg-card text-foreground hover:border-coral/50')
+                    : isClosed
+                      ? 'bg-muted/40 text-muted-foreground/50 cursor-not-allowed border-dashed'
+                      : 'bg-card text-foreground hover:border-coral/50')
                 }
               >
                 <span
                   className={
                     'text-[11px] font-medium uppercase ' +
-                    (isSelected ? 'text-white/90' : 'text-muted-foreground')
+                    (isSelected
+                      ? 'text-white/90'
+                      : isClosed
+                        ? 'text-muted-foreground/50'
+                        : 'text-muted-foreground')
                   }
                 >
                   {weekday.slice(0, 3)}
