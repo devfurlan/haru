@@ -13,11 +13,8 @@ export default async function CustomerLoginPage() {
   return (
     <Card>
       <CardHeader>
-        <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">
-          Área do cliente
-        </p>
         <CardTitle className="font-serif text-2xl">Entrar</CardTitle>
-        <CardDescription>Acesse seus agendamentos.</CardDescription>
+        <CardDescription>Acesse seus horários agendados.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <CustomerLoginForm />
@@ -31,12 +28,12 @@ export default async function CustomerLoginPage() {
           </Link>
         </p>
         <p className="text-muted-foreground border-t pt-3 text-center text-xs">
-          É um estabelecimento?{' '}
+          Tem um negócio e quer receber agendamentos?{' '}
           <Link
             href="/login"
             className="text-foreground font-medium underline-offset-4 hover:underline"
           >
-            Acessar o painel
+            Acessar o painel da empresa
           </Link>
         </p>
       </CardContent>

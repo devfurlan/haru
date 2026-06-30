@@ -18,13 +18,19 @@ export default async function LoginPage() {
       </CardHeader>
       <CardContent className="space-y-4">
         <LoginForm />
-        <p className="text-center text-sm text-muted-foreground">
+        <p className="text-muted-foreground text-center text-sm">
           Ainda não usa o Demandaê?{' '}
-          <Link
-            href="/"
-            className="font-medium text-foreground underline-offset-4 hover:underline"
-          >
+          <Link href="/" className="text-foreground font-medium underline-offset-4 hover:underline">
             Quero conhecer
+          </Link>
+        </p>
+        <p className="text-muted-foreground border-t pt-3 text-center text-xs">
+          Quer agendar um horário?{' '}
+          <Link
+            href="/conta/entrar"
+            className="text-foreground font-medium underline-offset-4 hover:underline"
+          >
+            Acesse seus agendamentos
           </Link>
         </p>
       </CardContent>

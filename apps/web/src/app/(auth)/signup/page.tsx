@@ -14,9 +14,7 @@ export default async function SignupPage() {
     <Card>
       <CardHeader>
         <CardTitle className="font-serif text-2xl">Criar conta</CardTitle>
-        <CardDescription>
-          Cadastre seu estabelecimento e comece a usar o Demandaê.
-        </CardDescription>
+        <CardDescription>Cadastre seu estabelecimento e comece a usar o Demandaê.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <SignupForm />
@@ -27,6 +25,15 @@ export default async function SignupPage() {
             className="text-foreground font-medium underline-offset-4 hover:underline"
           >
             Entrar
+          </Link>
+        </p>
+        <p className="text-muted-foreground border-t pt-3 text-center text-xs">
+          Quer agendar um horário?{' '}
+          <Link
+            href="/conta/criar"
+            className="text-foreground font-medium underline-offset-4 hover:underline"
+          >
+            Criar sua conta
           </Link>
         </p>
       </CardContent>
