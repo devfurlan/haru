@@ -760,26 +760,26 @@ function StepConfirmar({
           caminho principal). Abre em nova aba pra não perder o que já foi preenchido;
           a sessão é compartilhada por cookie, então ao confirmar aqui o agendamento já
           vincula à conta recém-criada (mesmo WhatsApp). */}
-      <div className="border-coral/30 bg-coral/5 space-y-3 rounded-xl border p-4">
+      <div className="border-green/20 bg-accent space-y-3 rounded-xl border p-4">
         <p className="text-foreground flex items-center gap-1.5 text-sm font-medium">
-          <Sparkles className="text-coral h-4 w-4 shrink-0" aria-hidden="true" />
+          <Sparkles className="text-green h-4 w-4 shrink-0" aria-hidden="true" />
           Quer agilizar da próxima vez?
         </p>
         <ul className="text-muted-foreground space-y-1 text-xs">
           <li className="flex items-start gap-1.5">
-            <CheckCircle2 className="text-coral mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+            <CheckCircle2 className="text-green mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
             Não precisa digitar nome e WhatsApp toda vez
           </li>
           <li className="flex items-start gap-1.5">
-            <CheckCircle2 className="text-coral mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+            <CheckCircle2 className="text-green mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
             Receba lembretes e confirmações no WhatsApp
           </li>
           <li className="flex items-start gap-1.5">
-            <CheckCircle2 className="text-coral mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+            <CheckCircle2 className="text-green mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
             Acompanhe, remarque ou cancele quando quiser
           </li>
         </ul>
-        <Button asChild variant="outline" size="sm" className="w-full">
+        <Button asChild size="sm" className="w-full">
           <Link
             href={phone ? `/conta/criar?phone=${encodeURIComponent(phone)}` : '/conta/criar'}
             target="_blank"

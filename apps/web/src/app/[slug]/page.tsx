@@ -1,4 +1,4 @@
-import { Calendar, MessageCircle, UserRound } from 'lucide-react';
+import { MessageCircle, UserRound } from 'lucide-react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
@@ -12,6 +12,7 @@ import { getCustomerAccount } from '@/lib/customer-auth';
 import { isWhatsappConnected } from '@/lib/whatsapp-status';
 
 import { loadPublicTenant } from './_tenant';
+import { BusinessHoursDialog } from './business-hours-dialog';
 import { PublicBooking } from './public-booking';
 
 const WEEKDAY_NAMES = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
@@ -43,6 +44,20 @@ export default async function TenantPublicPage({ params }: { params: Promise<{ s
   }
   const dayOrder = [1, 2, 3, 4, 5, 6, 0];
 
+  // Linhas prontas para o modal de horários (acionado pelo link no topo).
+  const businessHours = dayOrder.map((wd) => {
+    const blocks = byDay.get(wd) ?? [];
+    return {
+      name: WEEKDAY_NAMES[wd],
+      value:
+        blocks.length === 0
+          ? 'Fechado'
+          : blocks
+              .map((b) => `${minutesToHHMM(b.startMinute)}–${minutesToHHMM(b.endMinute)}`)
+              .join(', '),
+    };
+  });
+
   // Só oferece o botão de WhatsApp quando o número está de fato ativo: bot
   // conectado (phone_number_id + access_token) E não banido pela Meta. Ter só o
   // whatsappDisplayPhone não basta - sem bot ativo (ou com número banido) a
@@ -66,7 +81,8 @@ export default async function TenantPublicPage({ params }: { params: Promise<{ s
   return (
     <main className="bg-muted/20 min-h-screen">
       <div className="mx-auto max-w-2xl space-y-8 px-4 py-12">
-        <div className="flex justify-end">
+        <div className="flex items-center justify-between gap-2">
+          <BusinessHoursDialog hours={businessHours} />
           <Button asChild variant="ghost" size="sm">
             <Link href={customerAccount ? '/conta' : '/conta/entrar'}>
               <UserRound className="h-4 w-4" />
@@ -157,35 +173,6 @@ export default async function TenantPublicPage({ params }: { params: Promise<{ s
             )}
           </section>
         )}
-
-        <section className="space-y-3">
-          <h2 className="flex items-center gap-2 font-serif text-xl font-semibold">
-            <Calendar className="h-5 w-5" />
-            Horários de atendimento
-          </h2>
-          <ul className="bg-card overflow-hidden rounded-lg border shadow-sm">
-            {dayOrder.map((wd) => {
-              const blocks = byDay.get(wd) ?? [];
-              return (
-                <li
-                  key={wd}
-                  className="flex items-center justify-between border-b px-4 py-2 text-sm last:border-b-0"
-                >
-                  <span className="font-medium">{WEEKDAY_NAMES[wd]}</span>
-                  <span className="text-muted-foreground">
-                    {blocks.length === 0
-                      ? 'Fechado'
-                      : blocks
-                          .map(
-                            (b) => `${minutesToHHMM(b.startMinute)}–${minutesToHHMM(b.endMinute)}`,
-                          )
-                          .join(', ')}
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
-        </section>
 
         <footer className="text-muted-foreground pt-4 text-center text-xs">
           Powered by{' '}
