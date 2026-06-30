@@ -31,38 +31,19 @@ const PHONE_RE = /^55\d{10,11}$/;
 // Autenticação do cliente (Supabase email/senha, espelhando (auth)/actions.ts).
 // ---------------------------------------------------------------------------
 
-const signupPhoneSchema = z
+// Telefone E.164 do Brasil. Usado na verificação (OTP) que conecta o número à conta.
+const phoneE164Schema = z
   .string()
   .min(8, 'Informe seu celular')
   .transform(normalizePhoneBR)
   .refine((v) => PHONE_RE.test(v), { message: 'Celular inválido - confira o DDD' });
 
-/**
- * Envia o código de verificação por SMS para o celular informado no cadastro. É o
- * 1º passo: prova de posse do número antes de criar a conta e reivindicar o
- * histórico (claim). Não revela se o número já tem conta (anti-enumeração).
- */
-export async function sendCustomerSignupCode(phoneRaw: string): Promise<CustomerActionResult> {
-  const parsed = signupPhoneSchema.safeParse(phoneRaw);
-  if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? 'Celular inválido' };
-  }
-  const res = await sendPhoneOtp(parsed.data);
-  if (!res.ok) return { error: res.error };
-  return { ok: true };
-}
-
 const customerSignUpSchema = z.object({
   email: z.string().email('Email inválido'),
   password: z.string().min(8, 'Senha deve ter ao menos 8 caracteres'),
   name: z.string().trim().min(2, 'Informe seu nome').max(80),
-  // Telefone é o elo da conta com o histórico (claim cross-tenant) - obrigatório.
-  phone: signupPhoneSchema,
-  // Código recebido por SMS (Twilio Verify) - prova de posse do número.
-  code: z
-    .string()
-    .min(4, 'Informe o código recebido por SMS')
-    .transform((v) => v.replace(/\D/g, '')),
+  // Celular informado no cadastro - guardado como PENDENTE (sem verificação aqui).
+  phone: phoneE164Schema,
   acceptTerms: z.literal('on', {
     errorMap: () => ({ message: 'É preciso aceitar os Termos e a Política de Privacidade.' }),
   }),
@@ -77,20 +58,12 @@ export async function customerSignUp(
     password: formData.get('password'),
     name: formData.get('name'),
     phone: formData.get('phone'),
-    code: formData.get('code'),
     acceptTerms: formData.get('acceptTerms'),
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? 'Dados inválidos' };
   }
-  const { email, password, name, phone, code } = parsed.data;
-
-  // Verifica a posse do telefone ANTES de criar qualquer coisa. Sem isso, o claim
-  // por telefone abaixo permitiria reivindicar dados de terceiros (LGPD).
-  const verified = await checkPhoneOtp(phone, code);
-  if (!verified.ok) {
-    return { error: verified.error };
-  }
+  const { email, password, name, phone } = parsed.data;
 
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signUp({ email, password });
@@ -99,19 +72,20 @@ export async function customerSignUp(
   }
 
   try {
-    const account = await prisma.customerAccount.create({
+    // O número entra como PENDENTE (pendingPhone), não como `phone`: a confirmação por
+    // OTP acontece depois do login (barra no topo da área logada). Só ao confirmar é
+    // que vira `phone` e reivindica o histórico (claim) - sem prova de posse, NUNCA
+    // chamar claimContactsByPhone (exporia dados de terceiros, LGPD).
+    await prisma.customerAccount.create({
       data: {
         authId: data.user.id,
         email,
         name,
-        phone,
+        pendingPhone: phone,
         termsAcceptedAt: new Date(),
         termsVersion: TERMS_VERSION,
       },
     });
-    // Telefone já verificado por OTP: pode reivindicar com segurança os Contacts
-    // deste número em todos os estabelecimentos.
-    await claimContactsByPhone(account.id, phone);
   } catch (err) {
     console.error('[customerSignUp] falha ao criar conta do cliente', err);
     return { error: 'Não foi possível criar sua conta' };
@@ -288,7 +262,7 @@ export async function sendCustomerPhoneChangeCode(
   newPhoneRaw: string,
 ): Promise<CustomerActionResult> {
   const account = await requireCustomerAccount();
-  const parsed = signupPhoneSchema.safeParse(newPhoneRaw);
+  const parsed = phoneE164Schema.safeParse(newPhoneRaw);
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? 'Celular inválido' };
   }
@@ -309,7 +283,7 @@ export async function sendCustomerPhoneChangeCode(
 }
 
 const changePhoneSchema = z.object({
-  phone: signupPhoneSchema,
+  phone: phoneE164Schema,
   code: z
     .string()
     .min(4, 'Informe o código recebido por SMS')
@@ -348,7 +322,8 @@ export async function customerChangePhone(
 
   await prisma.customerAccount.update({
     where: { id: account.id },
-    data: { phone },
+    // Número confirmado vira o `phone` oficial; limpa o pendente do cadastro.
+    data: { phone, pendingPhone: null },
   });
   // Reivindica os Contacts do novo número. Não desvincula os do antigo - assim o
   // cliente mantém o histórico de agendamentos que já tinha.

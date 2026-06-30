@@ -6,14 +6,8 @@ import { getCustomerAccount } from '@/lib/customer-auth';
 
 import { CustomerSignupForm } from './signup-form';
 
-interface PageProps {
-  // `phone` pré-preenche o WhatsApp quando o cliente vem do fim de um agendamento.
-  searchParams: Promise<{ phone?: string }>;
-}
-
-export default async function CustomerSignupPage({ searchParams }: PageProps) {
+export default async function CustomerSignupPage() {
   if (await getCustomerAccount()) redirect('/conta');
-  const { phone } = await searchParams;
 
   return (
     <Card>
@@ -24,7 +18,7 @@ export default async function CustomerSignupPage({ searchParams }: PageProps) {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <CustomerSignupForm defaultPhone={phone ?? ''} />
+        <CustomerSignupForm />
         <p className="text-muted-foreground text-center text-sm">
           Já tem conta?{' '}
           <Link

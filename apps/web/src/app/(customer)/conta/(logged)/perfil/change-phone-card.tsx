@@ -67,19 +67,22 @@ export function ChangePhoneCard({ currentPhoneDisplay }: { currentPhoneDisplay: 
     });
   }
 
+  const hasPhone = currentPhoneDisplay.trim().length > 0;
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Celular</CardTitle>
+        <CardTitle>{hasPhone ? 'Celular' : 'Conectar WhatsApp'}</CardTitle>
         <CardDescription>
-          Número atual: {currentPhoneDisplay || 'não informado'}. É o que liga sua conta aos seus
-          agendamentos.
+          {hasPhone
+            ? `Número atual: ${currentPhoneDisplay}. É o que liga sua conta aos seus agendamentos.`
+            : 'Confirme seu WhatsApp para ver e gerenciar aqui os agendamentos que você fez em qualquer estabelecimento.'}
         </CardDescription>
       </CardHeader>
       <CardContent>
         {!open ? (
           <Button type="button" variant="outline" onClick={() => setOpen(true)}>
-            Trocar número
+            {hasPhone ? 'Trocar número' : 'Conectar meu WhatsApp'}
           </Button>
         ) : !codeSent ? (
           // Passo 1: novo número.
