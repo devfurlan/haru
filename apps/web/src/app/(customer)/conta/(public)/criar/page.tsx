@@ -18,6 +18,9 @@ export default async function CustomerSignupPage({ searchParams }: PageProps) {
   return (
     <Card>
       <CardHeader>
+        <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">
+          Área do cliente
+        </p>
         <CardTitle className="font-serif text-2xl">Criar conta</CardTitle>
         <CardDescription>
           Acompanhe, remarque e repita seus agendamentos em um só lugar.
@@ -32,6 +35,15 @@ export default async function CustomerSignupPage({ searchParams }: PageProps) {
             className="text-foreground font-medium underline-offset-4 hover:underline"
           >
             Entrar
+          </Link>
+        </p>
+        <p className="text-muted-foreground border-t pt-3 text-center text-xs">
+          É um estabelecimento?{' '}
+          <Link
+            href="/signup"
+            className="text-foreground font-medium underline-offset-4 hover:underline"
+          >
+            Cadastre seu negócio
           </Link>
         </p>
       </CardContent>
