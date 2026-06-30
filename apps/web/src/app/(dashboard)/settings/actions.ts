@@ -532,6 +532,7 @@ const notificationsSchema = z
       }),
     // Checkbox: presente ("on") = ligado; ausente = desligado.
     handoffEmailEnabled: z.preprocess((v) => v === 'on' || v === 'true', z.boolean()),
+    ownerAppointmentEmailsEnabled: z.preprocess((v) => v === 'on' || v === 'true', z.boolean()),
     reminderTemplateName: templateNameSchema,
     reminderTemplateLanguage: templateLanguageSchema,
     cancelTemplateName: templateNameSchema,
@@ -568,6 +569,7 @@ export async function updateNotifications(
     notificationWebhookUrl: formData.get('notificationWebhookUrl'),
     reminderHoursBefore: formData.get('reminderHoursBefore'),
     handoffEmailEnabled: formData.get('handoffEmailEnabled'),
+    ownerAppointmentEmailsEnabled: formData.get('ownerAppointmentEmailsEnabled'),
     reminderTemplateName: formData.get('reminderTemplateName'),
     reminderTemplateLanguage: formData.get('reminderTemplateLanguage'),
     cancelTemplateName: formData.get('cancelTemplateName'),
@@ -593,6 +595,7 @@ export async function updateNotifications(
       notificationWebhookUrl: parsed.data.notificationWebhookUrl,
       reminderHoursBefore: parsed.data.reminderHoursBefore,
       handoffEmailEnabled: parsed.data.handoffEmailEnabled,
+      ownerAppointmentEmailsEnabled: parsed.data.ownerAppointmentEmailsEnabled,
       reminderTemplateName: parsed.data.reminderTemplateName,
       reminderTemplateLanguage: parsed.data.reminderTemplateLanguage,
       cancelTemplateName: parsed.data.cancelTemplateName,

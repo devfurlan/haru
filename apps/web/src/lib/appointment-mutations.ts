@@ -9,6 +9,7 @@
 
 import { prisma, type AppointmentStatus } from '@haru/database';
 
+import { sendAppointmentEmails } from '@/lib/appointment-email';
 import { BOOKING_HORIZON_DAYS, isoDateInTz } from '@/lib/booking-days';
 import {
   notifyAppointmentCanceled,
@@ -37,8 +38,13 @@ export async function rescheduleAppointmentCore(args: {
   appointmentId: string;
   tenantId: string;
   newStartsAt: Date;
+  /** Avisar o cliente por e-mail. Default true; o painel (dono) avisa, a área do
+   * cliente não (ele mesmo remarcou). */
+  notifyCustomer?: boolean;
+  /** Avisar o dono por e-mail. Default true; quando o próprio dono remarca, passa false. */
+  notifyOwner?: boolean;
 }): Promise<CoreResult> {
-  const { appointmentId, tenantId, newStartsAt } = args;
+  const { appointmentId, tenantId, newStartsAt, notifyCustomer = true, notifyOwner = true } = args;
 
   const appt = await prisma.appointment.findFirst({
     where: { id: appointmentId, tenantId },
@@ -99,6 +105,12 @@ export async function rescheduleAppointmentCore(args: {
   sendAppointmentTemplate(appt.id, 'reschedule').catch((err) =>
     console.error('[appointment-mutations] template reschedule failed', err),
   );
+  sendAppointmentEmails({
+    appointmentId: appt.id,
+    event: 'rescheduled',
+    notifyCustomer,
+    notifyOwner,
+  }).catch((err) => console.error('[appointment-mutations] email reschedule failed', err));
 
   return { ok: true };
 }
@@ -112,8 +124,10 @@ export async function cancelAppointmentCore(args: {
   appointmentId: string;
   tenantId: string;
   notifyClient?: boolean;
+  /** Avisar o dono por e-mail. Default true; quando o próprio dono cancela, passa false. */
+  notifyOwner?: boolean;
 }): Promise<boolean> {
-  const { appointmentId, tenantId, notifyClient = true } = args;
+  const { appointmentId, tenantId, notifyClient = true, notifyOwner = true } = args;
   const result = await prisma.appointment.updateMany({
     where: { id: appointmentId, tenantId },
     data: { status: 'CANCELED' },
@@ -128,6 +142,12 @@ export async function cancelAppointmentCore(args: {
       console.error('[appointment-mutations] template cancel failed', err),
     );
   }
+  sendAppointmentEmails({
+    appointmentId,
+    event: 'canceled',
+    notifyCustomer: notifyClient,
+    notifyOwner,
+  }).catch((err) => console.error('[appointment-mutations] email cancel failed', err));
   return true;
 }
 
@@ -140,8 +160,9 @@ export async function cancelSeriesCore(args: {
   seriesId: string;
   tenantId: string;
   notifyClient?: boolean;
+  notifyOwner?: boolean;
 }): Promise<number> {
-  const { seriesId, tenantId, notifyClient = true } = args;
+  const { seriesId, tenantId, notifyClient = true, notifyOwner = true } = args;
   const now = new Date();
   const futures = await prisma.appointment.findMany({
     where: {
@@ -173,6 +194,12 @@ export async function cancelSeriesCore(args: {
       console.error('[appointment-mutations] template cancel (series) failed', err),
     );
   }
+  sendAppointmentEmails({
+    appointmentId: futures[0].id,
+    event: 'canceled',
+    notifyCustomer: notifyClient,
+    notifyOwner,
+  }).catch((err) => console.error('[appointment-mutations] email cancel (series) failed', err));
   return futures.length;
 }
 
@@ -192,9 +219,20 @@ export async function createBookingCore(args: {
   startsAt: Date;
   durationMinutes: number;
   status: AppointmentStatus;
+  /** Avisar o dono por e-mail (novo agendamento). Default true; criação manual pelo
+   * próprio dono passa false. O cliente é sempre avisado. */
+  notifyOwner?: boolean;
 }): Promise<CreateBookingResult> {
-  const { tenantId, contactId, serviceId, professionalId, startsAt, durationMinutes, status } =
-    args;
+  const {
+    tenantId,
+    contactId,
+    serviceId,
+    professionalId,
+    startsAt,
+    durationMinutes,
+    status,
+    notifyOwner = true,
+  } = args;
   const endsAt = new Date(startsAt.getTime() + durationMinutes * 60_000);
 
   // Re-checa conflito imediatamente antes de criar (corrida) - por profissional.
@@ -217,6 +255,11 @@ export async function createBookingCore(args: {
   notifyAppointmentCreated(appointment.id).catch((err) =>
     console.error('[appointment-mutations] notify create failed', err),
   );
+  sendAppointmentEmails({
+    appointmentId: appointment.id,
+    event: status === 'CONFIRMED' ? 'confirmed' : 'created',
+    notifyOwner,
+  }).catch((err) => console.error('[appointment-mutations] email create failed', err));
 
   return { appointmentId: appointment.id };
 }

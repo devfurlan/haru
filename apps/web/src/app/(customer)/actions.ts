@@ -243,6 +243,119 @@ export async function customerUpdateProfile(
 }
 
 // ---------------------------------------------------------------------------
+// Preferências de notificação por e-mail do cliente (confirmação, lembrete,
+// remarcação e cancelamento dos próprios agendamentos).
+// ---------------------------------------------------------------------------
+
+const notificationsSchema = z.object({
+  // Checkbox: presente ("on") = ligado; ausente = desligado.
+  appointmentEmailsEnabled: z.preprocess((v) => v === 'on' || v === 'true', z.boolean()),
+});
+
+export async function customerUpdateNotifications(
+  _prev: CustomerActionResult,
+  formData: FormData,
+): Promise<CustomerActionResult> {
+  const account = await requireCustomerAccount();
+
+  const parsed = notificationsSchema.safeParse({
+    appointmentEmailsEnabled: formData.get('appointmentEmailsEnabled'),
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? 'Dados inválidos' };
+  }
+
+  await prisma.customerAccount.update({
+    where: { id: account.id },
+    data: { appointmentEmailsEnabled: parsed.data.appointmentEmailsEnabled },
+  });
+
+  revalidatePath('/conta/perfil');
+  return { ok: true };
+}
+
+// ---------------------------------------------------------------------------
+// Troca de telefone (exige novo OTP - mesma prova de posse do cadastro). O número
+// antigo continua vinculado (preserva o histórico); o novo é reivindicado.
+// ---------------------------------------------------------------------------
+
+/** Envia o código por SMS para o NOVO número antes de trocar. */
+export async function sendCustomerPhoneChangeCode(
+  newPhoneRaw: string,
+): Promise<CustomerActionResult> {
+  const account = await requireCustomerAccount();
+  const parsed = signupPhoneSchema.safeParse(newPhoneRaw);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? 'Celular inválido' };
+  }
+  const newPhone = parsed.data;
+  if (newPhone === account.phone) {
+    return { error: 'Este já é o seu número atual.' };
+  }
+  const taken = await prisma.customerAccount.findFirst({
+    where: { phone: newPhone, id: { not: account.id } },
+    select: { id: true },
+  });
+  if (taken) {
+    return { error: 'Este número já está em uso por outra conta.' };
+  }
+  const res = await sendPhoneOtp(newPhone);
+  if (!res.ok) return { error: res.error };
+  return { ok: true };
+}
+
+const changePhoneSchema = z.object({
+  phone: signupPhoneSchema,
+  code: z
+    .string()
+    .min(4, 'Informe o código recebido por SMS')
+    .transform((v) => v.replace(/\D/g, '')),
+});
+
+export async function customerChangePhone(
+  _prev: CustomerActionResult,
+  formData: FormData,
+): Promise<CustomerActionResult> {
+  const account = await requireCustomerAccount();
+  const parsed = changePhoneSchema.safeParse({
+    phone: formData.get('phone'),
+    code: formData.get('code'),
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? 'Dados inválidos' };
+  }
+  const { phone, code } = parsed.data;
+  if (phone === account.phone) {
+    return { error: 'Este já é o seu número atual.' };
+  }
+  const taken = await prisma.customerAccount.findFirst({
+    where: { phone, id: { not: account.id } },
+    select: { id: true },
+  });
+  if (taken) {
+    return { error: 'Este número já está em uso por outra conta.' };
+  }
+
+  // Prova de posse do NOVO número antes de associar/reivindicar.
+  const verified = await checkPhoneOtp(phone, code);
+  if (!verified.ok) {
+    return { error: verified.error };
+  }
+
+  await prisma.customerAccount.update({
+    where: { id: account.id },
+    data: { phone },
+  });
+  // Reivindica os Contacts do novo número. Não desvincula os do antigo - assim o
+  // cliente mantém o histórico de agendamentos que já tinha.
+  await claimContactsByPhone(account.id, phone);
+
+  revalidatePath('/conta/perfil');
+  revalidatePath('/conta');
+  return { ok: true };
+}
+
+// ---------------------------------------------------------------------------
 // Reagendar / cancelar (gate de ownership por customerAccountId).
 // ---------------------------------------------------------------------------
 
@@ -296,6 +409,9 @@ export async function customerRescheduleAppointment(
     appointmentId: appt.id,
     tenantId: appt.tenantId,
     newStartsAt: parsed.data.newStartsAtIso,
+    // O cliente remarcou ele mesmo: avisa o DONO por e-mail, não o próprio cliente.
+    notifyCustomer: false,
+    notifyOwner: true,
   });
   if ('error' in result) {
     return { error: result.error };
@@ -319,6 +435,8 @@ export async function customerCancelAppointment(
     appointmentId: appt.id,
     tenantId: appt.tenantId,
     notifyClient: false,
+    // ...mas avisa o DONO por e-mail que o cliente cancelou.
+    notifyOwner: true,
   });
   if (!changed) return { error: 'Não foi possível cancelar este agendamento' };
 

@@ -1,3 +1,4 @@
+import { sendAppointmentEmails } from '../lib/appointmentEmail.js';
 import prisma from '../lib/prisma.js';
 import {
   generateSeriesDates,
@@ -104,6 +105,12 @@ export async function bookAppointment(args: BookAppointmentArgs): Promise<BookAp
   notifyAppointmentCreated(appointment.id).catch((err) =>
     console.error('[appointment] notify failed', err),
   );
+  // E-mail: confirmação pro cliente + "novo agendamento" pro dono (best-effort).
+  sendAppointmentEmails({
+    appointmentId: appointment.id,
+    event: 'confirmed',
+    notifyOwner: true,
+  }).catch((err) => console.error('[appointment] email booked failed', err));
 
   const summary = `${service.name} · ${new Intl.DateTimeFormat('pt-BR', {
     timeZone: tenant.timezone,
@@ -315,6 +322,9 @@ export async function bookRecurringAppointment(
   notifyAppointmentCreated(firstId).catch((err) =>
     console.error('[appointment] notify create (series) failed', err),
   );
+  sendAppointmentEmails({ appointmentId: firstId, event: 'confirmed', notifyOwner: true }).catch(
+    (err) => console.error('[appointment] email booked (series) failed', err),
+  );
 
   return {
     ok: true,
@@ -372,6 +382,13 @@ export async function cancelAppointmentForContact(
   notifyAppointmentCanceled(appt.id).catch((err) =>
     console.error('[appointment] notify cancel failed', err),
   );
+  // E-mail: cliente já é avisado na conversa; manda só pro DONO.
+  sendAppointmentEmails({
+    appointmentId: appt.id,
+    event: 'canceled',
+    notifyCustomer: false,
+    notifyOwner: true,
+  }).catch((err) => console.error('[appointment] email cancel failed', err));
 
   const summary = `${appt.service.name} · ${new Intl.DateTimeFormat('pt-BR', {
     timeZone: appt.tenant.timezone,
@@ -435,6 +452,12 @@ export async function cancelSeriesForContact(args: CancelSeriesArgs): Promise<Ca
   notifyAppointmentCanceled(futures[0].id).catch((err) =>
     console.error('[appointment] notify cancel (series) failed', err),
   );
+  sendAppointmentEmails({
+    appointmentId: futures[0].id,
+    event: 'canceled',
+    notifyCustomer: false,
+    notifyOwner: true,
+  }).catch((err) => console.error('[appointment] email cancel (series) failed', err));
 
   return { ok: true, canceledCount: futures.length };
 }
@@ -580,8 +603,9 @@ export async function rescheduleAppointmentForContact(
       startsAt: newStartsAt,
       endsAt: newEndsAt,
       // Lembrete já foi enviado pro horário antigo - zera pra disparar de novo
-      // pro novo horário (se cair dentro da janela).
+      // pro novo horário (se cair dentro da janela). Vale pros dois canais.
       reminderSentAt: null,
+      reminderEmailSentAt: null,
     },
   });
 
@@ -589,6 +613,13 @@ export async function rescheduleAppointmentForContact(
   notifyAppointmentRescheduled(appt.id).catch((err) =>
     console.error('[appointment] notify reschedule failed', err),
   );
+  // E-mail: cliente já é avisado na conversa; manda só pro DONO.
+  sendAppointmentEmails({
+    appointmentId: appt.id,
+    event: 'rescheduled',
+    notifyCustomer: false,
+    notifyOwner: true,
+  }).catch((err) => console.error('[appointment] email reschedule failed', err));
 
   return {
     ok: true,

@@ -71,6 +71,7 @@ export default async function SettingsPage() {
         notificationWebhookUrl={tenant.notificationWebhookUrl}
         reminderHoursBefore={tenant.reminderHoursBefore}
         handoffEmailEnabled={tenant.handoffEmailEnabled}
+        ownerAppointmentEmailsEnabled={tenant.ownerAppointmentEmailsEnabled}
         reminderTemplateName={tenant.reminderTemplateName}
         reminderTemplateLanguage={tenant.reminderTemplateLanguage}
         cancelTemplateName={tenant.cancelTemplateName}

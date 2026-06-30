@@ -1,4 +1,5 @@
 import { Sentry } from '../instrument.js';
+import { emailAppointmentReminder } from './appointmentEmail.js';
 import { emailNumberBanned } from './email.js';
 import prisma from './prisma.js';
 import { getPhoneNumberStatus, sendTemplateMessage } from './whatsapp/client.js';
@@ -69,8 +70,9 @@ async function processReminders() {
   const tenants = await prisma.tenant.findMany({
     where: {
       reminderHoursBefore: { gt: 0 },
-      whatsappPhoneNumberId: { not: null },
-      // Número banido pela Meta recusa todo envio (#135000); não re-tentar.
+      // Sem filtro por whatsappPhoneNumberId: tenants SEM WhatsApp ainda mandam
+      // lembrete por e-mail. A checagem do número é feita por agendamento, abaixo.
+      // Número banido pela Meta recusa todo envio WhatsApp (#135000); o e-mail segue.
       whatsappBannedAt: null,
     },
   });
@@ -90,82 +92,110 @@ async function processReminders() {
       where: {
         tenantId: tenant.id,
         status: { in: ['PENDING', 'CONFIRMED'] },
-        reminderSentAt: null,
+        // Pendente em ao menos um canal (WhatsApp OU e-mail). Cada canal tem seu
+        // próprio carimbo e é enviado no máximo uma vez.
+        OR: [{ reminderSentAt: null }, { reminderEmailSentAt: null }],
         startsAt: { gte: earliestStart, lte: latestStart },
       },
-      include: { service: true, contact: true },
+      include: { service: true, contact: { include: { customerAccount: true } } },
     });
 
     if (appts.length === 0) continue;
+
+    // Se o número for detectado banido no meio do tick, paramos o WhatsApp (todo
+    // envio falharia) mas seguimos mandando os lembretes por e-mail.
+    let whatsappBlocked = false;
 
     for (const appt of appts) {
       const when = formatWhen(appt.startsAt, tenant.timezone);
       const name = appt.contact.name ?? 'cliente';
 
-      let sent = false;
+      // --- Lembrete por WhatsApp (só se o tenant tem número e ainda não enviou) ---
+      if (tenant.whatsappPhoneNumberId && !whatsappBlocked && appt.reminderSentAt == null) {
+        let sent = false;
 
-      if (tenant.reminderTemplateName) {
-        // Caminho oficial: template aprovado pela Meta. Escapa da regra das 24h.
-        try {
-          await sendTemplateMessage(
-            tenant.whatsappPhoneNumberId!,
-            appt.contact.phone,
-            tenant.reminderTemplateName,
-            tenant.reminderTemplateLanguage ?? 'pt_BR',
-            [
-              {
-                type: 'body',
-                parameters: [
-                  { type: 'text', text: name },
-                  { type: 'text', text: when },
-                  { type: 'text', text: appt.service.name },
-                ],
+        if (tenant.reminderTemplateName) {
+          // Caminho oficial: template aprovado pela Meta. Escapa da regra das 24h.
+          try {
+            await sendTemplateMessage(
+              tenant.whatsappPhoneNumberId,
+              appt.contact.phone,
+              tenant.reminderTemplateName,
+              tenant.reminderTemplateLanguage ?? 'pt_BR',
+              [
+                {
+                  type: 'body',
+                  parameters: [
+                    { type: 'text', text: name },
+                    { type: 'text', text: when },
+                    { type: 'text', text: appt.service.name },
+                  ],
+                },
+              ],
+            );
+            sent = true;
+          } catch (err) {
+            console.error('[reminders] template falhou', err);
+            Sentry.captureException(err, {
+              tags: { component: 'reminders', mode: 'template' },
+              extra: {
+                tenantId: tenant.id,
+                appointmentId: appt.id,
+                template: tenant.reminderTemplateName,
               },
-            ],
-          );
-          sent = true;
-        } catch (err) {
-          console.error('[reminders] template falhou', err);
-          Sentry.captureException(err, {
-            tags: { component: 'reminders', mode: 'template' },
-            extra: {
-              tenantId: tenant.id,
-              appointmentId: appt.id,
-              template: tenant.reminderTemplateName,
-            },
-          });
-          // O erro da Meta é genérico (#135000) e não diz o motivo. Confirma na
-          // Graph API se o número foi banido; se foi, marca o tenant (o loop passa
-          // a pulá-lo), avisa o operador por e-mail e abandona os demais appts -
-          // nenhum vai entregar enquanto o número estiver banido.
-          if (await flagIfBanned(tenant)) break;
-        }
-      } else {
-        // Fallback: freeform (só funciona se cliente mandou mensagem nas últimas 24h)
-        const greeting = appt.contact.name ? `Oi, ${appt.contact.name}!` : 'Oi!';
-        const text =
-          `${greeting} Passando pra lembrar do seu agendamento na ${tenant.name}:\n\n` +
-          `📅 ${when}\n` +
-          `✂️ ${appt.service.name}\n\n` +
-          `Se precisar remarcar ou cancelar, é só me chamar por aqui. Até lá!`;
+            });
+            // O erro da Meta é genérico (#135000) e não diz o motivo. Confirma na
+            // Graph API se o número foi banido; se foi, marca o tenant (o loop passa
+            // a pulá-lo) e para o WhatsApp nos demais appts - mas o e-mail continua.
+            if (await flagIfBanned(tenant)) whatsappBlocked = true;
+          }
+        } else {
+          // Fallback: freeform (só funciona se cliente mandou mensagem nas últimas 24h)
+          const greeting = appt.contact.name ? `Oi, ${appt.contact.name}!` : 'Oi!';
+          const text =
+            `${greeting} Passando pra lembrar do seu agendamento na ${tenant.name}:\n\n` +
+            `📅 ${when}\n` +
+            `✂️ ${appt.service.name}\n\n` +
+            `Se precisar remarcar ou cancelar, é só me chamar por aqui. Até lá!`;
 
-        sent = await sendTextSafely(
-          tenant.whatsappPhoneNumberId!,
-          appt.contact.phone,
-          text,
-          {
+          sent = await sendTextSafely(tenant.whatsappPhoneNumberId, appt.contact.phone, text, {
             phone: appt.contact.phone,
-            phoneNumberId: tenant.whatsappPhoneNumberId!,
+            phoneNumberId: tenant.whatsappPhoneNumberId,
             tenantId: tenant.id,
             flow: 'reminder',
-          },
-        );
+          });
+        }
+
+        if (sent) {
+          await prisma.appointment.update({
+            where: { id: appt.id },
+            data: { reminderSentAt: new Date() },
+          });
+        }
       }
 
-      if (sent) {
+      // --- Lembrete por e-mail AO CLIENTE (independente do WhatsApp) ---
+      if (appt.reminderEmailSentAt == null) {
+        const account = appt.contact.customerAccount;
+        const to = account?.email ?? appt.contact.email;
+        const prefOn = account?.appointmentEmailsEnabled ?? true;
+        if (to && prefOn) {
+          await emailAppointmentReminder({
+            to,
+            customerName: account?.name ?? appt.contact.name ?? null,
+            tenantName: tenant.name,
+            when,
+            serviceName: appt.service.name,
+          }).catch((err) => {
+            console.error('[reminders] e-mail de lembrete falhou', err);
+            Sentry.captureException(err, { tags: { component: 'reminders', mode: 'email' } });
+          });
+        }
+        // Carimba o e-mail como processado (enviado, sem destinatário ou opt-out) pra
+        // não reavaliar todo tick - o carimbo é zerado na remarcação.
         await prisma.appointment.update({
           where: { id: appt.id },
-          data: { reminderSentAt: new Date() },
+          data: { reminderEmailSentAt: new Date() },
         });
       }
     }

@@ -2,6 +2,8 @@ import { requireCustomerAccount } from '@/lib/customer-auth';
 import { getCustomerProfile } from '@/lib/customer';
 import { formatPhoneBR, maskCpfCnpjInput } from '@/lib/format';
 
+import { ChangePhoneCard } from './change-phone-card';
+import { CustomerNotificationsCard } from './notifications-card';
 import { CustomerPasswordCard } from './password-card';
 import { ProfileForm } from './profile-form';
 
@@ -31,10 +33,13 @@ export default async function CustomerProfilePage() {
       <ProfileForm
         name={profile.name ?? ''}
         email={profile.email}
-        phoneDisplay={formatPhoneBR(profile.phone)}
         documentDefault={profile.document ? maskCpfCnpjInput(profile.document) : ''}
         birthDateDefault={profile.birthDate ? toYMD(profile.birthDate) : ''}
       />
+
+      <ChangePhoneCard currentPhoneDisplay={formatPhoneBR(profile.phone)} />
+
+      <CustomerNotificationsCard appointmentEmailsEnabled={account.appointmentEmailsEnabled} />
 
       <CustomerPasswordCard />
     </div>

@@ -6,6 +6,7 @@ import { z } from 'zod';
 
 import { prisma, type AppointmentStatus } from '@haru/database';
 
+import { sendAppointmentEmails } from '@/lib/appointment-email';
 import {
   cancelAppointmentCore,
   cancelSeriesCore,
@@ -128,7 +129,12 @@ async function changeStatus(appointmentId: string, status: AppointmentStatus): P
 }
 
 export async function confirmAppointment(appointmentId: string) {
-  await changeStatus(appointmentId, 'CONFIRMED');
+  const changed = await changeStatus(appointmentId, 'CONFIRMED');
+  if (!changed) return;
+  // O dono confirmou pelo painel: avisa só o CLIENTE por e-mail (o dono já sabe).
+  sendAppointmentEmails({ appointmentId, event: 'confirmed', notifyOwner: false }).catch((err) =>
+    console.error('[appointments] email confirm failed', err),
+  );
 }
 
 export async function cancelAppointment(appointmentId: string, opts?: { notifyClient?: boolean }) {
@@ -139,6 +145,8 @@ export async function cancelAppointment(appointmentId: string, opts?: { notifyCl
     appointmentId,
     tenantId: tenant.id,
     notifyClient: opts?.notifyClient ?? true,
+    // O dono cancelou pelo painel: avisa o cliente, mas não a si mesmo.
+    notifyOwner: false,
   });
   if (!changed) return;
 
@@ -166,6 +174,7 @@ export async function cancelAppointmentSeries(seriesId: string, opts?: { notifyC
     seriesId,
     tenantId: tenant.id,
     notifyClient: opts?.notifyClient ?? true,
+    notifyOwner: false,
   });
   if (count === 0) return;
 
@@ -353,6 +362,12 @@ export async function createManualAppointment(
     notifyAppointmentCreated(result.createdIds[0]).catch((err) =>
       console.error('[appointments] notify create (series) failed', err),
     );
+    // E-mail só pro cliente (o dono criou). Sem destinatário (walk-in sem conta) vira no-op.
+    sendAppointmentEmails({
+      appointmentId: result.createdIds[0],
+      event: 'confirmed',
+      notifyOwner: false,
+    }).catch((err) => console.error('[appointments] email create (series) failed', err));
 
     revalidatePath('/appointments');
     revalidatePath('/dashboard');
@@ -381,6 +396,12 @@ export async function createManualAppointment(
   notifyAppointmentCreated(appointment.id).catch((err) =>
     console.error('[appointments] notify create failed', err),
   );
+  // E-mail só pro cliente (o dono criou). Sem destinatário (walk-in sem conta) vira no-op.
+  sendAppointmentEmails({
+    appointmentId: appointment.id,
+    event: 'confirmed',
+    notifyOwner: false,
+  }).catch((err) => console.error('[appointments] email create failed', err));
 
   revalidatePath('/appointments');
   revalidatePath('/dashboard');
@@ -553,6 +574,8 @@ export async function rescheduleAppointment(
     appointmentId,
     tenantId: tenant.id,
     newStartsAt: parsed.data.newStartsAtIso,
+    // O dono remarcou pelo painel: avisa o cliente, mas não a si mesmo.
+    notifyOwner: false,
   });
   if ('error' in result) {
     return { error: result.error };

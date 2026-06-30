@@ -13,11 +13,11 @@ import prisma from './prisma.js';
 
 const RESEND_URL = 'https://api.resend.com/emails';
 
-function appUrl(): string {
+export function appUrl(): string {
   return (process.env.APP_URL ?? 'https://demandae.app').replace(/\/$/, '');
 }
 
-async function sendEmail(to: string, subject: string, html: string): Promise<boolean> {
+export async function sendEmail(to: string, subject: string, html: string): Promise<boolean> {
   const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.BILLING_EMAIL_FROM;
   if (!apiKey || !from) {
@@ -43,7 +43,7 @@ async function sendEmail(to: string, subject: string, html: string): Promise<boo
 }
 
 /** Resolve o dono (OWNER) do tenant + nome do negócio para destinatário do e-mail. */
-async function ownerOf(
+export async function ownerOf(
   tenantId: string,
 ): Promise<{ email: string; name: string | null; tenantName: string } | null> {
   const [tenant, owner] = await Promise.all([
@@ -58,7 +58,7 @@ async function ownerOf(
   return { email: owner.email, name: owner.name, tenantName: tenant.name };
 }
 
-function shell(title: string, body: string, cta: string, link: string): string {
+export function shell(title: string, body: string, cta: string, link: string): string {
   return `
     <div style="font-family:system-ui,sans-serif;max-width:520px;margin:0 auto;color:#1a1a1a">
       <h2 style="font-size:18px">${title}</h2>

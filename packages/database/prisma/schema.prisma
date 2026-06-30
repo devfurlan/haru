@@ -60,6 +60,10 @@ model Tenant {
   /// Avisar o dono por e-mail quando um cliente pedir atendimento humano
   /// (handoff). O aviso no painel/realtime é sempre enviado; só o e-mail é opcional.
   handoffEmailEnabled        Boolean @default(true)
+  /// Avisar o dono por e-mail dos eventos de agendamento: novo agendamento e quando
+  /// o cliente cancela/remarca. NÃO inclui lembrete por agendamento (evita flood em
+  /// agenda cheia). Controlado pelo dono em /settings; não afeta os e-mails do cliente.
+  ownerAppointmentEmailsEnabled Boolean @default(true)
   /// Templates aprovados na Meta. Quando definidos, mensagens são enviadas via
   /// template em vez de freeform - escapam da regra das 24h. Todos esperam
   /// 3 variáveis no body: {{1}}=nome do cliente, {{2}}=data/hora formatada,
@@ -182,6 +186,10 @@ model CustomerAccount {
   termsAcceptedAt DateTime?
   /// Versão dos Termos aceita (ver TERMS_VERSION em apps/web/src/lib/legal.ts).
   termsVersion    String?
+  /// Receber e-mails dos próprios agendamentos (confirmação, lembrete, remarcação,
+  /// cancelamento). Controlado pelo cliente em /conta/perfil. Independente dos avisos
+  /// por WhatsApp do estabelecimento.
+  appointmentEmailsEnabled Boolean @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -367,6 +375,10 @@ model Appointment {
   series         AppointmentSeries? @relation(fields: [seriesId], references: [id], onDelete: SetNull)
   /// Marca de quando o lembrete via WhatsApp foi enviado. null = ainda não.
   reminderSentAt DateTime?
+  /// Marca de quando o lembrete por E-MAIL ao cliente foi processado. null = ainda
+  /// não. Separado de `reminderSentAt` (WhatsApp) pra que os dois canais sejam
+  /// independentes. Zerado junto na remarcação, pra disparar de novo no novo horário.
+  reminderEmailSentAt DateTime?
   createdAt      DateTime          @default(now())
   updatedAt      DateTime          @updatedAt
 

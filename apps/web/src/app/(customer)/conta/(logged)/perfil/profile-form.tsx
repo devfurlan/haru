@@ -13,7 +13,6 @@ import { maskCpfCnpjInput } from '@/lib/format';
 interface ProfileFormProps {
   name: string;
   email: string;
-  phoneDisplay: string;
   documentDefault: string;
   birthDateDefault: string;
 }
@@ -27,13 +26,7 @@ function SubmitButton() {
   );
 }
 
-export function ProfileForm({
-  name,
-  email,
-  phoneDisplay,
-  documentDefault,
-  birthDateDefault,
-}: ProfileFormProps) {
+export function ProfileForm({ name, email, documentDefault, birthDateDefault }: ProfileFormProps) {
   const [state, formAction] = useActionState<CustomerActionResult, FormData>(
     customerUpdateProfile,
     undefined,
@@ -53,14 +46,6 @@ export function ProfileForm({
           <div className="space-y-2">
             <Label htmlFor="name">Nome</Label>
             <Input id="name" name="name" defaultValue={name} placeholder="Seu nome" required />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="phone">WhatsApp</Label>
-            <Input id="phone" value={phoneDisplay} disabled readOnly />
-            <p className="text-muted-foreground text-xs">
-              Para trocar o WhatsApp, fale com o suporte.
-            </p>
           </div>
 
           <div className="space-y-2">

@@ -14,6 +14,7 @@ interface NotificationsCardProps {
   notificationWebhookUrl: string | null;
   reminderHoursBefore: number;
   handoffEmailEnabled: boolean;
+  ownerAppointmentEmailsEnabled: boolean;
   reminderTemplateName: string | null;
   reminderTemplateLanguage: string | null;
   cancelTemplateName: string | null;
@@ -142,6 +143,24 @@ export function NotificationsCard(props: NotificationsCardProps) {
                 <span className="text-muted-foreground block text-xs">
                   Recebe um e-mail quando um cliente pedir pra falar com uma pessoa no WhatsApp. O
                   aviso no painel acontece sempre, mesmo com isto desligado.
+                </span>
+              </span>
+            </label>
+          </div>
+
+          <div className="space-y-2 rounded-lg border border-dashed p-4">
+            <label htmlFor="ownerAppointmentEmailsEnabled" className="flex items-start gap-3">
+              <input
+                id="ownerAppointmentEmailsEnabled"
+                name="ownerAppointmentEmailsEnabled"
+                type="checkbox"
+                defaultChecked={props.ownerAppointmentEmailsEnabled}
+                className="border-input mt-0.5 size-4 shrink-0 rounded"
+              />
+              <span className="space-y-1">
+                <span className="block text-sm font-medium">Aviso por e-mail de agendamentos</span>
+                <span className="text-muted-foreground block text-xs">
+                  Recebe um e-mail a cada novo agendamento e quando um cliente cancelar ou remarcar.
                 </span>
               </span>
             </label>
