@@ -14,6 +14,7 @@ import {
   PartyPopper,
   QrCode,
   Repeat,
+  Sparkles,
   User as UserIcon,
 } from 'lucide-react';
 import Link from 'next/link';
@@ -755,6 +756,44 @@ function StepConfirmar({
         </div>
       </div>
 
+      {/* Convite opcional pra criar conta - não bloqueia o agendamento (o guest é o
+          caminho principal). Abre em nova aba pra não perder o que já foi preenchido;
+          a sessão é compartilhada por cookie, então ao confirmar aqui o agendamento já
+          vincula à conta recém-criada (mesmo WhatsApp). */}
+      <div className="border-coral/30 bg-coral/5 space-y-3 rounded-xl border p-4">
+        <p className="text-foreground flex items-center gap-1.5 text-sm font-medium">
+          <Sparkles className="text-coral h-4 w-4 shrink-0" aria-hidden="true" />
+          Quer agilizar da próxima vez?
+        </p>
+        <ul className="text-muted-foreground space-y-1 text-xs">
+          <li className="flex items-start gap-1.5">
+            <CheckCircle2 className="text-coral mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+            Não precisa digitar nome e WhatsApp toda vez
+          </li>
+          <li className="flex items-start gap-1.5">
+            <CheckCircle2 className="text-coral mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+            Receba lembretes e confirmações no WhatsApp
+          </li>
+          <li className="flex items-start gap-1.5">
+            <CheckCircle2 className="text-coral mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+            Acompanhe, remarque ou cancele quando quiser
+          </li>
+        </ul>
+        <Button asChild variant="outline" size="sm" className="w-full">
+          <Link
+            href={phone ? `/conta/criar?phone=${encodeURIComponent(phone)}` : '/conta/criar'}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <UserIcon className="h-4 w-4" />
+            Criar minha conta
+          </Link>
+        </Button>
+        <p className="text-muted-foreground text-center text-[11px]">
+          É opcional - dá pra agendar sem conta.
+        </p>
+      </div>
+
       <div className="space-y-3">
         <p className="text-foreground flex items-center gap-1.5 text-sm font-medium">
           <Repeat className="h-4 w-4" aria-hidden="true" />
@@ -838,7 +877,8 @@ function CreateAccountCta({ phone }: { phone: string }) {
   return (
     <div className="space-y-2 border-t pt-4 text-center">
       <p className="text-muted-foreground text-sm">
-        Crie sua conta para acompanhar, remarcar e repetir seus agendamentos.
+        Crie sua conta e não digite nome e WhatsApp toda vez - receba lembretes e acompanhe,
+        remarque ou cancele quando quiser.
       </p>
       <Button asChild variant="outline" size="pill">
         <Link href={href}>
