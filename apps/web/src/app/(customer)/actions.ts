@@ -144,16 +144,20 @@ export async function customerSignIn(
     return { error: 'Credenciais inválidas' };
   }
 
-  // A sessão pode ser de um DONO (User) sem conta de cliente. Não misturamos
-  // identidades: encerra a sessão e orienta a usar o painel.
+  // Esta é a entrada de quem agenda. Se a sessão for de um dono/equipe (só tem
+  // User), manda pro painel em vez de prender aqui.
   const account = await prisma.customerAccount.findUnique({
     where: { authId: data.user.id },
   });
   if (!account) {
+    const user = await prisma.user.findUnique({ where: { authId: data.user.id } });
+    if (user) {
+      revalidatePath('/', 'layout');
+      redirect('/dashboard');
+    }
+    // Sessão sem vínculo no domínio (caso raro/órfão): encerra e avisa.
     await supabase.auth.signOut();
-    return {
-      error: 'Esta conta não tem área do cliente. Se você é dono, acesse o painel em /login.',
-    };
+    return { error: 'Não encontramos uma conta de agendamentos para este acesso.' };
   }
 
   revalidatePath('/', 'layout');

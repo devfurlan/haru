@@ -1,5 +1,6 @@
 'use client';
 
+import type { PlanTier } from '@haru/database';
 import Link from 'next/link';
 import { useActionState } from 'react';
 import { useFormStatus } from 'react-dom';
@@ -19,11 +20,12 @@ function SubmitButton() {
   );
 }
 
-export function SignupForm() {
+export function SignupForm({ plano }: { plano?: PlanTier | null }) {
   const [state, formAction] = useActionState<ActionResult, FormData>(signUp, undefined);
 
   return (
     <form action={formAction} className="space-y-4">
+      {plano && <input type="hidden" name="plano" value={plano} />}
       <div className="space-y-2">
         <Label htmlFor="businessName">Nome do estabelecimento</Label>
         <Input

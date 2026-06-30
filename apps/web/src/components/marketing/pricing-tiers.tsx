@@ -89,7 +89,7 @@ export function PricingTiers({ tiers }: { tiers: PricingTier[] }) {
     <>
       {/* Toggle de frequência */}
       <div className="mt-12 flex justify-center">
-        <div className="grid grid-cols-2 gap-1 rounded-full border border-border bg-paper p-1 text-sm font-semibold">
+        <div className="border-border bg-paper grid grid-cols-2 gap-1 rounded-full border p-1 text-sm font-semibold">
           {(['MONTHLY', 'ANNUAL'] as Cycle[]).map((c) => (
             <button
               key={c}
@@ -107,7 +107,7 @@ export function PricingTiers({ tiers }: { tiers: PricingTier[] }) {
           ))}
         </div>
       </div>
-      <p className="mt-3 text-center text-xs text-ink-soft/70">
+      <p className="text-ink-soft/70 mt-3 text-center text-xs">
         No plano anual você economiza ~20% (2 meses grátis).
       </p>
 
@@ -129,7 +129,7 @@ export function PricingTiers({ tiers }: { tiers: PricingTier[] }) {
               )}
             >
               {featured && (
-                <span className="absolute -top-3 left-8 rounded-full bg-coral px-3 py-1 text-[0.7rem] font-bold uppercase tracking-wide text-white shadow-coral">
+                <span className="bg-coral shadow-coral absolute -top-3 left-8 rounded-full px-3 py-1 text-[0.7rem] font-bold uppercase tracking-wide text-white">
                   Mais popular
                 </span>
               )}
@@ -171,7 +171,9 @@ export function PricingTiers({ tiers }: { tiers: PricingTier[] }) {
                 variant={featured ? 'coral' : 'ink'}
                 className="mt-6 w-full rounded-full"
               >
-                <Link href="/signup">Começar</Link>
+                <Link href={t.custom ? '/signup' : `/signup?plano=${t.tier.toLowerCase()}`}>
+                  Começar
+                </Link>
               </Button>
 
               <ul className="mt-8 flex flex-1 flex-col gap-3 text-[0.92rem] leading-snug">

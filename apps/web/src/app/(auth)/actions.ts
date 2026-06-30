@@ -9,6 +9,7 @@ import { Prisma, prisma } from '@haru/database';
 import { traduzErroSignUp } from '@/lib/auth-errors';
 import { getBaseUrl } from '@/lib/base-url';
 import { TERMS_VERSION } from '@/lib/legal';
+import { parsePlanParam } from '@/lib/plan-query';
 import { createClient } from '@/lib/supabase/server';
 import { uniqueSlug } from '@/lib/slug';
 
@@ -72,7 +73,10 @@ export async function signUp(_prev: ActionResult, formData: FormData): Promise<A
   }
 
   revalidatePath('/', 'layout');
-  redirect('/dashboard');
+  // Veio de um card de plano na home? Leva ao checkout com o plano já marcado;
+  // senão, cai no dashboard. parsePlanParam descarta valores inválidos.
+  const plano = parsePlanParam(formData.get('plano') as string | null);
+  redirect(plano ? `/assinatura?plano=${plano.toLowerCase()}` : '/dashboard');
 }
 
 const signInSchema = z.object({
@@ -90,9 +94,25 @@ export async function signIn(_prev: ActionResult, formData: FormData): Promise<A
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithPassword(parsed.data);
-  if (error) {
+  const { data, error } = await supabase.auth.signInWithPassword(parsed.data);
+  if (error || !data.user) {
     return { error: 'Credenciais inválidas' };
+  }
+
+  // Esta é a entrada do painel (dono/equipe). Se a sessão for de alguém que só tem
+  // conta de quem agenda, manda pra área de agendamentos em vez de prender no painel.
+  const user = await prisma.user.findUnique({ where: { authId: data.user.id } });
+  if (!user) {
+    const customer = await prisma.customerAccount.findUnique({
+      where: { authId: data.user.id },
+    });
+    if (customer) {
+      revalidatePath('/', 'layout');
+      redirect('/conta');
+    }
+    // Sessão sem vínculo no domínio (caso raro/órfão): encerra e avisa.
+    await supabase.auth.signOut();
+    return { error: 'Não encontramos um painel para esta conta.' };
   }
 
   revalidatePath('/', 'layout');

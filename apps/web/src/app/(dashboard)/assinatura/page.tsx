@@ -2,6 +2,7 @@ import { prisma } from '@haru/database';
 import { TIER_LABEL } from '@haru/billing';
 
 import { requireAdmin } from '@/lib/auth';
+import { parsePlanParam } from '@/lib/plan-query';
 
 import { BillingHistory } from './billing-history';
 import { ManageSubscription } from './manage-subscription';
@@ -15,9 +16,14 @@ const STATUS_LABEL: Record<string, string> = {
   CANCELED: 'Cancelada',
 };
 
-export default async function AssinaturaPage() {
+export default async function AssinaturaPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ plano?: string }>;
+}) {
   const { tenant } = await requireAdmin();
   const sub = tenant.subscription;
+  const preselectedTier = parsePlanParam((await searchParams).plano);
 
   // Planos contratáveis no self-serve: ativos e com preço (Enterprise = sob consulta,
   // fora do self-serve; contato pelo banner da landing).
@@ -66,6 +72,7 @@ export default async function AssinaturaPage() {
           <SubscribeForm
             plans={options}
             currentTier={sub?.planTier ?? null}
+            preselectedTier={preselectedTier}
             currentStatus={sub?.status ?? null}
           />
           <p className="text-muted-foreground text-xs">

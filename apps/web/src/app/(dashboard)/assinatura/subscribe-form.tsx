@@ -26,13 +26,17 @@ function fmtBRL(cents: number): string {
 export function SubscribeForm({
   plans,
   currentTier,
+  preselectedTier,
   currentStatus,
 }: {
   plans: PlanOption[];
   currentTier: PlanTier | null;
+  preselectedTier?: PlanTier | null;
   currentStatus: string | null;
 }) {
-  const [tier, setTier] = useState<PlanTier>(currentTier ?? plans[0]?.tier ?? 'ESSENCIAL');
+  const [tier, setTier] = useState<PlanTier>(
+    currentTier ?? preselectedTier ?? plans[0]?.tier ?? 'ESSENCIAL',
+  );
   const [cycle, setCycle] = useState<Cycle>('MONTHLY');
   const [method, setMethod] = useState<Method>('CARD');
   const [state, formAction, pending] = useActionState<CheckoutResult | undefined, FormData>(
@@ -52,7 +56,7 @@ export function SubscribeForm({
 
   if (cardOk) {
     return (
-      <div className="space-y-3 rounded-xl border bg-card p-6 text-sm">
+      <div className="bg-card space-y-3 rounded-xl border p-6 text-sm">
         <p className="font-medium">Redirecionando para o pagamento seguro…</p>
         <p className="text-muted-foreground">
           Se não abrir automaticamente,{' '}
@@ -67,7 +71,7 @@ export function SubscribeForm({
 
   if (pixOk) {
     return (
-      <div className="space-y-4 rounded-xl border bg-card p-6">
+      <div className="bg-card space-y-4 rounded-xl border p-6">
         <div>
           <p className="font-medium">Quase lá - pague o Pix para ativar</p>
           <p className="text-muted-foreground text-sm">

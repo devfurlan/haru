@@ -1,14 +1,22 @@
+import { TIER_LABEL } from '@haru/billing';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { getCurrentUserAndTenant } from '@/lib/auth';
+import { parsePlanParam } from '@/lib/plan-query';
 
 import { SignupForm } from './signup-form';
 
-export default async function SignupPage() {
+export default async function SignupPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ plano?: string }>;
+}) {
   const current = await getCurrentUserAndTenant();
   if (current) redirect('/dashboard');
+
+  const plano = parsePlanParam((await searchParams).plano);
 
   return (
     <Card>
@@ -17,7 +25,13 @@ export default async function SignupPage() {
         <CardDescription>Cadastre seu estabelecimento e comece a usar o Demandaê.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <SignupForm />
+        {plano && (
+          <div className="bg-muted/40 rounded-md border px-3 py-2 text-sm">
+            Plano escolhido: <strong className="font-medium">{TIER_LABEL[plano]}</strong>. Você
+            confirma e paga depois de criar a conta.
+          </div>
+        )}
+        <SignupForm plano={plano} />
         <p className="text-muted-foreground text-center text-sm">
           Já tem conta?{' '}
           <Link
