@@ -121,7 +121,7 @@ function PhoneInput({ id, defaultValue = '' }: { id: string; defaultValue?: stri
       type="tel"
       inputMode="numeric"
       autoComplete="tel"
-      placeholder="(11) 91409-2346"
+      placeholder="(11) 91234-5678"
       value={value}
       onChange={(e) => setValue(maskPhoneBRInput(e.target.value))}
       required

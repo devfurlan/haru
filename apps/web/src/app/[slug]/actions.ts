@@ -92,7 +92,7 @@ export type ContactLookupResult = { exists: boolean; name: string | null };
  */
 export async function lookupContact(slug: string, phone: string): Promise<ContactLookupResult> {
   // Normaliza pra E.164 (mesmo formato que o bot grava no banco) antes de buscar -
-  // senão o número nacional "11914092346" nunca casa com o "5511914092346" salvo.
+  // senão o número nacional "11912345678" nunca casa com o "5511912345678" salvo.
   const e164 = normalizePhoneBR(phone);
   if (!PHONE_RE.test(e164)) return { exists: false, name: null };
 

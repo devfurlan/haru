@@ -47,7 +47,7 @@ export function WhatsappForm({
             id="displayPhone"
             name="displayPhone"
             defaultValue={values.whatsappDisplayPhone ?? ''}
-            placeholder="5511914092346"
+            placeholder="5511912345678"
           />
         </Field>
         <Field

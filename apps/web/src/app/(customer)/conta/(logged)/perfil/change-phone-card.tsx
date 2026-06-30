@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { maskPhoneBRInput } from '@/lib/format';
+import { formatPhoneBR, maskPhoneBRInput } from '@/lib/format';
 
 function SubmitButton({ disabled }: { disabled: boolean }) {
   const { pending } = useFormStatus();
@@ -27,9 +27,9 @@ function SubmitButton({ disabled }: { disabled: boolean }) {
 export function ChangePhoneCard({ currentPhoneDisplay }: { currentPhoneDisplay: string }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [codeSent, setCodeSent] = useState(false);
   const [phone, setPhone] = useState('');
   const [code, setCode] = useState('');
-  const [codeSent, setCodeSent] = useState(false);
   const [sending, startSending] = useTransition();
   const [sendError, setSendError] = useState<string | null>(null);
   const [state, formAction] = useActionState<CustomerActionResult, FormData>(
@@ -39,9 +39,9 @@ export function ChangePhoneCard({ currentPhoneDisplay }: { currentPhoneDisplay: 
 
   function reset() {
     setOpen(false);
+    setCodeSent(false);
     setPhone('');
     setCode('');
-    setCodeSent(false);
     setSendError(null);
   }
 
@@ -53,10 +53,9 @@ export function ChangePhoneCard({ currentPhoneDisplay }: { currentPhoneDisplay: 
     }
   }, [state, router]);
 
-  const phoneDigits = phone.replace(/\D/g, '');
-  const canSend = phoneDigits.length >= 10 && !sending;
+  const canSend = phone.replace(/\D/g, '').length >= 10 && !sending;
 
-  function handleSendCode() {
+  function sendCode() {
     setSendError(null);
     startSending(async () => {
       const res = await sendCustomerPhoneChangeCode(phone);
@@ -82,79 +81,82 @@ export function ChangePhoneCard({ currentPhoneDisplay }: { currentPhoneDisplay: 
           <Button type="button" variant="outline" onClick={() => setOpen(true)}>
             Trocar número
           </Button>
-        ) : (
-          <form action={formAction} className="space-y-4">
+        ) : !codeSent ? (
+          // Passo 1: novo número.
+          <div className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="new-phone">Novo número</Label>
               <Input
                 id="new-phone"
-                name="phone"
                 type="tel"
                 inputMode="tel"
                 autoComplete="tel"
                 placeholder="(11) 91234-5678"
                 value={phone}
                 onChange={(e) => setPhone(maskPhoneBRInput(e.target.value))}
-                readOnly={codeSent}
+                autoFocus
                 required
               />
               <p className="text-muted-foreground text-xs">
-                Enviamos um código por SMS para confirmar que o novo número é seu.
+                Enviaremos um código por SMS para confirmar que o novo número é seu.
               </p>
             </div>
+            {sendError && <p className="text-destructive text-sm">{sendError}</p>}
+            <div className="flex gap-2">
+              <Button type="button" variant="ghost" onClick={reset}>
+                Cancelar
+              </Button>
+              <Button type="button" onClick={sendCode} disabled={!canSend}>
+                {sending ? 'Enviando código…' : 'Enviar código por SMS'}
+              </Button>
+            </div>
+          </div>
+        ) : (
+          // Passo 2: confirmar o código.
+          <form action={formAction} className="space-y-4">
+            <div className="space-y-1">
+              <p className="text-sm">
+                Enviamos um código por SMS para <strong>{formatPhoneBR(phone)}</strong>.
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setCodeSent(false);
+                  setCode('');
+                  setSendError(null);
+                }}
+                className="text-muted-foreground hover:text-foreground text-xs underline-offset-4 hover:underline"
+              >
+                Corrigir número
+              </button>
+            </div>
 
-            {!codeSent ? (
-              <div className="space-y-1">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full"
-                  onClick={handleSendCode}
-                  disabled={!canSend}
-                >
-                  {sending ? 'Enviando…' : 'Enviar código por SMS'}
-                </Button>
-                {sendError && <p className="text-destructive text-sm">{sendError}</p>}
-              </div>
-            ) : (
-              <div className="space-y-2">
-                <Label htmlFor="new-phone-code">Código recebido por SMS</Label>
-                <Input
-                  id="new-phone-code"
-                  name="code"
-                  type="text"
-                  inputMode="numeric"
-                  autoComplete="one-time-code"
-                  placeholder="000000"
-                  maxLength={8}
-                  value={code}
-                  onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
-                  required
-                />
-                <div className="flex items-center justify-between">
-                  <button
-                    type="button"
-                    onClick={handleSendCode}
-                    disabled={sending}
-                    className="text-muted-foreground hover:text-foreground text-xs underline-offset-4 hover:underline disabled:opacity-50"
-                  >
-                    {sending ? 'Reenviando…' : 'Reenviar código'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setCodeSent(false);
-                      setCode('');
-                      setSendError(null);
-                    }}
-                    className="text-muted-foreground hover:text-foreground text-xs underline-offset-4 hover:underline"
-                  >
-                    Corrigir número
-                  </button>
-                </div>
-                {sendError && <p className="text-destructive text-sm">{sendError}</p>}
-              </div>
-            )}
+            <div className="space-y-2">
+              <Label htmlFor="new-phone-code">Código recebido por SMS</Label>
+              <Input
+                id="new-phone-code"
+                name="code"
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                placeholder="000000"
+                maxLength={8}
+                value={code}
+                onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
+                autoFocus
+                required
+              />
+              <button
+                type="button"
+                onClick={sendCode}
+                disabled={sending}
+                className="text-muted-foreground hover:text-foreground text-xs underline-offset-4 hover:underline disabled:opacity-50"
+              >
+                {sending ? 'Reenviando…' : 'Reenviar código'}
+              </button>
+            </div>
+
+            <input type="hidden" name="phone" value={phone} />
 
             {state && 'error' in state && <p className="text-destructive text-sm">{state.error}</p>}
 
@@ -162,7 +164,7 @@ export function ChangePhoneCard({ currentPhoneDisplay }: { currentPhoneDisplay: 
               <Button type="button" variant="ghost" onClick={reset}>
                 Cancelar
               </Button>
-              <SubmitButton disabled={!codeSent || code.length < 4} />
+              <SubmitButton disabled={code.length < 4} />
             </div>
           </form>
         )}

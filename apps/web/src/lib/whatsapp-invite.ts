@@ -11,7 +11,7 @@ interface SendInviteArgs {
     | 'inviteTemplateName'
     | 'inviteTemplateLanguage'
   >;
-  /** Telefone do convidado em E.164 sem máscara (ex.: "5511914092346"). */
+  /** Telefone do convidado em E.164 sem máscara (ex.: "5511912345678"). */
   toPhone: string;
   /** Nome do convidado (usado só no texto de fallback). */
   inviteeName: string;

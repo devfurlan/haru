@@ -681,7 +681,7 @@ const phoneSchema = z
   .min(1, 'Telefone obrigatório')
   .transform(normalizePhoneBR)
   .refine((v) => /^55\d{10,11}$/.test(v), {
-    message: 'Telefone inválido. Use DDD + número (ex.: 11 91409-2346).',
+    message: 'Telefone inválido. Use DDD + número (ex.: 11 91234-5678).',
   });
 
 /** "true"/"on" -> profissional (com agenda); resto -> recepcionista (sem agenda). */

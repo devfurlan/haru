@@ -31,8 +31,8 @@ export function maskBRLInput(raw: string): string {
   return `${reais.toLocaleString('pt-BR')},${centavos}`;
 }
 
-// Formata um telefone E.164 brasileiro (ex.: "5511914092346") para exibição
-// humana: "(11) 91409-2346". Aceita celular (13 díg) e fixo (12 díg). Se não
+// Formata um telefone E.164 brasileiro (ex.: "5511912345678") para exibição
+// humana: "(11) 91234-5678". Aceita celular (13 díg) e fixo (12 díg). Se não
 // reconhecer o formato, retorna o valor original sem alterar.
 export function formatPhoneBR(phone: string | null | undefined): string {
   if (!phone) return '';
@@ -45,7 +45,7 @@ export function formatPhoneBR(phone: string | null | undefined): string {
   return phone;
 }
 
-// Normaliza um telefone BR pra E.164 sem máscara (ex.: "5511914092346") - formato
+// Normaliza um telefone BR pra E.164 sem máscara (ex.: "5511912345678") - formato
 // canônico do banco (o mesmo que o bot grava). Aceita entrada com máscara, com ou
 // sem DDI 55. Determinística: só prefixa o DDI quando a parte nacional tem 10 (fixo)
 // ou 11 (celular) dígitos e a entrada ainda não traz o 55 - evita DDI duplicado
@@ -59,8 +59,8 @@ export function normalizePhoneBR(raw: string): string {
 
 // Mascara o que o usuário digita num input de telefone BR, progressivamente:
 // "11"        -> "(11"
-// "1191409"   -> "(11) 91409"
-// "11914092346" -> "(11) 91409-2346"
+// "1191234"   -> "(11) 91234"
+// "11912345678" -> "(11) 91234-5678"
 // Aceita celular (11 díg nacionais) e fixo (10). Ignora DDI 55 inicial pra não
 // duplicar quando o valor vem do banco em E.164. O server action normaliza
 // depois via normalizePhoneBR, então enviar o valor mascarado é seguro.

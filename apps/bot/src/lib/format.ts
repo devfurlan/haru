@@ -55,8 +55,8 @@ export function formatDuration(minutes: number): string {
   return m === 0 ? `${h}h` : `${h}h${m}min`;
 }
 
-// Formata um telefone E.164 brasileiro (ex.: "5511914092346") para exibição
-// humana: "(11) 91409-2346". Aceita celular (13 díg) e fixo (12 díg). Se não
+// Formata um telefone E.164 brasileiro (ex.: "5511912345678") para exibição
+// humana: "(11) 91234-5678". Aceita celular (13 díg) e fixo (12 díg). Se não
 // reconhecer o formato, retorna o valor original sem alterar.
 export function formatPhoneBR(phone: string | null | undefined): string {
   if (!phone) return '';

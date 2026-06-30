@@ -97,51 +97,120 @@ function customerEmail(
   }
 }
 
+// Identidade visual Demandaê (cores da marca) usada no template do DONO.
+const SERIF = "'Fraunces', Georgia, 'Times New Roman', serif";
+const SANS =
+  "'Hanken Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, system-ui, sans-serif";
+
+/**
+ * Template Demandaê-branded (estilo "Linear": card branco, faixa coral no topo,
+ * wordmark, painel de detalhes estruturado) usado nos e-mails do DONO. Espelho do
+ * apps/web/src/lib/appointment-email.ts. Tudo inline + table-based (Gmail/Outlook).
+ */
+function brandedOwnerEmail(args: {
+  title: string;
+  intro: string;
+  rows: { label: string; value: string }[];
+  ctaLabel: string;
+  ctaLink: string;
+}): string {
+  const rowsHtml = args.rows
+    .map(
+      (r, i) => `
+              <tr><td style="padding-top:${i === 0 ? '0' : '14px'};font-family:${SANS};font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#8a958f;">${r.label}</td></tr>
+              <tr><td style="padding-top:3px;font-family:${SANS};font-size:15px;font-weight:600;color:#0f1f18;">${r.value}</td></tr>`,
+    )
+    .join('');
+
+  return `
+  <div style="margin:0;padding:0;background:#faf5ea;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#faf5ea;">
+      <tr><td align="center" style="padding:32px 16px;">
+        <table role="presentation" width="520" cellpadding="0" cellspacing="0" style="width:520px;max-width:100%;background:#ffffff;border:1px solid #ece3d3;border-top:3px solid #ff5a36;border-radius:16px;">
+          <tr><td style="padding:28px 36px 0;">
+            <span style="font-family:${SERIF};font-weight:900;font-size:22px;letter-spacing:-0.02em;color:#0f1f18;">Demanda<span style="color:#ff5a36;">ê</span></span><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#ff5a36;margin-left:5px;"></span>
+          </td></tr>
+          <tr><td style="padding:22px 36px 0;">
+            <h1 style="margin:0;font-family:${SERIF};font-weight:800;font-size:21px;line-height:1.3;color:#0f1f18;">${args.title}</h1>
+          </td></tr>
+          <tr><td style="padding:10px 36px 0;">
+            <p style="margin:0;font-family:${SANS};font-size:14px;line-height:1.65;color:#27392f;">${args.intro}</p>
+          </td></tr>
+          <tr><td style="padding:20px 36px 0;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#fbf8f1;border:1px solid #ece3d3;border-radius:12px;">
+              <tr><td style="padding:18px 20px;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0">${rowsHtml}
+                </table>
+              </td></tr>
+            </table>
+          </td></tr>
+          <tr><td style="padding:24px 36px 4px;">
+            <a href="${args.ctaLink}" style="display:inline-block;background:#ff5a36;color:#ffffff;font-family:${SANS};font-size:14px;font-weight:600;text-decoration:none;padding:12px 22px;border-radius:10px;">${args.ctaLabel}</a>
+          </td></tr>
+          <tr><td style="padding:26px 36px 28px;">
+            <div style="border-top:1px solid #ece3d3;padding-top:18px;font-family:${SANS};font-size:12px;line-height:1.5;color:#9aa39d;">
+              Demanda<span style="color:#ff5a36;">ê</span> · agendamento e atendimento por IA no WhatsApp.
+            </div>
+          </td></tr>
+        </table>
+      </td></tr>
+    </table>
+  </div>`;
+}
+
 function ownerEmail(event: AppointmentEmailEvent, ctx: CopyCtx): { subject: string; html: string } {
   const hi = ctx.name ? `Olá, ${ctx.name}!` : 'Olá!';
-  const det = detailsBlock(ctx.when, ctx.serviceName, ctx.person);
-  const cta = 'Abrir agenda';
-  const link = `${appUrl()}/appointments`;
+  const rows = [
+    { label: 'Data e hora', value: ctx.when },
+    { label: 'Serviço', value: ctx.serviceName },
+    { label: 'Cliente', value: ctx.person ?? '-' },
+  ];
+  const ctaLabel = 'Abrir agenda';
+  const ctaLink = `${appUrl()}/appointments`;
   switch (event) {
     case 'created':
       return {
         subject: `Novo agendamento - ${ctx.tenantName}`,
-        html: shell(
-          'Novo agendamento (aguardando confirmação)',
-          `${hi} Entrou um novo agendamento em <strong>${ctx.tenantName}</strong>, aguardando sua confirmação no painel:${det}`,
-          cta,
-          link,
-        ),
+        html: brandedOwnerEmail({
+          title: 'Novo agendamento',
+          intro: `${hi} Entrou um novo agendamento em <strong>${ctx.tenantName}</strong>, aguardando sua confirmação no painel.`,
+          rows,
+          ctaLabel,
+          ctaLink,
+        }),
       };
     case 'confirmed':
       return {
         subject: `Novo agendamento - ${ctx.tenantName}`,
-        html: shell(
-          'Novo agendamento',
-          `${hi} Entrou um novo agendamento em <strong>${ctx.tenantName}</strong>:${det}`,
-          cta,
-          link,
-        ),
+        html: brandedOwnerEmail({
+          title: 'Novo agendamento',
+          intro: `${hi} Entrou um novo agendamento em <strong>${ctx.tenantName}</strong>.`,
+          rows,
+          ctaLabel,
+          ctaLink,
+        }),
       };
     case 'rescheduled':
       return {
         subject: `Agendamento remarcado - ${ctx.tenantName}`,
-        html: shell(
-          'Agendamento remarcado',
-          `${hi} Um cliente remarcou um agendamento em <strong>${ctx.tenantName}</strong>:${det}`,
-          cta,
-          link,
-        ),
+        html: brandedOwnerEmail({
+          title: 'Agendamento remarcado',
+          intro: `${hi} Um cliente remarcou um agendamento em <strong>${ctx.tenantName}</strong>.`,
+          rows,
+          ctaLabel,
+          ctaLink,
+        }),
       };
     case 'canceled':
       return {
         subject: `Agendamento cancelado - ${ctx.tenantName}`,
-        html: shell(
-          'Agendamento cancelado',
-          `${hi} Um cliente cancelou um agendamento em <strong>${ctx.tenantName}</strong>:${det}`,
-          cta,
-          link,
-        ),
+        html: brandedOwnerEmail({
+          title: 'Agendamento cancelado',
+          intro: `${hi} Um cliente cancelou um agendamento em <strong>${ctx.tenantName}</strong>.`,
+          rows,
+          ctaLabel,
+          ctaLink,
+        }),
       };
   }
 }

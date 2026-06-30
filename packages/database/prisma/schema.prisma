@@ -119,7 +119,7 @@ model User {
   authId      String     @unique
   email       String     @unique
   name        String?
-  /// Telefone E.164 sem máscara (ex.: "5511914092346"). Destino do convite por
+  /// Telefone E.164 sem máscara (ex.: "5511912345678"). Destino do convite por
   /// WhatsApp. Opcional - OWNER criado no signup não tem telefone.
   phone       String?
   role        UserRole   @default(OWNER)

@@ -43,7 +43,7 @@ function toAsaasDate(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
 
-/** E.164 ("5511914092346") → número nacional ("11914092346") pro Asaas. */
+/** E.164 ("5511912345678") → número nacional ("11912345678") pro Asaas. */
 function toNationalPhone(phoneE164: string): string {
   const digits = phoneE164.replace(/\D/g, '');
   return digits.startsWith('55') && digits.length > 11 ? digits.slice(2) : digits;
