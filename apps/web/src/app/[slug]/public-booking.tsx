@@ -729,6 +729,51 @@ function StepConfirmar({
         </div>
       </dl>
 
+      {/* Recorrência é propriedade do próprio agendamento - fica junto do resumo
+          (lei da proximidade), antes de pedir contato ou oferecer conta. */}
+      <div className="space-y-3">
+        <p className="text-foreground flex items-center gap-1.5 text-sm font-medium">
+          <Repeat className="h-4 w-4" aria-hidden="true" />
+          Repetir agendamento?
+        </p>
+        <div className="flex flex-wrap gap-2" role="group" aria-label="Repetição">
+          {FREQUENCY_ORDER.map((f) => (
+            <Button
+              key={f}
+              type="button"
+              variant={frequency === f ? 'coral' : 'outline'}
+              size="sm"
+              aria-pressed={frequency === f}
+              onClick={() => onChangeFrequency(f)}
+            >
+              {FREQUENCY_LABELS[f]}
+            </Button>
+          ))}
+        </div>
+        {frequency !== 'NONE' ? (
+          <div className="space-y-2">
+            <p className="text-muted-foreground text-sm">Quantas vezes no total?</p>
+            <div className="flex flex-wrap gap-2" role="group" aria-label="Número de ocorrências">
+              {RECURRENCE_OCCURRENCE_OPTIONS.map((n) => (
+                <Button
+                  key={n}
+                  type="button"
+                  variant={occurrences === n ? 'coral' : 'outline'}
+                  size="sm"
+                  aria-pressed={occurrences === n}
+                  onClick={() => onChangeOccurrences(n)}
+                >
+                  {n}×
+                </Button>
+              ))}
+            </div>
+            <p className="text-muted-foreground text-xs">
+              Pulamos automaticamente datas sem horário livre (até 90 dias).
+            </p>
+          </div>
+        ) : null}
+      </div>
+
       {/* Contato: só agora pedimos os dados, já preenchidos com o que houver salvo. */}
       <div className="space-y-4">
         <div className="space-y-1.5">
@@ -800,49 +845,6 @@ function StepConfirmar({
         <p className="text-muted-foreground text-center text-[11px]">
           É opcional - dá pra agendar sem conta.
         </p>
-      </div>
-
-      <div className="space-y-3">
-        <p className="text-foreground flex items-center gap-1.5 text-sm font-medium">
-          <Repeat className="h-4 w-4" aria-hidden="true" />
-          Repetir agendamento?
-        </p>
-        <div className="flex flex-wrap gap-2" role="group" aria-label="Repetição">
-          {FREQUENCY_ORDER.map((f) => (
-            <Button
-              key={f}
-              type="button"
-              variant={frequency === f ? 'coral' : 'outline'}
-              size="sm"
-              aria-pressed={frequency === f}
-              onClick={() => onChangeFrequency(f)}
-            >
-              {FREQUENCY_LABELS[f]}
-            </Button>
-          ))}
-        </div>
-        {frequency !== 'NONE' ? (
-          <div className="space-y-2">
-            <p className="text-muted-foreground text-sm">Quantas vezes no total?</p>
-            <div className="flex flex-wrap gap-2" role="group" aria-label="Número de ocorrências">
-              {RECURRENCE_OCCURRENCE_OPTIONS.map((n) => (
-                <Button
-                  key={n}
-                  type="button"
-                  variant={occurrences === n ? 'coral' : 'outline'}
-                  size="sm"
-                  aria-pressed={occurrences === n}
-                  onClick={() => onChangeOccurrences(n)}
-                >
-                  {n}×
-                </Button>
-              ))}
-            </div>
-            <p className="text-muted-foreground text-xs">
-              Pulamos automaticamente datas sem horário livre (até 90 dias).
-            </p>
-          </div>
-        ) : null}
       </div>
 
       <form action={formAction} className="space-y-3">
