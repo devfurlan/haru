@@ -11,6 +11,9 @@ const InputOTP = React.forwardRef<
 >(({ className, containerClassName, ...props }, ref) => (
   <OTPInput
     ref={ref}
+    // Sem a estratégia padrão o input escondido ganha +40px de largura (pra empurrar
+    // o badge de gerenciador de senha) e vaza pra fora, criando scrollbar horizontal.
+    pushPasswordManagerStrategy="none"
     containerClassName={cn(
       'flex items-center gap-2 has-[:disabled]:opacity-50',
       containerClassName,
