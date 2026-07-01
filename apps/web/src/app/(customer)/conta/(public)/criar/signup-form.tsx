@@ -8,6 +8,7 @@ import { customerSignUp, type CustomerActionResult } from '@/app/(customer)/acti
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { PasswordInput } from '@/components/ui/password-input';
 import { maskPhoneBRInput } from '@/lib/format';
 
 function CreateButton() {
@@ -78,10 +79,9 @@ export function CustomerSignupForm({
       </div>
       <div className="space-y-2">
         <Label htmlFor="password">Senha</Label>
-        <Input
+        <PasswordInput
           id="password"
           name="password"
-          type="password"
           autoComplete="new-password"
           minLength={8}
           required
