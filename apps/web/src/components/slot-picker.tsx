@@ -282,11 +282,17 @@ export function SlotPicker({
   }, [serviceId, dateStr, professionalId]);
 
   // Rola o carrossel até o chip selecionado (ex.: quando vem do date-picker).
+  // Mexe SÓ no scrollLeft do rail - `scrollIntoView` rolaria também os ancestrais
+  // (o modal), arrastando o conteúdo de lado.
   const railRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    if (!dateStr || !railRef.current) return;
-    const chip = railRef.current.querySelector<HTMLElement>(`[data-day="${dateStr}"]`);
-    chip?.scrollIntoView({ inline: 'center', block: 'nearest' });
+    const rail = railRef.current;
+    if (!dateStr || !rail) return;
+    const chip = rail.querySelector<HTMLElement>(`[data-day="${dateStr}"]`);
+    if (!chip) return;
+    const railRect = rail.getBoundingClientRect();
+    const chipRect = chip.getBoundingClientRect();
+    rail.scrollLeft += chipRect.left + chipRect.width / 2 - (railRect.left + railRect.width / 2);
   }, [dateStr]);
 
   // Dia escolhido pelo calendário pode cair fora do carrossel contínuo; anexa um
