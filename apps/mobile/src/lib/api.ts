@@ -1,0 +1,99 @@
+// Cliente da API mobile (/api/mobile/v1/*). Anexa o Bearer token da sessão Supabase
+// em cada request. Os tipos espelham o JSON dos route handlers (datas viram string ISO).
+import type { AvailableSlot } from '@haru/shared';
+
+import { supabase } from './supabase';
+
+const BASE = process.env.EXPO_PUBLIC_API_URL;
+if (!BASE) throw new Error('Falta EXPO_PUBLIC_API_URL no .env');
+
+export type Me = {
+  id: string;
+  name: string | null;
+  email: string;
+  phone: string | null;
+  pendingPhone: string | null;
+  phoneVerified: boolean;
+};
+
+export type PaymentLite = { status: string; amountCents: number } | null;
+
+// Espelha CustomerAppointmentItem do web, com startsAt serializado como string ISO.
+export type AppointmentItem = {
+  id: string;
+  serviceId: string;
+  serviceName: string;
+  serviceActive: boolean;
+  durationMinutes: number;
+  priceCents: number;
+  professionalName: string | null;
+  startsAt: string;
+  whenLabel: string;
+  status: 'PENDING' | 'CONFIRMED' | 'CANCELED' | 'COMPLETED' | 'NO_SHOW';
+  seriesId: string | null;
+  tenant: { id: string; name: string; slug: string; timezone: string; logoUrl: string | null };
+  openWeekdays: number[];
+  currentDateStr: string;
+  isPast: boolean;
+  isActive: boolean;
+  payment: PaymentLite;
+};
+
+export type AppointmentsData = { upcoming: AppointmentItem[]; past: AppointmentItem[] };
+
+export class ApiError extends Error {
+  constructor(
+    public status: number,
+    message: string,
+  ) {
+    super(message);
+  }
+}
+
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+  const res = await fetch(`${BASE}/api/mobile/v1${path}`, {
+    ...init,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(init?.headers as Record<string, string> | undefined),
+    },
+  });
+  const body = (await res.json().catch(() => null)) as unknown;
+  if (!res.ok) {
+    const message =
+      body && typeof body === 'object' && 'error' in body
+        ? String((body as { error: unknown }).error)
+        : 'Erro inesperado';
+    throw new ApiError(res.status, message);
+  }
+  return body as T;
+}
+
+export const api = {
+  me: () => request<Me>('/me'),
+  appointments: () => request<AppointmentsData>('/appointments'),
+  cancel: (id: string) => request<{ ok: true }>(`/appointments/${id}/cancel`, { method: 'POST' }),
+  reschedule: (id: string, newStartsAtIso: string) =>
+    request<{ ok: true }>(`/appointments/${id}/reschedule`, {
+      method: 'POST',
+      body: JSON.stringify({ newStartsAtIso }),
+    }),
+  rescheduleSlots: (id: string, serviceId: string, dateStr: string) =>
+    request<{ slots: AvailableSlot[] }>(`/appointments/${id}/reschedule-slots`, {
+      method: 'POST',
+      body: JSON.stringify({ serviceId, dateStr }),
+    }),
+  rebook: (sourceAppointmentId: string, slotIso: string) =>
+    request<{ ok: true; status: string }>('/rebook', {
+      method: 'POST',
+      body: JSON.stringify({ sourceAppointmentId, slotIso }),
+    }),
+  rebookSlots: (sourceAppointmentId: string, serviceId: string, dateStr: string) =>
+    request<{ slots: AvailableSlot[] }>('/rebook-slots', {
+      method: 'POST',
+      body: JSON.stringify({ sourceAppointmentId, serviceId, dateStr }),
+    }),
+};

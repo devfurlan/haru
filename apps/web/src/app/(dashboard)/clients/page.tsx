@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { requireUserAndTenant } from '@/lib/auth';
-import { formatPhoneBR } from '@/lib/format';
+import { formatPhoneBR } from '@haru/shared';
 
 interface PageProps {
   searchParams: Promise<{ q?: string }>;

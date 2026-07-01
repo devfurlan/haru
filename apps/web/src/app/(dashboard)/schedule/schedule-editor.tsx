@@ -6,7 +6,7 @@ import { useState, useTransition } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { hhmmToMinutes, minutesToHHMM } from '@/lib/format';
+import { hhmmToMinutes, minutesToHHMM } from '@haru/shared';
 
 import { saveSchedule } from './actions';
 

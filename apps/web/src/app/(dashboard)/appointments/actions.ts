@@ -13,15 +13,15 @@ import {
   rescheduleAppointmentCore,
 } from '@/lib/appointment-mutations';
 import { createAppointmentSeries } from '@/lib/appointment-series';
-import { type AvailableSlotWithProfessionals, localWallTimeToUtc } from '@/lib/availability';
+import { type AvailableSlotWithProfessionals, localWallTimeToUtc } from '@haru/shared';
 import { requireUserAndTenant } from '@/lib/auth';
 import {
   getServiceDaySlots,
   getServiceProfessionals,
   resolveBookingProfessional,
 } from '@/lib/professionals';
-import { BOOKING_HORIZON_DAYS, isoDateInTz } from '@/lib/booking-days';
-import { normalizePhoneBR } from '@/lib/format';
+import { BOOKING_HORIZON_DAYS, isoDateInTz } from '@haru/shared';
+import { normalizePhoneBR } from '@haru/shared';
 import { notifyAppointmentCreated } from '@/lib/notify';
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;

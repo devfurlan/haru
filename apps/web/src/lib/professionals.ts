@@ -13,7 +13,7 @@ import {
   type ProfessionalAvailabilityInput,
   computeSlotsAcrossProfessionals,
   localWallTimeToUtc,
-} from './availability';
+} from '@haru/shared';
 
 export interface ProfessionalLite {
   id: string;

@@ -34,15 +34,15 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
-import { type AvailableSlot } from '@/lib/availability';
-import { buildBookingDays, isoDateInTz, labelFromIso, type BookingDay } from '@/lib/booking-days';
+import { type AvailableSlot } from '@haru/shared';
+import { buildBookingDays, isoDateInTz, labelFromIso, type BookingDay } from '@haru/shared';
 import {
   formatBRL,
   formatDuration,
   formatPhoneBR,
   isValidCpfCnpj,
   maskCpfCnpjInput,
-} from '@/lib/format';
+} from '@haru/shared';
 import { RECURRENCE_OCCURRENCE_OPTIONS, type RecurrenceFrequency } from '@/lib/recurrence';
 
 import {

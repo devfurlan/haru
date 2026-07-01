@@ -6,7 +6,7 @@ import { useFormStatus } from 'react-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { maskBRLInput } from '@/lib/format';
+import { maskBRLInput } from '@haru/shared';
 
 import { createService, updateService, type ServiceActionResult } from './actions';
 

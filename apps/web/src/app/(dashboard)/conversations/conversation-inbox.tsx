@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 
 import { createClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/utils';
-import { formatPhoneBR } from '@/lib/format';
+import { formatPhoneBR } from '@haru/shared';
 import { formatFullDateTime, formatRelativeShort } from '@/lib/relative-time';
 import { Button } from '@/components/ui/button';
 

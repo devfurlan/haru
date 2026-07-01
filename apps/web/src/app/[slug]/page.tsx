@@ -3,11 +3,11 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
-import { formatBRL, formatDuration, minutesToHHMM } from '@/lib/format';
+import { formatBRL, formatDuration, minutesToHHMM } from '@haru/shared';
 
 import { Button } from '@/components/ui/button';
 
-import { BOOKING_HORIZON_DAYS, buildBookingDays } from '@/lib/booking-days';
+import { BOOKING_HORIZON_DAYS, buildBookingDays } from '@haru/shared';
 import { getCustomerAccount } from '@/lib/customer-auth';
 import { isWhatsappConnected } from '@/lib/whatsapp-status';
 

@@ -5,6 +5,7 @@ import { requireCustomerAccount } from '@/lib/customer-auth';
 import { getCustomerAppointments } from '@/lib/customer';
 
 import { AppointmentCard } from './appointment-card';
+import { PendingPhoneNotice } from './pending-phone-notice';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,6 +14,9 @@ export default async function CustomerHomePage() {
   const { upcoming, past } = await getCustomerAppointments(account);
   const next = upcoming[0] ?? null;
   const firstName = (account.name ?? '').trim().split(' ')[0];
+  // Sem telefone confirmado, a conta ainda não "enxerga" agendamento nenhum (o claim
+  // por OTP não rodou). Aí o vazio não é "não tem" - é "falta confirmar o WhatsApp".
+  const phonePending = !account.phone;
 
   return (
     <div className="space-y-8">
@@ -27,6 +31,8 @@ export default async function CustomerHomePage() {
         <h2 className="text-sm font-medium">Próximo agendamento</h2>
         {next ? (
           <AppointmentCard item={next} />
+        ) : phonePending ? (
+          <PendingPhoneNotice />
         ) : (
           <div className="bg-card text-muted-foreground rounded-xl border p-6 text-center text-sm">
             Você não tem agendamentos futuros.

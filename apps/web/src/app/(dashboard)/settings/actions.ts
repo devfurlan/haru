@@ -16,7 +16,7 @@ import { encryptSecret } from '@haru/payments';
 
 import { requireAdmin, requireUserAndTenant } from '@/lib/auth';
 import { getBaseUrl } from '@/lib/base-url';
-import { normalizePhoneBR } from '@/lib/format';
+import { normalizePhoneBR } from '@haru/shared';
 import { createClient } from '@/lib/supabase/server';
 import { getSupabaseAdmin } from '@/lib/supabase/admin';
 import { saveWhatsappCredentials } from '@/lib/whatsapp-credentials';

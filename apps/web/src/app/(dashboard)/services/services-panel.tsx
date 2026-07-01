@@ -6,7 +6,7 @@ import { useState, useTransition } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { formatBRL, formatDuration } from '@/lib/format';
+import { formatBRL, formatDuration } from '@haru/shared';
 import { cn } from '@/lib/utils';
 
 import { deleteService, toggleServiceActive } from './actions';

@@ -1,6 +1,6 @@
 import { requireCustomerAccount } from '@/lib/customer-auth';
 import { getCustomerProfile } from '@/lib/customer';
-import { formatPhoneBR, maskCpfCnpjInput } from '@/lib/format';
+import { formatPhoneBR, maskCpfCnpjInput } from '@haru/shared';
 
 import { ChangePhoneCard } from './change-phone-card';
 import { CustomerNotificationsCard } from './notifications-card';

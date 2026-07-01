@@ -7,10 +7,10 @@ import { type AppointmentStatus, prisma } from '@haru/database';
 
 import { createBookingCore } from '@/lib/appointment-mutations';
 import { createAppointmentSeries } from '@/lib/appointment-series';
-import { type AvailableSlotWithProfessionals, localWallTimeToUtc } from '@/lib/availability';
-import { BOOKING_HORIZON_DAYS, isoDateInTz } from '@/lib/booking-days';
+import { type AvailableSlotWithProfessionals, localWallTimeToUtc } from '@haru/shared';
+import { BOOKING_HORIZON_DAYS, isoDateInTz } from '@haru/shared';
 import { getCustomerAccount } from '@/lib/customer-auth';
-import { normalizePhoneBR } from '@/lib/format';
+import { normalizePhoneBR } from '@haru/shared';
 import { notifyAppointmentCreated } from '@/lib/notify';
 import { getServiceDaySlots, resolveBookingProfessional } from '@/lib/professionals';
 

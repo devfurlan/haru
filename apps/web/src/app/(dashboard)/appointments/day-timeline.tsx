@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState, useTransition } from 'react';
 
 import type { AppointmentStatus } from '@haru/database';
 
-import { formatPhoneBR } from '@/lib/format';
+import { formatPhoneBR } from '@haru/shared';
 import { cn } from '@/lib/utils';
 
 import { deleteScheduleException } from './actions';

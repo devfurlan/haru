@@ -11,7 +11,7 @@ import {
 } from '@/app/(customer)/actions';
 import { SlotPicker } from '@/components/slot-picker';
 import { Button } from '@/components/ui/button';
-import { BOOKING_HORIZON_DAYS } from '@/lib/booking-days';
+import { BOOKING_HORIZON_DAYS } from '@haru/shared';
 
 interface RebookFormProps {
   sourceAppointmentId: string;

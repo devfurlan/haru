@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { requireCustomerAccount } from '@/lib/customer-auth';
 import { getRebookSource } from '@/lib/customer';
-import { formatBRL, formatDuration } from '@/lib/format';
+import { formatBRL, formatDuration } from '@haru/shared';
 
 import { RebookForm } from './rebook-form';
 

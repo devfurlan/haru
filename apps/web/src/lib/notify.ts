@@ -1,6 +1,6 @@
 import { prisma } from '@haru/database';
 
-import { formatBRL, formatPhoneBR } from '@/lib/format';
+import { formatBRL, formatPhoneBR } from '@haru/shared';
 
 type AppointmentEventName =
   | 'appointment.created'

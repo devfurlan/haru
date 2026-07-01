@@ -4,6 +4,7 @@ import { requireCustomerAccount } from '@/lib/customer-auth';
 import { getCustomerAppointments } from '@/lib/customer';
 
 import { AppointmentCard } from '../appointment-card';
+import { PendingPhoneNotice } from '../pending-phone-notice';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,6 +13,8 @@ export default async function CustomerAppointmentsPage() {
   const { upcoming, past } = await getCustomerAppointments(account);
 
   const isEmpty = upcoming.length === 0 && past.length === 0;
+  // Vazio com telefone pendente = falta confirmar o WhatsApp, não "não tem nada".
+  const phonePending = !account.phone;
 
   return (
     <div className="space-y-8">
@@ -23,14 +26,18 @@ export default async function CustomerAppointmentsPage() {
       </div>
 
       {isEmpty ? (
-        <div className="bg-card rounded-xl border p-8 text-center">
-          <p className="text-muted-foreground text-sm">
-            Você ainda não tem agendamentos vinculados a esta conta.
-          </p>
-          <p className="text-muted-foreground mt-1 text-xs">
-            Quando agendar com o mesmo WhatsApp, eles aparecem aqui.
-          </p>
-        </div>
+        phonePending ? (
+          <PendingPhoneNotice />
+        ) : (
+          <div className="bg-card rounded-xl border p-8 text-center">
+            <p className="text-muted-foreground text-sm">
+              Você ainda não tem agendamentos vinculados a esta conta.
+            </p>
+            <p className="text-muted-foreground mt-1 text-xs">
+              Quando agendar com o mesmo WhatsApp, eles aparecem aqui.
+            </p>
+          </div>
+        )
       ) : (
         <>
           <section className="space-y-3">

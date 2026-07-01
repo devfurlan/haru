@@ -4,7 +4,7 @@ import { prisma } from '@haru/database';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { requireUserAndTenant } from '@/lib/auth';
-import { BOOKING_HORIZON_DAYS } from '@/lib/booking-days';
+import { BOOKING_HORIZON_DAYS } from '@haru/shared';
 
 import { NewAppointmentForm } from './new-appointment-form';
 

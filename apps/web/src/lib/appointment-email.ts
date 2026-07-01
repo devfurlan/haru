@@ -3,7 +3,7 @@ import 'server-only';
 import { prisma } from '@haru/database';
 
 import { appUrl, emailShell, ownerOf, sendEmail } from '@/lib/email';
-import { formatPhoneBR } from '@/lib/format';
+import { formatPhoneBR } from '@haru/shared';
 
 /**
  * E-mails de agendamento (Resend) para o CLIENTE (quem agenda) e para o DONO.

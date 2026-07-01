@@ -4,7 +4,7 @@ import { type PaymentMethod, prisma } from '@haru/database';
 import { hasFeature } from '@haru/billing';
 import { getGatewayForTenant, GatewayNotImplementedError, PaymentConfigError } from '@haru/payments';
 
-import { isValidCpfCnpj, onlyDigits } from '@/lib/format';
+import { isValidCpfCnpj, onlyDigits } from '@haru/shared';
 
 export type CreatePaymentResult =
   | { error: string; needsDocument?: boolean }

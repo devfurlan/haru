@@ -20,7 +20,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { formatPhoneBR, maskPhoneBRInput } from '@/lib/format';
+import { formatPhoneBR, maskPhoneBRInput } from '@haru/shared';
 
 function SubmitButton({ disabled }: { disabled: boolean }) {
   const { pending } = useFormStatus();
@@ -85,8 +85,8 @@ export function ConfirmPhoneBar({ pendingPhone }: { pendingPhone: string | null 
     <div className="bg-coral/10 border-coral/20 border-b">
       <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-2">
         <p className="text-foreground text-sm">
-          <strong className="font-medium">Confirme seu WhatsApp</strong> para receber lembretes dos
-          seus agendamentos.
+          <strong className="font-medium">Confirme seu WhatsApp</strong> para ver seus agendamentos
+          aqui e receber lembretes.
         </p>
         <Dialog open={open} onOpenChange={(o) => (o ? setOpen(true) : reset())}>
           <DialogTrigger asChild>

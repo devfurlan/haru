@@ -4,7 +4,7 @@ import Link from 'next/link';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { requireUserAndTenant } from '@/lib/auth';
-import { formatPhoneBR } from '@/lib/format';
+import { formatPhoneBR } from '@haru/shared';
 import { isWhatsappConnected } from '@/lib/whatsapp-status';
 
 function formatWhen(date: Date, timezone: string): string {

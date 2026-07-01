@@ -15,7 +15,7 @@ import {
   getPendingInvoiceUrl,
   updateAsaasSubscription,
 } from '@/lib/billing/asaas';
-import { isValidCpfCnpj, onlyDigits } from '@/lib/format';
+import { isValidCpfCnpj, onlyDigits } from '@haru/shared';
 
 export type CheckoutResult =
   | { error: string }

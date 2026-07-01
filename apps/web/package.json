@@ -14,6 +14,7 @@
     "@haru/billing": "workspace:*",
     "@haru/database": "workspace:*",
     "@haru/payments": "workspace:*",
+    "@haru/shared": "workspace:*",
     "@haru/ui": "workspace:*",
     "@hookform/resolvers": "^3.9.1",
     "@radix-ui/react-dialog": "^1.1.15",

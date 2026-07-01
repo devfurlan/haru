@@ -20,7 +20,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { BOOKING_HORIZON_DAYS } from '@/lib/booking-days';
+import { BOOKING_HORIZON_DAYS } from '@haru/shared';
 import type { CustomerAppointmentItem } from '@/lib/customer';
 
 function SubmitButton({ disabled }: { disabled: boolean }) {

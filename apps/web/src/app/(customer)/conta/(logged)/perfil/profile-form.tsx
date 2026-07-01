@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { maskCpfCnpjInput } from '@/lib/format';
+import { maskCpfCnpjInput } from '@haru/shared';
 
 interface ProfileFormProps {
   name: string;

@@ -1,7 +1,7 @@
 import { prisma } from '@haru/database';
 import type { AppointmentStatus, CustomerAccount, PaymentStatus } from '@haru/database';
 
-import { isoDateInTz } from '@/lib/booking-days';
+import { isoDateInTz } from '@haru/shared';
 
 // Leituras da ÁREA DO CLIENTE. Cross-tenant: parte dos Contacts vinculados à conta
 // (customerAccountId) e busca os agendamentos por contactId. O gate de ownership é o

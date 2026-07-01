@@ -10,7 +10,7 @@
 import { prisma, type AppointmentStatus } from '@haru/database';
 
 import { sendAppointmentEmails } from '@/lib/appointment-email';
-import { BOOKING_HORIZON_DAYS, isoDateInTz } from '@/lib/booking-days';
+import { BOOKING_HORIZON_DAYS, isoDateInTz } from '@haru/shared';
 import {
   notifyAppointmentCanceled,
   notifyAppointmentCreated,

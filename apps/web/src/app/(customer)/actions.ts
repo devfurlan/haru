@@ -6,19 +6,19 @@ import { z } from 'zod';
 
 import { prisma, type AppointmentStatus } from '@haru/database';
 
-import {
-  cancelAppointmentCore,
-  createBookingCore,
-  rescheduleAppointmentCore,
-} from '@/lib/appointment-mutations';
 import { traduzErroSignUp } from '@/lib/auth-errors';
-import type { AvailableSlot } from '@/lib/availability';
-import { BOOKING_HORIZON_DAYS, isoDateInTz } from '@/lib/booking-days';
+import type { AvailableSlot } from '@haru/shared';
+import {
+  cancelOwnedAppointment,
+  loadRebookSlots,
+  loadRescheduleSlots,
+  rebookOwned,
+  rescheduleOwnedAppointment,
+} from '@/lib/customer-appointments';
 import { requireCustomerAccount } from '@/lib/customer-auth';
 import { claimContactsByPhone } from '@/lib/customer-claim';
-import { isValidCpfCnpj, normalizePhoneBR, onlyDigits } from '@/lib/format';
+import { isValidCpfCnpj, normalizePhoneBR, onlyDigits } from '@haru/shared';
 import { TERMS_VERSION } from '@/lib/legal';
-import { getServiceDaySlots, resolveBookingProfessional } from '@/lib/professionals';
 import { createClient } from '@/lib/supabase/server';
 import { checkPhoneOtp, sendPhoneOtp } from '@/lib/twilio-verify';
 
@@ -342,28 +342,8 @@ export async function customerChangePhone(
 // Reagendar / cancelar (gate de ownership por customerAccountId).
 // ---------------------------------------------------------------------------
 
-/**
- * Carrega um agendamento garantindo que pertence ao cliente logado (via o Contact
- * vinculado). Filtra no `where` - nunca confia em id vindo do client. null = não é
- * do cliente / não existe.
- */
-async function getOwnedAppointment(customerAccountId: string, appointmentId: string) {
-  return prisma.appointment.findFirst({
-    where: { id: appointmentId, contact: { customerAccountId } },
-    select: {
-      id: true,
-      tenantId: true,
-      serviceId: true,
-      professionalId: true,
-      contactId: true,
-      status: true,
-      service: { select: { durationMinutes: true, active: true } },
-      tenant: {
-        select: { timezone: true, publicBookingEnabled: true, publicBookingConfirmation: true },
-      },
-    },
-  });
-}
+// O gate de ownership (getOwnedAppointment) e os cores de reagendar/cancelar/rebook
+// vivem em @/lib/customer-appointments - compartilhados com os route handlers do app.
 
 const rescheduleSchema = z.object({
   newStartsAtIso: z
@@ -380,22 +360,13 @@ export async function customerRescheduleAppointment(
   formData: FormData,
 ): Promise<CustomerActionResult> {
   const account = await requireCustomerAccount();
-  const appt = await getOwnedAppointment(account.id, appointmentId);
-  if (!appt) return { error: 'Agendamento não encontrado' };
 
   const parsed = rescheduleSchema.safeParse({ newStartsAtIso: formData.get('newStartsAtIso') });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? 'Dados inválidos' };
   }
 
-  const result = await rescheduleAppointmentCore({
-    appointmentId: appt.id,
-    tenantId: appt.tenantId,
-    newStartsAt: parsed.data.newStartsAtIso,
-    // O cliente remarcou ele mesmo: avisa o DONO por e-mail, não o próprio cliente.
-    notifyCustomer: false,
-    notifyOwner: true,
-  });
+  const result = await rescheduleOwnedAppointment(account, appointmentId, parsed.data.newStartsAtIso);
   if ('error' in result) {
     return { error: result.error };
   }
@@ -409,19 +380,9 @@ export async function customerCancelAppointment(
   appointmentId: string,
 ): Promise<CustomerActionResult> {
   const account = await requireCustomerAccount();
-  const appt = await getOwnedAppointment(account.id, appointmentId);
-  if (!appt) return { error: 'Agendamento não encontrado' };
 
-  // O cliente cancelou ele mesmo: avisa o dono (webhook, dentro do core), mas não
-  // dispara o template de "cancelado" pro próprio cliente - ele acabou de cancelar.
-  const changed = await cancelAppointmentCore({
-    appointmentId: appt.id,
-    tenantId: appt.tenantId,
-    notifyClient: false,
-    // ...mas avisa o DONO por e-mail que o cliente cancelou.
-    notifyOwner: true,
-  });
-  if (!changed) return { error: 'Não foi possível cancelar este agendamento' };
+  const result = await cancelOwnedAppointment(account, appointmentId);
+  if ('error' in result) return { error: result.error };
 
   revalidatePath('/conta');
   revalidatePath('/conta/agendamentos');
@@ -438,21 +399,8 @@ export async function customerLoadSlots(
   serviceId: string,
   dateStr: string,
 ): Promise<AvailableSlot[]> {
-  if (!DATE_RE.test(dateStr)) return [];
   const account = await requireCustomerAccount();
-  const appt = await getOwnedAppointment(account.id, appointmentId);
-  if (!appt || appt.serviceId !== serviceId) return [];
-
-  return getServiceDaySlots({
-    tenantId: appt.tenantId,
-    serviceId: appt.serviceId,
-    tz: appt.tenant.timezone,
-    durationMinutes: appt.service.durationMinutes,
-    dateStr,
-    now: new Date(),
-    professionalId: appt.professionalId,
-    excludeAppointmentId: appt.id,
-  });
+  return loadRescheduleSlots(account, appointmentId, serviceId, dateStr);
 }
 
 // ---------------------------------------------------------------------------
@@ -487,63 +435,14 @@ export async function customerRebook(
     return { error: parsed.error.issues[0]?.message ?? 'Dados inválidos' };
   }
 
-  const source = await getOwnedAppointment(account.id, parsed.data.sourceAppointmentId);
-  if (!source) return { error: 'Agendamento não encontrado' };
-  if (!source.tenant.publicBookingEnabled) {
-    return { error: 'Este estabelecimento não está aceitando agendamentos online.' };
-  }
-  if (!source.service.active) {
-    return { error: 'Este serviço não está mais disponível.' };
-  }
-
-  const startsAt = parsed.data.slotIso;
-  const dateStr = isoDateInTz(startsAt, source.tenant.timezone);
-
-  // Resolve o profissional revalidando o slot no servidor. Prioriza o profissional
-  // original; se ele não estiver livre nesse horário, cai pra "sem preferência".
-  let resolved = await resolveBookingProfessional({
-    tenantId: source.tenantId,
-    serviceId: source.serviceId,
-    tz: source.tenant.timezone,
-    durationMinutes: source.service.durationMinutes,
-    startsAt,
-    dateStr,
-    now: new Date(),
-    requestedProfessionalId: source.professionalId,
-  });
-  if (!resolved.ok) {
-    resolved = await resolveBookingProfessional({
-      tenantId: source.tenantId,
-      serviceId: source.serviceId,
-      tz: source.tenant.timezone,
-      durationMinutes: source.service.durationMinutes,
-      startsAt,
-      dateStr,
-      now: new Date(),
-      requestedProfessionalId: undefined,
-    });
-  }
-  if (!resolved.ok) {
-    return { error: resolved.reason };
-  }
-
-  const status = source.tenant.publicBookingConfirmation as unknown as AppointmentStatus;
-  const result = await createBookingCore({
-    tenantId: source.tenantId,
-    contactId: source.contactId,
-    serviceId: source.serviceId,
-    professionalId: resolved.professionalId,
-    startsAt,
-    durationMinutes: source.service.durationMinutes,
-    status,
-  });
+  const result = await rebookOwned(account, parsed.data.sourceAppointmentId, parsed.data.slotIso);
   if ('error' in result) {
     return { error: result.error };
   }
 
   revalidatePath('/conta');
   revalidatePath('/conta/agendamentos');
-  return { ok: true, status };
+  return { ok: true, status: result.status };
 }
 
 /**
@@ -555,28 +454,8 @@ export async function customerRebookSlots(
   serviceId: string,
   dateStr: string,
 ): Promise<AvailableSlot[]> {
-  if (!DATE_RE.test(dateStr)) return [];
   const account = await requireCustomerAccount();
-  const source = await getOwnedAppointment(account.id, sourceAppointmentId);
-  if (!source || source.serviceId !== serviceId) return [];
-
-  // Janela permitida: nem no passado, nem além do horizonte de agendamento.
-  const today = isoDateInTz(new Date(), source.tenant.timezone);
-  const maxDate = isoDateInTz(
-    new Date(Date.now() + (BOOKING_HORIZON_DAYS - 1) * 86_400_000),
-    source.tenant.timezone,
-  );
-  if (dateStr < today || dateStr > maxDate) return [];
-
-  return getServiceDaySlots({
-    tenantId: source.tenantId,
-    serviceId: source.serviceId,
-    tz: source.tenant.timezone,
-    durationMinutes: source.service.durationMinutes,
-    dateStr,
-    now: new Date(),
-    professionalId: source.professionalId,
-  });
+  return loadRebookSlots(account, sourceAppointmentId, serviceId, dateStr);
 }
 
 // ---------------------------------------------------------------------------

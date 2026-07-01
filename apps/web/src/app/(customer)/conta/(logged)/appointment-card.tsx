@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { STATUS_LABEL, STATUS_STYLE } from '@/lib/appointment-status';
 import type { CustomerAppointmentItem } from '@/lib/customer';
-import { formatBRL, formatDuration } from '@/lib/format';
+import { formatBRL, formatDuration } from '@haru/shared';
 import { cn } from '@/lib/utils';
 
 import { CancelDialog } from './agendamentos/cancel-dialog';

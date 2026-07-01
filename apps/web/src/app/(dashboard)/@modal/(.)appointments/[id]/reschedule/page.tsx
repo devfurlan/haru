@@ -5,8 +5,8 @@ import { notFound } from 'next/navigation';
 import { prisma } from '@haru/database';
 
 import { requireUserAndTenant } from '@/lib/auth';
-import { BOOKING_HORIZON_DAYS, isoDateInTz } from '@/lib/booking-days';
-import { formatPhoneBR } from '@/lib/format';
+import { BOOKING_HORIZON_DAYS, isoDateInTz } from '@haru/shared';
+import { formatPhoneBR } from '@haru/shared';
 
 import { RescheduleForm } from '@/app/(dashboard)/appointments/[id]/reschedule/reschedule-form';
 

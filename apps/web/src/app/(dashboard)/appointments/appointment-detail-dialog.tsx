@@ -4,7 +4,7 @@ import { Repeat } from 'lucide-react';
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { STATUS_LABEL, STATUS_STYLE } from '@/lib/appointment-status';
-import { formatPhoneBR } from '@/lib/format';
+import { formatPhoneBR } from '@haru/shared';
 import { cn } from '@/lib/utils';
 
 import { AppointmentActions } from './appointment-actions';

@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { STATUS_LABEL, STATUS_STYLE } from '@/lib/appointment-status';
 import { requireUserAndTenant } from '@/lib/auth';
-import { formatPhoneBR } from '@/lib/format';
+import { formatPhoneBR } from '@haru/shared';
 import { cn } from '@/lib/utils';
 
 import { AppointmentActions } from './appointment-actions';

@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { prisma } from '@haru/database';
 
 import { requireUserAndTenant } from '@/lib/auth';
-import { BOOKING_HORIZON_DAYS } from '@/lib/booking-days';
+import { BOOKING_HORIZON_DAYS } from '@haru/shared';
 
 import { NewAppointmentForm } from '@/app/(dashboard)/appointments/new/new-appointment-form';
 

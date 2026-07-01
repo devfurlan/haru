@@ -1,6 +1,6 @@
 import { prisma } from '@haru/database';
 
-import { normalizePhoneBR } from '@/lib/format';
+import { normalizePhoneBR } from '@haru/shared';
 
 // SEGURANÇA (LGPD): este claim expõe dados de terceiros (nome/CPF/histórico) ligados
 // a um telefone. Por isso SÓ pode ser chamado APÓS provar a posse do número. Hoje a

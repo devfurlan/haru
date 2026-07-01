@@ -12,8 +12,8 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
-import { type AvailableSlot } from '@/lib/availability';
-import { buildBookingDays, isoDateInTz, labelFromIso, type BookingDay } from '@/lib/booking-days';
+import { type AvailableSlot } from '@haru/shared';
+import { buildBookingDays, isoDateInTz, labelFromIso, type BookingDay } from '@haru/shared';
 
 // Seletor de dia + horário pré-definido pelo painel. Mesma lógica visual do
 // agendamento público (carrossel de dias + calendário + grade de horários), mas

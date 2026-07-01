@@ -7,7 +7,7 @@ import { AppointmentActions } from '@/app/(dashboard)/appointments/appointment-a
 import { Card, CardContent } from '@/components/ui/card';
 import { STATUS_LABEL, STATUS_STYLE } from '@/lib/appointment-status';
 import { requireUserAndTenant } from '@/lib/auth';
-import { formatBRL, formatDateOnly, formatDuration, formatPhoneBR } from '@/lib/format';
+import { formatBRL, formatDateOnly, formatDuration, formatPhoneBR } from '@haru/shared';
 import { formatFullDateTime } from '@/lib/relative-time';
 import { cn } from '@/lib/utils';
 
