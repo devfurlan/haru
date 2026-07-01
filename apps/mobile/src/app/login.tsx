@@ -7,9 +7,11 @@ import {
   Pressable,
   Text,
   TextInput,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { GoogleAuthButton } from '@/components/google-auth-button';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 
@@ -83,6 +85,14 @@ export default function LoginScreen() {
             <Text className="text-base font-semibold text-white">Entrar</Text>
           )}
         </Pressable>
+
+        <View className="my-5 flex-row items-center gap-3">
+          <View className="bg-ink/10 h-px flex-1" />
+          <Text className="text-muted text-xs">ou</Text>
+          <View className="bg-ink/10 h-px flex-1" />
+        </View>
+
+        <GoogleAuthButton onError={setError} />
 
         <Link href="/signup" asChild>
           <Pressable className="mt-6">

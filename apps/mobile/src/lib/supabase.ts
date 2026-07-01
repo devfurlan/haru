@@ -16,7 +16,10 @@ export const supabase = createClient(url, key, {
     storage: AsyncStorage,
     autoRefreshToken: true,
     persistSession: true,
-    // Sem OAuth por URL no app (login é email/senha).
+    // OAuth (Google) usa PKCE: o retorno traz `?code=...` e a gente chama
+    // exchangeCodeForSession (ver lib/google-auth.ts). Não afeta o login por senha.
+    flowType: 'pkce',
+    // A gente parseia o code manualmente do retorno do WebBrowser, não pela URL.
     detectSessionInUrl: false,
   },
 });

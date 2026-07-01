@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { maskPhoneBRInput } from '@haru/shared';
 
+import { GoogleAuthButton } from '@/components/google-auth-button';
 import { api, ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
@@ -150,6 +151,17 @@ export default function SignupScreen() {
               <Text className="text-base font-semibold text-white">Criar conta</Text>
             )}
           </Pressable>
+
+          <View className="my-5 flex-row items-center gap-3">
+            <View className="bg-ink/10 h-px flex-1" />
+            <Text className="text-muted text-xs">ou</Text>
+            <View className="bg-ink/10 h-px flex-1" />
+          </View>
+
+          <GoogleAuthButton onError={setError} />
+          <Text className="text-muted mt-3 text-center text-xs">
+            Ao continuar com Google, você aceita os Termos de Uso e a Política de Privacidade.
+          </Text>
 
           <Link href="/login" asChild>
             <Pressable className="mt-6">

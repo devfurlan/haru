@@ -87,6 +87,8 @@ additional_redirect_urls = [
   "http://localhost:3001/auth/callback",
   "http://localhost:4361/auth/confirm",
   "http://localhost:4361/redefinir-senha",
+  # Deep link do app mobile (Expo scheme "demandae") p/ o retorno do OAuth.
+  "demandae://auth/callback",
 ]
 jwt_expiry = 3600
 enable_refresh_token_rotation = true
@@ -125,6 +127,20 @@ otp_expiry = 3600
 [auth.email.template.recovery]
 subject = "Redefina sua senha - Demandaê"
 content_path = "./supabase/templates/recovery.html"
+
+# Login/cadastro com Google (só a área do cliente usa - web /conta e app mobile).
+# As credenciais vêm de um OAuth Client (tipo Web) no Google Cloud. IMPORTANTE: o
+# Supabase hospedado (produção) NÃO lê este config.toml - configurar o provider e
+# a redirect URL demandae://auth/callback direto no dashboard (Auth → Providers).
+[auth.external.google]
+enabled = true
+# O client_id não é segredo (vai na URL do OAuth, visível no navegador) - fica literal.
+# Só o secret vem de env var (ver .env.example na raiz). Mesmo client serve local e
+# prod: os dois redirect URIs (localhost:54361 e o projeto .supabase.co) estão no
+# OAuth Client do Google Cloud.
+client_id = "455302122913-2hmggges1q01jqfio38n71ei6cq8ea8s.apps.googleusercontent.com"
+secret = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_SECRET)"
+skip_nonce_check = false
 
 [auth.sms]
 enable_signup = false

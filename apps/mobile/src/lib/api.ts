@@ -145,6 +145,9 @@ export const api = {
     phone: string;
     acceptTerms: boolean;
   }) => request<{ ok: true }>('/auth/signup', { method: 'POST', body: JSON.stringify(input) }),
+  // Pós-login com Google: garante o CustomerAccount (a sessão já existe). 409 = e-mail
+  // já usado por conta de senha.
+  oauthEnsure: () => request<{ ok: true }>('/auth/oauth', { method: 'POST' }),
   tenant: (slug: string) => request<PublicTenant>(`/tenants/${slug}`),
   tenantSlots: (slug: string, serviceId: string, dateStr: string, professionalId?: string) =>
     request<{ slots: AvailableSlot[] }>(`/tenants/${slug}/slots`, {

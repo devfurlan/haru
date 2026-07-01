@@ -4,6 +4,8 @@ import { redirect } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { getCustomerAccount } from '@/lib/customer-auth';
 
+import { GoogleAuthButton } from '../google-auth-button';
+import { OrDivider } from '../or-divider';
 import { CustomerSignupForm } from './signup-form';
 
 export default async function CustomerSignupPage() {
@@ -18,6 +20,8 @@ export default async function CustomerSignupPage() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        <GoogleAuthButton />
+        <OrDivider />
         <CustomerSignupForm />
         <p className="text-muted-foreground text-center text-sm">
           Já tem conta?{' '}
