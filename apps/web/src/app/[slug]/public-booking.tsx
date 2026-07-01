@@ -12,6 +12,7 @@ import {
   Copy,
   CreditCard,
   PartyPopper,
+  Pencil,
   QrCode,
   Repeat,
   Sparkles,
@@ -81,8 +82,10 @@ interface PublicBookingProps {
   horizonDays: number;
   /** Cliente já chegou logado (sessão de CustomerAccount no servidor). */
   loggedIn: boolean;
-  /** Nome da conta logada, pra saudar - null quando convidado. */
+  /** Nome da conta logada, pra saudar e pré-preencher - null quando convidado. */
   customerName: string | null;
+  /** Telefone da conta (confirmado ou pendente), pra pré-preencher - null se convidado. */
+  customerPhone: string | null;
 }
 
 /**
@@ -717,11 +720,34 @@ function StepConfirmar({
   const phoneOk = phone.length >= 10;
   const nameOk = name.trim().length >= 2;
 
+  // Já tem conta? (logado ao chegar OU criou agora.) Aí o contato vira texto + "Editar"
+  // em vez de campos soltos - não faz sentido pedir de novo dados que a conta já tem.
+  const hasAccount = loggedIn || accountCreated;
+
   // Primeiro nome pra saudar (da conta logada ou do que ele digitou).
   const firstName = (customerName || name).trim().split(/\s+/)[0] ?? '';
 
   // Modal de cadastro inline - não tira o cliente do agendamento. Fecha via onSuccess.
   const [signupOpen, setSignupOpen] = useState(false);
+
+  // Modal de edição de contato (nome + telefone), só pra quem tem conta. Draft local:
+  // só grava no estado do agendamento (onChange*) ao clicar em Salvar.
+  const [editOpen, setEditOpen] = useState(false);
+  const [draftName, setDraftName] = useState(name);
+  const [draftPhone, setDraftPhone] = useState(phone);
+  const draftNameOk = draftName.trim().length >= 2;
+  const draftPhoneOk = draftPhone.length >= 10;
+  function openEdit() {
+    setDraftName(name);
+    setDraftPhone(phone);
+    setEditOpen(true);
+  }
+  function saveEdit() {
+    if (!draftNameOk || !draftPhoneOk) return;
+    onChangeName(draftName.trim());
+    onChangePhone(draftPhone);
+    setEditOpen(false);
+  }
 
   return (
     <div className="space-y-6">
@@ -796,40 +822,103 @@ function StepConfirmar({
         ) : null}
       </div>
 
-      {/* Contato: só agora pedimos os dados, já preenchidos com o que houver salvo. */}
-      <div className="space-y-4">
-        <div className="space-y-1.5">
-          <Label htmlFor="booking-phone">WhatsApp</Label>
-          <Input
-            id="booking-phone"
-            name="display-phone"
-            type="tel"
-            inputMode="numeric"
-            autoComplete="tel"
-            placeholder="(11) 91234-5678"
-            value={formatPhoneBR(phone) || phone}
-            onChange={(e) => onChangePhone(e.target.value.replace(/\D/g, '').slice(0, 13))}
-            aria-invalid={phone.length > 0 && !phoneOk}
-            aria-describedby="booking-phone-hint"
-          />
-          <p id="booking-phone-hint" className="text-muted-foreground text-xs">
-            Pra confirmar o agendamento pelo WhatsApp. Inclua o DDD.
-          </p>
+      {/* Contato. Com conta: mostra nome/telefone como texto (a conta já os tem) e um
+          "Editar" que abre um modal. Convidado: campos abertos, pois é a 1ª vez. */}
+      {hasAccount ? (
+        <div className="bg-card flex items-start justify-between gap-3 rounded-xl border p-4">
+          <dl className="min-w-0 space-y-2 text-sm">
+            <div>
+              <dt className="text-muted-foreground">WhatsApp</dt>
+              <dd className="text-foreground font-medium">{formatPhoneBR(phone) || phone || '-'}</dd>
+            </div>
+            <div>
+              <dt className="text-muted-foreground">Nome</dt>
+              <dd className="text-foreground font-medium">{name || '-'}</dd>
+            </div>
+          </dl>
+          <Dialog open={editOpen} onOpenChange={setEditOpen}>
+            <DialogTrigger asChild>
+              <Button type="button" variant="outline" size="sm" className="shrink-0" onClick={openEdit}>
+                <Pencil className="h-4 w-4" />
+                Editar
+              </Button>
+            </DialogTrigger>
+            <DialogContent dismissable={false} className="max-w-sm">
+              <DialogHeader>
+                <DialogTitle>Editar seus dados</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit-phone">WhatsApp</Label>
+                  <Input
+                    id="edit-phone"
+                    type="tel"
+                    inputMode="numeric"
+                    autoComplete="tel"
+                    placeholder="(11) 91234-5678"
+                    value={formatPhoneBR(draftPhone) || draftPhone}
+                    onChange={(e) => setDraftPhone(e.target.value.replace(/\D/g, '').slice(0, 13))}
+                    aria-invalid={draftPhone.length > 0 && !draftPhoneOk}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit-name">Nome</Label>
+                  <Input
+                    id="edit-name"
+                    autoComplete="name"
+                    placeholder="Como podemos te chamar?"
+                    value={draftName}
+                    onChange={(e) => setDraftName(e.target.value)}
+                    aria-invalid={draftName.length > 0 && !draftNameOk}
+                  />
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button type="button" variant="ghost" onClick={() => setEditOpen(false)}>
+                    Cancelar
+                  </Button>
+                  <Button type="button" onClick={saveEdit} disabled={!draftNameOk || !draftPhoneOk}>
+                    Salvar
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
+      ) : (
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="booking-phone">WhatsApp</Label>
+            <Input
+              id="booking-phone"
+              name="display-phone"
+              type="tel"
+              inputMode="numeric"
+              autoComplete="tel"
+              placeholder="(11) 91234-5678"
+              value={formatPhoneBR(phone) || phone}
+              onChange={(e) => onChangePhone(e.target.value.replace(/\D/g, '').slice(0, 13))}
+              aria-invalid={phone.length > 0 && !phoneOk}
+              aria-describedby="booking-phone-hint"
+            />
+            <p id="booking-phone-hint" className="text-muted-foreground text-xs">
+              Pra confirmar o agendamento pelo WhatsApp. Inclua o DDD.
+            </p>
+          </div>
 
-        <div className="space-y-1.5">
-          <Label htmlFor="booking-name">Nome</Label>
-          <Input
-            id="booking-name"
-            name="display-name"
-            autoComplete="name"
-            placeholder="Como podemos te chamar?"
-            value={name}
-            onChange={(e) => onChangeName(e.target.value)}
-            aria-invalid={name.length > 0 && !nameOk}
-          />
+          <div className="space-y-1.5">
+            <Label htmlFor="booking-name">Nome</Label>
+            <Input
+              id="booking-name"
+              name="display-name"
+              autoComplete="name"
+              placeholder="Como podemos te chamar?"
+              value={name}
+              onChange={(e) => onChangeName(e.target.value)}
+              aria-invalid={name.length > 0 && !nameOk}
+            />
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Estado da conta no passo de confirmação:
           - criou conta agora (modal) -> boas-vindas + como vincular (validar WhatsApp);
@@ -848,15 +937,7 @@ function StepConfirmar({
             na sua conta.
           </p>
         </div>
-      ) : loggedIn ? (
-        <div className="border-green/20 bg-accent flex items-start gap-2 rounded-xl border p-4">
-          <CheckCircle2 className="text-green mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-          <p className="text-foreground text-sm">
-            Você está logado{firstName ? ` como ${firstName}` : ''} - este agendamento entra na sua
-            conta.
-          </p>
-        </div>
-      ) : (
+      ) : loggedIn ? null : (
         <div className="border-green/20 bg-accent space-y-3 rounded-xl border p-4">
           <p className="text-foreground flex items-center gap-1.5 text-sm font-medium">
             <Sparkles className="text-green h-4 w-4 shrink-0" aria-hidden="true" />
@@ -1321,6 +1402,7 @@ export function PublicBooking({
   horizonDays,
   loggedIn,
   customerName,
+  customerPhone,
 }: PublicBookingProps) {
   const router = useRouter();
   const [step, setStep] = useState<Step>(0);
@@ -1368,10 +1450,18 @@ export function PublicBooking({
   // não tem acesso ao localStorage). O usuário começa no passo 0 (vitrine), então
   // o campo de contato já chega preenchido quando ele avança pro passo 1.
   useEffect(() => {
+    // Logado: os dados vêm da conta (mais autoritativos que o cache do dispositivo),
+    // e o passo final mostra nome/telefone como texto + "Editar" em vez de campos.
+    if (loggedIn) {
+      if (customerName) setName(customerName);
+      if (customerPhone) setPhone(customerPhone.replace(/\D/g, '').slice(0, 13));
+      return;
+    }
     const saved = readSavedContact();
     if (!saved) return;
     setPhone(saved.phone);
     if (saved.name) setName(saved.name);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only; props do servidor são estáveis.
   }, []);
 
   // Auto-preenche o nome de quem já é cliente assim que o telefone fica válido -
@@ -1401,6 +1491,11 @@ export function PublicBooking({
   // Aviso exibido no passo 1 quando o usuário é trazido de volta por expiração
   // do horário/serviço que tinha escolhido (em vez de pular de tela em silêncio).
   const [expiryNotice, setExpiryNotice] = useState<string | null>(null);
+  // Erro do submit em estado local (espelhado do useActionState): assim dá pra
+  // limpá-lo quando o cliente reescolhe dia/horário. Preso ao state da action, o
+  // erro do envio anterior ("já tem agendamento nesse dia") ficaria na tela mesmo
+  // depois de ele trocar de dia, até um novo submit.
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   // Recorrência (opcional, no passo de confirmação). 'NONE' = agendamento único.
   const [frequency, setFrequency] = useState<FrequencyChoice>('NONE');
@@ -1452,6 +1547,8 @@ export function PublicBooking({
   // recarrega tudo, então um horário que expirou some da grade na re-busca.
   useEffect(() => {
     setSelectedSlotIso('');
+    // Trocar serviço/dia/profissional invalida qualquer erro do submit anterior.
+    setSubmitError(null);
     if (!serviceId || !dateStr) {
       setSlots([]);
       return;
@@ -1471,7 +1568,11 @@ export function PublicBooking({
     }
   }, [state]);
 
-  const submitError = state && 'error' in state ? state.error : null;
+  // Espelha o erro da action pro estado local; a limpeza acontece ao reescolher
+  // dia/horário (effect de slots acima e handleSelectSlot).
+  useEffect(() => {
+    if (state && 'error' in state) setSubmitError(state.error);
+  }, [state]);
 
   // Robustez: se chegamos no passo 2 (confirmação) mas o slot/serviço escolhido
   // sumiu (ex.: a re-busca o removeu por ter expirado), volta pro passo 1 pra
@@ -1503,6 +1604,8 @@ export function PublicBooking({
 
   function handleSelectSlot(slot: AvailableSlot) {
     setExpiryNotice(null);
+    // Reescolher o horário (mesmo dia) também invalida o erro do submit anterior.
+    setSubmitError(null);
     setSelectedSlotIso(slot.startsAtIso);
     setStep(2);
   }

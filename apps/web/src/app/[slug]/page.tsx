@@ -130,6 +130,7 @@ export default async function TenantPublicPage({ params }: { params: Promise<{ s
             horizonDays={BOOKING_HORIZON_DAYS}
             loggedIn={!!customerAccount}
             customerName={customerAccount?.name ?? null}
+            customerPhone={customerAccount?.phone ?? customerAccount?.pendingPhone ?? null}
           />
         )}
 
