@@ -98,6 +98,7 @@
   --animate-pulse-ring: pulse-ring 2s infinite;
   --animate-pulse-ring-coral: pulse-ring-coral 2s infinite;
   --animate-blink: blink 1.2s infinite;
+  --animate-caret-blink: caret-blink 1s ease-out infinite;
 }
 
 @keyframes rise {
@@ -143,6 +144,18 @@
   }
   30% {
     opacity: 1;
+  }
+}
+
+@keyframes caret-blink {
+  0%,
+  70%,
+  100% {
+    opacity: 1;
+  }
+  20%,
+  50% {
+    opacity: 0;
   }
 }
 

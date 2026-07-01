@@ -1,5 +1,6 @@
 'use client';
 
+import { REGEXP_ONLY_DIGITS } from 'input-otp';
 import { useRouter } from 'next/navigation';
 import { useActionState, useEffect, useState, useTransition } from 'react';
 import { useFormStatus } from 'react-dom';
@@ -19,8 +20,11 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
 import { Label } from '@/components/ui/label';
 import { formatPhoneBR, maskPhoneBRInput } from '@haru/shared';
+
+import { ResendCodeButton } from './resend-code-button';
 
 function SubmitButton({ disabled }: { disabled: boolean }) {
   const { pending } = useFormStatus();
@@ -153,27 +157,22 @@ export function ConfirmPhoneBar({ pendingPhone }: { pendingPhone: string | null 
 
                 <div className="space-y-2">
                   <Label htmlFor="confirm-code">Código recebido por SMS</Label>
-                  <Input
+                  <InputOTP
                     id="confirm-code"
                     name="code"
-                    type="text"
-                    inputMode="numeric"
-                    autoComplete="one-time-code"
-                    placeholder="000000"
-                    maxLength={8}
+                    maxLength={6}
+                    pattern={REGEXP_ONLY_DIGITS}
                     value={code}
-                    onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
+                    onChange={setCode}
                     autoFocus
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={sendCode}
-                    disabled={sending}
-                    className="text-muted-foreground hover:text-foreground text-xs underline-offset-4 hover:underline disabled:opacity-50"
                   >
-                    {sending ? 'Reenviando…' : 'Reenviar código'}
-                  </button>
+                    <InputOTPGroup>
+                      {[0, 1, 2, 3, 4, 5].map((i) => (
+                        <InputOTPSlot key={i} index={i} />
+                      ))}
+                    </InputOTPGroup>
+                  </InputOTP>
+                  <ResendCodeButton onResend={sendCode} sending={sending} />
                 </div>
 
                 <input type="hidden" name="phone" value={phone} />
@@ -186,7 +185,7 @@ export function ConfirmPhoneBar({ pendingPhone }: { pendingPhone: string | null 
                   <Button type="button" variant="ghost" onClick={reset}>
                     Agora não
                   </Button>
-                  <SubmitButton disabled={code.length < 4} />
+                  <SubmitButton disabled={code.length < 6} />
                 </div>
               </form>
             )}
