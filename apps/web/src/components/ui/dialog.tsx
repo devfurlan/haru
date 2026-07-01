@@ -45,7 +45,10 @@ const DialogContent = React.forwardRef<
         // `overflow-x-hidden` é explícito porque `overflow-y-auto` sozinho faz o
         // overflow-x computar como `auto` (CSS), deixando o modal rolar de lado -
         // aí um `scrollIntoView({inline:'center'})` interno arrasta o modal inteiro.
-        'fixed left-1/2 top-1/2 z-50 grid max-h-[calc(100dvh-2rem)] w-full max-w-md -translate-x-1/2 -translate-y-1/2 gap-4 overflow-y-auto overflow-x-hidden rounded-2xl border border-border bg-background p-6 shadow-lg',
+        // `[&>*]:min-w-0`: sendo `grid`, os filhos diretos têm `min-width:auto` e
+        // NÃO encolhem - um filho com conteúdo largo (ex.: carrossel rolável)
+        // expande pro max-content e estoura o modal. min-w-0 deixa encolher.
+        'fixed left-1/2 top-1/2 z-50 grid max-h-[calc(100dvh-2rem)] w-full max-w-md -translate-x-1/2 -translate-y-1/2 gap-4 overflow-y-auto overflow-x-hidden rounded-2xl border border-border bg-background p-6 shadow-lg [&>*]:min-w-0',
         className,
       )}
       onInteractOutside={(e) => {
