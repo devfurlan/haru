@@ -679,3 +679,51 @@ enum BillingCycle {
   MONTHLY
   ANNUAL
 }
+
+// --- Suporte in-app (bot de IA que responde dúvidas e coleta feedback) --------
+// Uma linha por mensagem (usuário ou assistente). O "histórico" de uma pessoa é o
+// conjunto de linhas dela ordenado por createdAt - não há tabela de thread. Serve os
+// dois apps: WEB (dono do negócio, via userId+tenantId) e MOBILE (cliente final, via
+// customerAccountId). Quando a IA detecta crítica/sugestão, marca feedbackCategory e o
+// servidor manda um e-mail; nada é respondido in-app pelo fundador.
+// ponytail: FK solta (sem relation) pra migration mínima; virar relation quando
+// precisar de join/cascade.
+model SupportMessage {
+  id      String         @id @default(cuid())
+  channel SupportChannel
+  role    SupportRole
+  body    String
+
+  /// WEB: User (dono/staff) que escreveu/recebeu. null no mobile.
+  userId String?
+  /// WEB: tenant do usuário logado (contexto do negócio). null no mobile.
+  tenantId String?
+  /// MOBILE: cliente final. null no web.
+  customerAccountId String?
+
+  /// Set só quando a mensagem do usuário foi classificada como feedback.
+  feedbackCategory SupportCategory?
+  /// MOBILE: quando o feedback é sobre um estabelecimento específico do cliente.
+  aboutTenantId String?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([customerAccountId, createdAt])
+}
+
+enum SupportChannel {
+  WEB
+  MOBILE
+}
+
+enum SupportRole {
+  USER
+  ASSISTANT
+}
+
+enum SupportCategory {
+  DUVIDA
+  CRITICA
+  SUGESTAO
+}

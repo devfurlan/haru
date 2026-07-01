@@ -6,6 +6,7 @@ import { DashboardNav } from '@/components/dashboard-nav';
 import { Logo } from '@/components/logo';
 import { SignOutButton } from '@/components/sign-out-button';
 import { UsageBanner } from '@/components/usage-banner';
+import { SupportWidget } from '@/components/support/support-widget';
 import { UserMenuLink } from '@/components/user-menu-link';
 import { isAdmin, requireUserAndTenant } from '@/lib/auth';
 
@@ -44,6 +45,7 @@ export default async function DashboardLayout({
         <div className="p-6">{children}</div>
       </main>
       {modal}
+      <SupportWidget />
     </div>
   );
 }

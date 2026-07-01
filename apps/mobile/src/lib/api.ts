@@ -16,6 +16,8 @@ export type Me = {
   phoneVerified: boolean;
 };
 
+export type SupportTurn = { role: 'USER' | 'ASSISTANT'; body: string; createdAt: string };
+
 export type PaymentLite = { status: string; amountCents: number } | null;
 
 // Espelha CustomerAppointmentItem do web, com startsAt serializado como string ISO.
@@ -186,6 +188,11 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ appointmentId, method, document }),
     }),
+
+  // --- Suporte (bot de IA in-app) ---
+  getSupport: () => request<{ history: SupportTurn[] }>('/support'),
+  sendSupport: (text: string) =>
+    request<{ reply: string }>('/support', { method: 'POST', body: JSON.stringify({ text }) }),
 
   // --- Push ---
   pushRegister: (expoPushToken: string, platform: string) =>
