@@ -11,6 +11,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { type AvailableSlot } from '@haru/shared';
 import { buildBookingDays, isoDateInTz, labelFromIso, type BookingDay } from '@haru/shared';
@@ -282,8 +283,8 @@ export function SlotPicker({
   }, [serviceId, dateStr, professionalId]);
 
   // Rola o carrossel até o chip selecionado (ex.: quando vem do date-picker).
-  // Mexe SÓ no scrollLeft do rail - `scrollIntoView` rolaria também os ancestrais
-  // (o modal), arrastando o conteúdo de lado.
+  // Mexe SÓ no scrollLeft do viewport - `scrollIntoView` rolaria também os
+  // ancestrais (o modal), arrastando o conteúdo de lado.
   const railRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const rail = railRef.current;
@@ -319,58 +320,56 @@ export function SlotPicker({
         />
       </div>
 
-      {/* Faixa horizontal rolável de chips de dia. */}
-      <div
-        ref={railRef}
-        className="-mx-1 flex min-w-0 gap-2 overflow-x-auto px-1 pb-2"
-        role="radiogroup"
-        aria-label="Escolha o dia"
-      >
-        {railDays.length === 0 ? (
-          <p className="text-muted-foreground px-1 text-sm">Nenhuma data disponível.</p>
-        ) : (
-          railDays.map((day) => {
-            const { weekday, date } = splitDayLabel(day.label);
-            const isSelected = day.value === dateStr;
-            const isClosed = !day.open;
-            return (
-              <button
-                key={day.value}
-                type="button"
-                role="radio"
-                data-day={day.value}
-                disabled={isClosed}
-                aria-checked={isSelected}
-                aria-current={isSelected ? 'date' : undefined}
-                aria-label={isClosed ? `${day.label} - sem atendimento` : day.label}
-                onClick={isClosed ? undefined : () => setDateStr(day.value)}
-                className={
-                  'focus-visible:ring-ring min-w-18 flex shrink-0 flex-col items-center gap-0.5 rounded-xl border px-3 py-2 text-center transition-colors focus-visible:outline-none focus-visible:ring-2 ' +
-                  (isSelected
-                    ? 'border-primary bg-primary text-primary-foreground'
-                    : isClosed
-                      ? 'bg-muted/40 text-muted-foreground/50 cursor-not-allowed border-dashed'
-                      : 'bg-card text-foreground hover:border-primary/50')
-                }
-              >
-                <span
+      {/* Faixa horizontal rolável de chips de dia. O ScrollArea contém o scroll
+          sem empurrar a largura do modal (rail cru com overflow-x estourava). */}
+      <ScrollArea orientation="horizontal" viewportRef={railRef} className="w-full">
+        <div className="flex w-max gap-2 px-1 pb-3" role="radiogroup" aria-label="Escolha o dia">
+          {railDays.length === 0 ? (
+            <p className="text-muted-foreground px-1 text-sm">Nenhuma data disponível.</p>
+          ) : (
+            railDays.map((day) => {
+              const { weekday, date } = splitDayLabel(day.label);
+              const isSelected = day.value === dateStr;
+              const isClosed = !day.open;
+              return (
+                <button
+                  key={day.value}
+                  type="button"
+                  role="radio"
+                  data-day={day.value}
+                  disabled={isClosed}
+                  aria-checked={isSelected}
+                  aria-current={isSelected ? 'date' : undefined}
+                  aria-label={isClosed ? `${day.label} - sem atendimento` : day.label}
+                  onClick={isClosed ? undefined : () => setDateStr(day.value)}
                   className={
-                    'text-[11px] font-medium uppercase ' +
+                    'focus-visible:ring-ring min-w-18 flex shrink-0 flex-col items-center gap-0.5 rounded-xl border px-3 py-2 text-center transition-colors focus-visible:outline-none focus-visible:ring-2 ' +
                     (isSelected
-                      ? 'text-primary-foreground/90'
+                      ? 'border-primary bg-primary text-primary-foreground'
                       : isClosed
-                        ? 'text-muted-foreground/50'
-                        : 'text-muted-foreground')
+                        ? 'bg-muted/40 text-muted-foreground/50 cursor-not-allowed border-dashed'
+                        : 'bg-card text-foreground hover:border-primary/50')
                   }
                 >
-                  {weekday.slice(0, 3)}
-                </span>
-                <span className="text-sm font-semibold">{date || day.label}</span>
-              </button>
-            );
-          })
-        )}
-      </div>
+                  <span
+                    className={
+                      'text-[11px] font-medium uppercase ' +
+                      (isSelected
+                        ? 'text-primary-foreground/90'
+                        : isClosed
+                          ? 'text-muted-foreground/50'
+                          : 'text-muted-foreground')
+                    }
+                  >
+                    {weekday.slice(0, 3)}
+                  </span>
+                  <span className="text-sm font-semibold">{date || day.label}</span>
+                </button>
+              );
+            })
+          )}
+        </div>
+      </ScrollArea>
 
       {/* Grade de horários. */}
       <div className="space-y-2">
