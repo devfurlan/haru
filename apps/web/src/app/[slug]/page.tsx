@@ -128,6 +128,8 @@ export default async function TenantPublicPage({ params }: { params: Promise<{ s
             timezone={tenant.timezone}
             openWeekdays={openWeekdays}
             horizonDays={BOOKING_HORIZON_DAYS}
+            loggedIn={!!customerAccount}
+            customerName={customerAccount?.name ?? null}
           />
         )}
 

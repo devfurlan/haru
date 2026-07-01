@@ -18,6 +18,7 @@ import {
   User as UserIcon,
 } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useActionState, useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import { useFormStatus } from 'react-dom';
 
@@ -78,6 +79,10 @@ interface PublicBookingProps {
   openWeekdays: number[];
   /** Até quantos dias adiante o agendamento é oferecido. */
   horizonDays: number;
+  /** Cliente já chegou logado (sessão de CustomerAccount no servidor). */
+  loggedIn: boolean;
+  /** Nome da conta logada, pra saudar - null quando convidado. */
+  customerName: string | null;
 }
 
 /**
@@ -677,6 +682,10 @@ function StepConfirmar({
   formAction,
   onBack,
   headingRef,
+  loggedIn,
+  accountCreated,
+  onAccountCreated,
+  customerName,
 }: {
   slug: string;
   service: ServiceOption;
@@ -698,14 +707,21 @@ function StepConfirmar({
   formAction: (formData: FormData) => void;
   onBack: () => void;
   headingRef: React.RefObject<HTMLHeadingElement | null>;
+  /** Cliente já logado ao abrir a página (sessão do servidor). */
+  loggedIn: boolean;
+  /** Conta criada agora, pelo modal inline (sinal do componente raiz). */
+  accountCreated: boolean;
+  onAccountCreated: () => void;
+  customerName: string | null;
 }) {
   const phoneOk = phone.length >= 10;
   const nameOk = name.trim().length >= 2;
 
-  // Cadastro em modal, na própria página - não tira o cliente do agendamento. Ao
-  // criar a conta, fecha e troca o convite por um aviso de "conta criada".
+  // Primeiro nome pra saudar (da conta logada ou do que ele digitou).
+  const firstName = (customerName || name).trim().split(/\s+/)[0] ?? '';
+
+  // Modal de cadastro inline - não tira o cliente do agendamento. Fecha via onSuccess.
   const [signupOpen, setSignupOpen] = useState(false);
-  const [signupDone, setSignupDone] = useState(false);
 
   return (
     <div className="space-y-6">
@@ -815,15 +831,28 @@ function StepConfirmar({
         </div>
       </div>
 
-      {/* Convite opcional pra criar conta - não bloqueia o agendamento (o guest é o
-          caminho principal). Abre num modal na PRÓPRIA página (não navega pra fora,
-          não perde o progresso do wizard); a sessão vem por cookie, então ao confirmar
-          aqui o agendamento já vincula à conta recém-criada (mesmo WhatsApp). */}
-      {signupDone ? (
+      {/* Estado da conta no passo de confirmação:
+          - criou conta agora (modal) -> boas-vindas + como vincular (validar WhatsApp);
+          - já chegou logado          -> avisa que o agendamento entra na conta;
+          - convidado                 -> convite pra criar conta (modal inline, sem sair da página).
+          Abre num modal na PRÓPRIA página (não navega pra fora, não perde o progresso do
+          wizard); a sessão vem por cookie. */}
+      {accountCreated ? (
+        <div className="border-green/30 bg-green/5 space-y-1 rounded-xl border p-4">
+          <p className="text-foreground flex items-center gap-1.5 text-sm font-medium">
+            <PartyPopper className="text-green h-4 w-4 shrink-0" aria-hidden="true" />
+            Boas-vindas{firstName ? `, ${firstName}` : ''}! Sua conta está pronta.
+          </p>
+          <p className="text-muted-foreground text-sm">
+            É só confirmar o agendamento abaixo. Pra ele entrar no seu histórico, valide seu WhatsApp
+            na sua conta.
+          </p>
+        </div>
+      ) : loggedIn ? (
         <div className="border-green/20 bg-accent flex items-start gap-2 rounded-xl border p-4">
           <CheckCircle2 className="text-green mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
           <p className="text-foreground text-sm">
-            Conta criada! Confirme o agendamento abaixo - depois é só validar seu WhatsApp na sua
+            Você está logado{firstName ? ` como ${firstName}` : ''} - este agendamento entra na sua
             conta.
           </p>
         </div>
@@ -868,7 +897,7 @@ function StepConfirmar({
                 defaultPhone={phone}
                 onSuccess={() => {
                   setSignupOpen(false);
-                  setSignupDone(true);
+                  onAccountCreated();
                 }}
               />
             </DialogContent>
@@ -932,6 +961,26 @@ function CreateAccountCta({ phone }: { phone: string }) {
   );
 }
 
+/**
+ * Fecho pra quem JÁ tem conta (chegou logado ou criou no modal): nada de "Criar
+ * conta" de novo - só um atalho pra área do cliente, onde o agendamento aparece.
+ */
+function AccountLinkedCta() {
+  return (
+    <div className="space-y-2 border-t pt-4 text-center">
+      <p className="text-muted-foreground text-sm">
+        Acompanhe, remarque ou cancele este agendamento na sua conta quando quiser.
+      </p>
+      <Button asChild variant="outline" size="pill">
+        <Link href="/conta">
+          <UserIcon className="h-4 w-4" />
+          Ver na minha conta
+        </Link>
+      </Button>
+    </div>
+  );
+}
+
 function SuccessScreen({
   confirmed,
   summary,
@@ -939,6 +988,7 @@ function SuccessScreen({
   appointmentId,
   paymentAvailable,
   phone,
+  hasAccount,
 }: {
   confirmed: boolean;
   summary: string;
@@ -946,6 +996,8 @@ function SuccessScreen({
   appointmentId: string;
   paymentAvailable: boolean;
   phone: string;
+  /** Já tem conta (logado ou criada no fluxo): não reoferecer "Criar conta". */
+  hasAccount: boolean;
 }) {
   return (
     <div className="space-y-5 text-center">
@@ -972,7 +1024,7 @@ function SuccessScreen({
 
       {paymentAvailable ? <PaymentBlock slug={slug} appointmentId={appointmentId} /> : null}
 
-      <CreateAccountCta phone={phone} />
+      {hasAccount ? <AccountLinkedCta /> : <CreateAccountCta phone={phone} />}
     </div>
   );
 }
@@ -990,6 +1042,7 @@ function SeriesSuccessScreen({
   beyondHorizon,
   timezone,
   phone,
+  hasAccount,
 }: {
   confirmed: boolean;
   summary: string;
@@ -998,6 +1051,8 @@ function SeriesSuccessScreen({
   beyondHorizon: number;
   timezone: string;
   phone: string;
+  /** Já tem conta (logado ou criada no fluxo): não reoferecer "Criar conta". */
+  hasAccount: boolean;
 }) {
   const skippedFmt = skipped.map((iso) =>
     new Intl.DateTimeFormat('pt-BR', {
@@ -1050,7 +1105,7 @@ function SeriesSuccessScreen({
         </p>
       ) : null}
 
-      <CreateAccountCta phone={phone} />
+      {hasAccount ? <AccountLinkedCta /> : <CreateAccountCta phone={phone} />}
     </div>
   );
 }
@@ -1264,8 +1319,23 @@ export function PublicBooking({
   timezone,
   openWeekdays,
   horizonDays,
+  loggedIn,
+  customerName,
 }: PublicBookingProps) {
+  const router = useRouter();
   const [step, setStep] = useState<Step>(0);
+
+  // Conta criada agora, pelo modal inline do passo de confirmação. Vive no raiz (não
+  // no passo) pra a tela de sucesso também saber - senão ofereceria "Criar conta" pra
+  // quem acabou de criar. `hasAccount` = já tinha OU criou agora.
+  const [accountCreated, setAccountCreated] = useState(false);
+  const hasAccount = loggedIn || accountCreated;
+  function handleAccountCreated() {
+    setAccountCreated(true);
+    // Atualiza os server components (ex.: cabeçalho vira "Minha conta") sem perder o
+    // estado do wizard - refresh no App Router preserva o state dos client components.
+    router.refresh();
+  }
 
   // Dias atendíveis (carrossel) + janela do date-picker, gerados no fuso do tenant.
   // openWeekdays nunca muda, então memoiza o Set; os dias só dependem dele e do
@@ -1514,6 +1584,10 @@ export function PublicBooking({
           formAction={formAction}
           onBack={() => setStep(1)}
           headingRef={headingRef}
+          loggedIn={loggedIn}
+          accountCreated={accountCreated}
+          onAccountCreated={handleAccountCreated}
+          customerName={customerName}
         />
       ) : null}
 
@@ -1527,6 +1601,7 @@ export function PublicBooking({
             beyondHorizon={state.beyondHorizon}
             timezone={timezone}
             phone={phone}
+            hasAccount={hasAccount}
           />
         ) : (
           <SuccessScreen
@@ -1536,6 +1611,7 @@ export function PublicBooking({
             appointmentId={state.appointmentId}
             paymentAvailable={state.paymentAvailable}
             phone={phone}
+            hasAccount={hasAccount}
           />
         )
       ) : null}
