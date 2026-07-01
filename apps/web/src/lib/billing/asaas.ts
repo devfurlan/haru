@@ -49,7 +49,7 @@ async function asaas<T>(path: string, init?: RequestInit): Promise<T> {
     const detail = await res.text().catch(() => '');
     throw new Error(`Asaas ${path} respondeu ${res.status}: ${detail.slice(0, 400)}`);
   }
-  return (res.json()) as Promise<T>;
+  return res.json() as Promise<T>;
 }
 
 /** "YYYY-MM-DD" (Asaas espera data sem hora no nextDueDate). */
@@ -109,6 +109,11 @@ interface CreateSubscriptionInput {
   description: string;
   /** Nosso Subscription.id - volta no webhook (externalReference) pra reconciliar. */
   externalReference: string;
+  /**
+   * Setup único (centavos) a somar SÓ na 1ª cobrança - os ciclos seguintes continuam
+   * no `amountCents`. 0/undefined = sem setup (ex.: anual). Ver SETUP_FEE_CENTS.
+   */
+  setupFeeCents?: number;
 }
 
 export interface SubscriptionResult {
@@ -129,7 +134,9 @@ export interface SubscriptionResult {
  * Cria a assinatura recorrente no Asaas. Cartão → recorrência automática após o cliente
  * digitar o cartão na fatura hospedada (invoiceUrl). Pix → um Pix por ciclo (retorna QR).
  */
-export async function createSubscription(input: CreateSubscriptionInput): Promise<SubscriptionResult> {
+export async function createSubscription(
+  input: CreateSubscriptionInput,
+): Promise<SubscriptionResult> {
   const sub = await asaas<{ id: string; status: string }>('/subscriptions', {
     method: 'POST',
     body: JSON.stringify({
@@ -150,6 +157,21 @@ export async function createSubscription(input: CreateSubscriptionInput): Promis
   const fp = payments.data[0];
   let firstPayment: SubscriptionResult['firstPayment'] = null;
   if (fp) {
+    let invoiceUrl = fp.invoiceUrl ?? null;
+
+    // Setup único: engorda SÓ a 1ª cobrança (a assinatura segue cobrando `amountCents`
+    // nos ciclos seguintes). Feito antes de gerar o QR do Pix pra refletir o total.
+    if (input.setupFeeCents && input.setupFeeCents > 0) {
+      const updated = await asaas<{ invoiceUrl?: string | null }>(`/payments/${fp.id}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          value: (input.amountCents + input.setupFeeCents) / 100,
+          description: `${input.description} + configuração assistida (setup único)`,
+        }),
+      });
+      invoiceUrl = updated.invoiceUrl ?? invoiceUrl;
+    }
+
     let pix: { qrCode: string; copyPaste: string } | null = null;
     if (input.method === 'PIX') {
       const qr = await asaas<{ encodedImage: string; payload: string }>(
@@ -157,7 +179,7 @@ export async function createSubscription(input: CreateSubscriptionInput): Promis
       );
       pix = { qrCode: `data:image/png;base64,${qr.encodedImage}`, copyPaste: qr.payload };
     }
-    firstPayment = { paymentId: fp.id, invoiceUrl: fp.invoiceUrl ?? null, pix };
+    firstPayment = { paymentId: fp.id, invoiceUrl, pix };
   }
 
   return { asaasSubscriptionId: sub.id, status: sub.status, firstPayment };

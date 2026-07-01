@@ -1,4 +1,4 @@
-import { MessagesSquare } from 'lucide-react';
+import { Ban, Lock, MessageCircle, MessagesSquare, ShieldCheck } from 'lucide-react';
 
 import { prisma } from '@haru/database';
 
@@ -51,7 +51,7 @@ export async function Pricing() {
           <h2 className="mt-4 font-serif text-[clamp(2rem,4vw,3.05rem)] font-semibold leading-[1.05] tracking-[-0.01em]">
             Planos simples, sem pegadinha.
           </h2>
-          <p className="mt-4 text-[1.1rem] leading-relaxed text-ink-soft">
+          <p className="text-ink-soft mt-4 text-[1.1rem] leading-relaxed">
             Atendimento e agendamento por IA no WhatsApp em todos os planos. Garantia de 30 dias -
             se não curtir, devolvemos o valor.
           </p>
@@ -59,13 +59,20 @@ export async function Pricing() {
 
         <PricingTiers tiers={tiers} />
 
+        {/* Setup como serviço, não custo escondido (dica de conversão #9). */}
+        <p className="text-ink-soft mx-auto mt-8 max-w-2xl text-center text-sm">
+          Configuração assistida do WhatsApp incluída (R$ 297) - nosso time cuida da conexão com a
+          Meta pra você não passar sufoco.{' '}
+          <span className="text-foreground font-semibold">Grátis no plano anual.</span>
+        </p>
+
         {/* Banner Enterprise / plano sob medida */}
-        <div className="mt-10 flex flex-col items-center justify-between gap-4 rounded-2xl border border-border bg-paper p-6 text-center sm:flex-row sm:text-left">
+        <div className="border-border bg-paper mt-10 flex flex-col items-center justify-between gap-4 rounded-2xl border p-6 text-center sm:flex-row sm:text-left">
           <div className="flex items-center gap-3">
-            <MessagesSquare className="size-6 shrink-0 text-coral" />
+            <MessagesSquare className="text-coral size-6 shrink-0" />
             <div>
               <p className="font-semibold">Precisa de um plano customizado?</p>
-              <p className="text-sm text-ink-soft">
+              <p className="text-ink-soft text-sm">
                 Fale com o time que a gente monta um plano sob medida pra sua operação.
               </p>
             </div>
@@ -78,6 +85,40 @@ export async function Pricing() {
               Falar com a gente
             </Button>
           </InterestDialog>
+        </div>
+
+        {/* Bloco de confiança - sempre visível abaixo dos planos. */}
+        <div className="mt-10 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          {[
+            {
+              Icon: ShieldCheck,
+              title: 'Garantia de 30 dias',
+              text: 'Teste sem risco - devolvemos 100% do valor.',
+            },
+            {
+              Icon: Ban,
+              title: 'Cancele quando quiser',
+              text: 'Sem multa, sem fidelidade.',
+            },
+            {
+              Icon: MessageCircle,
+              title: 'Empresa brasileira',
+              text: 'Suporte em português, por WhatsApp.',
+            },
+            {
+              Icon: Lock,
+              title: 'Dados protegidos',
+              text: 'LGPD e WhatsApp oficial da Meta.',
+            },
+          ].map(({ Icon, title, text }) => (
+            <div key={title} className="flex items-start gap-3">
+              <Icon className="text-green mt-0.5 size-5 shrink-0" aria-hidden />
+              <div>
+                <p className="text-sm font-semibold">{title}</p>
+                <p className="text-ink-soft text-sm">{text}</p>
+              </div>
+            </div>
+          ))}
         </div>
       </Container>
     </section>

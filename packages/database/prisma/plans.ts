@@ -1,8 +1,8 @@
 import type { PlanTier, PrismaClient } from '@prisma/client';
 
 /**
- * Valores iniciais do catálogo de planos (preços em centavos; anual ~20% off do
- * mensal). Isto é só o PONTO DE PARTIDA - os planos são dinâmicos no banco e
+ * Valores iniciais do catálogo de planos (preços em centavos; anual = 10x o
+ * mensal, ou seja "2 meses grátis"). Isto é só o PONTO DE PARTIDA - os planos são dinâmicos no banco e
  * podem ser editados depois (db:studio) sem deploy. `seedPlans` é idempotente
  * (upsert por tier), então pode rodar em produção sem duplicar.
  *
@@ -27,8 +27,8 @@ export const PLAN_SEED: PlanSeed[] = [
   {
     tier: 'ESSENCIAL',
     name: 'Solo',
-    priceMonthlyCents: 6900,
-    priceAnnualCents: 66240,
+    priceMonthlyCents: 8900,
+    priceAnnualCents: 89000,
     appointmentsPerMonth: 250,
     aiMessagesPerMonth: 1500,
     maxProfessionals: 1,
@@ -41,8 +41,8 @@ export const PLAN_SEED: PlanSeed[] = [
   {
     tier: 'PROFISSIONAL',
     name: 'Time',
-    priceMonthlyCents: 14900,
-    priceAnnualCents: 143040,
+    priceMonthlyCents: 19900,
+    priceAnnualCents: 199000,
     appointmentsPerMonth: 1000,
     aiMessagesPerMonth: 7500,
     maxProfessionals: 5,
@@ -55,8 +55,8 @@ export const PLAN_SEED: PlanSeed[] = [
   {
     tier: 'NEGOCIO',
     name: 'Multi',
-    priceMonthlyCents: 34900,
-    priceAnnualCents: 335040,
+    priceMonthlyCents: 39900,
+    priceAnnualCents: 399000,
     appointmentsPerMonth: 2500,
     aiMessagesPerMonth: 25000,
     maxProfessionals: null,

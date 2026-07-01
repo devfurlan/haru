@@ -6,6 +6,7 @@ import { useActionState, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { SETUP_FEE_CENTS } from '@/lib/billing/pricing';
 
 import { subscribe, type CheckoutResult } from './actions';
 
@@ -45,6 +46,9 @@ export function SubscribeForm({
   );
 
   const selected = plans.find((p) => p.tier === tier) ?? plans[0];
+  // Setup só entra na 1ª contratação mensal (espelha a regra do server action).
+  const firstContract = currentStatus === null || currentStatus === 'PENDING';
+  const setupApplies = cycle === 'MONTHLY' && firstContract;
   const error = state && 'error' in state ? state.error : null;
   const pixOk = state && 'ok' in state && state.method === 'PIX' ? state : null;
   const cardOk = state && 'ok' in state && state.method === 'CARD' ? state : null;
@@ -112,7 +116,7 @@ export function SubscribeForm({
               cycle === c ? 'bg-foreground text-background' : 'bg-background'
             }`}
           >
-            {c === 'MONTHLY' ? 'Mensal' : 'Anual (~20% off)'}
+            {c === 'MONTHLY' ? 'Mensal' : 'Anual (2 meses grátis)'}
           </button>
         ))}
       </div>
@@ -183,6 +187,27 @@ export function SubscribeForm({
           ? 'Você será levado ao ambiente seguro do Asaas para digitar o cartão. Não armazenamos os dados do cartão.'
           : 'Geramos um Pix; a assinatura ativa assim que o pagamento for confirmado.'}
       </p>
+
+      {/* Resumo do setup - transparência: o setup entra na 1ª cobrança mensal. */}
+      {setupApplies && selected && (
+        <div className="bg-muted/20 space-y-1 rounded-lg border p-3 text-sm">
+          <div className="flex justify-between">
+            <span>Plano {selected.name} (1º mês)</span>
+            <span>{fmtBRL(selected.priceMonthlyCents)}</span>
+          </div>
+          <div className="flex justify-between">
+            <span>Configuração assistida (setup único)</span>
+            <span>{fmtBRL(SETUP_FEE_CENTS)}</span>
+          </div>
+          <div className="flex justify-between border-t pt-1 font-semibold">
+            <span>1ª cobrança</span>
+            <span>{fmtBRL(selected.priceMonthlyCents + SETUP_FEE_CENTS)}</span>
+          </div>
+          <p className="text-muted-foreground pt-0.5 text-xs">
+            Depois {fmtBRL(selected.priceMonthlyCents)}/mês. O setup é grátis no plano anual.
+          </p>
+        </div>
+      )}
 
       {error && <p className="text-sm text-red-600">{error}</p>}
 

@@ -15,6 +15,7 @@ import {
   getPendingInvoiceUrl,
   updateAsaasSubscription,
 } from '@/lib/billing/asaas';
+import { SETUP_FEE_CENTS } from '@/lib/billing/pricing';
 import { isValidCpfCnpj, onlyDigits } from '@haru/shared';
 
 export type CheckoutResult =
@@ -77,6 +78,13 @@ export async function subscribe(
   const snapshot = snapshotPlan(plan, cycle as BillingCycle);
   const amountCents = cycle === 'ANNUAL' ? plan.priceAnnualCents : plan.priceMonthlyCents;
 
+  // Setup único (config. assistida do WhatsApp): só na 1ª contratação MENSAL. Grátis no
+  // anual; quem já ativou antes (ativo/cancelado após pagar) não paga de novo - só quem
+  // nunca ativou (sem assinatura ou ainda PENDING). ponytail: heurística por status,
+  // sem coluna "setupPago"; refinar só se o fluxo de re-assinatura exigir.
+  const existing = tenant.subscription;
+  const chargeSetup = cycle === 'MONTHLY' && (!existing || existing.status === 'PENDING');
+
   try {
     // Reusa o customer do Asaas se já existir; senão cria.
     const customerId =
@@ -116,6 +124,7 @@ export async function subscribe(
       method: method === 'CARD' ? 'CREDIT_CARD' : 'PIX',
       description: `Demandaê ${plan.name} (${cycle === 'ANNUAL' ? 'anual' : 'mensal'})`,
       externalReference: sub.id,
+      setupFeeCents: chargeSetup ? SETUP_FEE_CENTS : 0,
     });
 
     const now = new Date();

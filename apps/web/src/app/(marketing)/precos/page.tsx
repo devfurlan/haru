@@ -1,3 +1,6 @@
+import { PrecosComparison } from '@/components/marketing/precos-comparison';
+import { PrecosFaq } from '@/components/marketing/precos-faq';
+import { PrecosFounder } from '@/components/marketing/precos-founder';
 import { Pricing } from '@/components/marketing/pricing';
 
 export const metadata = {
@@ -9,5 +12,13 @@ export const metadata = {
 export const dynamic = 'force-dynamic';
 
 export default function PrecosPage() {
-  return <Pricing />;
+  return (
+    <>
+      <Pricing />
+      {/* Prova social real (depoimentos dos primeiros clientes) entra aqui quando existir. */}
+      <PrecosFounder />
+      <PrecosFaq />
+      <PrecosComparison />
+    </>
+  );
 }
