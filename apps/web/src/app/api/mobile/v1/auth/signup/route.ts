@@ -37,9 +37,12 @@ export async function POST(req: Request) {
     return Response.json({ error: 'Celular inválido - confira o DDD' }, { status: 400 });
   }
   if (body?.acceptTerms !== true) {
-    return Response.json({ error: 'É preciso aceitar os Termos e a Política de Privacidade.' }, {
-      status: 400,
-    });
+    return Response.json(
+      { error: 'É preciso aceitar os Termos e a Política de Privacidade.' },
+      {
+        status: 400,
+      },
+    );
   }
 
   const supabase = createSupabaseClient(
@@ -49,9 +52,12 @@ export async function POST(req: Request) {
   );
   const { data, error } = await supabase.auth.signUp({ email, password });
   if (error || !data.user) {
-    return Response.json({ error: error ? traduzErroSignUp(error) : 'Falha ao criar conta' }, {
-      status: 400,
-    });
+    return Response.json(
+      { error: error ? traduzErroSignUp(error) : 'Falha ao criar conta' },
+      {
+        status: 400,
+      },
+    );
   }
 
   try {

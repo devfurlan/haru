@@ -366,7 +366,11 @@ export async function customerRescheduleAppointment(
     return { error: parsed.error.issues[0]?.message ?? 'Dados inválidos' };
   }
 
-  const result = await rescheduleOwnedAppointment(account, appointmentId, parsed.data.newStartsAtIso);
+  const result = await rescheduleOwnedAppointment(
+    account,
+    appointmentId,
+    parsed.data.newStartsAtIso,
+  );
   if ('error' in result) {
     return { error: result.error };
   }

@@ -138,8 +138,13 @@ export const api = {
     }),
 
   // --- Público (agendar do zero num negócio) + cadastro ---
-  signup: (input: { email: string; password: string; name: string; phone: string; acceptTerms: boolean }) =>
-    request<{ ok: true }>('/auth/signup', { method: 'POST', body: JSON.stringify(input) }),
+  signup: (input: {
+    email: string;
+    password: string;
+    name: string;
+    phone: string;
+    acceptTerms: boolean;
+  }) => request<{ ok: true }>('/auth/signup', { method: 'POST', body: JSON.stringify(input) }),
   tenant: (slug: string) => request<PublicTenant>(`/tenants/${slug}`),
   tenantSlots: (slug: string, serviceId: string, dateStr: string, professionalId?: string) =>
     request<{ slots: AvailableSlot[] }>(`/tenants/${slug}/slots`, {
@@ -148,7 +153,13 @@ export const api = {
     }),
   createBooking: (
     slug: string,
-    input: { serviceId: string; professionalId?: string; slotIso: string; name: string; phone: string },
+    input: {
+      serviceId: string;
+      professionalId?: string;
+      slotIso: string;
+      name: string;
+      phone: string;
+    },
   ) =>
     request<BookingResult>(`/tenants/${slug}/bookings`, {
       method: 'POST',
@@ -156,12 +167,7 @@ export const api = {
     }),
 
   // --- Pagamento (reusa o gateway do web; 200 sempre, inspecionar o retorno) ---
-  pay: (
-    slug: string,
-    appointmentId: string,
-    method: 'PIX' | 'CREDIT_CARD',
-    document?: string,
-  ) =>
+  pay: (slug: string, appointmentId: string, method: 'PIX' | 'CREDIT_CARD', document?: string) =>
     request<PaymentResult>(`/tenants/${slug}/pay`, {
       method: 'POST',
       body: JSON.stringify({ appointmentId, method, document }),

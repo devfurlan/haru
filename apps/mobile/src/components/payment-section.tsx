@@ -42,9 +42,9 @@ export function PaymentSection({ slug, appointmentId }: { slug: string; appointm
 
   if (pixCode) {
     return (
-      <View className="mt-6 w-full rounded-2xl border border-ink/10 bg-paper p-4">
-        <Text className="mb-2 text-sm font-semibold text-ink">Pix copia e cola</Text>
-        <Text className="text-xs text-muted" numberOfLines={4} selectable>
+      <View className="border-ink/10 bg-paper mt-6 w-full rounded-2xl border p-4">
+        <Text className="text-ink mb-2 text-sm font-semibold">Pix copia e cola</Text>
+        <Text className="text-muted text-xs" numberOfLines={4} selectable>
           {pixCode}
         </Text>
         <Pressable
@@ -52,7 +52,7 @@ export function PaymentSection({ slug, appointmentId }: { slug: string; appointm
             await Clipboard.setStringAsync(pixCode);
             setCopied(true);
           }}
-          className="mt-3 items-center rounded-xl bg-green py-3 active:opacity-80"
+          className="bg-green mt-3 items-center rounded-xl py-3 active:opacity-80"
         >
           <Text className="text-sm font-semibold text-white">
             {copied ? 'Código copiado!' : 'Copiar código Pix'}
@@ -64,12 +64,12 @@ export function PaymentSection({ slug, appointmentId }: { slug: string; appointm
 
   return (
     <View className="mt-6 w-full">
-      <Text className="mb-3 text-center text-sm text-muted">
+      <Text className="text-muted mb-3 text-center text-sm">
         Pagamento (opcional - dá pra pagar no dia)
       </Text>
       {needsDoc && (
         <TextInput
-          className="mb-3 rounded-xl border border-ink/10 bg-paper px-4 py-3 text-base text-ink"
+          className="border-ink/10 bg-paper text-ink mb-3 rounded-xl border px-4 py-3 text-base"
           value={document}
           onChangeText={(t) => setDocument(maskCpfCnpjInput(t))}
           placeholder="Seu CPF"
@@ -77,21 +77,21 @@ export function PaymentSection({ slug, appointmentId }: { slug: string; appointm
           keyboardType="number-pad"
         />
       )}
-      {error ? <Text className="mb-3 text-center text-sm text-destructive">{error}</Text> : null}
+      {error ? <Text className="text-destructive mb-3 text-center text-sm">{error}</Text> : null}
       <View className="flex-row gap-3">
         <Pressable
           disabled={loading}
           onPress={() => pay('PIX')}
-          className="flex-1 items-center rounded-xl border border-green/40 py-3 active:opacity-60"
+          className="border-green/40 flex-1 items-center rounded-xl border py-3 active:opacity-60"
         >
-          <Text className="text-sm font-semibold text-green">Pagar com Pix</Text>
+          <Text className="text-green text-sm font-semibold">Pagar com Pix</Text>
         </Pressable>
         <Pressable
           disabled={loading}
           onPress={() => pay('CREDIT_CARD')}
-          className="flex-1 items-center rounded-xl border border-green/40 py-3 active:opacity-60"
+          className="border-green/40 flex-1 items-center rounded-xl border py-3 active:opacity-60"
         >
-          <Text className="text-sm font-semibold text-green">Cartão</Text>
+          <Text className="text-green text-sm font-semibold">Cartão</Text>
         </Pressable>
       </View>
       {loading && <ActivityIndicator className="mt-3" color="#0e7a45" />}

@@ -6,13 +6,14 @@ import { createPaymentForAppointment } from '@/app/[slug]/payments-actions';
 
 export async function POST(req: Request, { params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const body = (await req.json().catch(() => null)) as
-    | { appointmentId?: unknown; method?: unknown; document?: unknown }
-    | null;
+  const body = (await req.json().catch(() => null)) as {
+    appointmentId?: unknown;
+    method?: unknown;
+    document?: unknown;
+  } | null;
 
   const appointmentId = typeof body?.appointmentId === 'string' ? body.appointmentId : '';
-  const method =
-    body?.method === 'PIX' || body?.method === 'CREDIT_CARD' ? body.method : null;
+  const method = body?.method === 'PIX' || body?.method === 'CREDIT_CARD' ? body.method : null;
   const document = typeof body?.document === 'string' ? body.document : undefined;
 
   if (!appointmentId || !method) {

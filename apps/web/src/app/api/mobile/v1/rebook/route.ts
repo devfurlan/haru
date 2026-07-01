@@ -7,9 +7,10 @@ export async function POST(req: Request) {
   const account = await requireCustomerAccountFromBearer(req);
   if (!account) return Response.json({ error: 'Não autenticado' }, { status: 401 });
 
-  const body = (await req.json().catch(() => null)) as
-    | { sourceAppointmentId?: unknown; slotIso?: unknown }
-    | null;
+  const body = (await req.json().catch(() => null)) as {
+    sourceAppointmentId?: unknown;
+    slotIso?: unknown;
+  } | null;
   const sourceAppointmentId =
     typeof body?.sourceAppointmentId === 'string' ? body.sourceAppointmentId : '';
   const iso = typeof body?.slotIso === 'string' ? body.slotIso : '';

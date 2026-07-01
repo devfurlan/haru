@@ -15,7 +15,7 @@ export default function AppLayout() {
 
   if (loading) {
     return (
-      <View className="flex-1 items-center justify-center bg-cream">
+      <View className="bg-cream flex-1 items-center justify-center">
         <ActivityIndicator color="#0e7a45" />
       </View>
     );

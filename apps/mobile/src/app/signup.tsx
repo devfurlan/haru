@@ -34,7 +34,13 @@ export default function SignupScreen() {
     setError(null);
     setSubmitting(true);
     try {
-      await api.signup({ email: email.trim(), password, name: name.trim(), phone, acceptTerms: accepted });
+      await api.signup({
+        email: email.trim(),
+        password,
+        name: name.trim(),
+        phone,
+        acceptTerms: accepted,
+      });
       // Cria a conta e já entra: confirmações de e-mail estão desligadas, então o
       // signIn imediato funciona e o onAuthStateChange leva pro app.
       const { error: signInError } = await supabase.auth.signInWithPassword({
@@ -58,20 +64,20 @@ export default function SignupScreen() {
     !submitting;
 
   return (
-    <SafeAreaView className="flex-1 bg-cream">
+    <SafeAreaView className="bg-cream flex-1">
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         className="flex-1"
       >
         <ScrollView contentContainerClassName="px-6 py-8">
-          <Text className="mb-1 text-3xl font-bold text-ink">Criar conta</Text>
-          <Text className="mb-6 text-base text-muted">
+          <Text className="text-ink mb-1 text-3xl font-bold">Criar conta</Text>
+          <Text className="text-muted mb-6 text-base">
             Pra agilizar seus agendamentos e receber lembretes.
           </Text>
 
           <Field label="Nome">
             <TextInput
-              className="rounded-xl border border-ink/10 bg-paper px-4 py-3 text-base text-ink"
+              className="border-ink/10 bg-paper text-ink rounded-xl border px-4 py-3 text-base"
               value={name}
               onChangeText={setName}
               placeholder="Seu nome"
@@ -81,7 +87,7 @@ export default function SignupScreen() {
 
           <Field label="E-mail">
             <TextInput
-              className="rounded-xl border border-ink/10 bg-paper px-4 py-3 text-base text-ink"
+              className="border-ink/10 bg-paper text-ink rounded-xl border px-4 py-3 text-base"
               value={email}
               onChangeText={setEmail}
               placeholder="voce@email.com"
@@ -94,7 +100,7 @@ export default function SignupScreen() {
 
           <Field label="WhatsApp">
             <TextInput
-              className="rounded-xl border border-ink/10 bg-paper px-4 py-3 text-base text-ink"
+              className="border-ink/10 bg-paper text-ink rounded-xl border px-4 py-3 text-base"
               value={phone}
               onChangeText={(t) => setPhone(maskPhoneBRInput(t))}
               placeholder="(11) 91234-5678"
@@ -106,7 +112,7 @@ export default function SignupScreen() {
 
           <Field label="Senha">
             <TextInput
-              className="rounded-xl border border-ink/10 bg-paper px-4 py-3 text-base text-ink"
+              className="border-ink/10 bg-paper text-ink rounded-xl border px-4 py-3 text-base"
               value={password}
               onChangeText={setPassword}
               placeholder="Ao menos 8 caracteres"
@@ -126,12 +132,12 @@ export default function SignupScreen() {
             >
               {accepted ? <Text className="text-xs font-bold text-white">✓</Text> : null}
             </View>
-            <Text className="flex-1 text-sm text-ink-soft">
+            <Text className="text-ink-soft flex-1 text-sm">
               Aceito os Termos de Uso e a Política de Privacidade.
             </Text>
           </Pressable>
 
-          {error ? <Text className="mb-4 text-sm text-destructive">{error}</Text> : null}
+          {error ? <Text className="text-destructive mb-4 text-sm">{error}</Text> : null}
 
           <Pressable
             disabled={!canSubmit}
@@ -147,7 +153,7 @@ export default function SignupScreen() {
 
           <Link href="/login" asChild>
             <Pressable className="mt-6">
-              <Text className="text-center text-sm text-muted">Já tenho conta - entrar</Text>
+              <Text className="text-muted text-center text-sm">Já tenho conta - entrar</Text>
             </Pressable>
           </Link>
         </ScrollView>
@@ -159,7 +165,7 @@ export default function SignupScreen() {
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <View className="mb-4">
-      <Text className="mb-1 text-sm font-medium text-ink-soft">{label}</Text>
+      <Text className="text-ink-soft mb-1 text-sm font-medium">{label}</Text>
       {children}
     </View>
   );

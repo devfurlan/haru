@@ -17,19 +17,19 @@ export function AppointmentCard({ item }: { item: AppointmentItem }) {
   const status = STATUS_LABEL[item.status];
   return (
     <Link href={`/appointment/${item.id}`} asChild>
-      <Pressable className="mb-3 rounded-2xl border border-ink/10 bg-paper p-4 active:opacity-70">
+      <Pressable className="border-ink/10 bg-paper mb-3 rounded-2xl border p-4 active:opacity-70">
         <View className="mb-1 flex-row items-center justify-between">
-          <Text className="text-base font-semibold text-ink" numberOfLines={1}>
+          <Text className="text-ink text-base font-semibold" numberOfLines={1}>
             {item.serviceName}
           </Text>
-          <Text className="text-sm font-semibold text-coral">{formatBRL(item.priceCents)}</Text>
+          <Text className="text-coral text-sm font-semibold">{formatBRL(item.priceCents)}</Text>
         </View>
-        <Text className="text-sm text-muted" numberOfLines={1}>
+        <Text className="text-muted text-sm" numberOfLines={1}>
           {item.tenant.name}
           {item.professionalName ? ` · ${item.professionalName}` : ''}
         </Text>
         <View className="mt-3 flex-row items-center justify-between">
-          <Text className="text-sm capitalize text-ink-soft">{item.whenLabel}</Text>
+          <Text className="text-ink-soft text-sm capitalize">{item.whenLabel}</Text>
           <View className={`rounded-full px-2 py-0.5 ${status.bg}`}>
             <Text className={`text-xs font-medium ${status.fg}`}>{status.text}</Text>
           </View>

@@ -46,8 +46,8 @@ export default function BookScreen() {
     api
       .tenant(slug)
       .then((t) => active && setTenant(t))
-      .catch((err) =>
-        active && setLoadError(err instanceof ApiError ? err.message : 'Erro ao carregar'),
+      .catch(
+        (err) => active && setLoadError(err instanceof ApiError ? err.message : 'Erro ao carregar'),
       )
       .finally(() => active && setLoading(false));
     return () => {
@@ -74,7 +74,9 @@ export default function BookScreen() {
 
   const loadSlots = useCallback(
     (dateStr: string) =>
-      service ? api.tenantSlots(slug, service.id, dateStr).then((r) => r.slots) : Promise.resolve([]),
+      service
+        ? api.tenantSlots(slug, service.id, dateStr).then((r) => r.slots)
+        : Promise.resolve([]),
     [slug, service],
   );
 
@@ -107,7 +109,7 @@ export default function BookScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView className="flex-1 items-center justify-center bg-cream">
+      <SafeAreaView className="bg-cream flex-1 items-center justify-center">
         <ActivityIndicator color="#0e7a45" />
       </SafeAreaView>
     );
@@ -115,8 +117,8 @@ export default function BookScreen() {
 
   if (loadError || !tenant) {
     return (
-      <SafeAreaView className="flex-1 bg-cream px-6 pt-10">
-        <Text className="text-base text-destructive">{loadError ?? 'Negócio não encontrado'}</Text>
+      <SafeAreaView className="bg-cream flex-1 px-6 pt-10">
+        <Text className="text-destructive text-base">{loadError ?? 'Negócio não encontrado'}</Text>
       </SafeAreaView>
     );
   }
@@ -125,11 +127,11 @@ export default function BookScreen() {
     name.trim().length >= 2 && phone.replace(/\D/g, '').length >= 10 && !submitting;
 
   return (
-    <SafeAreaView className="flex-1 bg-cream" edges={['top']}>
+    <SafeAreaView className="bg-cream flex-1" edges={['top']}>
       {step !== 'done' && (
         <View className="flex-row items-center px-4 pb-2 pt-2">
           <Pressable onPress={goBack} hitSlop={8} className="py-1 pr-3">
-            <Text className="text-base text-coral">‹ Voltar</Text>
+            <Text className="text-coral text-base">‹ Voltar</Text>
           </Pressable>
         </View>
       )}
@@ -139,15 +141,15 @@ export default function BookScreen() {
         className="flex-1"
       >
         <ScrollView className="flex-1 px-6" contentContainerClassName="pb-10">
-          <Text className="text-2xl font-bold text-ink">{tenant.name}</Text>
+          <Text className="text-ink text-2xl font-bold">{tenant.name}</Text>
 
           {!tenant.publicBookingEnabled ? (
-            <Text className="mt-6 text-base text-muted">
+            <Text className="text-muted mt-6 text-base">
               Este negócio não está aceitando agendamentos online no momento.
             </Text>
           ) : step === 'service' ? (
             <>
-              <Text className="mb-3 mt-1 text-base text-muted">Escolha o serviço</Text>
+              <Text className="text-muted mb-3 mt-1 text-base">Escolha o serviço</Text>
               {tenant.services.map((s) => (
                 <Pressable
                   key={s.id}
@@ -155,25 +157,31 @@ export default function BookScreen() {
                     setService(s);
                     setStep('slot');
                   }}
-                  className="mb-3 rounded-2xl border border-ink/10 bg-paper p-4 active:opacity-70"
+                  className="border-ink/10 bg-paper mb-3 rounded-2xl border p-4 active:opacity-70"
                 >
                   <View className="flex-row items-center justify-between">
-                    <Text className="text-base font-semibold text-ink">{s.name}</Text>
-                    <Text className="text-sm font-semibold text-coral">{formatBRL(s.priceCents)}</Text>
+                    <Text className="text-ink text-base font-semibold">{s.name}</Text>
+                    <Text className="text-coral text-sm font-semibold">
+                      {formatBRL(s.priceCents)}
+                    </Text>
                   </View>
                   {s.description ? (
-                    <Text className="mt-1 text-sm text-muted">{s.description}</Text>
+                    <Text className="text-muted mt-1 text-sm">{s.description}</Text>
                   ) : null}
-                  <Text className="mt-2 text-sm text-ink-soft">{formatDuration(s.durationMinutes)}</Text>
+                  <Text className="text-ink-soft mt-2 text-sm">
+                    {formatDuration(s.durationMinutes)}
+                  </Text>
                 </Pressable>
               ))}
               {tenant.services.length === 0 && (
-                <Text className="mt-4 text-sm text-muted">Nenhum serviço disponível.</Text>
+                <Text className="text-muted mt-4 text-sm">Nenhum serviço disponível.</Text>
               )}
             </>
           ) : step === 'slot' && service ? (
             <>
-              <Text className="mb-3 mt-1 text-base text-muted">{service.name} · escolha o horário</Text>
+              <Text className="text-muted mb-3 mt-1 text-base">
+                {service.name} · escolha o horário
+              </Text>
               <SlotPicker
                 timezone={tenant.timezone}
                 openWeekdays={tenant.openWeekdays}
@@ -187,18 +195,18 @@ export default function BookScreen() {
             </>
           ) : step === 'contact' ? (
             <View className="mt-2">
-              <Text className="mb-4 text-base text-muted">Seus dados</Text>
-              <Text className="mb-1 text-sm font-medium text-ink-soft">Nome</Text>
+              <Text className="text-muted mb-4 text-base">Seus dados</Text>
+              <Text className="text-ink-soft mb-1 text-sm font-medium">Nome</Text>
               <TextInput
-                className="mb-4 rounded-xl border border-ink/10 bg-paper px-4 py-3 text-base text-ink"
+                className="border-ink/10 bg-paper text-ink mb-4 rounded-xl border px-4 py-3 text-base"
                 value={name}
                 onChangeText={setName}
                 placeholder="Seu nome"
                 placeholderTextColor="#9aa8a0"
               />
-              <Text className="mb-1 text-sm font-medium text-ink-soft">WhatsApp</Text>
+              <Text className="text-ink-soft mb-1 text-sm font-medium">WhatsApp</Text>
               <TextInput
-                className="mb-6 rounded-xl border border-ink/10 bg-paper px-4 py-3 text-base text-ink"
+                className="border-ink/10 bg-paper text-ink mb-6 rounded-xl border px-4 py-3 text-base"
                 value={phone}
                 onChangeText={(t) => setPhone(maskPhoneBRInput(t))}
                 placeholder="(11) 91234-5678"
@@ -206,7 +214,7 @@ export default function BookScreen() {
                 keyboardType="phone-pad"
                 inputMode="tel"
               />
-              {error ? <Text className="mb-4 text-sm text-destructive">{error}</Text> : null}
+              {error ? <Text className="text-destructive mb-4 text-sm">{error}</Text> : null}
               <Pressable
                 disabled={!canConfirm}
                 onPress={handleConfirm}
@@ -222,17 +230,19 @@ export default function BookScreen() {
           ) : (
             <View className="mt-6 items-center">
               <Text className="text-2xl">🎉</Text>
-              <Text className="mt-2 text-center text-xl font-bold text-ink">
+              <Text className="text-ink mt-2 text-center text-xl font-bold">
                 Agendamento confirmado!
               </Text>
               {summary ? (
-                <Text className="mt-2 text-center text-base capitalize text-ink-soft">{summary}</Text>
+                <Text className="text-ink-soft mt-2 text-center text-base capitalize">
+                  {summary}
+                </Text>
               ) : null}
               {booked?.paymentAvailable ? (
                 <PaymentSection slug={slug} appointmentId={booked.appointmentId} />
               ) : null}
               <Link href={session ? '/' : '/login'} asChild>
-                <Pressable className="mt-8 items-center rounded-xl bg-coral px-6 py-4">
+                <Pressable className="bg-coral mt-8 items-center rounded-xl px-6 py-4">
                   <Text className="text-base font-semibold text-white">
                     {session ? 'Ver meus agendamentos' : 'Entrar na minha conta'}
                   </Text>

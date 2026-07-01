@@ -9,9 +9,10 @@ export async function POST(req: Request) {
   const account = await requireCustomerAccountFromBearer(req);
   if (!account) return Response.json({ error: 'Não autenticado' }, { status: 401 });
 
-  const body = (await req.json().catch(() => null)) as
-    | { expoPushToken?: unknown; platform?: unknown }
-    | null;
+  const body = (await req.json().catch(() => null)) as {
+    expoPushToken?: unknown;
+    platform?: unknown;
+  } | null;
   const token = typeof body?.expoPushToken === 'string' ? body.expoPushToken : '';
   const platform = typeof body?.platform === 'string' ? body.platform : null;
 

@@ -36,7 +36,7 @@ export function ProfileForm({ name, email, documentDefault, birthDateDefault }: 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Seu cadastro</CardTitle>
+        <CardTitle>Dados pessoais</CardTitle>
         <CardDescription>
           Estes dados aparecem para os estabelecimentos onde você agenda.
         </CardDescription>
@@ -51,9 +51,6 @@ export function ProfileForm({ name, email, documentDefault, birthDateDefault }: 
           <div className="space-y-2">
             <Label htmlFor="email">E-mail</Label>
             <Input id="email" value={email} disabled readOnly />
-            <p className="text-muted-foreground text-xs">
-              É o seu login. Para alterar, fale com o suporte.
-            </p>
           </div>
 
           <div className="space-y-2">

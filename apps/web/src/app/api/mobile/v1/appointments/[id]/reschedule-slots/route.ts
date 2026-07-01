@@ -8,9 +8,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   if (!account) return Response.json({ error: 'Não autenticado' }, { status: 401 });
 
   const { id } = await params;
-  const body = (await req.json().catch(() => null)) as
-    | { serviceId?: unknown; dateStr?: unknown }
-    | null;
+  const body = (await req.json().catch(() => null)) as {
+    serviceId?: unknown;
+    dateStr?: unknown;
+  } | null;
   const serviceId = typeof body?.serviceId === 'string' ? body.serviceId : '';
   const dateStr = typeof body?.dateStr === 'string' ? body.dateStr : '';
 

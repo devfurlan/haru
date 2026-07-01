@@ -15,25 +15,29 @@ type Props = {
 export function SlotPicker({ timezone, openWeekdays, loadSlots, onConfirm, submitting }: Props) {
   const days = buildBookingDays(timezone, new Set(openWeekdays)).filter((d) => d.open);
   const [selectedDay, setSelectedDay] = useState<string | null>(days[0]?.value ?? null);
-  const [slots, setSlots] = useState<AvailableSlot[] | null>(null);
-  const [loadingSlots, setLoadingSlots] = useState(false);
+  // Guarda os slots junto do dia a que pertencem. `loading`/`slots` são DERIVADOS:
+  // enquanto o dia buscado não for o selecionado, está carregando. Assim o effect só
+  // faz setState no callback assíncrono (sem setState síncrono, sem flicker).
+  const [fetched, setFetched] = useState<{ day: string; slots: AvailableSlot[] } | null>(null);
 
   useEffect(() => {
     if (!selectedDay) return;
     let active = true;
-    setLoadingSlots(true);
-    setSlots(null);
     loadSlots(selectedDay)
-      .then((s) => active && setSlots(s))
-      .catch(() => active && setSlots([]))
-      .finally(() => active && setLoadingSlots(false));
+      .then((s) => active && setFetched({ day: selectedDay, slots: s }))
+      .catch(() => active && setFetched({ day: selectedDay, slots: [] }));
     return () => {
       active = false;
     };
   }, [selectedDay, loadSlots]);
 
+  const loadingSlots = fetched?.day !== selectedDay;
+  const slots = fetched?.day === selectedDay ? fetched.slots : null;
+
   if (days.length === 0) {
-    return <Text className="text-sm text-muted">Este profissional não tem dias de atendimento.</Text>;
+    return (
+      <Text className="text-muted text-sm">Este profissional não tem dias de atendimento.</Text>
+    );
   }
 
   return (
@@ -53,9 +57,7 @@ export function SlotPicker({ timezone, openWeekdays, loadSlots, onConfirm, submi
                 selected ? 'border-coral bg-coral' : 'border-ink/10 bg-paper'
               }`}
             >
-              <Text
-                className={`text-sm capitalize ${selected ? 'text-white' : 'text-ink-soft'}`}
-              >
+              <Text className={`text-sm capitalize ${selected ? 'text-white' : 'text-ink-soft'}`}>
                 {day.label}
               </Text>
             </Pressable>
@@ -68,7 +70,7 @@ export function SlotPicker({ timezone, openWeekdays, loadSlots, onConfirm, submi
           <ActivityIndicator color="#0e7a45" />
         </View>
       ) : slots && slots.length === 0 ? (
-        <Text className="py-4 text-sm text-muted">Nenhum horário livre nesse dia.</Text>
+        <Text className="text-muted py-4 text-sm">Nenhum horário livre nesse dia.</Text>
       ) : (
         <View className="flex-row flex-wrap gap-2">
           {slots?.map((slot) => (
@@ -76,9 +78,9 @@ export function SlotPicker({ timezone, openWeekdays, loadSlots, onConfirm, submi
               key={slot.startsAtIso}
               disabled={submitting}
               onPress={() => onConfirm(slot.startsAtIso)}
-              className="rounded-xl border border-green/30 bg-green/5 px-4 py-2 active:opacity-60"
+              className="border-green/30 bg-green/5 rounded-xl border px-4 py-2 active:opacity-60"
             >
-              <Text className="text-sm font-medium text-green-deep">{slot.label}</Text>
+              <Text className="text-green-deep text-sm font-medium">{slot.label}</Text>
             </Pressable>
           ))}
         </View>

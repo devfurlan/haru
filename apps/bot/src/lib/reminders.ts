@@ -95,11 +95,7 @@ async function processReminders() {
         status: { in: ['PENDING', 'CONFIRMED'] },
         // Pendente em ao menos um canal (WhatsApp, e-mail OU push). Cada canal tem seu
         // próprio carimbo e é enviado no máximo uma vez.
-        OR: [
-          { reminderSentAt: null },
-          { reminderEmailSentAt: null },
-          { reminderPushSentAt: null },
-        ],
+        OR: [{ reminderSentAt: null }, { reminderEmailSentAt: null }, { reminderPushSentAt: null }],
         startsAt: { gte: earliestStart, lte: latestStart },
       },
       include: {

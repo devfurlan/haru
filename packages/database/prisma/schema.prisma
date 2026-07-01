@@ -17,15 +17,15 @@ model Tenant {
 
   /// URL pública da logo do estabelecimento (bucket tenant-assets). Imagem
   /// quadrada padronizada - usada na página pública e no painel.
-  logoUrl String?
+  logoUrl       String?
   /// Endereço físico exibido pro cliente (texto livre, opcional).
-  address String?
+  address       String?
   /// Descrição do negócio (perfil comercial do WhatsApp `description`, máx 256).
-  description String?
+  description   String?
   /// Status/recado curto do WhatsApp (`about`, máx 139). Específico do perfil WhatsApp.
   whatsappAbout String?
   /// E-mail de contato exibido no perfil comercial do WhatsApp (`email`).
-  email String?
+  email         String?
 
   /// Agendamento direto pela página pública (/[slug]). Quando false, a página só
   /// mostra serviços/horários e o botão de WhatsApp (sem formulário de booking).
@@ -36,7 +36,7 @@ model Tenant {
 
   // WhatsApp Cloud API - credenciais por tenant (onboard via Embedded Signup).
   // O bot resolve qual tenant atende um webhook por whatsappPhoneNumberId.
-  whatsappPhoneNumberId     String? @unique
+  whatsappPhoneNumberId     String?   @unique
   whatsappBusinessAccountId String?
   /// Token de acesso do tenant (criptografar at rest em produção).
   whatsappAccessToken       String?
@@ -57,13 +57,13 @@ model Tenant {
   /// URL opcional para POST quando agendamentos são criados/cancelados. Aceita
   /// webhooks de Discord, Slack, Zapier, n8n, etc. Para Discord: o body inclui
   /// um campo `content` com o resumo formatado.
-  notificationWebhookUrl     String?
+  notificationWebhookUrl        String?
   /// Horas antes do horário marcado para o bot enviar lembrete via WhatsApp.
   /// 0 = lembretes desativados.
-  reminderHoursBefore        Int     @default(24)
+  reminderHoursBefore           Int     @default(24)
   /// Avisar o dono por e-mail quando um cliente pedir atendimento humano
   /// (handoff). O aviso no painel/realtime é sempre enviado; só o e-mail é opcional.
-  handoffEmailEnabled        Boolean @default(true)
+  handoffEmailEnabled           Boolean @default(true)
   /// Avisar o dono por e-mail dos eventos de agendamento: novo agendamento e quando
   /// o cliente cancela/remarca. NÃO inclui lembrete por agendamento (evita flood em
   /// agenda cheia). Controlado pelo dono em /settings; não afeta os e-mails do cliente.
@@ -72,17 +72,17 @@ model Tenant {
   /// template em vez de freeform - escapam da regra das 24h. Todos esperam
   /// 3 variáveis no body: {{1}}=nome do cliente, {{2}}=data/hora formatada,
   /// {{3}}=nome do serviço.
-  reminderTemplateName       String?
-  reminderTemplateLanguage   String? @default("pt_BR")
-  cancelTemplateName         String?
-  cancelTemplateLanguage     String? @default("pt_BR")
-  rescheduleTemplateName     String?
-  rescheduleTemplateLanguage String? @default("pt_BR")
+  reminderTemplateName          String?
+  reminderTemplateLanguage      String? @default("pt_BR")
+  cancelTemplateName            String?
+  cancelTemplateLanguage        String? @default("pt_BR")
+  rescheduleTemplateName        String?
+  rescheduleTemplateLanguage    String? @default("pt_BR")
   /// Template aprovado na Meta usado no convite de novos usuários da equipe.
   /// Quando definido, o convite é enviado via template (escapa a janela de 24h).
   /// Espera 2 variáveis no body: {{1}}=nome do estabelecimento, {{2}}=link de ativação.
-  inviteTemplateName         String?
-  inviteTemplateLanguage     String? @default("pt_BR")
+  inviteTemplateName            String?
+  inviteTemplateLanguage        String? @default("pt_BR")
 
   // --- Pagamentos -------------------------------------------------------------
   /// Gateway de pagamento ativo. null = pagamentos desativados (sem botão "Pagar"
@@ -118,43 +118,43 @@ model Tenant {
 }
 
 model User {
-  id          String     @id @default(cuid())
+  id              String     @id @default(cuid())
   // Vinculado ao auth.users do Supabase
-  authId      String     @unique
-  email       String     @unique
-  name        String?
+  authId          String     @unique
+  email           String     @unique
+  name            String?
   /// Telefone E.164 sem máscara (ex.: "5511912345678"). Destino do convite por
   /// WhatsApp. Opcional - OWNER criado no signup não tem telefone.
-  phone       String?
-  role        UserRole   @default(OWNER)
+  phone           String?
+  role            UserRole   @default(OWNER)
   /// Profissional = tem agenda própria (horários, serviços) e recebe agendamentos.
   /// false = usuário de apoio (recepcionista/secretária): acessa e gerencia as
   /// agendas dos outros, mas não tem agenda própria nem aparece no booking.
   /// O OWNER nasce profissional (caso solo). Conta no limite do plano por categoria.
-  isProfessional Boolean @default(false)
+  isProfessional  Boolean    @default(false)
   /// Ciclo de vida do acesso. Membro convidado nasce INVITED (sem senha) e vira
   /// ACTIVE quando define a senha pela tela de ativação.
-  status      UserStatus @default(ACTIVE)
+  status          UserStatus @default(ACTIVE)
   /// Quando o convite foi enviado (membros INVITED). Null pra quem nasceu ACTIVE.
-  invitedAt   DateTime?
+  invitedAt       DateTime?
   /// Quando o usuário ativou a conta (definiu a senha).
-  activatedAt DateTime?
+  activatedAt     DateTime?
   /// Prova de consentimento: quando o usuário aceitou os Termos/Privacidade no
   /// cadastro. Null para contas anteriores ao aceite obrigatório.
   termsAcceptedAt DateTime?
   /// Versão dos Termos aceita (ver TERMS_VERSION em apps/web/src/lib/legal.ts).
-  termsVersion String?
-  tenantId    String
-  tenant      Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  termsVersion    String?
+  tenantId        String
+  tenant          Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
 
-  conversationReads ConversationRead[]
-  handoffConversations Conversation[] @relation("ConversationHandoff")
+  conversationReads    ConversationRead[]
+  handoffConversations Conversation[]        @relation("ConversationHandoff")
   /// Agenda própria do profissional (vazia para recepcionistas).
-  scheduleBlocks     ScheduleBlock[]
-  scheduleExceptions ScheduleException[]
-  appointments       Appointment[]
+  scheduleBlocks       ScheduleBlock[]
+  scheduleExceptions   ScheduleException[]
+  appointments         Appointment[]
   professionalServices ProfessionalService[]
 }
 
@@ -177,31 +177,31 @@ enum UserStatus {
 /// domínio distintas). O vínculo com os Contacts (um por tenant) é feito por
 /// telefone - ver claimContactsByPhone em apps/web/src/lib/customer-claim.ts.
 model CustomerAccount {
-  id        String   @id @default(cuid())
+  id                       String    @id @default(cuid())
   /// Vinculado ao auth.users do Supabase (mesma origem que User.authId).
-  authId    String   @unique
-  email     String   @unique
-  name      String?
+  authId                   String    @unique
+  email                    String    @unique
+  name                     String?
   /// Telefone E.164 sem máscara (ex.: "5511912345678") - SÓ recebe número já
   /// VERIFICADO por OTP. É o que reivindica (claim) os Contacts de mesmo telefone em
   /// todos os tenants. Opcional: a conta pode existir antes de confirmar o telefone.
-  phone     String?
+  phone                    String?
   /// Telefone informado no cadastro mas AINDA NÃO verificado. Fica separado de
   /// `phone` pra nunca disparar o claim sem prova de posse; serve só pra pré-preencher
   /// a barra de confirmação pós-login. É limpo quando o número é confirmado.
-  pendingPhone String?
+  pendingPhone             String?
   /// Prova de consentimento (Termos/Privacidade) no cadastro do cliente.
-  termsAcceptedAt DateTime?
+  termsAcceptedAt          DateTime?
   /// Versão dos Termos aceita (ver TERMS_VERSION em apps/web/src/lib/legal.ts).
-  termsVersion    String?
+  termsVersion             String?
   /// Receber e-mails dos próprios agendamentos (confirmação, lembrete, remarcação,
   /// cancelamento). Controlado pelo cliente em /conta/perfil. Independente dos avisos
   /// por WhatsApp do estabelecimento.
-  appointmentEmailsEnabled Boolean @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  appointmentEmailsEnabled Boolean   @default(true)
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
 
-  contacts  Contact[]
+  contacts    Contact[]
   pushDevices PushDevice[]
 
   @@index([phone])
@@ -236,7 +236,7 @@ model Service {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  appointments Appointment[]
+  appointments  Appointment[]
   /// Quais profissionais executam este serviço (N:N). Vazio = nenhum oferece.
   professionals ProfessionalService[]
 }
@@ -259,19 +259,19 @@ model ProfessionalService {
 /// no mesmo dia representam expediente partido (ex: 08:00-12:00 e 14:00-18:00).
 /// Ausência de blocos para um weekday = profissional fechado naquele dia.
 model ScheduleBlock {
-  id          String   @id @default(cuid())
-  tenantId    String
-  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  id             String   @id @default(cuid())
+  tenantId       String
+  tenant         Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   /// Profissional dono desta grade (User com isProfessional=true).
   professionalId String
-  professional   User  @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+  professional   User     @relation(fields: [professionalId], references: [id], onDelete: Cascade)
   /// 0 = domingo, 6 = sábado (igual `Date#getDay()`).
-  weekday     Int
+  weekday        Int
   /// Minutos desde a meia-noite (ex: 480 = 08:00).
-  startMinute Int
-  endMinute   Int
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  startMinute    Int
+  endMinute      Int
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   @@index([tenantId, professionalId, weekday])
 }
@@ -280,26 +280,26 @@ model ScheduleBlock {
 /// onde não se aceita agendamento (folga, compromisso pessoal, férias).
 /// "Dia inteiro" e "vários dias" são apenas intervalos maiores.
 model ScheduleException {
-  id        String   @id @default(cuid())
-  tenantId  String
-  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  id             String   @id @default(cuid())
+  tenantId       String
+  tenant         Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   /// Folga de um profissional específico. null = folga do estabelecimento inteiro
   /// (aplica a todos os profissionais).
   professionalId String?
-  professional   User?  @relation(fields: [professionalId], references: [id], onDelete: Cascade)
-  startsAt  DateTime
-  endsAt    DateTime
-  reason    String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  professional   User?    @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+  startsAt       DateTime
+  endsAt         DateTime
+  reason         String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   @@index([tenantId, startsAt])
 }
 
 model Contact {
-  id                 String    @id @default(cuid())
+  id                 String           @id @default(cuid())
   tenantId           String
-  tenant             Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant             Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   phone              String
   name               String?
   email              String?
@@ -321,8 +321,8 @@ model Contact {
   /// onDelete: SetNull -> apagar a conta do cliente NÃO apaga o Contact (que é do tenant).
   customerAccountId  String?
   customerAccount    CustomerAccount? @relation(fields: [customerAccountId], references: [id], onDelete: SetNull)
-  createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
 
   conversations Conversation[]
   appointments  Appointment[]
@@ -333,11 +333,11 @@ model Contact {
 }
 
 model Conversation {
-  id        String   @id @default(cuid())
-  tenantId  String
-  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  contactId String
-  contact   Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  id               String    @id @default(cuid())
+  tenantId         String
+  tenant           Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  contactId        String
+  contact          Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
   /// Handoff humano: enquanto > now(), o bot fica em silêncio nesta conversa e o
   /// dono responde manualmente pelo painel. null = bot ativo. Cada mensagem do
   /// cliente renova a janela (24h de inatividade); expira sozinho sem cron.
@@ -345,8 +345,8 @@ model Conversation {
   /// Quem assumiu a conversa (atribuição "em atendimento por X"). null = bot ativo.
   handoffById      String?
   handoffBy        User?     @relation("ConversationHandoff", fields: [handoffById], references: [id], onDelete: SetNull)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   messages    Message[]
   reads       ConversationRead[]
@@ -386,34 +386,34 @@ model ConversationRead {
 }
 
 model Appointment {
-  id             String            @id @default(cuid())
-  tenantId       String
-  tenant         Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  contactId      String
-  contact        Contact           @relation(fields: [contactId], references: [id], onDelete: Cascade)
-  serviceId      String
-  service        Service           @relation(fields: [serviceId], references: [id])
+  id                  String             @id @default(cuid())
+  tenantId            String
+  tenant              Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  contactId           String
+  contact             Contact            @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  serviceId           String
+  service             Service            @relation(fields: [serviceId], references: [id])
   /// Profissional que atende este agendamento (User com isProfessional=true).
-  professionalId String
-  professional   User              @relation(fields: [professionalId], references: [id])
-  startsAt       DateTime
-  endsAt         DateTime
-  status         AppointmentStatus @default(PENDING)
+  professionalId      String
+  professional        User               @relation(fields: [professionalId], references: [id])
+  startsAt            DateTime
+  endsAt              DateTime
+  status              AppointmentStatus  @default(PENDING)
   /// Série de recorrência à qual essa ocorrência pertence. null = agendamento avulso.
   /// Ocorrências da mesma série compartilham serviço/contato e são geradas juntas.
-  seriesId       String?
-  series         AppointmentSeries? @relation(fields: [seriesId], references: [id], onDelete: SetNull)
+  seriesId            String?
+  series              AppointmentSeries? @relation(fields: [seriesId], references: [id], onDelete: SetNull)
   /// Marca de quando o lembrete via WhatsApp foi enviado. null = ainda não.
-  reminderSentAt DateTime?
+  reminderSentAt      DateTime?
   /// Marca de quando o lembrete por E-MAIL ao cliente foi processado. null = ainda
   /// não. Separado de `reminderSentAt` (WhatsApp) pra que os dois canais sejam
   /// independentes. Zerado junto na remarcação, pra disparar de novo no novo horário.
   reminderEmailSentAt DateTime?
   /// Marca de quando o lembrete via PUSH (app) foi enviado. null = ainda não. Mesmo
   /// padrão dos outros canais - evita reenvio a cada tick do loop; zerado na remarcação.
-  reminderPushSentAt DateTime?
-  createdAt      DateTime          @default(now())
-  updatedAt      DateTime          @updatedAt
+  reminderPushSentAt  DateTime?
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
 
   payments Payment[]
 
@@ -439,9 +439,9 @@ model AppointmentSeries {
 
 /// Frequência de repetição de uma série de agendamentos.
 enum RecurrenceFrequency {
-  WEEKLY    // toda semana (+7 dias)
-  BIWEEKLY  // quinzenal (+14 dias)
-  MONTHLY   // mensal (+1 mês, mesmo dia, com clamp ao último dia do mês)
+  WEEKLY // toda semana (+7 dias)
+  BIWEEKLY // quinzenal (+14 dias)
+  MONTHLY // mensal (+1 mês, mesmo dia, com clamp ao último dia do mês)
 }
 
 enum AppointmentStatus {

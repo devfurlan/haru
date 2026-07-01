@@ -7,7 +7,6 @@ import {
   Pressable,
   Text,
   TextInput,
-  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -39,17 +38,17 @@ export default function LoginScreen() {
   const canSubmit = email.trim().length > 3 && password.length >= 1 && !submitting;
 
   return (
-    <SafeAreaView className="flex-1 bg-cream">
+    <SafeAreaView className="bg-cream flex-1">
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         className="flex-1 justify-center px-6"
       >
-        <Text className="mb-1 text-4xl font-bold text-ink">Demandaê</Text>
-        <Text className="mb-8 text-base text-muted">Entre para ver seus agendamentos</Text>
+        <Text className="text-ink mb-1 text-4xl font-bold">Demandaê</Text>
+        <Text className="text-muted mb-8 text-base">Entre para ver seus agendamentos</Text>
 
-        <Text className="mb-1 text-sm font-medium text-ink-soft">E-mail</Text>
+        <Text className="text-ink-soft mb-1 text-sm font-medium">E-mail</Text>
         <TextInput
-          className="mb-4 rounded-xl border border-ink/10 bg-paper px-4 py-3 text-base text-ink"
+          className="border-ink/10 bg-paper text-ink mb-4 rounded-xl border px-4 py-3 text-base"
           value={email}
           onChangeText={setEmail}
           placeholder="voce@email.com"
@@ -60,9 +59,9 @@ export default function LoginScreen() {
           inputMode="email"
         />
 
-        <Text className="mb-1 text-sm font-medium text-ink-soft">Senha</Text>
+        <Text className="text-ink-soft mb-1 text-sm font-medium">Senha</Text>
         <TextInput
-          className="mb-6 rounded-xl border border-ink/10 bg-paper px-4 py-3 text-base text-ink"
+          className="border-ink/10 bg-paper text-ink mb-6 rounded-xl border px-4 py-3 text-base"
           value={password}
           onChangeText={setPassword}
           placeholder="Sua senha"
@@ -71,7 +70,7 @@ export default function LoginScreen() {
           autoComplete="current-password"
         />
 
-        {error ? <Text className="mb-4 text-sm text-destructive">{error}</Text> : null}
+        {error ? <Text className="text-destructive mb-4 text-sm">{error}</Text> : null}
 
         <Pressable
           disabled={!canSubmit}
@@ -87,7 +86,7 @@ export default function LoginScreen() {
 
         <Link href="/signup" asChild>
           <Pressable className="mt-6">
-            <Text className="text-center text-sm text-muted">Ainda não tem conta? Criar conta</Text>
+            <Text className="text-muted text-center text-sm">Ainda não tem conta? Criar conta</Text>
           </Pressable>
         </Link>
       </KeyboardAvoidingView>
