@@ -1,3 +1,4 @@
+import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
 import { api } from './api';
@@ -14,6 +15,10 @@ import { api } from './api';
 let cachedToken: string | null = null;
 
 export async function registerForPush(): Promise<void> {
+  // Expo Go (SDK 53+) não faz push remoto e o próprio expo-notifications reclama alto
+  // no import. Detecta e pula limpo - push só ativa em dev/standalone build.
+  if (Constants.appOwnership === 'expo') return;
+
   try {
     const Device = await import('expo-device');
     if (!Device.isDevice) return; // emulador/Expo Go: sem push remoto

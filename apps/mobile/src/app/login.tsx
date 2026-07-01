@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { EyeIcon } from '@/components/eye-icon';
 import { GoogleAuthButton } from '@/components/google-auth-button';
 import { Logo } from '@/components/logo';
 import { useAuth } from '@/lib/auth';
@@ -21,6 +22,7 @@ export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Já logado: sai da tela de login pro app.
@@ -29,13 +31,28 @@ export default function LoginScreen() {
   async function handleSignIn() {
     setError(null);
     setSubmitting(true);
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email: email.trim(),
-      password,
-    });
-    setSubmitting(false);
-    if (signInError) setError('E-mail ou senha incorretos.');
-    // Sucesso: onAuthStateChange atualiza a sessão e o <Redirect> acima leva pro app.
+    try {
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
+      if (signInError) {
+        // Distingue credencial inválida (400) de falha de rede - senão qualquer erro
+        // vira "senha errada" e confunde (ex.: backend fora do ar / device sem alcance).
+        const invalid =
+          signInError.status === 400 || signInError.code === 'invalid_credentials';
+        setError(
+          invalid
+            ? 'E-mail ou senha incorretos.'
+            : `Sem conexão com o servidor (${signInError.message}). Confira se o backend está no ar e o celular o alcança.`,
+        );
+      }
+      // Sucesso: onAuthStateChange atualiza a sessão e o <Redirect> acima leva pro app.
+    } catch {
+      setError('Sem conexão com o servidor. Confira o backend e a conexão do celular.');
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   const canSubmit = email.trim().length > 3 && password.length >= 1 && !submitting;
@@ -65,15 +82,21 @@ export default function LoginScreen() {
         />
 
         <Text className="text-ink-soft mb-1 text-sm font-medium">Senha</Text>
-        <TextInput
-          className="border-ink/10 bg-paper text-ink mb-6 rounded-xl border px-4 py-3 text-base"
-          value={password}
-          onChangeText={setPassword}
-          placeholder="Sua senha"
-          placeholderTextColor="#9aa8a0"
-          secureTextEntry
-          autoComplete="current-password"
-        />
+        <View className="mb-6 flex-row items-center rounded-xl border border-ink/10 bg-paper pr-2">
+          <TextInput
+            className="text-ink flex-1 px-4 py-3 text-base"
+            value={password}
+            onChangeText={setPassword}
+            placeholder="Sua senha"
+            placeholderTextColor="#9aa8a0"
+            secureTextEntry={!showPassword}
+            autoComplete="current-password"
+            autoCapitalize="none"
+          />
+          <Pressable onPress={() => setShowPassword((v) => !v)} hitSlop={8} className="p-2">
+            <EyeIcon off={showPassword} />
+          </Pressable>
+        </View>
 
         {error ? <Text className="text-destructive mb-4 text-sm">{error}</Text> : null}
 

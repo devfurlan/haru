@@ -101,13 +101,24 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       ...(init?.headers as Record<string, string> | undefined),
     },
   });
-  const body = (await res.json().catch(() => null)) as unknown;
+  const raw = await res.text();
+  let body: unknown = null;
+  try {
+    body = raw ? JSON.parse(raw) : null;
+  } catch {
+    body = null;
+  }
   if (!res.ok) {
     const message =
       body && typeof body === 'object' && 'error' in body
         ? String((body as { error: unknown }).error)
-        : 'Erro inesperado';
+        : `Erro ${res.status} do servidor.`;
     throw new ApiError(res.status, message);
+  }
+  // 2xx sem JSON = o servidor da API não está servindo /api/mobile (dev server
+  // desatualizado, HTML de 404, etc.). Vira erro claro em vez de quebrar a tela.
+  if (body === null) {
+    throw new ApiError(res.status, 'O servidor da API não retornou JSON. Ele está no ar e atualizado?');
   }
   return body as T;
 }
