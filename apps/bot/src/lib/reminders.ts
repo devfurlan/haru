@@ -1,6 +1,6 @@
 import { Sentry } from '../instrument.js';
 import { emailAppointmentReminder } from './appointmentEmail.js';
-import { emailNumberBanned } from './email.js';
+import { emailNumberBanned, emailQualityDegraded } from './email.js';
 import prisma from './prisma.js';
 import { getPhoneNumberStatus, sendTemplateMessage } from './whatsapp/client.js';
 import { sendTextSafely } from './whatsapp/safeSend.js';
@@ -110,8 +110,14 @@ async function processReminders() {
       const when = formatWhen(appt.startsAt, tenant.timezone);
       const name = appt.contact.name ?? 'cliente';
 
-      // --- Lembrete por WhatsApp (só se o tenant tem número e ainda não enviou) ---
-      if (tenant.whatsappPhoneNumberId && !whatsappBlocked && appt.reminderSentAt == null) {
+      // --- Lembrete por WhatsApp (só se o tenant tem número, o cliente não pediu
+      // pra sair e ainda não enviou) ---
+      if (
+        tenant.whatsappPhoneNumberId &&
+        !whatsappBlocked &&
+        appt.reminderSentAt == null &&
+        appt.contact.remindersOptOutAt == null
+      ) {
         let sent = false;
 
         if (tenant.reminderTemplateName) {
@@ -200,6 +206,84 @@ async function processReminders() {
       }
     }
   }
+}
+
+const QUALITY_TICK_INTERVAL_MS = 30 * 60 * 1000;
+
+// Ranqueia os ratings pra detectar PIORA (transição pra pior). null/desconhecido = 0.
+const QUALITY_RANK: Record<string, number> = { GREEN: 0, YELLOW: 1, RED: 2 };
+function qualityRank(rating: string | null | undefined): number {
+  return rating ? (QUALITY_RANK[rating] ?? 0) : 0;
+}
+
+/**
+ * Poll da quality_rating de cada número na Graph API. Alerta o operador por e-mail
+ * só na PIORA (ex.: GREEN→YELLOW, YELLOW→RED), gravando o novo rating pra não
+ * re-alertar a cada tick. RED costuma preceder restrição/ban - este é o aviso ANTES
+ * do bloqueio, não a detecção depois (o `flagIfBanned` cobre o pós). Best-effort:
+ * número indisponível ou sem rating é pulado sem apagar o que já sabíamos.
+ */
+async function processQualityCheck() {
+  const tenants = await prisma.tenant.findMany({
+    where: { whatsappPhoneNumberId: { not: null }, whatsappBannedAt: null },
+    select: {
+      id: true,
+      name: true,
+      whatsappPhoneNumberId: true,
+      whatsappDisplayPhone: true,
+      whatsappQualityRating: true,
+    },
+  });
+
+  for (const tenant of tenants) {
+    if (!tenant.whatsappPhoneNumberId) continue;
+
+    const status = await getPhoneNumberStatus(tenant.whatsappPhoneNumberId);
+    const current = status?.quality_rating ?? null;
+    if (!current) continue; // rating indisponível: não mexe no registro anterior
+    const previous = tenant.whatsappQualityRating ?? null;
+    if (current === previous) continue;
+
+    await prisma.tenant.update({
+      where: { id: tenant.id },
+      data: { whatsappQualityRating: current },
+    });
+
+    // Só alerta quando piora; melhora (ex.: RED→GREEN) só atualiza o registro.
+    if (qualityRank(current) > qualityRank(previous)) {
+      console.warn(
+        `[quality] rating piorou - tenant ${tenant.id} (${tenant.name}): ${previous ?? '?'} → ${current}`,
+      );
+      await emailQualityDegraded({
+        tenantId: tenant.id,
+        tenantName: tenant.name,
+        displayPhone: tenant.whatsappDisplayPhone,
+        previous,
+        current,
+      }).catch((err) => {
+        console.error('[quality] e-mail de alerta falhou', err);
+        Sentry.captureException(err, { tags: { component: 'quality', mode: 'degraded-alert' } });
+      });
+    }
+  }
+}
+
+/**
+ * Inicia o loop de monitoramento de qualidade do número. Roda uma vez ao subir e
+ * depois a cada 30 min. Falhas individuais são logadas mas não derrubam o loop.
+ */
+export function startQualityMonitorLoop(): void {
+  console.log(`[quality] loop iniciado (tick a cada ${QUALITY_TICK_INTERVAL_MS / 1000}s)`);
+
+  const tick = () => {
+    processQualityCheck().catch((err) => {
+      console.error('[quality] erro no tick', err);
+      Sentry.captureException(err, { tags: { component: 'quality' } });
+    });
+  };
+
+  tick();
+  setInterval(tick, QUALITY_TICK_INTERVAL_MS);
 }
 
 /**

@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useActionState, useState } from 'react';
+import { useActionState, useEffect, useRef, useState } from 'react';
 import { useFormStatus } from 'react-dom';
 
 import { customerSignUp, type CustomerActionResult } from '@/app/(customer)/actions';
@@ -25,19 +25,52 @@ function CreateButton() {
  * confirmação por código é pedida depois do login, na barra fixa no topo da área
  * logada. Só após confirmar é que o número vira oficial e conecta a conta ao
  * histórico de agendamentos (claim).
+ *
+ * Usada em dois lugares: na página /conta/criar (redireciona pra /conta ao criar)
+ * e como modal dentro do agendamento (`inline` + `onSuccess`) - aí não navega pra
+ * fora e chega com nome/celular já digitados no booking pré-preenchidos.
  */
-export function CustomerSignupForm() {
-  const [phone, setPhone] = useState('');
+export function CustomerSignupForm({
+  inline = false,
+  defaultName = '',
+  defaultPhone = '',
+  onSuccess,
+}: {
+  /** Modal dentro do agendamento: não redireciona; chama onSuccess ao criar. */
+  inline?: boolean;
+  defaultName?: string;
+  defaultPhone?: string;
+  onSuccess?: () => void;
+} = {}) {
+  const [phone, setPhone] = useState(() => maskPhoneBRInput(defaultPhone));
   const [state, formAction] = useActionState<CustomerActionResult, FormData>(
     customerSignUp,
     undefined,
   );
 
+  // Inline: ao criar a conta o servidor devolve ok (sem redirect). Avisa uma vez
+  // pro pai fechar o modal e seguir o agendamento.
+  const firedRef = useRef(false);
+  useEffect(() => {
+    if (state && 'ok' in state && !firedRef.current) {
+      firedRef.current = true;
+      onSuccess?.();
+    }
+  }, [state, onSuccess]);
+
   return (
     <form action={formAction} className="space-y-4">
+      {inline ? <input type="hidden" name="inline" value="1" /> : null}
       <div className="space-y-2">
         <Label htmlFor="name">Seu nome</Label>
-        <Input id="name" name="name" type="text" autoComplete="name" required />
+        <Input
+          id="name"
+          name="name"
+          type="text"
+          autoComplete="name"
+          defaultValue={defaultName}
+          required
+        />
       </div>
       <div className="space-y-2">
         <Label htmlFor="email">Email</Label>

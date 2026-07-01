@@ -49,6 +49,10 @@ model Tenant {
   /// ruído. O alerta por e-mail é disparado uma única vez na transição p/ banido.
   /// Volta a null quando o número for reabilitado (limpar manualmente após appeal).
   whatsappBannedAt          DateTime?
+  /// Última quality_rating conhecida do número na Meta (GREEN/YELLOW/RED). O loop
+  /// de qualidade compara contra este valor e só alerta o operador quando piora
+  /// (transição de rating), sem floodar a cada poll.
+  whatsappQualityRating     String?
 
   /// URL opcional para POST quando agendamentos são criados/cancelados. Aceita
   /// webhooks de Discord, Slack, Zapier, n8n, etc. Para Discord: o body inclui
@@ -289,6 +293,10 @@ model Contact {
   /// Marca quando o cliente confirmou o cadastro básico via bot. null = ainda não.
   /// É o sinal usado pelo gate de agendamento (NÃO confiar em `name`, que o profile do WhatsApp autopreenche).
   profileCompletedAt DateTime?
+  /// Cliente pediu pra parar de receber lembretes por WhatsApp ("parar"/"sair").
+  /// Enquanto setado, o loop de lembretes pula o envio WhatsApp deste contato (o
+  /// e-mail tem opt-out próprio em CustomerAccount). Zerado só manualmente.
+  remindersOptOutAt  DateTime?
   /// Conta global do cliente que reivindicou este Contact (por telefone). null =
   /// ainda não vinculado a um login. Um Contact pertence a um único tenant, mas
   /// vários Contacts (de tenants diferentes) podem apontar pra mesma CustomerAccount.

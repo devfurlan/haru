@@ -109,6 +109,45 @@ export async function emailNumberBanned(data: {
 }
 
 /**
+ * Alerta operacional pro OPERADOR da plataforma (env ALERT_EMAIL_TO): a
+ * quality_rating do número de um tenant PIOROU na Meta (ex.: GREEN→YELLOW,
+ * YELLOW→RED). RED costuma preceder restrição/ban - este é o aviso ANTES do
+ * bloqueio. Disparado só na transição (o caller grava o novo rating). Best-effort.
+ */
+export async function emailQualityDegraded(data: {
+  tenantId: string;
+  tenantName: string;
+  displayPhone: string | null;
+  previous: string | null;
+  current: string | null;
+}): Promise<void> {
+  const to = env.ALERT_EMAIL_TO;
+  if (!to) return;
+
+  const phone = data.displayPhone ? formatPhoneBR(data.displayPhone) : '(número desconhecido)';
+  const de = data.previous ?? 'desconhecida';
+  const para = data.current ?? '?';
+  const detalhes =
+    `<br/><br/><strong>Tenant:</strong> ${data.tenantName} (<code>${data.tenantId}</code>)` +
+    `<br/><strong>Número:</strong> ${phone}` +
+    `<br/><strong>Qualidade:</strong> ${de} → ${para}`;
+
+  await sendEmail(
+    to,
+    `⚠️ Qualidade do número caiu para ${para} - ${data.tenantName} (Demandaê)`,
+    shell(
+      'Qualidade do número em queda',
+      `A quality rating do número de <strong>${data.tenantName}</strong> caiu para ` +
+        `<code>${para}</code> na Meta. <code>RED</code> costuma preceder restrição/banimento - ` +
+        `vale revisar já o volume de envio, a taxa de bloqueios/denúncias e o conteúdo dos ` +
+        `templates antes que a Meta limite o número.${detalhes}`,
+      'Abrir WhatsApp Manager',
+      'https://business.facebook.com/wa/manage/phone-numbers/',
+    ),
+  );
+}
+
+/**
  * Avisa o dono que um cliente pediu pra falar com um humano. Respeita o opt-out
  * `tenant.handoffEmailEnabled` (default true). Best-effort.
  */

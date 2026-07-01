@@ -5,6 +5,7 @@ import { isSubscriptionActive } from '@haru/billing';
 import { Sentry } from '../instrument.js';
 import { env } from '../lib/env.js';
 import { debounceMessage } from '../lib/messageDebouncer.js';
+import prisma from '../lib/prisma.js';
 import { transcribeAudio } from '../lib/openai/audio.js';
 import { getConversation, setConversation } from '../lib/redis.js';
 import { uploadBotAudio } from '../lib/supabase.js';
@@ -38,6 +39,31 @@ function looksLikeHumanRequest(raw: string): boolean {
       t,
     ) ||
     /pessoa de verdade/.test(t)
+  );
+}
+
+/**
+ * Heurística de opt-out de lembretes (convenção "PARAR"/"SAIR" que a Meta espera).
+ * Deliberadamente conservadora pra NÃO desinscrever por engano: a palavra solta
+ * ("parar"/"sair"/"stop") só conta se for a mensagem inteira; frases exigem intenção
+ * explícita de não receber. NÃO cobre "cancelar" sozinho - colide com cancelamento
+ * de agendamento, que é outro fluxo. Normaliza acentos antes de testar.
+ */
+function looksLikeStopRequest(raw: string): boolean {
+  const t = raw
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .trim();
+  return (
+    /^(parar|sair|stop|pare)$/.test(t) ||
+    /\bdescadastr/.test(t) ||
+    /\b(nao|n) quero (mais )?receber/.test(t) ||
+    /\bpar(ar|a|e) de (me )?(enviar|mandar)/.test(t) ||
+    /\bnao (me )?(envie|mande|manda) mais/.test(t) ||
+    /\bcancelar (a )?inscri/.test(t) ||
+    /\bcancelar (os |as )?(lembrete|aviso|mensage|notifica)/.test(t) ||
+    /\b(remover|tirar) .{0,15}(lista|lembrete)/.test(t)
   );
 }
 
@@ -288,6 +314,35 @@ async function routeMessage(
       await saveMessage(handoff.conversationId, 'INBOUND', text, message.id).catch(console.error);
     }
     await refreshHandoffWindow(handoff.conversationId).catch(console.error);
+    return;
+  }
+
+  // Opt-out de lembretes ("PARAR"/"SAIR"). Sem mecanismo de sair, o cliente
+  // insatisfeito bloqueia/denuncia - e denúncia derruba a quality rating e leva a
+  // restrição pela Meta. Marca o contato e para os lembretes por WhatsApp; o painel
+  // vê a mensagem no histórico. Não passa pelo LLM.
+  if (!buttonId && text && looksLikeStopRequest(text)) {
+    const { conversationId, contactId } = await getOrCreateConversation(
+      tenantId,
+      phone,
+      contactName,
+    );
+    if (!audioHandled) {
+      await saveMessage(conversationId, 'INBOUND', text, message.id).catch(console.error);
+    }
+    await prisma.contact
+      .update({ where: { id: contactId }, data: { remindersOptOutAt: new Date() } })
+      .catch(console.error);
+    const reply =
+      'Prontinho, não vou mais te enviar lembretes por aqui. 🙂 Se quiser agendar ou ' +
+      'voltar a receber, é só me chamar quando precisar.';
+    await sendTextSafely(phoneNumberId, phone, reply, {
+      phone,
+      phoneNumberId,
+      tenantId,
+      flow: 'opt-out',
+    });
+    await saveMessage(conversationId, 'OUTBOUND', reply).catch(console.error);
     return;
   }
 

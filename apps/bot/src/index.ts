@@ -4,7 +4,7 @@ import Fastify from 'fastify';
 import { internalRoutes } from './routes/internal.js';
 import { webhookRoutes } from './routes/webhook.js';
 import { startHeartbeat } from './lib/heartbeat.js';
-import { startReminderLoop } from './lib/reminders.js';
+import { startQualityMonitorLoop, startReminderLoop } from './lib/reminders.js';
 
 const app = Fastify({ logger: true });
 
@@ -21,6 +21,7 @@ app.get('/health', async () => ({ status: 'ok' }));
 
 startHeartbeat(app.log);
 startReminderLoop();
+startQualityMonitorLoop();
 
 process.on('unhandledRejection', (err) => {
   app.log.error({ err }, 'unhandledRejection');

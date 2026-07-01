@@ -92,6 +92,10 @@ export async function customerSignUp(
   }
 
   revalidatePath('/', 'layout');
+  // Cadastro inline (modal dentro do agendamento): a sessão já foi criada por
+  // cookie, então não navegamos pra fora - devolvemos ok pro modal fechar e o
+  // cliente seguir confirmando o horário na mesma página, sem perder o progresso.
+  if (formData.get('inline')) return { ok: true };
   redirect('/conta');
 }
 

@@ -21,6 +21,7 @@ import Link from 'next/link';
 import { useActionState, useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import { useFormStatus } from 'react-dom';
 
+import { CustomerSignupForm } from '@/app/(customer)/conta/(public)/criar/signup-form';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -701,6 +702,11 @@ function StepConfirmar({
   const phoneOk = phone.length >= 10;
   const nameOk = name.trim().length >= 2;
 
+  // Cadastro em modal, na própria página - não tira o cliente do agendamento. Ao
+  // criar a conta, fecha e troca o convite por um aviso de "conta criada".
+  const [signupOpen, setSignupOpen] = useState(false);
+  const [signupDone, setSignupDone] = useState(false);
+
   return (
     <div className="space-y-6">
       <StepHeader title={STEP_TITLES[2]} onBack={onBack} headingRef={headingRef} />
@@ -810,42 +816,68 @@ function StepConfirmar({
       </div>
 
       {/* Convite opcional pra criar conta - não bloqueia o agendamento (o guest é o
-          caminho principal). Abre em nova aba pra não perder o que já foi preenchido;
-          a sessão é compartilhada por cookie, então ao confirmar aqui o agendamento já
-          vincula à conta recém-criada (mesmo WhatsApp). */}
-      <div className="border-green/20 bg-accent space-y-3 rounded-xl border p-4">
-        <p className="text-foreground flex items-center gap-1.5 text-sm font-medium">
-          <Sparkles className="text-green h-4 w-4 shrink-0" aria-hidden="true" />
-          Quer agilizar da próxima vez?
-        </p>
-        <ul className="text-muted-foreground space-y-1 text-xs">
-          <li className="flex items-start gap-1.5">
-            <CheckCircle2 className="text-green mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-            Não precisa digitar nome e WhatsApp toda vez
-          </li>
-          <li className="flex items-start gap-1.5">
-            <CheckCircle2 className="text-green mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-            Receba lembretes e confirmações no WhatsApp
-          </li>
-          <li className="flex items-start gap-1.5">
-            <CheckCircle2 className="text-green mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-            Acompanhe, remarque ou cancele quando quiser
-          </li>
-        </ul>
-        <Button asChild size="sm" className="w-full">
-          <Link
-            href={phone ? `/conta/criar?phone=${encodeURIComponent(phone)}` : '/conta/criar'}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <UserIcon className="h-4 w-4" />
-            Criar minha conta
-          </Link>
-        </Button>
-        <p className="text-muted-foreground text-center text-[11px]">
-          É opcional - dá pra agendar sem conta.
-        </p>
-      </div>
+          caminho principal). Abre num modal na PRÓPRIA página (não navega pra fora,
+          não perde o progresso do wizard); a sessão vem por cookie, então ao confirmar
+          aqui o agendamento já vincula à conta recém-criada (mesmo WhatsApp). */}
+      {signupDone ? (
+        <div className="border-green/20 bg-accent flex items-start gap-2 rounded-xl border p-4">
+          <CheckCircle2 className="text-green mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+          <p className="text-foreground text-sm">
+            Conta criada! Confirme o agendamento abaixo - depois é só validar seu WhatsApp na sua
+            conta.
+          </p>
+        </div>
+      ) : (
+        <div className="border-green/20 bg-accent space-y-3 rounded-xl border p-4">
+          <p className="text-foreground flex items-center gap-1.5 text-sm font-medium">
+            <Sparkles className="text-green h-4 w-4 shrink-0" aria-hidden="true" />
+            Quer agilizar da próxima vez?
+          </p>
+          <ul className="text-muted-foreground space-y-1 text-xs">
+            <li className="flex items-start gap-1.5">
+              <CheckCircle2 className="text-green mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+              Não precisa digitar nome e WhatsApp toda vez
+            </li>
+            <li className="flex items-start gap-1.5">
+              <CheckCircle2 className="text-green mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+              Receba lembretes e confirmações no WhatsApp
+            </li>
+            <li className="flex items-start gap-1.5">
+              <CheckCircle2 className="text-green mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+              Acompanhe, remarque ou cancele quando quiser
+            </li>
+          </ul>
+          <Dialog open={signupOpen} onOpenChange={setSignupOpen}>
+            <DialogTrigger asChild>
+              <Button type="button" size="sm" className="w-full">
+                <UserIcon className="h-4 w-4" />
+                Criar minha conta
+              </Button>
+            </DialogTrigger>
+            <DialogContent dismissable={false} className="max-w-sm">
+              <DialogHeader>
+                <DialogTitle className="font-serif text-2xl">Criar minha conta</DialogTitle>
+              </DialogHeader>
+              <p className="text-muted-foreground -mt-2 text-sm">
+                Acompanhe, remarque e repita seus horários em um só lugar. Você continua aqui no
+                agendamento.
+              </p>
+              <CustomerSignupForm
+                inline
+                defaultName={name}
+                defaultPhone={phone}
+                onSuccess={() => {
+                  setSignupOpen(false);
+                  setSignupDone(true);
+                }}
+              />
+            </DialogContent>
+          </Dialog>
+          <p className="text-muted-foreground text-center text-[11px]">
+            É opcional - dá pra agendar sem conta.
+          </p>
+        </div>
+      )}
 
       <form action={formAction} className="space-y-3">
         <input type="hidden" name="slug" value={slug} />
