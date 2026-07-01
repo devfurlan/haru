@@ -118,10 +118,13 @@ export async function getCustomerAppointments(
     };
   });
 
+  // "Próximo" = futuro E ativo. Cancelado/realizado cai no histórico ("Agendar de
+  // novo"), mesmo que o horário ainda seja futuro - senão o card cancelado gruda no
+  // topo como se fosse o próximo agendamento.
   const upcoming = items
-    .filter((i) => !i.isPast)
+    .filter((i) => i.isActive)
     .sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime());
-  const past = items.filter((i) => i.isPast); // já vem desc
+  const past = items.filter((i) => !i.isActive); // já vem desc (cancelado futuro no topo)
 
   return { upcoming, past };
 }
