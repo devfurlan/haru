@@ -256,7 +256,9 @@ export function PricingTiers({ tiers }: { tiers: PricingTier[] }) {
                         <span
                           className={cn(
                             'mt-1 inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold',
-                            featured ? 'bg-coral/20 text-coral-soft' : 'bg-green/10 text-green',
+                            featured
+                              ? 'bg-green-bright/15 text-green-bright'
+                              : 'bg-green/10 text-green',
                           )}
                         >
                           Economize {brl(totalSavingsCents)}/ano
