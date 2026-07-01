@@ -81,8 +81,8 @@ export default async function TenantPublicPage({ params }: { params: Promise<{ s
   const customerAccount = await getCustomerAccount();
 
   return (
-    <main className="bg-muted/20 min-h-screen">
-      <div className="mx-auto max-w-2xl space-y-8 px-4 py-12">
+    <main className="bg-muted/20 flex min-h-screen flex-col">
+      <div className="mx-auto w-full max-w-2xl flex-1 space-y-8 px-4 py-12">
         <div className="flex items-center justify-between gap-2">
           <BusinessHoursDialog hours={businessHours} />
           <Button asChild variant="ghost" size="sm">
@@ -175,19 +175,19 @@ export default async function TenantPublicPage({ params }: { params: Promise<{ s
             )}
           </section>
         )}
-
-        <footer className="text-muted-foreground pt-4 text-center text-xs">
-          Powered by{' '}
-          <a
-            href={process.env.NEXT_PUBLIC_APP_URL || 'https://www.demandae.com'}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hover:text-foreground font-medium underline-offset-4 hover:underline"
-          >
-            Demandaê
-          </a>
-        </footer>
       </div>
+
+      <footer className="text-muted-foreground px-4 pb-6 text-center text-xs">
+        Powered by{' '}
+        <a
+          href={process.env.NEXT_PUBLIC_APP_URL || 'https://www.demandae.com'}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="hover:text-foreground font-medium underline-offset-4 hover:underline"
+        >
+          Demandaê
+        </a>
+      </footer>
     </main>
   );
 }
