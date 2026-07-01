@@ -32,6 +32,11 @@ export const metadata: Metadata = {
   other: {
     'apple-mobile-web-app-title': 'Demandaê',
   },
+  verification: {
+    other: {
+      'facebook-domain-verification': 'op849girq5zyk0mvxtekcxjvndaz5z',
+    },
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
