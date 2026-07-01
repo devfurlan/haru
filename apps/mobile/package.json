@@ -3,6 +3,7 @@
   "main": "expo-router/entry",
   "version": "1.0.0",
   "dependencies": {
+    "@expo-google-fonts/fraunces": "^0.4.1",
     "@expo/ui": "~57.0.1",
     "@haru/shared": "workspace:*",
     "@react-native-async-storage/async-storage": "2.2.0",

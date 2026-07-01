@@ -4,8 +4,19 @@ import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } 
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppointmentCard } from '@/components/appointment-card';
+import { CalendarIcon } from '@/components/calendar-icon';
 import { api, ApiError, type AppointmentsData } from '@/lib/api';
 import { signOut } from '@/lib/auth';
+
+const fraunces = { fontFamily: 'Fraunces_700Bold' };
+
+function SectionTitle({ children }: { children: string }) {
+  return (
+    <Text className="text-muted mb-2 mt-6 text-xs font-bold uppercase tracking-widest">
+      {children}
+    </Text>
+  );
+}
 
 export default function AppointmentsScreen() {
   const [data, setData] = useState<AppointmentsData | null>(null);
@@ -22,7 +33,6 @@ export default function AppointmentsScreen() {
     }
   }, []);
 
-  // Recarrega ao focar (inclui voltar do detalhe após cancelar/remarcar).
   useFocusEffect(
     useCallback(() => {
       load().finally(() => setLoading(false));
@@ -35,22 +45,23 @@ export default function AppointmentsScreen() {
     setRefreshing(false);
   }, [load]);
 
-  const isEmpty = data && data.upcoming.length === 0 && data.past.length === 0;
+  const upcoming = data?.upcoming ?? [];
+  const past = data?.past ?? [];
+  const isEmpty = upcoming.length === 0 && past.length === 0;
 
   return (
     <SafeAreaView className="bg-cream flex-1" edges={['top']}>
-      <View className="px-6 pb-2 pt-2">
-        <View className="flex-row items-center justify-between">
-          <Text className="text-ink text-2xl font-bold">Meus agendamentos</Text>
-          <Pressable onPress={() => signOut()} hitSlop={8}>
-            <Text className="text-muted text-sm font-medium">Sair</Text>
-          </Pressable>
+      {/* Header */}
+      <View className="flex-row items-end justify-between px-6 pb-4 pt-3">
+        <View>
+          <Text className="text-muted text-sm">Olá 👋</Text>
+          <Text style={fraunces} className="text-ink text-3xl">
+            Agendamentos
+          </Text>
         </View>
-        <Link href="/buscar" asChild>
-          <Pressable className="bg-coral mt-3 items-center rounded-xl py-3 active:opacity-80">
-            <Text className="text-sm font-semibold text-white">＋ Agendar em um negócio</Text>
-          </Pressable>
-        </Link>
+        <Pressable onPress={() => signOut()} hitSlop={10} className="pb-1">
+          <Text className="text-muted text-sm font-medium">Sair</Text>
+        </Pressable>
       </View>
 
       {loading ? (
@@ -59,34 +70,62 @@ export default function AppointmentsScreen() {
         </View>
       ) : (
         <ScrollView
-          className="flex-1 px-6"
-          contentContainerClassName="pb-10"
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+          className="flex-1"
+          contentContainerClassName="px-6 pb-12"
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#0e7a45" />
+          }
         >
+          {/* CTA agendar */}
+          <Link href="/buscar" asChild>
+            <Pressable
+              className="bg-coral mb-2 flex-row items-center justify-center gap-2 rounded-2xl py-4 active:opacity-90"
+              style={{
+                shadowColor: '#ff5a36',
+                shadowOpacity: 0.35,
+                shadowRadius: 16,
+                shadowOffset: { width: 0, height: 8 },
+                elevation: 3,
+              }}
+            >
+              <Text className="text-lg font-bold text-white">＋</Text>
+              <Text className="text-base font-semibold text-white">Agendar em um negócio</Text>
+            </Pressable>
+          </Link>
+
           {error ? (
-            <Text className="text-destructive mt-4 text-sm">{error}</Text>
+            <View className="mt-8 items-center">
+              <Text className="text-destructive text-center text-sm">{error}</Text>
+              <Pressable onPress={onRefresh} className="mt-3">
+                <Text className="text-coral text-sm font-semibold">Tentar de novo</Text>
+              </Pressable>
+            </View>
           ) : isEmpty ? (
-            <Text className="text-muted mt-16 text-center text-base">
-              Quando você agendar com o mesmo WhatsApp, seus horários aparecem aqui.
-            </Text>
+            <View className="mt-16 items-center px-6">
+              <View className="bg-coral/10 mb-4 h-20 w-20 items-center justify-center rounded-full">
+                <CalendarIcon size={34} />
+              </View>
+              <Text style={fraunces} className="text-ink text-center text-xl">
+                Nenhum agendamento ainda
+              </Text>
+              <Text className="text-muted mt-2 text-center text-base leading-6">
+                Agende no seu negócio favorito e acompanhe tudo por aqui.
+              </Text>
+            </View>
           ) : (
             <>
-              {data!.upcoming.length > 0 && (
+              {upcoming.length > 0 && (
                 <>
-                  <Text className="text-muted mb-2 mt-4 text-sm font-semibold uppercase tracking-wide">
-                    Próximos
-                  </Text>
-                  {data!.upcoming.map((item) => (
+                  <SectionTitle>Próximos</SectionTitle>
+                  {upcoming.map((item) => (
                     <AppointmentCard key={item.id} item={item} />
                   ))}
                 </>
               )}
-              {data!.past.length > 0 && (
+              {past.length > 0 && (
                 <>
-                  <Text className="text-muted mb-2 mt-6 text-sm font-semibold uppercase tracking-wide">
-                    Anteriores
-                  </Text>
-                  {data!.past.map((item) => (
+                  <SectionTitle>Anteriores</SectionTitle>
+                  {past.map((item) => (
                     <AppointmentCard key={item.id} item={item} />
                   ))}
                 </>

@@ -15,7 +15,9 @@ export default function BuscarScreen() {
         </Pressable>
       </View>
       <View className="px-6 pt-4">
-        <Text className="text-ink text-2xl font-bold">Agendar em um negócio</Text>
+        <Text style={{ fontFamily: 'Fraunces_700Bold' }} className="text-ink text-3xl">
+          Agendar em um negócio
+        </Text>
         <Text className="text-muted mb-6 mt-1 text-base">
           Digite o @ do negócio (ex.: salao-da-joana).
         </Text>

@@ -1,10 +1,7 @@
-import { Platform, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 
-// Wordmark "Demandaê" da marca: "ê" em coral + bolinha coral com halo, em serif.
-// Espelha apps/web/src/components/logo.tsx (lá é Fraunces; aqui usamos o serif do
-// sistema pra não precisar embutir a fonte).
-const serif = Platform.select({ ios: 'Georgia', android: 'serif', default: undefined });
-
+// Wordmark "Demandaê" da marca: "ê" em coral + bolinha coral com halo, em Fraunces
+// (a mesma serif do web). Espelha apps/web/src/components/logo.tsx.
 const SIZES = {
   md: { font: 26, dot: 8 },
   lg: { font: 34, dot: 10 },
@@ -17,7 +14,7 @@ export function Logo({ size = 'lg' }: { size?: keyof typeof SIZES }) {
   return (
     <View className="flex-row items-center">
       <Text
-        style={{ fontFamily: serif, fontSize: font, fontWeight: '900', letterSpacing: -1 }}
+        style={{ fontFamily: 'Fraunces_700Bold', fontSize: font, letterSpacing: -1 }}
         className="text-ink"
       >
         Demanda<Text className="text-coral">ê</Text>

@@ -10,6 +10,8 @@ import { api, ApiError, type AppointmentItem } from '@/lib/api';
 
 type Mode = 'view' | 'reschedule' | 'rebook';
 
+const fraunces = { fontFamily: 'Fraunces_700Bold' };
+
 export default function AppointmentDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [item, setItem] = useState<AppointmentItem | null>(null);
@@ -28,9 +30,7 @@ export default function AppointmentDetailScreen() {
         setItem(found);
         if (!found) setError('Agendamento não encontrado');
       })
-      .catch(
-        (err) => active && setError(err instanceof ApiError ? err.message : 'Erro ao carregar'),
-      )
+      .catch((err) => active && setError(err instanceof ApiError ? err.message : 'Erro ao carregar'))
       .finally(() => active && setLoading(false));
     return () => {
       active = false;
@@ -61,10 +61,7 @@ export default function AppointmentDetailScreen() {
             await api.cancel(id);
             router.back();
           } catch (err) {
-            Alert.alert(
-              'Erro',
-              err instanceof ApiError ? err.message : 'Não foi possível cancelar',
-            );
+            Alert.alert('Erro', err instanceof ApiError ? err.message : 'Não foi possível cancelar');
           } finally {
             setSubmitting(false);
           }
@@ -93,9 +90,9 @@ export default function AppointmentDetailScreen() {
 
   return (
     <SafeAreaView className="bg-cream flex-1" edges={['top']}>
-      <View className="flex-row items-center px-4 pb-2 pt-2">
-        <Pressable onPress={() => router.back()} hitSlop={8} className="py-1 pr-3">
-          <Text className="text-coral text-base">‹ Voltar</Text>
+      <View className="flex-row items-center px-4 pb-1 pt-2">
+        <Pressable onPress={() => router.back()} hitSlop={10} className="py-1 pr-3">
+          <Text className="text-coral text-base font-medium">‹ Voltar</Text>
         </Pressable>
       </View>
 
@@ -106,17 +103,28 @@ export default function AppointmentDetailScreen() {
       ) : !item ? (
         <Text className="text-destructive px-6 pt-6 text-sm">{error ?? 'Não encontrado'}</Text>
       ) : (
-        <ScrollView className="flex-1 px-6" contentContainerClassName="pb-10">
-          <Text className="text-ink text-2xl font-bold">{item.serviceName}</Text>
+        <ScrollView className="flex-1" contentContainerClassName="px-6 pb-12">
+          <Text style={fraunces} className="text-ink mt-2 text-3xl">
+            {item.serviceName}
+          </Text>
           <Text className="text-muted mt-1 text-base">{item.tenant.name}</Text>
 
-          <View className="border-ink/10 bg-paper mt-5 rounded-2xl border p-4">
-            <Row label="Quando" value={item.whenLabel} />
+          {/* Card de detalhes */}
+          <View
+            className="bg-paper mt-5 rounded-2xl p-5"
+            style={{
+              shadowColor: '#0a3324',
+              shadowOpacity: 0.06,
+              shadowRadius: 14,
+              shadowOffset: { width: 0, height: 6 },
+              elevation: 2,
+            }}
+          >
+            <Text className="text-ink-soft text-lg font-semibold capitalize">{item.whenLabel}</Text>
+            <View className="bg-ink/5 my-4 h-px" />
             <Row label="Duração" value={formatDuration(item.durationMinutes)} />
             <Row label="Valor" value={formatBRL(item.priceCents)} />
-            {item.professionalName ? (
-              <Row label="Profissional" value={item.professionalName} />
-            ) : null}
+            {item.professionalName ? <Row label="Profissional" value={item.professionalName} /> : null}
           </View>
 
           {mode === 'view' ? (
@@ -125,14 +133,14 @@ export default function AppointmentDetailScreen() {
                 <>
                   <Pressable
                     onPress={() => setMode('reschedule')}
-                    className="bg-coral items-center rounded-xl py-4 active:opacity-80"
+                    className="bg-coral items-center rounded-2xl py-4 active:opacity-90"
                   >
                     <Text className="text-base font-semibold text-white">Remarcar</Text>
                   </Pressable>
                   <Pressable
                     onPress={confirmCancel}
                     disabled={submitting}
-                    className="border-destructive/40 items-center rounded-xl border py-4 active:opacity-60"
+                    className="border-destructive/40 items-center rounded-2xl border py-4 active:opacity-60"
                   >
                     <Text className="text-destructive text-base font-semibold">
                       Cancelar agendamento
@@ -142,7 +150,7 @@ export default function AppointmentDetailScreen() {
               )}
               <Pressable
                 onPress={() => setMode('rebook')}
-                className="border-green/40 items-center rounded-xl border py-4 active:opacity-60"
+                className="border-green/40 items-center rounded-2xl border py-4 active:opacity-60"
               >
                 <Text className="text-green text-base font-semibold">Agendar de novo</Text>
               </Pressable>
@@ -150,8 +158,8 @@ export default function AppointmentDetailScreen() {
           ) : (
             <View className="mt-6">
               <View className="mb-3 flex-row items-center justify-between">
-                <Text className="text-ink text-lg font-semibold">
-                  {mode === 'reschedule' ? 'Escolha o novo horário' : 'Escolha um horário'}
+                <Text style={fraunces} className="text-ink text-xl">
+                  {mode === 'reschedule' ? 'Novo horário' : 'Escolha um horário'}
                 </Text>
                 <Pressable onPress={() => setMode('view')} hitSlop={8}>
                   <Text className="text-muted text-sm">Cancelar</Text>
@@ -174,7 +182,7 @@ export default function AppointmentDetailScreen() {
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
-    <View className="border-ink/5 flex-row justify-between border-b py-2 last:border-0">
+    <View className="flex-row items-center justify-between py-1.5">
       <Text className="text-muted text-sm">{label}</Text>
       <Text className="text-ink text-sm font-medium capitalize">{value}</Text>
     </View>

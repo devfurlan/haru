@@ -141,7 +141,9 @@ export default function BookScreen() {
         className="flex-1"
       >
         <ScrollView className="flex-1 px-6" contentContainerClassName="pb-10">
-          <Text className="text-ink text-2xl font-bold">{tenant.name}</Text>
+          <Text style={{ fontFamily: 'Fraunces_700Bold' }} className="text-ink text-3xl">
+            {tenant.name}
+          </Text>
 
           {!tenant.publicBookingEnabled ? (
             <Text className="text-muted mt-6 text-base">
