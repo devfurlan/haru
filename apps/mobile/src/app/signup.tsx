@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { maskPhoneBRInput } from '@haru/shared';
 
 import { GoogleAuthButton } from '@/components/google-auth-button';
+import { Logo } from '@/components/logo';
 import { api, ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
@@ -71,6 +72,9 @@ export default function SignupScreen() {
         className="flex-1"
       >
         <ScrollView contentContainerClassName="px-6 py-8">
+          <View className="mb-6">
+            <Logo size="lg" />
+          </View>
           <Text className="text-ink mb-1 text-3xl font-bold">Criar conta</Text>
           <Text className="text-muted mb-6 text-base">
             Pra agilizar seus agendamentos e receber lembretes.

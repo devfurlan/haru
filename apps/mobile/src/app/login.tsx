@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { GoogleAuthButton } from '@/components/google-auth-button';
+import { Logo } from '@/components/logo';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 
@@ -45,7 +46,9 @@ export default function LoginScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         className="flex-1 justify-center px-6"
       >
-        <Text className="text-ink mb-1 text-4xl font-bold">Demandaê</Text>
+        <View className="mb-1">
+          <Logo size="xl" />
+        </View>
         <Text className="text-muted mb-8 text-base">Entre para ver seus agendamentos</Text>
 
         <Text className="text-ink-soft mb-1 text-sm font-medium">E-mail</Text>

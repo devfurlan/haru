@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, Text } from 'react-native';
 
+import { GoogleIcon } from '@/components/google-icon';
 import { signInWithGoogle } from '@/lib/google-auth';
 
 /**
@@ -32,9 +33,7 @@ export function GoogleAuthButton({ onError }: { onError?: (message: string) => v
         <ActivityIndicator color="#1f2d28" />
       ) : (
         <>
-          <View className="border-ink/15 h-5 w-5 items-center justify-center rounded-full border">
-            <Text className="text-ink text-xs font-bold">G</Text>
-          </View>
+          <GoogleIcon size={20} />
           <Text className="text-ink text-base font-semibold">Continuar com Google</Text>
         </>
       )}

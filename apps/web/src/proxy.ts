@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 
 import { updateSession } from '@/lib/supabase/middleware';
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   // Prefetches do Next.js (hover em <Link>) não devem disparar refresh de sessão -
   // só renovamos o cookie em navegações reais. Evita rodar auth dezenas de vezes por página.
   const isPrefetch =
