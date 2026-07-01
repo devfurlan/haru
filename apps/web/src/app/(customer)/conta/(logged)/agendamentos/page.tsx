@@ -1,3 +1,4 @@
+import { CalendarPlus } from 'lucide-react';
 import Link from 'next/link';
 
 import { requireCustomerAccount } from '@/lib/customer-auth';
@@ -43,7 +44,15 @@ export default async function CustomerAppointmentsPage() {
           <section className="space-y-3">
             <h2 className="text-sm font-medium">Próximos</h2>
             {upcoming.length === 0 ? (
-              <p className="text-muted-foreground text-sm">Nenhum agendamento futuro.</p>
+              <div className="bg-card rounded-xl border border-dashed p-8 text-center">
+                <CalendarPlus className="text-muted-foreground mx-auto h-6 w-6" aria-hidden="true" />
+                <p className="text-foreground mt-2 text-sm font-medium">
+                  Nenhum agendamento futuro
+                </p>
+                <p className="text-muted-foreground mt-1 text-sm">
+                  Que tal marcar o próximo? Reserve de novo em um dos seus estabelecimentos.
+                </p>
+              </div>
             ) : (
               <div className="space-y-3">
                 {upcoming.map((item) => (
