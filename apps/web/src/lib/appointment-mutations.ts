@@ -93,8 +93,10 @@ export async function rescheduleAppointmentCore(args: {
     data: {
       startsAt: newStartsAt,
       endsAt: newEndsAt,
-      // Lembrete já foi enviado pro horário antigo - zera pra disparar de novo.
+      // Lembretes já enviados pro horário antigo - zera pra disparar de novo no novo
+      // horário (WhatsApp e push; o e-mail mantém o comportamento atual do código).
       reminderSentAt: null,
+      reminderPushSentAt: null,
     },
   });
 

@@ -1,4 +1,4 @@
-import { useFocusEffect } from 'expo-router';
+import { Link, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
@@ -46,11 +46,18 @@ export default function AppointmentsScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-cream" edges={['top']}>
-      <View className="flex-row items-center justify-between px-6 pb-2 pt-2">
-        <Text className="text-2xl font-bold text-ink">Meus agendamentos</Text>
-        <Pressable onPress={() => signOut()} hitSlop={8}>
-          <Text className="text-sm font-medium text-muted">Sair</Text>
-        </Pressable>
+      <View className="px-6 pb-2 pt-2">
+        <View className="flex-row items-center justify-between">
+          <Text className="text-2xl font-bold text-ink">Meus agendamentos</Text>
+          <Pressable onPress={() => signOut()} hitSlop={8}>
+            <Text className="text-sm font-medium text-muted">Sair</Text>
+          </Pressable>
+        </View>
+        <Link href="/buscar" asChild>
+          <Pressable className="mt-3 items-center rounded-xl bg-coral py-3 active:opacity-80">
+            <Text className="text-sm font-semibold text-white">＋ Agendar em um negócio</Text>
+          </Pressable>
+        </Link>
       </View>
 
       {loading ? (

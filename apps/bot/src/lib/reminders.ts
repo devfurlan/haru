@@ -1,6 +1,7 @@
 import { Sentry } from '../instrument.js';
 import { emailAppointmentReminder } from './appointmentEmail.js';
 import { emailNumberBanned, emailQualityDegraded } from './email.js';
+import { sendExpoPush } from './expoPush.js';
 import prisma from './prisma.js';
 import { getPhoneNumberStatus, sendTemplateMessage } from './whatsapp/client.js';
 import { sendTextSafely } from './whatsapp/safeSend.js';
@@ -92,12 +93,19 @@ async function processReminders() {
       where: {
         tenantId: tenant.id,
         status: { in: ['PENDING', 'CONFIRMED'] },
-        // Pendente em ao menos um canal (WhatsApp OU e-mail). Cada canal tem seu
+        // Pendente em ao menos um canal (WhatsApp, e-mail OU push). Cada canal tem seu
         // próprio carimbo e é enviado no máximo uma vez.
-        OR: [{ reminderSentAt: null }, { reminderEmailSentAt: null }],
+        OR: [
+          { reminderSentAt: null },
+          { reminderEmailSentAt: null },
+          { reminderPushSentAt: null },
+        ],
         startsAt: { gte: earliestStart, lte: latestStart },
       },
-      include: { service: true, contact: { include: { customerAccount: true } } },
+      include: {
+        service: true,
+        contact: { include: { customerAccount: { include: { pushDevices: true } } } },
+      },
     });
 
     if (appts.length === 0) continue;
@@ -202,6 +210,34 @@ async function processReminders() {
         await prisma.appointment.update({
           where: { id: appt.id },
           data: { reminderEmailSentAt: new Date() },
+        });
+      }
+
+      // --- Lembrete por PUSH ao cliente (app). Vai pra qualquer aparelho registrado:
+      // instalar o app e permitir notificações É o opt-in. ponytail: sem pref dedicada;
+      // adicionar `pushEnabled` na conta se um dia precisar de controle granular. ---
+      if (appt.reminderPushSentAt == null) {
+        const devices = appt.contact.customerAccount?.pushDevices ?? [];
+        if (devices.length > 0) {
+          const { invalidTokens } = await sendExpoPush(
+            devices.map((d) => ({
+              to: d.expoPushToken,
+              title: 'Lembrete de agendamento',
+              body: `${appt.service.name} · ${when} na ${tenant.name}`,
+              data: { appointmentId: appt.id },
+            })),
+          );
+          // Remove tokens mortos que a Expo reportou (app desinstalado / permissão off).
+          if (invalidTokens.length > 0) {
+            await prisma.pushDevice.deleteMany({
+              where: { expoPushToken: { in: invalidTokens } },
+            });
+          }
+        }
+        // Carimba como processado (mesmo sem aparelho) pra não reavaliar todo tick.
+        await prisma.appointment.update({
+          where: { id: appt.id },
+          data: { reminderPushSentAt: new Date() },
         });
       }
     }

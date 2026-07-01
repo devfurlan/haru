@@ -1,6 +1,7 @@
 import type { Session } from '@supabase/supabase-js';
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 
+import { unregisterPush } from './push';
 import { supabase } from './supabase';
 
 type AuthState = { session: Session | null; loading: boolean };
@@ -27,6 +28,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 export const useAuth = () => useContext(AuthContext);
 
-export function signOut() {
+export async function signOut() {
+  await unregisterPush();
   return supabase.auth.signOut();
 }

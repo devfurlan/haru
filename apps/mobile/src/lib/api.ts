@@ -41,6 +41,46 @@ export type AppointmentItem = {
 
 export type AppointmentsData = { upcoming: AppointmentItem[]; past: AppointmentItem[] };
 
+export type PublicService = {
+  id: string;
+  name: string;
+  description: string | null;
+  durationMinutes: number;
+  priceCents: number;
+  professionalIds: string[];
+};
+
+export type PublicTenant = {
+  id: string;
+  name: string;
+  slug: string;
+  timezone: string;
+  logoUrl: string | null;
+  publicBookingEnabled: boolean;
+  horizonDays: number;
+  openWeekdays: number[];
+  services: PublicService[];
+  professionals: { id: string; name: string | null }[];
+};
+
+export type BookingResult = {
+  ok: true;
+  status: string;
+  summary: string;
+  appointmentId: string;
+  paymentAvailable: boolean;
+};
+
+export type PaymentResult =
+  | {
+      ok: true;
+      method: string;
+      checkoutUrl: string | null;
+      pixQrCode: string | null;
+      pixCopyPaste: string | null;
+    }
+  | { error: string; needsDocument?: boolean };
+
 export class ApiError extends Error {
   constructor(
     public status: number,
@@ -95,5 +135,47 @@ export const api = {
     request<{ slots: AvailableSlot[] }>('/rebook-slots', {
       method: 'POST',
       body: JSON.stringify({ sourceAppointmentId, serviceId, dateStr }),
+    }),
+
+  // --- Público (agendar do zero num negócio) + cadastro ---
+  signup: (input: { email: string; password: string; name: string; phone: string; acceptTerms: boolean }) =>
+    request<{ ok: true }>('/auth/signup', { method: 'POST', body: JSON.stringify(input) }),
+  tenant: (slug: string) => request<PublicTenant>(`/tenants/${slug}`),
+  tenantSlots: (slug: string, serviceId: string, dateStr: string, professionalId?: string) =>
+    request<{ slots: AvailableSlot[] }>(`/tenants/${slug}/slots`, {
+      method: 'POST',
+      body: JSON.stringify({ serviceId, dateStr, professionalId }),
+    }),
+  createBooking: (
+    slug: string,
+    input: { serviceId: string; professionalId?: string; slotIso: string; name: string; phone: string },
+  ) =>
+    request<BookingResult>(`/tenants/${slug}/bookings`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
+
+  // --- Pagamento (reusa o gateway do web; 200 sempre, inspecionar o retorno) ---
+  pay: (
+    slug: string,
+    appointmentId: string,
+    method: 'PIX' | 'CREDIT_CARD',
+    document?: string,
+  ) =>
+    request<PaymentResult>(`/tenants/${slug}/pay`, {
+      method: 'POST',
+      body: JSON.stringify({ appointmentId, method, document }),
+    }),
+
+  // --- Push ---
+  pushRegister: (expoPushToken: string, platform: string) =>
+    request<{ ok: true }>('/push/register', {
+      method: 'POST',
+      body: JSON.stringify({ expoPushToken, platform }),
+    }),
+  pushUnregister: (expoPushToken: string) =>
+    request<{ ok: true }>('/push/unregister', {
+      method: 'POST',
+      body: JSON.stringify({ expoPushToken }),
     }),
 };

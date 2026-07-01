@@ -202,8 +202,26 @@ model CustomerAccount {
   updatedAt DateTime @updatedAt
 
   contacts  Contact[]
+  pushDevices PushDevice[]
 
   @@index([phone])
+}
+
+/// Dispositivo (app mobile) de um cliente para receber push (Expo Push). Um cliente
+/// pode ter vários aparelhos. O token identifica o device na Expo; é substituível
+/// (o app re-registra a cada login). Usado pelo loop de lembretes do bot.
+model PushDevice {
+  id                String          @id @default(cuid())
+  customerAccountId String
+  customerAccount   CustomerAccount @relation(fields: [customerAccountId], references: [id], onDelete: Cascade)
+  /// Expo push token (ex.: "ExponentPushToken[...]"). Único: um device = um token.
+  expoPushToken     String          @unique
+  /// "android" | "ios" (informativo).
+  platform          String?
+  createdAt         DateTime        @default(now())
+  lastSeenAt        DateTime        @default(now())
+
+  @@index([customerAccountId])
 }
 
 model Service {
@@ -391,6 +409,9 @@ model Appointment {
   /// não. Separado de `reminderSentAt` (WhatsApp) pra que os dois canais sejam
   /// independentes. Zerado junto na remarcação, pra disparar de novo no novo horário.
   reminderEmailSentAt DateTime?
+  /// Marca de quando o lembrete via PUSH (app) foi enviado. null = ainda não. Mesmo
+  /// padrão dos outros canais - evita reenvio a cada tick do loop; zerado na remarcação.
+  reminderPushSentAt DateTime?
   createdAt      DateTime          @default(now())
   updatedAt      DateTime          @updatedAt
 

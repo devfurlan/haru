@@ -1,4 +1,4 @@
-import { Redirect } from 'expo-router';
+import { Link, Redirect } from 'expo-router';
 import { useState } from 'react';
 import {
   ActivityIndicator,
@@ -85,9 +85,11 @@ export default function LoginScreen() {
           )}
         </Pressable>
 
-        <Text className="mt-6 text-center text-sm text-muted">
-          Ainda não tem conta? Crie no site ao agendar.
-        </Text>
+        <Link href="/signup" asChild>
+          <Pressable className="mt-6">
+            <Text className="text-center text-sm text-muted">Ainda não tem conta? Criar conta</Text>
+          </Pressable>
+        </Link>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
