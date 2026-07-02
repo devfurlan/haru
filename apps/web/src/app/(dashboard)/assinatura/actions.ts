@@ -78,12 +78,13 @@ export async function subscribe(
   const snapshot = snapshotPlan(plan, cycle as BillingCycle);
   const amountCents = cycle === 'ANNUAL' ? plan.priceAnnualCents : plan.priceMonthlyCents;
 
-  // Setup único (config. assistida do WhatsApp): só na 1ª contratação MENSAL. Grátis no
-  // anual; quem já ativou antes (ativo/cancelado após pagar) não paga de novo - só quem
-  // nunca ativou (sem assinatura ou ainda PENDING). ponytail: heurística por status,
-  // sem coluna "setupPago"; refinar só se o fluxo de re-assinatura exigir.
+  // Setup (config. assistida do WhatsApp) é OPCIONAL - o WhatsApp em si é opcional. Só
+  // cobra se o cliente marcar no checkout, e só no MENSAL (anual é grátis). Quem já ativou
+  // antes não recobra. Sem opt-in aqui, dá pra contratar a config depois, na ativação.
+  const wantsSetup = formData.get('wantsSetup') === 'on';
   const existing = tenant.subscription;
-  const chargeSetup = cycle === 'MONTHLY' && (!existing || existing.status === 'PENDING');
+  const chargeSetup =
+    cycle === 'MONTHLY' && wantsSetup && (!existing || existing.status === 'PENDING');
 
   try {
     // Reusa o customer do Asaas se já existir; senão cria.
@@ -139,6 +140,8 @@ export async function subscribe(
         currentPeriodEnd: cycle === 'ANNUAL' ? addMonths(now, 12) : addMonths(now, 1),
         guaranteeUntil: addDays(now, 30),
         canceledAt: null,
+        // Setup opt-in no checkout já cobrado na 1ª fatura → não reofertar na ativação.
+        setupChargedAt: chargeSetup ? now : undefined,
       },
     });
 

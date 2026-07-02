@@ -59,11 +59,11 @@ export async function Pricing() {
 
         <PricingTiers tiers={tiers} />
 
-        {/* Setup como serviço, não custo escondido (dica de conversão #9). */}
+        {/* Setup é opcional porque o WhatsApp é opcional (dica de conversão #9). */}
         <p className="text-ink-soft mx-auto mt-8 max-w-2xl text-center text-sm">
-          Configuração assistida do WhatsApp incluída (R$ 297) - nosso time cuida da conexão com a
-          Meta pra você não passar sufoco.{' '}
-          <span className="text-foreground font-semibold">Grátis no plano anual.</span>
+          O bot no WhatsApp é opcional - dá pra usar só a agenda pública, o painel e o app do
+          cliente. Se quiser o bot, a configuração assistida sai por R$ 297{' '}
+          <span className="text-foreground font-semibold">(grátis no plano anual)</span>.
         </p>
 
         {/* Banner Enterprise / plano sob medida */}

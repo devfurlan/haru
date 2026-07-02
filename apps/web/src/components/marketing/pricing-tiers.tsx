@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { useState } from 'react';
 
 import { Button } from '@/components/ui/button';
-import { SETUP_FEE_CENTS } from '@/lib/billing/pricing';
 import { cn } from '@/lib/utils';
 
 export interface PricingTier {
@@ -198,8 +197,9 @@ export function PricingTiers({ tiers }: { tiers: PricingTier[] }) {
           const headlineCents = isAnnual
             ? Math.round(t.priceAnnualCents / 12)
             : t.priceMonthlyCents;
-          // Economia total vs mensal = 12 mensalidades - anual + setup economizado.
-          const totalSavingsCents = t.priceMonthlyCents * 12 - t.priceAnnualCents + SETUP_FEE_CENTS;
+          // Economia do anual vs mensal = 12 mensalidades - preço anual. (Setup fora: é
+          // opcional, então não infla o número - vira uma linha à parte "grátis no anual".)
+          const totalSavingsCents = t.priceMonthlyCents * 12 - t.priceAnnualCents;
 
           return (
             <div
@@ -263,7 +263,7 @@ export function PricingTiers({ tiers }: { tiers: PricingTier[] }) {
                         >
                           Economize {brl(totalSavingsCents)}/ano
                         </span>
-                        <p className="pt-0.5">Setup grátis (economia R$ 297)</p>
+                        <p className="pt-0.5">Setup do WhatsApp grátis (opcional)</p>
                       </div>
                     ) : (
                       <p
@@ -272,7 +272,7 @@ export function PricingTiers({ tiers }: { tiers: PricingTier[] }) {
                           featured ? 'text-cream/60' : 'text-ink-soft/70',
                         )}
                       >
-                        + Setup único de R$ 297 (configuração do WhatsApp)
+                        Setup do WhatsApp: R$ 297 (opcional)
                       </p>
                     )}
                   </>

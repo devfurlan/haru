@@ -11,7 +11,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { BOT_WEBHOOK_URL } from '@/lib/whatsapp-status';
 
-import { connectWhatsapp, disconnectWhatsapp, type WhatsappActionResult } from './actions';
+import {
+  connectWhatsapp,
+  disconnectWhatsapp,
+  startWhatsappSetup,
+  type WhatsappActionResult,
+} from './actions';
 import { EmbeddedSignup } from './embedded-signup';
 
 interface WhatsappCardProps {
@@ -19,6 +24,63 @@ interface WhatsappCardProps {
   businessAccountId: string | null;
   displayPhone: string | null;
   hasAccessToken: boolean;
+  /** Oferta da configuração assistida (opcional). eligible=false esconde. free=anual (grátis). */
+  setupOffer: { eligible: boolean; free: boolean };
+}
+
+/**
+ * Oferta opt-in da configuração assistida do WhatsApp. Grátis no anual; no mensal gera
+ * cobrança avulsa (R$297) e redireciona pra fatura. Aparece só antes de conectar - quem
+ * conecta sozinho não paga. Não bloqueia nada.
+ */
+function SetupOffer({ free }: { free: boolean }) {
+  const [pending, start] = useTransition();
+  const [msg, setMsg] = useState<string | null>(null);
+
+  return (
+    <div className="bg-muted/30 space-y-2 rounded-lg border p-3">
+      <p className="text-sm font-medium">Quer ajuda pra conectar? Configuração assistida</p>
+      <p className="text-muted-foreground text-xs">
+        Nosso time cuida da conexão do seu número com a Meta pra você não passar sufoco.{' '}
+        {free ? (
+          <span className="text-foreground font-medium">Incluída no seu plano anual (grátis).</span>
+        ) : (
+          'R$ 297 (uma vez) - opcional.'
+        )}
+      </p>
+      {msg && <p className="text-xs">{msg}</p>}
+      <Button
+        type="button"
+        size="sm"
+        disabled={pending}
+        onClick={() =>
+          start(() =>
+            startWhatsappSetup().then((r) => {
+              if ('error' in r) {
+                setMsg(r.error);
+                return;
+              }
+              if (r.free) {
+                setMsg('Pronto! Nosso time vai falar com você pra configurar. ✅');
+                return;
+              }
+              if (r.invoiceUrl) {
+                window.location.href = r.invoiceUrl;
+                return;
+              }
+              setMsg('Cobrança gerada - confira seu e-mail para pagar.');
+            }),
+          )
+        }
+      >
+        {pending
+          ? 'Processando…'
+          : free
+            ? 'Quero a configuração assistida (grátis)'
+            : 'Quero a configuração assistida (R$ 297)'}
+      </Button>
+    </div>
+  );
 }
 
 function SubmitButton({ editing }: { editing: boolean }) {
@@ -158,6 +220,7 @@ export function WhatsappCard({
   businessAccountId,
   displayPhone,
   hasAccessToken,
+  setupOffer,
 }: WhatsappCardProps) {
   const connected = Boolean(phoneNumberId && hasAccessToken);
   const [showForm, setShowForm] = useState(!connected);
@@ -229,6 +292,9 @@ export function WhatsappCard({
 
         {showForm && (
           <>
+            {/* Config assistida (opcional) - só antes de conectar; quem conecta sozinho não paga. */}
+            {!connected && setupOffer.eligible && <SetupOffer free={setupOffer.free} />}
+
             {/* Onboarding automático (Embedded Signup) - caminho principal quando
                 ainda não está conectado. Em edição, vai direto pro form manual. */}
             {!connected && <EmbeddedSignup />}

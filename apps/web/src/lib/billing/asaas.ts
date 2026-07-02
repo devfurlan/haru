@@ -185,6 +185,29 @@ export async function createSubscription(
   return { asaasSubscriptionId: sub.id, status: sub.status, firstPayment };
 }
 
+/**
+ * Cobrança avulsa (one-time) para o customer - usada no setup OPCIONAL do WhatsApp
+ * contratado depois do checkout (na ativação). billingType UNDEFINED: o cliente escolhe
+ * Pix/cartão/boleto na fatura hospedada. Não é assinatura, não mexe na recorrência.
+ */
+export async function createOneTimeCharge(input: {
+  customerId: string;
+  amountCents: number;
+  description: string;
+}): Promise<{ paymentId: string; invoiceUrl: string | null }> {
+  const payment = await asaas<{ id: string; invoiceUrl?: string | null }>('/payments', {
+    method: 'POST',
+    body: JSON.stringify({
+      customer: input.customerId,
+      billingType: 'UNDEFINED',
+      value: input.amountCents / 100,
+      dueDate: todayISO(),
+      description: input.description,
+    }),
+  });
+  return { paymentId: payment.id, invoiceUrl: payment.invoiceUrl ?? null };
+}
+
 /** Atualiza valor/ciclo da assinatura (troca de plano). Sem proração - o novo valor
  *  vale a partir do próximo ciclo; `updatePendingPayments` ajusta cobranças em aberto. */
 export async function updateAsaasSubscription(

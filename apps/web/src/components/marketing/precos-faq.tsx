@@ -5,8 +5,8 @@ import { SectionHeading } from './section-heading';
 
 const faqs = [
   {
-    q: 'Preciso do WhatsApp Business API?',
-    a: 'Precisa, e a gente configura pra você. No plano mensal a configuração assistida custa R$ 297 (uma vez); no anual é grátis.',
+    q: 'Preciso usar o WhatsApp?',
+    a: 'Não é obrigatório. Dá pra usar só a agenda pública, o painel e o app do cliente. Se quiser o bot de IA no WhatsApp, a configuração assistida é opcional: R$ 297 (uma vez) no mensal e grátis no anual.',
   },
   {
     q: 'E se meu negócio crescer?',
@@ -22,7 +22,7 @@ const faqs = [
   },
   {
     q: 'Quanto custa a configuração do WhatsApp?',
-    a: 'R$ 297 no plano mensal e grátis no plano anual. Nosso time cuida da conexão com a Meta pra você.',
+    a: 'É opcional - só se você quiser ativar o bot. A configuração assistida sai por R$ 297 (uma vez) no plano mensal e é grátis no anual; nosso time cuida da conexão com a Meta pra você.',
   },
   {
     q: 'E se eu passar do limite de agendamentos?',

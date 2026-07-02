@@ -45,6 +45,11 @@ export default async function SettingsPage() {
         businessAccountId={tenant.whatsappBusinessAccountId}
         displayPhone={tenant.whatsappDisplayPhone}
         hasAccessToken={Boolean(tenant.whatsappAccessToken)}
+        setupOffer={{
+          // Oferece a config assistida enquanto: tem assinatura e ainda não contratou o setup.
+          eligible: Boolean(tenant.subscription) && !tenant.subscription?.setupChargedAt,
+          free: tenant.subscription?.billingCycle === 'ANNUAL',
+        }}
       />
 
       <PublicBookingCard

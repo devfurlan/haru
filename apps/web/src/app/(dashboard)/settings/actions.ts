@@ -15,7 +15,11 @@ import {
 import { encryptSecret } from '@haru/payments';
 
 import { requireAdmin, requireUserAndTenant } from '@/lib/auth';
+import { BillingConfigError, createOneTimeCharge } from '@/lib/billing/asaas';
+import { SETUP_FEE_CENTS } from '@/lib/billing/pricing';
+import { removeAvatar, uploadAvatar } from '@/lib/avatar-storage';
 import { getBaseUrl } from '@/lib/base-url';
+import { geocodeAddress } from '@/lib/geocode';
 import { normalizePhoneBR } from '@haru/shared';
 import { createClient } from '@/lib/supabase/server';
 import { getSupabaseAdmin } from '@/lib/supabase/admin';
@@ -104,11 +108,22 @@ export async function updateTenant(
     return { error: parsed.error.issues[0]?.message ?? 'Dados inválidos' };
   }
 
+  // Geocodifica o endereço p/ alimentar a busca por proximidade no app. Só quando
+  // muda: endereço vazio zera as coords; inalterado mantém as atuais; novo texto vai
+  // pro Nominatim (best-effort, falha vira null sem travar o save).
+  let geo: { latitude: number | null; longitude: number | null } | undefined;
+  if (parsed.data.address == null) {
+    geo = { latitude: null, longitude: null };
+  } else if (parsed.data.address !== tenant.address) {
+    const g = await geocodeAddress(parsed.data.address);
+    geo = { latitude: g?.lat ?? null, longitude: g?.lng ?? null };
+  }
+
   let updated;
   try {
     updated = await prisma.tenant.update({
       where: { id: tenant.id },
-      data: parsed.data,
+      data: { ...parsed.data, ...geo },
     });
   } catch (err) {
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
@@ -278,6 +293,55 @@ export async function updateProfile(
 
   revalidatePath('/account');
   // Layout do dashboard exibe o nome do usuário na sidebar
+  revalidatePath('/', 'layout');
+  return { ok: true };
+}
+
+// --- Foto de perfil do usuário (dono/staff) -------------------------------
+// O redimensionamento (canvas -> webp 256px) roda no cliente; o upload é aqui no
+// servidor com service role (mesmo motivo da logo do tenant). O path é sempre
+// prefixado pelo tenant.id + user.id deste usuário - nunca confiamos em path do
+// cliente. Trocar apaga a foto antiga do bucket; remover zera a URL e apaga o arquivo.
+
+const MAX_AVATAR_BYTES = 2 * 1024 * 1024; // avatar reduzido cabe folgado em 2 MB
+
+export async function uploadUserAvatar(formData: FormData): Promise<LogoUploadResult> {
+  const user = await requireUserAndTenant();
+
+  const file = formData.get('file');
+  if (!(file instanceof File) || file.size === 0) {
+    return { error: 'Arquivo da foto ausente' };
+  }
+  if (file.size > MAX_AVATAR_BYTES) {
+    return { error: 'Imagem muito grande (máx. 2 MB).' };
+  }
+  if (file.type !== 'image/webp') {
+    return { error: 'Formato inválido.' };
+  }
+
+  const uploaded = await uploadAvatar(
+    `${user.tenantId}/users/${user.id}`,
+    Buffer.from(await file.arrayBuffer()),
+    'webp',
+    'image/webp',
+    user.avatarUrl,
+  );
+  if ('error' in uploaded) return { error: uploaded.error };
+
+  await prisma.user.update({ where: { id: user.id }, data: { avatarUrl: uploaded.url } });
+
+  revalidatePath('/account');
+  revalidatePath('/', 'layout'); // sidebar mostra o avatar do usuário
+  return { ok: true, logoUrl: uploaded.url };
+}
+
+export async function removeUserAvatar(): Promise<TenantActionResult> {
+  const user = await requireUserAndTenant();
+
+  await removeAvatar(user.avatarUrl);
+  await prisma.user.update({ where: { id: user.id }, data: { avatarUrl: null } });
+
+  revalidatePath('/account');
   revalidatePath('/', 'layout');
   return { ok: true };
 }
@@ -945,4 +1009,62 @@ export async function resendInvite(userId: string): Promise<ResendInviteActionRe
 
   revalidatePath('/settings');
   return { ok: true, sent, activationUrl };
+}
+
+// --- Configuração assistida do WhatsApp (setup opcional) --------------------
+
+export type WhatsappSetupResult =
+  | { error: string }
+  /** Anual: setup incluído, sem cobrança. */
+  | { ok: true; free: true }
+  /** Mensal: cobrança avulsa gerada - manda pra fatura do Asaas. */
+  | { ok: true; free: false; invoiceUrl: string | null };
+
+/**
+ * Contrata a configuração assistida do WhatsApp (opcional - o WhatsApp é opcional).
+ * Grátis no anual; no mensal gera uma cobrança avulsa (R$297) e devolve a fatura.
+ * Idempotente: se já contratado (setupChargedAt), não cobra de novo. Não bloqueia o uso.
+ */
+export async function startWhatsappSetup(): Promise<WhatsappSetupResult> {
+  const { tenant } = await requireAdmin();
+  const sub = tenant.subscription;
+  if (!sub) return { error: 'Assine um plano antes de contratar a configuração assistida.' };
+  if (sub.setupChargedAt) return { error: 'A configuração assistida já foi contratada.' };
+
+  // Anual: setup incluído (grátis). Só marca como coberto.
+  if (sub.billingCycle === 'ANNUAL') {
+    await prisma.subscription.update({
+      where: { id: sub.id },
+      data: { setupChargedAt: new Date() },
+    });
+    revalidatePath('/settings');
+    return { ok: true, free: true };
+  }
+
+  // Mensal: cobrança avulsa (precisa do customer do Asaas, criado no checkout do plano).
+  if (!sub.asaasCustomerId) {
+    return {
+      error: 'Conclua o pagamento do seu plano antes de contratar a configuração assistida.',
+    };
+  }
+  try {
+    const charge = await createOneTimeCharge({
+      customerId: sub.asaasCustomerId,
+      amountCents: SETUP_FEE_CENTS,
+      description: 'Configuração assistida do WhatsApp (setup único) - Demandaê',
+    });
+    await prisma.subscription.update({
+      where: { id: sub.id },
+      data: { setupChargedAt: new Date() },
+    });
+    revalidatePath('/settings');
+    return { ok: true, free: false, invoiceUrl: charge.invoiceUrl };
+  } catch (err) {
+    if (err instanceof BillingConfigError) {
+      console.error('[whatsapp-setup] config', err);
+      return { error: 'Cobrança indisponível no momento. Tente mais tarde.' };
+    }
+    console.error('[whatsapp-setup] falhou', err);
+    return { error: 'Não foi possível gerar a cobrança. Tente novamente.' };
+  }
 }

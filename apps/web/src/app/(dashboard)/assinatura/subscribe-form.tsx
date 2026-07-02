@@ -45,10 +45,12 @@ export function SubscribeForm({
     undefined,
   );
 
+  const [wantsSetup, setWantsSetup] = useState(false);
   const selected = plans.find((p) => p.tier === tier) ?? plans[0];
-  // Setup só entra na 1ª contratação mensal (espelha a regra do server action).
+  // Setup é opcional e só na 1ª contratação mensal (espelha a regra do server action).
   const firstContract = currentStatus === null || currentStatus === 'PENDING';
-  const setupApplies = cycle === 'MONTHLY' && firstContract;
+  const setupOffered = cycle === 'MONTHLY' && firstContract;
+  const setupApplies = setupOffered && wantsSetup;
   const error = state && 'error' in state ? state.error : null;
   const pixOk = state && 'ok' in state && state.method === 'PIX' ? state : null;
   const cardOk = state && 'ok' in state && state.method === 'CARD' ? state : null;
@@ -187,6 +189,28 @@ export function SubscribeForm({
           ? 'Você será levado ao ambiente seguro do Asaas para digitar o cartão. Não armazenamos os dados do cartão.'
           : 'Geramos um Pix; a assinatura ativa assim que o pagamento for confirmado.'}
       </p>
+
+      {/* Config assistida do WhatsApp: opcional (o WhatsApp é opcional). Só no mensal. */}
+      {setupOffered && (
+        <label className="flex cursor-pointer items-start gap-2 rounded-lg border p-3 text-sm">
+          <input
+            type="checkbox"
+            name="wantsSetup"
+            checked={wantsSetup}
+            onChange={(e) => setWantsSetup(e.target.checked)}
+            className="mt-0.5"
+          />
+          <span>
+            <span className="font-medium">
+              Configuração assistida do WhatsApp (+{fmtBRL(SETUP_FEE_CENTS)})
+            </span>
+            <span className="text-muted-foreground block text-xs">
+              Opcional. Nosso time conecta seu WhatsApp à Meta pra você. Dá pra ativar depois, se
+              preferir - ou usar só a agenda, o painel e o app do cliente.
+            </span>
+          </span>
+        </label>
+      )}
 
       {/* Resumo do setup - transparência: o setup entra na 1ª cobrança mensal. */}
       {setupApplies && selected && (
