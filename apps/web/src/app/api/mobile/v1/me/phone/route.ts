@@ -2,10 +2,20 @@
 // oficial da conta (reivindica os Contacts de mesmo telefone). Body: { phone, code }.
 import { changeCustomerPhone } from '@/lib/customer';
 import { requireCustomerAccountFromBearer } from '@/lib/customer-auth';
+import { withinRateLimitFor } from '@/lib/ratelimit';
 
 export async function POST(req: Request) {
   const account = await requireCustomerAccountFromBearer(req);
   if (!account) return Response.json({ error: 'Não autenticado' }, { status: 401 });
+
+  // Defesa em profundidade contra brute-force do OTP: cap por conta além do limite da
+  // Twilio (acertar o código = reivindicar Contacts/histórico de terceiros).
+  if (!(await withinRateLimitFor(account.id, 'phone-verify', 5, 600))) {
+    return Response.json(
+      { error: 'Muitas tentativas. Aguarde alguns minutos e peça um novo código.' },
+      { status: 429 },
+    );
+  }
 
   const body = (await req.json().catch(() => null)) as {
     phone?: unknown;

@@ -211,5 +211,10 @@ export function verifyWebhookSignature(rawBody: Buffer, signature: string): bool
     'sha256=' +
     crypto.createHmac('sha256', env.WHATSAPP_APP_SECRET).update(rawBody).digest('hex');
 
-  return crypto.timingSafeEqual(Buffer.from(expectedSignature), Buffer.from(signature));
+  // timingSafeEqual lança RangeError se os buffers tiverem tamanhos diferentes; o header
+  // `signature` é do atacante. Guarda o comprimento antes pra devolver false (401 limpo)
+  // em vez de estourar exceção não-tratada com header de tamanho arbitrário.
+  const expected = Buffer.from(expectedSignature);
+  const received = Buffer.from(signature);
+  return expected.length === received.length && crypto.timingSafeEqual(expected, received);
 }

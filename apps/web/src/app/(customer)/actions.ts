@@ -249,6 +249,10 @@ export async function customerChangePhone(
   formData: FormData,
 ): Promise<CustomerActionResult> {
   const account = await requireCustomerAccount();
+  // Defesa em profundidade contra brute-force do OTP (mesmo bucket da rota mobile).
+  if (!(await withinRateLimitFor(account.id, 'phone-verify', 5, 600))) {
+    return { error: 'Muitas tentativas. Aguarde alguns minutos e peça um novo código.' };
+  }
   const result = await changeCustomerPhone(
     account,
     String(formData.get('phone') ?? ''),

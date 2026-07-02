@@ -1,5 +1,7 @@
 import { prisma } from '@haru/database';
 
+import { requireAdmin } from './admin-auth';
+
 export const PERIODS = [7, 30, 90] as const;
 export type Period = (typeof PERIODS)[number];
 
@@ -38,6 +40,7 @@ export interface UsageReport {
  * totais e a taxa de cache.
  */
 export async function getUsageByTenant(periodDays: Period): Promise<UsageReport> {
+  await requireAdmin(); // defesa em profundidade: dados de todos os tenants
   const since = new Date(Date.now() - periodDays * 24 * 60 * 60 * 1000);
 
   const grouped = await prisma.aiUsageLog.groupBy({

@@ -1,6 +1,8 @@
 import { prisma } from '@haru/database';
 import type { BillingCycle, PlanTier } from '@haru/database';
 
+import { requireAdmin } from './admin-auth';
+
 /**
  * Métricas de receita recorrente da plataforma. MRR = soma do valor mensal
  * normalizado das assinaturas ATIVAS (anual ÷ 12). CANCELED dentro do período não
@@ -34,6 +36,7 @@ export interface MrrReport {
 }
 
 export async function getMrr(): Promise<MrrReport> {
+  await requireAdmin(); // defesa em profundidade: receita agregada de todos os tenants
   const subs = await prisma.subscription.findMany({
     where: { status: 'ACTIVE' },
     select: { planTier: true, billingCycle: true, priceCents: true, asaasSubscriptionId: true },
@@ -55,7 +58,9 @@ export async function getMrr(): Promise<MrrReport> {
 
   const activeCount = subs.length;
   const [churningCount, pastDueCount] = await Promise.all([
-    prisma.subscription.count({ where: { status: 'CANCELED', currentPeriodEnd: { gt: new Date() } } }),
+    prisma.subscription.count({
+      where: { status: 'CANCELED', currentPeriodEnd: { gt: new Date() } },
+    }),
     prisma.subscription.count({ where: { status: 'PAST_DUE' } }),
   ]);
 

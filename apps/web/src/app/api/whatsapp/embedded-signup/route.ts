@@ -48,6 +48,13 @@ export async function POST(req: Request) {
     );
   }
 
+  // IDs vão interpolados no path da Graph API (e viram chave de roteamento de webhook).
+  // Exige numérico pra não redirecionar a chamada (path traversal dentro do host) nem
+  // gravar lixo em whatsappPhoneNumberId.
+  if (!/^\d+$/.test(phoneNumberId) || !/^\d+$/.test(wabaId)) {
+    return Response.json({ error: 'phoneNumberId e wabaId devem ser numéricos' }, { status: 400 });
+  }
+
   try {
     const token = await exchangeCodeForToken(code);
     await subscribeAppToWaba(wabaId, token);
