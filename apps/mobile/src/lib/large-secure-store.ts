@@ -36,7 +36,17 @@ export class LargeSecureStore {
     return aesjs.utils.utf8.fromBytes(decryptedBytes);
   }
 
+  // O code_verifier do PKCE (chave `...-code-verifier`) é um segredo descartável de 5 min
+  // e fica no caminho crítico do login com Google. Cifrá-lo com AES+KeyStore só adiciona
+  // fragilidade no Android (o KeyStore lança decrypt com mais frequência que o Keychain, e
+  // aí o getItem apagava o verifier -> exchangeCodeForSession falhava). Vai em AsyncStorage
+  // puro; o que importa proteger (o refresh token, na chave da sessão) segue cifrado.
+  private isPlain(key: string): boolean {
+    return key.endsWith('-code-verifier');
+  }
+
   async getItem(key: string): Promise<string | null> {
+    if (this.isPlain(key)) return AsyncStorage.getItem(key);
     const encrypted = await AsyncStorage.getItem(key);
     if (!encrypted) return null;
     try {
@@ -50,12 +60,16 @@ export class LargeSecureStore {
   }
 
   async setItem(key: string, value: string): Promise<void> {
+    if (this.isPlain(key)) {
+      await AsyncStorage.setItem(key, value);
+      return;
+    }
     const encrypted = await this.encrypt(key, value);
     await AsyncStorage.setItem(key, encrypted);
   }
 
   async removeItem(key: string): Promise<void> {
     await AsyncStorage.removeItem(key);
-    await SecureStore.deleteItemAsync(key);
+    if (!this.isPlain(key)) await SecureStore.deleteItemAsync(key);
   }
 }
