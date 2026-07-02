@@ -1,6 +1,7 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient } from '@supabase/supabase-js';
 import { AppState } from 'react-native';
+
+import { LargeSecureStore } from './large-secure-store';
 
 const url = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const key = process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
@@ -10,10 +11,9 @@ if (!url || !key) {
 
 export const supabase = createClient(url, key, {
   auth: {
-    // ponytail: sessão em AsyncStorage (sandbox do app). SecureStore tem limite de ~2KB
-    // por valor e o token da sessão costuma passar disso; endurecer com LargeSecureStore
-    // (aes-js + SecureStore p/ a chave) se o rigor exigir.
-    storage: AsyncStorage,
+    // Sessão cifrada: blob no AsyncStorage + chave AES no SecureStore (Keychain/Keystore).
+    // Evita o refresh token em texto puro no sandbox do app. Ver large-secure-store.ts.
+    storage: new LargeSecureStore(),
     autoRefreshToken: true,
     persistSession: true,
     // OAuth (Google) usa PKCE: o retorno traz `?code=...` e a gente chama
