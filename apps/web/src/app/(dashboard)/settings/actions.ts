@@ -15,7 +15,11 @@ import {
 import { encryptSecret } from '@haru/payments';
 
 import { requireAdmin, requireUserAndTenant } from '@/lib/auth';
-import { BillingConfigError, createOneTimeCharge } from '@/lib/billing/asaas';
+import {
+  BillingConfigError,
+  createOneTimeCharge,
+  findPendingChargeByReference,
+} from '@/lib/billing/asaas';
 import { SETUP_FEE_CENTS } from '@/lib/billing/pricing';
 import { removeAvatar, uploadAvatar } from '@/lib/avatar-storage';
 import { getBaseUrl } from '@/lib/base-url';
@@ -1047,16 +1051,25 @@ export async function startWhatsappSetup(): Promise<WhatsappSetupResult> {
       error: 'Conclua o pagamento do seu plano antes de contratar a configuração assistida.',
     };
   }
+  // NÃO marca setupChargedAt aqui: marcar antes de pagar cobriria setup não pago e não há
+  // reconciliação por webhook da cobrança avulsa. A oferta some sozinha quando o WhatsApp
+  // conclui a conexão (a UI condiciona a !connected). externalReference torna a cobrança
+  // idempotente (reclicar antes de pagar reaproveita a fatura, não gera outra).
+  const ref = `whatsapp-setup:${sub.id}`;
   try {
+    const existing = await findPendingChargeByReference(ref);
+    if (existing?.invoiceUrl) {
+      return { ok: true, free: false, invoiceUrl: existing.invoiceUrl };
+    }
     const charge = await createOneTimeCharge({
       customerId: sub.asaasCustomerId,
       amountCents: SETUP_FEE_CENTS,
       description: 'Configuração assistida do WhatsApp (setup único) - Demandaê',
+      externalReference: ref,
     });
-    await prisma.subscription.update({
-      where: { id: sub.id },
-      data: { setupChargedAt: new Date() },
-    });
+    if (!charge.invoiceUrl) {
+      return { error: 'Não foi possível gerar a fatura agora. Tente novamente.' };
+    }
     revalidatePath('/settings');
     return { ok: true, free: false, invoiceUrl: charge.invoiceUrl };
   } catch (err) {

@@ -29,11 +29,14 @@ export function SubscribeForm({
   currentTier,
   preselectedTier,
   currentStatus,
+  setupAlreadyCharged = false,
 }: {
   plans: PlanOption[];
   currentTier: PlanTier | null;
   preselectedTier?: PlanTier | null;
   currentStatus: string | null;
+  /** Setup já quitado/coberto - não reoferecer o checkbox (espelha o guard do server). */
+  setupAlreadyCharged?: boolean;
 }) {
   const [tier, setTier] = useState<PlanTier>(
     currentTier ?? preselectedTier ?? plans[0]?.tier ?? 'ESSENCIAL',
@@ -49,7 +52,7 @@ export function SubscribeForm({
   const selected = plans.find((p) => p.tier === tier) ?? plans[0];
   // Setup é opcional e só na 1ª contratação mensal (espelha a regra do server action).
   const firstContract = currentStatus === null || currentStatus === 'PENDING';
-  const setupOffered = cycle === 'MONTHLY' && firstContract;
+  const setupOffered = cycle === 'MONTHLY' && firstContract && !setupAlreadyCharged;
   const setupApplies = setupOffered && wantsSetup;
   const error = state && 'error' in state ? state.error : null;
   const pixOk = state && 'ok' in state && state.method === 'PIX' ? state : null;

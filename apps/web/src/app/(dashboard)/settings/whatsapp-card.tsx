@@ -68,7 +68,7 @@ function SetupOffer({ free }: { free: boolean }) {
                 window.location.href = r.invoiceUrl;
                 return;
               }
-              setMsg('Cobrança gerada - confira seu e-mail para pagar.');
+              setMsg('Cobrança gerada. Acompanhe pelo painel de assinatura.');
             }),
           )
         }

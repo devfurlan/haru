@@ -57,6 +57,13 @@ function todayISO(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
+/** "YYYY-MM-DD" daqui a N dias (UTC) - dá folga pro cliente pagar cobrança avulsa. */
+function daysFromNowISO(days: number): string {
+  const d = new Date();
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
 /** E.164 ("5511912345678") → nacional ("11912345678") pro Asaas. */
 function toNationalPhone(phoneE164: string): string {
   const digits = phoneE164.replace(/\D/g, '');
@@ -162,14 +169,21 @@ export async function createSubscription(
     // Setup único: engorda SÓ a 1ª cobrança (a assinatura segue cobrando `amountCents`
     // nos ciclos seguintes). Feito antes de gerar o QR do Pix pra refletir o total.
     if (input.setupFeeCents && input.setupFeeCents > 0) {
-      const updated = await asaas<{ invoiceUrl?: string | null }>(`/payments/${fp.id}`, {
-        method: 'PUT',
-        body: JSON.stringify({
-          value: (input.amountCents + input.setupFeeCents) / 100,
-          description: `${input.description} + configuração assistida (setup único)`,
-        }),
-      });
-      invoiceUrl = updated.invoiceUrl ?? invoiceUrl;
+      try {
+        const updated = await asaas<{ invoiceUrl?: string | null }>(`/payments/${fp.id}`, {
+          method: 'PUT',
+          body: JSON.stringify({
+            value: (input.amountCents + input.setupFeeCents) / 100,
+            description: `${input.description} + configuração assistida (setup único)`,
+          }),
+        });
+        invoiceUrl = updated.invoiceUrl ?? invoiceUrl;
+      } catch (err) {
+        // A assinatura já foi criada: NÃO aborta o checkout por causa do setup (senão a
+        // assinatura Asaas fica órfã e o retry cria outra). Sem o acréscimo, a 1ª fatura
+        // sai só com o plano - o setup pode ser contratado depois, na ativação.
+        console.error('[billing] falha ao somar setup na 1ª fatura', err);
+      }
     }
 
     let pix: { qrCode: string; copyPaste: string } | null = null;
@@ -194,6 +208,8 @@ export async function createOneTimeCharge(input: {
   customerId: string;
   amountCents: number;
   description: string;
+  /** Referência determinística (ex.: `whatsapp-setup:<subId>`) p/ idempotência/reconciliação. */
+  externalReference?: string;
 }): Promise<{ paymentId: string; invoiceUrl: string | null }> {
   const payment = await asaas<{ id: string; invoiceUrl?: string | null }>('/payments', {
     method: 'POST',
@@ -201,11 +217,27 @@ export async function createOneTimeCharge(input: {
       customer: input.customerId,
       billingType: 'UNDEFINED',
       value: input.amountCents / 100,
-      dueDate: todayISO(),
+      // +3 dias: mesmo-dia aperta boleto/Pix (mesmo padrão de @haru/payments).
+      dueDate: daysFromNowISO(3),
       description: input.description,
+      externalReference: input.externalReference,
     }),
   });
   return { paymentId: payment.id, invoiceUrl: payment.invoiceUrl ?? null };
+}
+
+/**
+ * Cobrança avulsa PENDENTE já existente para uma referência - usada para NÃO duplicar
+ * o setup quando o cliente clica de novo antes de pagar (idempotência no lado do Asaas).
+ */
+export async function findPendingChargeByReference(
+  externalReference: string,
+): Promise<{ paymentId: string; invoiceUrl: string | null } | null> {
+  const res = await asaas<{ data: Array<{ id: string; invoiceUrl?: string | null }> }>(
+    `/payments?externalReference=${encodeURIComponent(externalReference)}&status=PENDING&limit=1`,
+  );
+  const p = res.data[0];
+  return p ? { paymentId: p.id, invoiceUrl: p.invoiceUrl ?? null } : null;
 }
 
 /** Atualiza valor/ciclo da assinatura (troca de plano). Sem proração - o novo valor

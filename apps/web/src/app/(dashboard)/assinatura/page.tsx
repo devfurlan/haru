@@ -74,6 +74,7 @@ export default async function AssinaturaPage({
             currentTier={sub?.planTier ?? null}
             preselectedTier={preselectedTier}
             currentStatus={sub?.status ?? null}
+            setupAlreadyCharged={Boolean(sub?.setupChargedAt)}
           />
           <p className="text-muted-foreground text-xs">
             Garantia de 30 dias: se não curtir, devolvemos o valor integral. Pagamentos processados

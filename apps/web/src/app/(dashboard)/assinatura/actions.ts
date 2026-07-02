@@ -79,12 +79,12 @@ export async function subscribe(
   const amountCents = cycle === 'ANNUAL' ? plan.priceAnnualCents : plan.priceMonthlyCents;
 
   // Setup (config. assistida do WhatsApp) é OPCIONAL - o WhatsApp em si é opcional. Só
-  // cobra se o cliente marcar no checkout, e só no MENSAL (anual é grátis). Quem já ativou
-  // antes não recobra. Sem opt-in aqui, dá pra contratar a config depois, na ativação.
+  // cobra se o cliente marcar no checkout, só no MENSAL (anual é grátis) e só se ainda não
+  // foi quitado (setupChargedAt guarda contra cobrança dupla). Sem opt-in, dá pra
+  // contratar depois, na ativação.
   const wantsSetup = formData.get('wantsSetup') === 'on';
   const existing = tenant.subscription;
-  const chargeSetup =
-    cycle === 'MONTHLY' && wantsSetup && (!existing || existing.status === 'PENDING');
+  const chargeSetup = cycle === 'MONTHLY' && wantsSetup && !existing?.setupChargedAt;
 
   try {
     // Reusa o customer do Asaas se já existir; senão cria.
@@ -117,6 +117,15 @@ export async function subscribe(
         ...snapshot,
       },
     });
+
+    // Re-contratação: cancela a assinatura Asaas anterior ANTES de criar outra, senão a
+    // recorrência antiga fica órfã (segue gerando fatura) e a 1ª fatura antiga (plano +
+    // setup) continua aberta/pagável - risco de cobrança em dobro. Tolerante a erro/404.
+    if (tenant.subscription?.asaasSubscriptionId) {
+      await cancelAsaasSubscription(tenant.subscription.asaasSubscriptionId).catch((err) =>
+        console.error('[billing] falha ao cancelar assinatura Asaas anterior', err),
+      );
+    }
 
     const result = await createSubscription({
       customerId,
