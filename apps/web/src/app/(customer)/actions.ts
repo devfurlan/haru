@@ -23,6 +23,7 @@ import {
   updateCustomerProfileCore,
 } from '@/lib/customer';
 import { requireCustomerAccount } from '@/lib/customer-auth';
+import { withinRateLimitFor } from '@/lib/ratelimit';
 import { normalizePhoneBR } from '@haru/shared';
 import { TERMS_VERSION } from '@/lib/legal';
 import { createClient } from '@/lib/supabase/server';
@@ -233,6 +234,11 @@ export async function sendCustomerPhoneChangeCode(
   newPhoneRaw: string,
 ): Promise<CustomerActionResult> {
   const account = await requireCustomerAccount();
+  // Cada envio é um SMS pago (Twilio): throttle por conta contra SMS pumping. Mesmo bucket
+  // usado pela rota mobile, então o limite é compartilhado por conta nos dois canais.
+  if (!(await withinRateLimitFor(account.id, 'send-code-acct', 3, 600))) {
+    return { error: 'Muitas tentativas de envio. Aguarde alguns minutos.' };
+  }
   const result = await sendPhoneChangeCode(account, newPhoneRaw);
   if ('error' in result) return { error: result.error };
   return { ok: true };

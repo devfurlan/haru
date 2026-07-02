@@ -83,6 +83,15 @@ export async function POST(req: Request, { params }: { params: Promise<{ gateway
   // Valida autenticidade com o adapter (header/token do tenant).
   try {
     const webhookToken = webhookTokenForTenant(payment.tenant);
+    // Fail-closed: sem token de validação configurado não há como provar a origem do
+    // callback. Recusa em vez de aceitar cego - senão um POST forjado marcaria o Payment
+    // como PAID sem dinheiro ter entrado. A config de pagamento passou a exigir o token.
+    if (!webhookToken) {
+      console.warn(
+        `[payments-webhook] 401 ${provider} payment=${payment.id} tenant=${payment.tenantId}: sem webhook token configurado`,
+      );
+      return new Response('Unauthorized', { status: 401 });
+    }
     const gw = getGatewayForTenant(payment.tenant);
     const parsed = gw.parseWebhook({ rawBody, headers: req.headers, webhookToken });
 

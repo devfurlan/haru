@@ -36,6 +36,13 @@ export async function createPaymentForAppointment(
   method: 'PIX' | 'CREDIT_CARD',
   /** CPF/CNPJ do pagador (com ou sem máscara). O Asaas exige documento pra emitir Pix. */
   document?: string,
+  /**
+   * Conta do cliente autenticado (app mobile), quando houver. Usada para checar posse do
+   * agendamento e liberar a persistência do CPF no cadastro. No fluxo público da web
+   * (cliente sem login) vem `null`/undefined - aí a cobrança é gerada mas o CPF NÃO é
+   * gravado no contato (evita sobrescrever PII de terceiro só conhecendo o appointmentId).
+   */
+  authCustomerAccountId?: string | null,
 ): Promise<CreatePaymentResult> {
   if (method !== 'PIX' && method !== 'CREDIT_CARD') {
     return { error: 'Meio de pagamento inválido' };
@@ -48,6 +55,16 @@ export async function createPaymentForAppointment(
 
   // Vincula ao slug público pra impedir enumerar appointments de outro tenant.
   if (!appointment || appointment.tenant.slug !== slug) {
+    return { error: 'Agendamento não encontrado' };
+  }
+
+  // Fluxo autenticado (app mobile): o agendamento não pode pertencer a OUTRA conta. Contato
+  // ainda não vinculado a nenhuma conta é permitido (caso de agendar com outro telefone).
+  if (
+    authCustomerAccountId &&
+    appointment.contact.customerAccountId &&
+    appointment.contact.customerAccountId !== authCustomerAccountId
+  ) {
     return { error: 'Agendamento não encontrado' };
   }
   if (appointment.status !== 'PENDING' && appointment.status !== 'CONFIRMED') {
@@ -100,8 +117,13 @@ export async function createPaymentForAppointment(
   }
   // Cifrado at rest pra gravar no banco; o gateway recebe o valor em claro (`cpfCnpj`, abaixo).
   const payerDocumentEnc = encryptSecret(payerDocument);
-  // Persiste no contato pra reuso em cobranças futuras (só quando veio um novo do form).
-  if (documentDigits && documentDigits !== savedDocument) {
+  // Só persiste o CPF no cadastro quando o caller é o DONO comprovado do contato (app
+  // autenticado). No fluxo público/anônimo, ou contato de outra conta, o documento é usado
+  // só na cobrança e nunca gravado - senão qualquer um com o appointmentId sobrescreveria a
+  // PII de um terceiro.
+  const callerOwnsContact =
+    !!authCustomerAccountId && appointment.contact.customerAccountId === authCustomerAccountId;
+  if (callerOwnsContact && documentDigits && documentDigits !== savedDocument) {
     await prisma.contact.update({
       where: { id: appointment.contact.id },
       data: { document: payerDocumentEnc },

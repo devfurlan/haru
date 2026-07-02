@@ -1,5 +1,7 @@
 import 'server-only';
 
+import { timingSafeEqual } from 'node:crypto';
+
 /**
  * Cliente Asaas da PLATAFORMA (cobrança da assinatura do SaaS). Diferente do
  * `@haru/payments` (chave Asaas de cada tenant para o tenant cobrar os clientes dele):
@@ -331,11 +333,17 @@ export interface ParsedBillingEvent {
  */
 export function parseBillingWebhook(rawBody: Buffer, headers: Headers): ParsedBillingEvent {
   const expected = process.env.ASAAS_PLATFORM_WEBHOOK_TOKEN;
-  if (expected) {
-    const received = headers.get('asaas-access-token') ?? '';
-    if (received !== expected) {
-      throw new BillingConfigError('Token do webhook de billing inválido');
-    }
+  // Fail-closed: sem o token da plataforma configurado NÃO dá pra autenticar o callback.
+  // Recusa em vez de aceitar cego - senão um POST forjado ativaria/derrubaria assinaturas.
+  if (!expected) {
+    throw new BillingConfigError('ASAAS_PLATFORM_WEBHOOK_TOKEN não configurada');
+  }
+  const received = headers.get('asaas-access-token') ?? '';
+  // Comparação em tempo constante (guarda de comprimento antes do timingSafeEqual).
+  const a = Buffer.from(received);
+  const b = Buffer.from(expected);
+  if (a.length !== b.length || !timingSafeEqual(a, b)) {
+    throw new BillingConfigError('Token do webhook de billing inválido');
   }
 
   let body: {

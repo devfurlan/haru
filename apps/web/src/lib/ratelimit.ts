@@ -2,6 +2,8 @@
 // Reusa o MESMO Upstash Redis do bot - só troca o prefixo de chave (`ratelimit:` vs
 // `whatsapp:`), sem colisão. Janela fixa via INCR+EXPIRE atômico (Lua eval); barrar abuso
 // não precisa do sliding-window do @upstash/ratelimit, então sem lib extra.
+import { headers } from 'next/headers';
+
 import { Redis } from '@upstash/redis';
 
 const url = process.env.UPSTASH_REDIS_REST_URL;
@@ -38,15 +40,39 @@ export async function withinRateLimit(
   limit: number,
   windowSec: number,
 ): Promise<boolean> {
+  return withinRateLimitFor(clientIp(req), name, limit, windowSec);
+}
+
+/**
+ * Como `withinRateLimit`, mas com a chave do bucket explícita (ex.: `account.id`) em vez do
+ * IP. Usado onde o abuso é por conta autenticada - troca de telefone/OTP (custo de SMS),
+ * suporte com IA (custo de LLM) - e o IP sozinho é fácil de trocar.
+ */
+export async function withinRateLimitFor(
+  key: string,
+  name: string,
+  limit: number,
+  windowSec: number,
+): Promise<boolean> {
   if (!redis) return true;
   try {
-    const count = await redis.eval(
-      INCR_WINDOW,
-      [`ratelimit:${name}:${clientIp(req)}`],
-      [windowSec],
-    );
+    const count = await redis.eval(INCR_WINDOW, [`ratelimit:${name}:${key}`], [windowSec]);
     return (count as number) <= limit;
   } catch {
     return true; // ponytail: fail-open - Redis fora não bloqueia o fluxo
   }
+}
+
+/**
+ * Variante por IP para Server Actions (que não recebem um `Request`): lê o IP dos headers
+ * da requisição via `next/headers`. Mesmo bucketing/fail-open das demais.
+ */
+export async function withinRateLimitByIp(
+  name: string,
+  limit: number,
+  windowSec: number,
+): Promise<boolean> {
+  const h = await headers();
+  const ip = h.get('x-real-ip') || h.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
+  return withinRateLimitFor(ip, name, limit, windowSec);
 }

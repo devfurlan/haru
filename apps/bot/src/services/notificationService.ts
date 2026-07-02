@@ -1,6 +1,7 @@
 import { Sentry } from '../instrument.js';
 import { formatPhoneBR } from '../lib/format.js';
 import prisma from '../lib/prisma.js';
+import { isPublicWebhookUrl } from '../lib/safe-url.js';
 
 interface AppointmentEventData {
   tenant: { id: string; name: string; slug: string };
@@ -37,6 +38,12 @@ async function dispatchAppointmentEvent(appointmentId: string, event: Appointmen
       include: { service: true, contact: true, tenant: true },
     });
     if (!appt || !appt.tenant.notificationWebhookUrl) return;
+    const webhookUrl = appt.tenant.notificationWebhookUrl;
+    // Anti-SSRF (defesa em profundidade + DNS rebinding): revalida o destino a cada envio.
+    if (!(await isPublicWebhookUrl(webhookUrl))) {
+      console.warn('[notify] webhook bloqueado (host não público)');
+      return;
+    }
 
     const when = new Intl.DateTimeFormat('pt-BR', {
       timeZone: appt.tenant.timezone,
@@ -78,7 +85,7 @@ async function dispatchAppointmentEvent(appointmentId: string, event: Appointmen
         `👤 ${appt.contact.name ?? formatPhoneBR(appt.contact.phone)}`,
     };
 
-    const res = await fetch(appt.tenant.notificationWebhookUrl, {
+    const res = await fetch(webhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
