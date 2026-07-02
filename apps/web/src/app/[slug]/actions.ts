@@ -13,6 +13,7 @@ import { getCustomerAccount } from '@/lib/customer-auth';
 import { normalizePhoneBR } from '@haru/shared';
 import { notifyAppointmentCreated } from '@/lib/notify';
 import { getServiceDaySlots, resolveBookingProfessional } from '@/lib/professionals';
+import { withinRateLimitByIp } from '@/lib/ratelimit';
 
 import { loadPublicTenant } from './_tenant';
 
@@ -175,6 +176,13 @@ export async function createPublicBooking(
   _prev: CreatePublicBookingResult,
   formData: FormData,
 ): Promise<CreatePublicBookingResult> {
+  // Rate-limit por IP: sem isso, variar o telefone a cada request lota a agenda do tenant
+  // (a checagem por telefone+dia abaixo sozinha não segura spam). Alinha ao cap da rota
+  // mobile de bookings (8/60).
+  if (!(await withinRateLimitByIp('public-booking', 8, 60))) {
+    return { error: 'Muitas tentativas. Aguarde um instante e tente de novo.' };
+  }
+
   const parsed = bookingSchema.safeParse({
     slug: formData.get('slug'),
     serviceId: formData.get('serviceId'),
@@ -220,8 +228,8 @@ export async function createPublicBooking(
   }
   const professionalId = resolved.professionalId;
 
-  // Mitigação leve de spam: um mesmo telefone não acumula vários pedidos ativos
-  // no mesmo dia (sem rate-limit por IP, que exigiria Redis).
+  // Além do rate-limit por IP (acima), um mesmo telefone não acumula vários pedidos ativos
+  // no mesmo dia.
   const sameDayStart = localWallTimeToUtc(dateStr, 0, tenant.timezone);
   const sameDayEnd = localWallTimeToUtc(dateStr, 24 * 60, tenant.timezone);
   const existingSameDay = await prisma.appointment.findFirst({

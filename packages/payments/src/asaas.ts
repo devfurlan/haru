@@ -132,13 +132,15 @@ export class AsaasGateway implements PaymentGateway {
 
   parseWebhook({ rawBody, headers, webhookToken }: ParseWebhookArgs): ParsedWebhook {
     // Autenticidade: header `asaas-access-token` deve bater com o token do tenant.
-    if (webhookToken) {
-      const received = headers.get('asaas-access-token') ?? '';
-      const a = Buffer.from(received);
-      const b = Buffer.from(webhookToken);
-      if (a.length !== b.length || !timingSafeEqual(a, b)) {
-        throw new PaymentConfigError('Token do webhook Asaas inválido');
-      }
+    // Fail-closed: sem token não há como validar a origem - recusa em vez de aceitar cego.
+    if (!webhookToken) {
+      throw new PaymentConfigError('Webhook Asaas sem token de validação configurado');
+    }
+    const received = headers.get('asaas-access-token') ?? '';
+    const a = Buffer.from(received);
+    const b = Buffer.from(webhookToken);
+    if (a.length !== b.length || !timingSafeEqual(a, b)) {
+      throw new PaymentConfigError('Token do webhook Asaas inválido');
     }
 
     let body: { event?: string; payment?: { id?: string; paymentDate?: string | null } };

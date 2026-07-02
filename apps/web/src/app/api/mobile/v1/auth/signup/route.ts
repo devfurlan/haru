@@ -10,11 +10,17 @@ import { normalizePhoneBR } from '@haru/shared';
 
 import { traduzErroSignUp } from '@/lib/auth-errors';
 import { TERMS_VERSION } from '@/lib/legal';
+import { withinRateLimit } from '@/lib/ratelimit';
 
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 const PHONE_RE = /^55\d{10,11}$/;
 
 export async function POST(req: Request) {
+  // Anti-abuso: cria auth.users + CustomerAccount a cada chamada. Throttle por IP contra
+  // criação em massa de contas (que alimentaria o abuso de SMS/LLM) e enumeração de e-mail.
+  if (!(await withinRateLimit(req, 'signup', 5, 60)))
+    return Response.json({ error: 'Muitas tentativas. Tente em instantes.' }, { status: 429 });
+
   const body = (await req.json().catch(() => null)) as {
     email?: unknown;
     password?: unknown;

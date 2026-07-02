@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import type { NextRequest } from 'next/server';
 
+import { safeInternalPath } from '@/lib/safe-redirect';
 import { createClient } from '@/lib/supabase/server';
 
 /**
@@ -24,9 +25,8 @@ export async function GET(request: NextRequest) {
   const type = searchParams.get('type');
   const code = searchParams.get('code');
 
-  // `next` é sempre um caminho interno - barrar URL absoluta evita open redirect.
-  const nextParam = searchParams.get('next') ?? '/redefinir-senha';
-  const next = nextParam.startsWith('/') ? nextParam : '/redefinir-senha';
+  // `next` é sempre um caminho interno - barrar URL absoluta/protocol-relative evita open redirect.
+  const next = safeInternalPath(searchParams.get('next'), '/redefinir-senha');
 
   const supabase = await createClient();
 

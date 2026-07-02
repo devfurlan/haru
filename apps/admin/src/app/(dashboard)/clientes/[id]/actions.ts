@@ -349,6 +349,9 @@ export async function updatePayments(
     : provider === tenant.paymentProvider
       ? tenant.paymentWebhookTokenEnc
       : null;
+  // Token do webhook obrigatório: sem ele o callback do gateway é recusado (fail-closed),
+  // então confirmações de pagamento parariam. Não deixa ativar provider sem token.
+  if (!tokenEnc) return { error: 'Informe o token de validação do webhook do gateway.' };
 
   await prisma.tenant.update({
     where: { id: tenantId },

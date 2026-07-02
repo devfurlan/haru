@@ -1,6 +1,7 @@
 'use server';
 
 import { requireUserAndTenant } from '@/lib/auth';
+import { withinRateLimitFor } from '@/lib/ratelimit';
 import {
   getSupportHistory,
   respondToSupport,
@@ -25,5 +26,16 @@ export async function getSupportThread(): Promise<SupportTurnPublic[]> {
 }
 
 export async function sendSupportMessage(body: string): Promise<{ reply: string }> {
-  return respondToSupport(await currentAuthor(), body);
+  const author = await currentAuthor();
+  const rateKey = author.channel === 'WEB' ? author.userId : author.account.id;
+  // Cada mensagem dispara chamadas pagas ao LLM: cota por usuário contra abuso de custo.
+  const withinBudget =
+    (await withinRateLimitFor(rateKey, 'support-min', 8, 60)) &&
+    (await withinRateLimitFor(rateKey, 'support-day', 200, 86_400));
+  if (!withinBudget) {
+    return {
+      reply: 'Você enviou muitas mensagens em pouco tempo. Aguarde um instante e tente de novo.',
+    };
+  }
+  return respondToSupport(author, body);
 }

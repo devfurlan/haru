@@ -5,6 +5,7 @@ import { prisma } from '@haru/database';
 import type { CustomerAccount } from '@haru/database';
 
 import { requireCustomerAccountFromBearer } from '@/lib/customer-auth';
+import { withinRateLimitFor } from '@/lib/ratelimit';
 import { getSupportHistory, respondToSupport, type SupportAuthor } from '@/lib/support/core';
 
 // Estabelecimentos do cliente = tenants distintos dos seus Contacts. Alimenta o contexto
@@ -32,6 +33,17 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   const account = await requireCustomerAccountFromBearer(req);
   if (!account) return Response.json({ error: 'Não autenticado' }, { status: 401 });
+
+  // Cada mensagem dispara de 1 a 7 chamadas pagas ao LLM. Cota por conta contra abuso de
+  // custo de IA (curto prazo e diário).
+  const withinBudget =
+    (await withinRateLimitFor(account.id, 'support-min', 8, 60)) &&
+    (await withinRateLimitFor(account.id, 'support-day', 120, 86_400));
+  if (!withinBudget)
+    return Response.json(
+      { error: 'Você enviou muitas mensagens. Aguarde um pouco antes de continuar.' },
+      { status: 429 },
+    );
 
   const body = (await req.json().catch(() => null)) as { text?: unknown } | null;
   const text = typeof body?.text === 'string' ? body.text : '';

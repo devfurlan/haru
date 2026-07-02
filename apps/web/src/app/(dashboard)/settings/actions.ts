@@ -24,6 +24,7 @@ import { SETUP_FEE_CENTS } from '@/lib/billing/pricing';
 import { removeAvatar, uploadAvatar } from '@/lib/avatar-storage';
 import { getBaseUrl } from '@/lib/base-url';
 import { geocodeAddress } from '@/lib/geocode';
+import { isPublicWebhookUrl } from '@/lib/safe-url';
 import { normalizePhoneBR } from '@haru/shared';
 import { createClient } from '@/lib/supabase/server';
 import { getSupabaseAdmin } from '@/lib/supabase/admin';
@@ -527,6 +528,14 @@ export async function connectPaymentGateway(
     : provider === tenant.paymentProvider
       ? tenant.paymentWebhookTokenEnc
       : null;
+  // Token do webhook é obrigatório: sem ele o callback do gateway não tem como ser
+  // autenticado e passa a ser recusado (fail-closed) - confirmações de pagamento parariam.
+  if (!tokenEnc) {
+    return {
+      error:
+        'Informe o token de validação do webhook do gateway - ele é obrigatório para receber confirmações de pagamento com segurança.',
+    };
+  }
 
   // Grava só a credencial do provider escolhido e zera as demais - um provider ativo por vez.
   await prisma.tenant.update({
@@ -654,6 +663,18 @@ export async function updateNotifications(
     return {
       error:
         'Webhooks de notificação estão disponíveis a partir do plano Time. Faça upgrade para ativar.',
+    };
+  }
+
+  // Anti-SSRF: o webhook só pode apontar pra um host público (https:443). Bloqueia
+  // loopback/rede interna/metadata de cloud - senão cada evento viraria um POST server-side
+  // pra dentro da infra.
+  if (
+    parsed.data.notificationWebhookUrl &&
+    !(await isPublicWebhookUrl(parsed.data.notificationWebhookUrl))
+  ) {
+    return {
+      error: 'URL de webhook inválida: use um endereço https público (não rede interna).',
     };
   }
 

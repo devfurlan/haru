@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import type { NextRequest } from 'next/server';
 
 import { ensureCustomerAccount } from '@/lib/customer-auth';
+import { safeInternalPath } from '@/lib/safe-redirect';
 import { createClient } from '@/lib/supabase/server';
 
 /**
@@ -14,9 +15,8 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const code = searchParams.get('code');
 
-  // `next` é sempre caminho interno - barrar URL absoluta evita open redirect.
-  const nextParam = searchParams.get('next') ?? '/conta';
-  const next = nextParam.startsWith('/') ? nextParam : '/conta';
+  // `next` é sempre caminho interno - barrar URL absoluta/protocol-relative evita open redirect.
+  const next = safeInternalPath(searchParams.get('next'), '/conta');
 
   if (!code) redirect('/conta/entrar?error=oauth');
 

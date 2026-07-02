@@ -2,6 +2,8 @@ import { prisma } from '@haru/database';
 
 import { formatBRL, formatPhoneBR } from '@haru/shared';
 
+import { isPublicWebhookUrl } from '@/lib/safe-url';
+
 type AppointmentEventName =
   | 'appointment.created'
   | 'appointment.canceled'
@@ -38,6 +40,12 @@ async function dispatchAppointmentEvent(appointmentId: string, event: Appointmen
       include: { service: true, contact: true, tenant: true },
     });
     if (!appt || !appt.tenant.notificationWebhookUrl) return;
+    const webhookUrl = appt.tenant.notificationWebhookUrl;
+    // Anti-SSRF (defesa em profundidade + DNS rebinding): revalida o destino a cada envio.
+    if (!(await isPublicWebhookUrl(webhookUrl))) {
+      console.warn('[notify] webhook de agendamento bloqueado (host não público)');
+      return;
+    }
 
     const when = new Intl.DateTimeFormat('pt-BR', {
       timeZone: appt.tenant.timezone,
@@ -72,7 +80,7 @@ async function dispatchAppointmentEvent(appointmentId: string, event: Appointmen
         `👤 ${appt.contact.name ?? formatPhoneBR(appt.contact.phone)}`,
     };
 
-    const res = await fetch(appt.tenant.notificationWebhookUrl, {
+    const res = await fetch(webhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
@@ -110,6 +118,11 @@ export async function notifyPaymentConfirmed(paymentId: string) {
     const { tenant, appointment } = payment;
     const webhookUrl = tenant.notificationWebhookUrl;
     if (!webhookUrl) return;
+    // Anti-SSRF (defesa em profundidade + DNS rebinding): revalida o destino a cada envio.
+    if (!(await isPublicWebhookUrl(webhookUrl))) {
+      console.warn('[notify] webhook de pagamento bloqueado (host não público)');
+      return;
+    }
     const when = new Intl.DateTimeFormat('pt-BR', {
       timeZone: tenant.timezone,
       weekday: 'short',
@@ -234,7 +247,9 @@ export async function sendManualWhatsappMessage(
     }
     const data = (await res.json().catch(() => null)) as ManualSendResult | null;
     if (data && !data.delivered) {
-      console.error(`[notify] envio manual não entregue - reason=${data.reason} waCode=${data.waCode}`);
+      console.error(
+        `[notify] envio manual não entregue - reason=${data.reason} waCode=${data.waCode}`,
+      );
     }
     return {
       delivered: data?.delivered ?? false,
