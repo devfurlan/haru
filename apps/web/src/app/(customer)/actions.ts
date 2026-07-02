@@ -15,16 +15,20 @@ import {
   rebookOwned,
   rescheduleOwnedAppointment,
 } from '@/lib/customer-appointments';
+import {
+  changeCustomerPhone,
+  deleteCustomerAccount,
+  sendPhoneChangeCode,
+  setCustomerNotifications,
+  updateCustomerProfileCore,
+} from '@/lib/customer';
 import { requireCustomerAccount } from '@/lib/customer-auth';
-import { claimContactsByPhone } from '@/lib/customer-claim';
-import { isValidCpfCnpj, normalizePhoneBR, onlyDigits } from '@haru/shared';
+import { normalizePhoneBR } from '@haru/shared';
 import { TERMS_VERSION } from '@/lib/legal';
 import { createClient } from '@/lib/supabase/server';
-import { checkPhoneOtp, sendPhoneOtp } from '@/lib/twilio-verify';
 
 export type CustomerActionResult = { error: string } | { ok: true } | undefined;
 
-const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const PHONE_RE = /^55\d{10,11}$/;
 
 // ---------------------------------------------------------------------------
@@ -149,23 +153,28 @@ export async function customerSignOut() {
   redirect('/conta/entrar');
 }
 
+/**
+ * Exclui a conta do cliente (irreversível). O core apaga a conta + favoritos + tokens
+ * de push (cascata do schema) e os Contacts viram SetNull (o histórico fica com o
+ * negócio); aqui encerramos a sessão e mandamos pro login. Sucesso redireciona - só
+ * retorna em caso de erro.
+ */
+export async function customerDeleteAccount(): Promise<CustomerActionResult> {
+  const account = await requireCustomerAccount();
+  const result = await deleteCustomerAccount(account);
+  if ('error' in result) return { error: result.error };
+
+  const supabase = await createClient();
+  await supabase.auth.signOut();
+  revalidatePath('/', 'layout');
+  redirect('/conta/entrar');
+}
+
 // ---------------------------------------------------------------------------
 // Perfil (cadastro do cliente). name vai na conta + propaga aos Contacts;
 // document/birthDate vivem nos Contacts (a conta não os guarda). phone/email
 // são readonly na v1 (trocar telefone exigiria re-claim com verificação).
 // ---------------------------------------------------------------------------
-
-const profileSchema = z.object({
-  name: z.string().trim().min(2, 'Informe seu nome').max(80),
-  document: z
-    .string()
-    .optional()
-    .transform((v) => (v && v.trim() ? v.trim() : '')),
-  birthDate: z
-    .string()
-    .optional()
-    .transform((v) => (v && v.trim() ? v.trim() : '')),
-});
 
 export async function customerUpdateProfile(
   _prev: CustomerActionResult,
@@ -173,51 +182,12 @@ export async function customerUpdateProfile(
 ): Promise<CustomerActionResult> {
   const account = await requireCustomerAccount();
 
-  const parsed = profileSchema.safeParse({
-    name: formData.get('name'),
-    document: formData.get('document'),
-    birthDate: formData.get('birthDate'),
+  const result = await updateCustomerProfileCore(account, {
+    name: String(formData.get('name') ?? ''),
+    document: formData.get('document') != null ? String(formData.get('document')) : undefined,
+    birthDate: formData.get('birthDate') != null ? String(formData.get('birthDate')) : undefined,
   });
-  if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? 'Dados inválidos' };
-  }
-  const { name } = parsed.data;
-
-  let documentDigits: string | undefined;
-  if (parsed.data.document) {
-    if (!isValidCpfCnpj(parsed.data.document)) {
-      return { error: 'CPF/CNPJ inválido' };
-    }
-    documentDigits = onlyDigits(parsed.data.document);
-  }
-
-  let birthDate: Date | undefined;
-  if (parsed.data.birthDate) {
-    if (!DATE_RE.test(parsed.data.birthDate)) {
-      return { error: 'Data de nascimento inválida' };
-    }
-    const d = new Date(`${parsed.data.birthDate}T00:00:00.000Z`);
-    if (Number.isNaN(d.getTime())) {
-      return { error: 'Data de nascimento inválida' };
-    }
-    birthDate = d;
-  }
-
-  await prisma.customerAccount.update({
-    where: { id: account.id },
-    data: { name },
-  });
-
-  // Propaga aos Contacts vinculados (mantém o painel do dono em sincronia). Só
-  // sobrescreve document/birthDate quando informados (não apaga o que já existe).
-  await prisma.contact.updateMany({
-    where: { customerAccountId: account.id },
-    data: {
-      name,
-      ...(documentDigits ? { document: documentDigits } : {}),
-      ...(birthDate ? { birthDate } : {}),
-    },
-  });
+  if ('error' in result) return { error: result.error };
 
   revalidatePath('/conta/perfil');
   revalidatePath('/conta');
@@ -247,10 +217,7 @@ export async function customerUpdateNotifications(
     return { error: parsed.error.issues[0]?.message ?? 'Dados inválidos' };
   }
 
-  await prisma.customerAccount.update({
-    where: { id: account.id },
-    data: { appointmentEmailsEnabled: parsed.data.appointmentEmailsEnabled },
-  });
+  await setCustomerNotifications(account, parsed.data.appointmentEmailsEnabled);
 
   revalidatePath('/conta/perfil');
   return { ok: true };
@@ -266,72 +233,22 @@ export async function sendCustomerPhoneChangeCode(
   newPhoneRaw: string,
 ): Promise<CustomerActionResult> {
   const account = await requireCustomerAccount();
-  const parsed = phoneE164Schema.safeParse(newPhoneRaw);
-  if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? 'Celular inválido' };
-  }
-  const newPhone = parsed.data;
-  if (newPhone === account.phone) {
-    return { error: 'Este já é o seu número atual.' };
-  }
-  const taken = await prisma.customerAccount.findFirst({
-    where: { phone: newPhone, id: { not: account.id } },
-    select: { id: true },
-  });
-  if (taken) {
-    return { error: 'Este número já está em uso por outra conta.' };
-  }
-  const res = await sendPhoneOtp(newPhone);
-  if (!res.ok) return { error: res.error };
+  const result = await sendPhoneChangeCode(account, newPhoneRaw);
+  if ('error' in result) return { error: result.error };
   return { ok: true };
 }
-
-const changePhoneSchema = z.object({
-  phone: phoneE164Schema,
-  code: z
-    .string()
-    .min(4, 'Informe o código recebido por SMS')
-    .transform((v) => v.replace(/\D/g, '')),
-});
 
 export async function customerChangePhone(
   _prev: CustomerActionResult,
   formData: FormData,
 ): Promise<CustomerActionResult> {
   const account = await requireCustomerAccount();
-  const parsed = changePhoneSchema.safeParse({
-    phone: formData.get('phone'),
-    code: formData.get('code'),
-  });
-  if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? 'Dados inválidos' };
-  }
-  const { phone, code } = parsed.data;
-  if (phone === account.phone) {
-    return { error: 'Este já é o seu número atual.' };
-  }
-  const taken = await prisma.customerAccount.findFirst({
-    where: { phone, id: { not: account.id } },
-    select: { id: true },
-  });
-  if (taken) {
-    return { error: 'Este número já está em uso por outra conta.' };
-  }
-
-  // Prova de posse do NOVO número antes de associar/reivindicar.
-  const verified = await checkPhoneOtp(phone, code);
-  if (!verified.ok) {
-    return { error: verified.error };
-  }
-
-  await prisma.customerAccount.update({
-    where: { id: account.id },
-    // Número confirmado vira o `phone` oficial; limpa o pendente do cadastro.
-    data: { phone, pendingPhone: null },
-  });
-  // Reivindica os Contacts do novo número. Não desvincula os do antigo - assim o
-  // cliente mantém o histórico de agendamentos que já tinha.
-  await claimContactsByPhone(account.id, phone);
+  const result = await changeCustomerPhone(
+    account,
+    String(formData.get('phone') ?? ''),
+    String(formData.get('code') ?? ''),
+  );
+  if ('error' in result) return { error: result.error };
 
   revalidatePath('/conta/perfil');
   revalidatePath('/conta');

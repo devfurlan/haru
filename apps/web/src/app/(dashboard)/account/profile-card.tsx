@@ -9,10 +9,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
 import { updateProfile, type ProfileActionResult } from '../settings/actions';
+import { AvatarUploader } from './avatar-uploader';
 
 interface ProfileCardProps {
   name: string | null;
   email: string;
+  avatarUrl: string | null;
 }
 
 function SubmitButton() {
@@ -24,7 +26,7 @@ function SubmitButton() {
   );
 }
 
-export function ProfileCard({ name, email }: ProfileCardProps) {
+export function ProfileCard({ name, email, avatarUrl }: ProfileCardProps) {
   const [state, formAction] = useActionState<ProfileActionResult | undefined, FormData>(
     updateProfile,
     undefined,
@@ -36,7 +38,9 @@ export function ProfileCard({ name, email }: ProfileCardProps) {
         <CardTitle>Seu perfil</CardTitle>
         <CardDescription>Como você aparece no painel. O e-mail é o seu login.</CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-6">
+        <AvatarUploader avatarUrl={avatarUrl} />
+
         <form action={formAction} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="profile-name">Nome</Label>

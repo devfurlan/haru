@@ -1,10 +1,11 @@
 import * as Clipboard from 'expo-clipboard';
 import * as WebBrowser from 'expo-web-browser';
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, View } from 'react-native';
 
 import { maskCpfCnpjInput } from '@haru/shared';
 
+import { Text, TextInput } from '@/components/text';
 import { api, ApiError } from '@/lib/api';
 
 // Pagamento opcional na tela de sucesso do agendamento. Cartão abre o checkout

@@ -1,5 +1,7 @@
 import crypto from 'node:crypto';
 
+import { decryptNullable } from '@haru/payments';
+
 import { env } from '../env.js';
 import prisma from '../prisma.js';
 import type { InteractiveButton } from './types.js';
@@ -23,7 +25,8 @@ async function tokenFor(phoneNumberId: string): Promise<string> {
     select: { whatsappAccessToken: true },
   });
 
-  const token = tenant?.whatsappAccessToken ?? env.WHATSAPP_PLATFORM_ACCESS_TOKEN;
+  // Token do tenant fica cifrado at rest; o fallback da plataforma vem do env em texto puro.
+  const token = decryptNullable(tenant?.whatsappAccessToken) ?? env.WHATSAPP_PLATFORM_ACCESS_TOKEN;
   if (!token) {
     throw new Error(
       `Sem access_token para phone_number_id ${phoneNumberId} ` +

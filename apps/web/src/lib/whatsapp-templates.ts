@@ -1,4 +1,5 @@
 import { prisma } from '@haru/database';
+import { decryptNullable } from '@haru/payments';
 
 import { GRAPH_API_URL as API_URL } from './whatsapp-graph';
 
@@ -21,7 +22,8 @@ export async function sendAppointmentTemplate(
     if (!appt) return false;
     const tenant = appt.tenant;
 
-    if (!tenant.whatsappPhoneNumberId || !tenant.whatsappAccessToken) {
+    const token = decryptNullable(tenant.whatsappAccessToken);
+    if (!tenant.whatsappPhoneNumberId || !token) {
       return false;
     }
 
@@ -70,7 +72,7 @@ export async function sendAppointmentTemplate(
       {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${tenant.whatsappAccessToken}`,
+          Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(body),

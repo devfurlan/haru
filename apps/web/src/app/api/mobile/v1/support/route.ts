@@ -17,9 +17,7 @@ async function authorFor(account: CustomerAccount): Promise<SupportAuthor> {
   const byId = new Map(contacts.map((c) => [c.tenant.id, c.tenant.name]));
   return {
     channel: 'MOBILE',
-    customerAccountId: account.id,
-    name: account.name,
-    email: account.email,
+    account,
     establishments: [...byId].map(([id, name]) => ({ id, name })),
   };
 }

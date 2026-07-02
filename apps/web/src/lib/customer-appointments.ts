@@ -98,6 +98,7 @@ export async function loadRescheduleSlots(
     now: new Date(),
     professionalId: appt.professionalId,
     excludeAppointmentId: appt.id,
+    includeBusy: true, // app mostra horários ocupados riscados (design 10)
   });
 }
 
@@ -186,5 +187,6 @@ export async function loadRebookSlots(
     dateStr,
     now: new Date(),
     professionalId: source.professionalId,
+    includeBusy: true, // app mostra horários ocupados riscados (design 10)
   });
 }

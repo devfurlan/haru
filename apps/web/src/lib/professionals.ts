@@ -110,6 +110,8 @@ export async function getServiceDaySlots(args: {
   /** Restringe a um profissional específico; ausente = qualquer um que atenda. */
   professionalId?: string | null;
   excludeAppointmentId?: string;
+  /** Também retorna horários ocupados (available:false) pra UI riscar. Default false. */
+  includeBusy?: boolean;
 }): Promise<AvailableSlotWithProfessionals[]> {
   let candidates = await getServiceProfessionals(args.tenantId, args.serviceId);
   if (args.professionalId) {
@@ -131,6 +133,7 @@ export async function getServiceDaySlots(args: {
     durationMinutes: args.durationMinutes,
     now: args.now,
     professionals,
+    includeBusy: args.includeBusy,
   });
 }
 

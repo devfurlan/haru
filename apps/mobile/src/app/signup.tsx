@@ -3,22 +3,26 @@ import { useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
+  Linking,
   Platform,
   Pressable,
   ScrollView,
-  Text,
-  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Svg, { Path } from 'react-native-svg';
 
 import { maskPhoneBRInput } from '@haru/shared';
 
 import { GoogleAuthButton } from '@/components/google-auth-button';
-import { Logo } from '@/components/logo';
+import { PressScale } from '@/components/press-scale';
+import { Text, TextInput } from '@/components/text';
 import { api, ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
+
+const TERMS_URL = 'https://www.demandae.com/termos';
+const PRIVACY_URL = 'https://www.demandae.com/privacidade';
 
 export default function SignupScreen() {
   const { session, loading: authLoading } = useAuth();
@@ -71,108 +75,156 @@ export default function SignupScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         className="flex-1"
       >
-        <ScrollView contentContainerClassName="px-6 py-8">
-          <View className="mb-6">
-            <Logo size="lg" />
-          </View>
-          <Text className="text-ink mb-1 text-3xl font-bold">Criar conta</Text>
-          <Text className="text-muted mb-6 text-base">
-            Pra agilizar seus agendamentos e receber lembretes.
+        <ScrollView
+          contentContainerClassName="px-6 pt-1.5 pb-4"
+          keyboardShouldPersistTaps="handled"
+        >
+          {/* Voltar pro login */}
+          <Link href="/login" asChild>
+            <Pressable className="bg-paper h-[42px] w-[42px] items-center justify-center rounded-[14px] border border-[#ece3cf]">
+              <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+                <Path
+                  d="M15 5l-7 7 7 7"
+                  stroke="#0A3324"
+                  strokeWidth={2.2}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </Svg>
+            </Pressable>
+          </Link>
+
+          <Text
+            className="text-ink mt-[22px] text-[30px] leading-[33px]"
+            style={{ fontFamily: 'Fraunces_500Medium', letterSpacing: -0.6 }}
+          >
+            Criar sua{' '}
+            <Text className="text-green-deep" style={{ fontFamily: 'Fraunces_500Medium_Italic' }}>
+              conta
+            </Text>
+          </Text>
+          <Text className="text-muted mt-[11px] text-[14.5px] leading-[22px]">
+            Leva um minuto. Depois é só marcar.
           </Text>
 
-          <Field label="Nome">
-            <TextInput
-              className="border-ink/10 bg-paper text-ink rounded-xl border px-4 py-3 text-base"
-              value={name}
-              onChangeText={setName}
-              placeholder="Seu nome"
-              placeholderTextColor="#9aa8a0"
-            />
-          </Field>
+          <View className="mt-[18px]">
+            <GoogleAuthButton onError={setError} />
+          </View>
 
-          <Field label="E-mail">
-            <TextInput
-              className="border-ink/10 bg-paper text-ink rounded-xl border px-4 py-3 text-base"
-              value={email}
-              onChangeText={setEmail}
-              placeholder="voce@email.com"
-              placeholderTextColor="#9aa8a0"
-              autoCapitalize="none"
-              keyboardType="email-address"
-              inputMode="email"
-            />
-          </Field>
+          <View className="my-4 flex-row items-center gap-3">
+            <View className="bg-edge h-px flex-1" />
+            <Text className="text-xs font-medium" style={{ color: '#9aa89e' }}>
+              ou com e-mail
+            </Text>
+            <View className="bg-edge h-px flex-1" />
+          </View>
 
-          <Field label="WhatsApp">
-            <TextInput
-              className="border-ink/10 bg-paper text-ink rounded-xl border px-4 py-3 text-base"
-              value={phone}
-              onChangeText={(t) => setPhone(maskPhoneBRInput(t))}
-              placeholder="(11) 91234-5678"
-              placeholderTextColor="#9aa8a0"
-              keyboardType="phone-pad"
-              inputMode="tel"
-            />
-          </Field>
+          <View className="gap-3">
+            <Field label="Nome">
+              <TextInput
+                className="border-edge bg-paper text-ink rounded-[13px] border px-4 py-[13px] text-[15px]"
+                value={name}
+                onChangeText={setName}
+                placeholder="Seu nome"
+                placeholderTextColor="#9aa89e"
+              />
+            </Field>
 
-          <Field label="Senha">
-            <TextInput
-              className="border-ink/10 bg-paper text-ink rounded-xl border px-4 py-3 text-base"
-              value={password}
-              onChangeText={setPassword}
-              placeholder="Ao menos 8 caracteres"
-              placeholderTextColor="#9aa8a0"
-              secureTextEntry
-            />
-          </Field>
+            <Field label="E-mail">
+              <TextInput
+                className="border-edge bg-paper text-ink rounded-[13px] border px-4 py-[13px] text-[15px]"
+                value={email}
+                onChangeText={setEmail}
+                placeholder="seu@email.com"
+                placeholderTextColor="#9aa89e"
+                autoCapitalize="none"
+                keyboardType="email-address"
+                inputMode="email"
+              />
+            </Field>
 
-          <Pressable
-            onPress={() => setAccepted((v) => !v)}
-            className="mb-6 mt-1 flex-row items-center gap-3"
-          >
-            <View
-              className={`h-6 w-6 items-center justify-center rounded-md border ${
-                accepted ? 'border-green bg-green' : 'border-ink/30 bg-paper'
+            <Field label="WhatsApp">
+              <TextInput
+                className="border-edge bg-paper text-ink rounded-[13px] border px-4 py-[13px] text-[15px]"
+                value={phone}
+                onChangeText={(t) => setPhone(maskPhoneBRInput(t))}
+                placeholder="(11) 91234-5678"
+                placeholderTextColor="#9aa89e"
+                keyboardType="phone-pad"
+                inputMode="tel"
+              />
+            </Field>
+
+            <Field label="Senha">
+              <TextInput
+                className="border-edge bg-paper text-ink rounded-[13px] border px-4 py-[13px] text-[15px]"
+                value={password}
+                onChangeText={setPassword}
+                placeholder="mínimo 8 caracteres"
+                placeholderTextColor="#9aa89e"
+                secureTextEntry
+              />
+            </Field>
+          </View>
+
+          <View className="mt-4 flex-row items-center gap-3">
+            <Pressable
+              onPress={() => setAccepted((v) => !v)}
+              hitSlop={8}
+              className={`h-[22px] w-[22px] items-center justify-center rounded-md border ${
+                accepted ? 'bg-green-deep border-green-deep' : 'border-edge bg-paper'
               }`}
             >
-              {accepted ? <Text className="text-xs font-bold text-white">✓</Text> : null}
-            </View>
-            <Text className="text-ink-soft flex-1 text-sm">
-              Aceito os Termos de Uso e a Política de Privacidade.
+              {accepted ? <Text className="text-[11px] font-bold text-white">✓</Text> : null}
+            </Pressable>
+            <Text className="text-sub flex-1 text-[13px]" onPress={() => setAccepted((v) => !v)}>
+              Aceito os{' '}
+              <Text
+                className="text-coral font-semibold underline"
+                onPress={() => Linking.openURL(TERMS_URL)}
+              >
+                Termos de Uso
+              </Text>{' '}
+              e a{' '}
+              <Text
+                className="text-coral font-semibold underline"
+                onPress={() => Linking.openURL(PRIVACY_URL)}
+              >
+                Política de Privacidade
+              </Text>
+              .
             </Text>
-          </Pressable>
+          </View>
+        </ScrollView>
 
-          {error ? <Text className="text-destructive mb-4 text-sm">{error}</Text> : null}
+        {/* Rodapé fixo: ação principal + termos, como no mockup */}
+        <View className="bg-cream px-6 pt-3 pb-[34px]">
+          {error ? <Text className="text-destructive mb-3 text-sm">{error}</Text> : null}
 
-          <Pressable
+          <PressScale
             disabled={!canSubmit}
             onPress={handleSignUp}
-            className={`items-center rounded-xl py-4 ${canSubmit ? 'bg-coral' : 'bg-coral/50'}`}
+            className={`items-center rounded-2xl py-4 ${canSubmit ? 'bg-coral' : 'bg-coral/50'}`}
           >
             {submitting ? (
               <ActivityIndicator color="#ffffff" />
             ) : (
-              <Text className="text-base font-semibold text-white">Criar conta</Text>
+              <Text className="text-base font-bold text-white">Criar conta</Text>
             )}
-          </Pressable>
+          </PressScale>
 
-          <View className="my-5 flex-row items-center gap-3">
-            <View className="bg-ink/10 h-px flex-1" />
-            <Text className="text-muted text-xs">ou</Text>
-            <View className="bg-ink/10 h-px flex-1" />
-          </View>
-
-          <GoogleAuthButton onError={setError} />
-          <Text className="text-muted mt-3 text-center text-xs">
-            Ao continuar com Google, você aceita os Termos de Uso e a Política de Privacidade.
+          <Text className="text-sub mt-3 text-center text-[11px] leading-[17px]">
+            Ao criar conta, você concorda com os Termos e a Política de Privacidade.
           </Text>
 
           <Link href="/login" asChild>
-            <Pressable className="mt-6">
-              <Text className="text-muted text-center text-sm">Já tenho conta - entrar</Text>
+            <Pressable className="mt-3.5">
+              <Text className="text-muted text-center text-[13px]">
+                Já tenho conta <Text className="text-coral font-bold">- entrar</Text>
+              </Text>
             </Pressable>
           </Link>
-        </ScrollView>
+        </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -180,8 +232,8 @@ export default function SignupScreen() {
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <View className="mb-4">
-      <Text className="text-ink-soft mb-1 text-sm font-medium">{label}</Text>
+    <View>
+      <Text className="text-ink mb-1.5 text-xs font-semibold">{label}</Text>
       {children}
     </View>
   );

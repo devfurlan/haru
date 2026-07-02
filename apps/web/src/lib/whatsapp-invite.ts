@@ -1,4 +1,5 @@
 import type { Tenant } from '@haru/database';
+import { decryptNullable } from '@haru/payments';
 
 import { GRAPH_API_URL as API_URL } from './whatsapp-graph';
 
@@ -37,7 +38,8 @@ export async function sendInviteWhatsapp({
   inviteeName,
   activationUrl,
 }: SendInviteArgs): Promise<boolean> {
-  if (!tenant.whatsappPhoneNumberId || !tenant.whatsappAccessToken) {
+  const token = decryptNullable(tenant.whatsappAccessToken);
+  if (!tenant.whatsappPhoneNumberId || !token) {
     return false;
   }
 
@@ -79,7 +81,7 @@ export async function sendInviteWhatsapp({
     const res = await fetch(`${API_URL}/${tenant.whatsappPhoneNumberId}/messages`, {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${tenant.whatsappAccessToken}`,
+        Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(body),

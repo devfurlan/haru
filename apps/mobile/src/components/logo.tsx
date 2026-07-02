@@ -1,9 +1,11 @@
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
+
+import { Text } from '@/components/text';
 
 // Wordmark "Demandaê" da marca: "ê" em coral + bolinha coral com halo, em Fraunces
 // (a mesma serif do web). Espelha apps/web/src/components/logo.tsx.
 const SIZES = {
-  md: { font: 26, dot: 8 },
+  md: { font: 24, dot: 8 },
   lg: { font: 34, dot: 10 },
   xl: { font: 44, dot: 12 },
 } as const;
@@ -14,10 +16,10 @@ export function Logo({ size = 'lg' }: { size?: keyof typeof SIZES }) {
   return (
     <View className="flex-row items-center">
       <Text
-        style={{ fontFamily: 'Fraunces_700Bold', fontSize: font, letterSpacing: -1 }}
+        style={{ fontFamily: 'Fraunces_600SemiBold', fontSize: font, letterSpacing: -1 }}
         className="text-ink"
       >
-        Demanda<Text className="text-coral">ê</Text>
+        Demanda<Text style={{ fontFamily: 'Fraunces_600SemiBold' }} className="text-coral">ê</Text>
       </Text>
       <View
         className="bg-coral/20 ml-2 items-center justify-center rounded-full"

@@ -1,5 +1,11 @@
 import { type PaymentMethod } from '@haru/database';
-import { getGatewayForTenant, GatewayNotImplementedError, PaymentConfigError } from '@haru/payments';
+import {
+  decryptNullable,
+  encryptSecret,
+  getGatewayForTenant,
+  GatewayNotImplementedError,
+  PaymentConfigError,
+} from '@haru/payments';
 
 import { isValidCpfCnpj, onlyDigits } from '../lib/format.js';
 import prisma from '../lib/prisma.js';
@@ -85,18 +91,21 @@ export async function createPaymentForAppointment(
   // Documento do pagador: o Asaas recusa a cobrança sem CPF/CNPJ. Reusa o do contato;
   // senão pede ao cliente (needsDocument sinaliza ao LLM pra pedir o CPF no chat).
   const documentDigits = args.document ? onlyDigits(args.document) : '';
-  const payerDocument = documentDigits || appointment.contact.document || '';
+  const savedDocument = decryptNullable(appointment.contact.document);
+  const payerDocument = documentDigits || savedDocument || '';
   if (!payerDocument) {
     return { ok: false, reason: 'preciso do CPF do cliente pra gerar o pagamento', needsDocument: true };
   }
   if (!isValidCpfCnpj(payerDocument)) {
     return { ok: false, reason: 'CPF inválido - peça os números de novo', needsDocument: true };
   }
+  // Cifrado at rest pra gravar no banco; o gateway recebe o valor em claro (`cpfCnpj`, abaixo).
+  const payerDocumentEnc = encryptSecret(payerDocument);
   // Persiste no contato pra reuso (só quando veio um novo documento do chat).
-  if (documentDigits && documentDigits !== appointment.contact.document) {
+  if (documentDigits && documentDigits !== savedDocument) {
     await prisma.contact.update({
       where: { id: appointment.contact.id },
-      data: { document: documentDigits },
+      data: { document: payerDocumentEnc },
     });
   }
 
@@ -112,7 +121,7 @@ export async function createPaymentForAppointment(
         method: wantedMethod,
         status: 'PENDING',
         amountCents: appointment.service.priceCents,
-        payerDocument,
+        payerDocument: payerDocumentEnc,
       },
     }));
 
@@ -150,7 +159,7 @@ export async function createPaymentForAppointment(
         status:
           charge.status === 'PAID' ? 'PAID' : charge.status === 'FAILED' ? 'FAILED' : 'PENDING',
         paidAt: charge.status === 'PAID' ? new Date() : null,
-        payerDocument,
+        payerDocument: payerDocumentEnc,
       },
     });
 

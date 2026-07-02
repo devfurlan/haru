@@ -2,16 +2,15 @@ import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Keyboard,
   KeyboardAvoidingView,
-  Platform,
   Pressable,
   ScrollView,
-  Text,
-  TextInput,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { Text, TextInput } from '@/components/text';
 import { api, ApiError } from '@/lib/api';
 
 const fraunces = { fontFamily: 'Fraunces_700Bold' };
@@ -30,6 +29,17 @@ export default function SupportScreen() {
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(true);
   const scrollRef = useRef<ScrollView>(null);
+  const insets = useSafeAreaInsets();
+  const [kbOpen, setKbOpen] = useState(false);
+
+  useEffect(() => {
+    const show = Keyboard.addListener('keyboardDidShow', () => setKbOpen(true));
+    const hide = Keyboard.addListener('keyboardDidHide', () => setKbOpen(false));
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
 
   useEffect(() => {
     api
@@ -67,7 +77,7 @@ export default function SupportScreen() {
 
   return (
     <SafeAreaView className="bg-cream flex-1" edges={['top']}>
-      <View className="flex-row items-center justify-between px-6 pb-3 pt-3">
+      <View className="flex-row items-center justify-between px-6 pb-3 pt-6">
         <View>
           <Text className="text-muted text-sm">Suporte</Text>
           <Text style={fraunces} className="text-ink text-3xl">
@@ -79,10 +89,7 @@ export default function SupportScreen() {
         </Pressable>
       </View>
 
-      <KeyboardAvoidingView
-        className="flex-1"
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
+      <KeyboardAvoidingView className="flex-1" behavior="padding">
         {loading ? (
           <View className="flex-1 items-center justify-center">
             <ActivityIndicator color="#0e7a45" />
@@ -126,7 +133,10 @@ export default function SupportScreen() {
           </ScrollView>
         )}
 
-        <View className="bg-cream flex-row items-end gap-2 border-t border-black/5 px-4 py-3">
+        <View
+          className="bg-cream flex-row items-end gap-2 border-t border-black/5 px-4 pt-3"
+          style={{ paddingBottom: (kbOpen ? 0 : insets.bottom) + 10 }}
+        >
           <TextInput
             value={input}
             onChangeText={setInput}

@@ -2,7 +2,13 @@
 
 import { type PaymentMethod, prisma } from '@haru/database';
 import { hasFeature } from '@haru/billing';
-import { getGatewayForTenant, GatewayNotImplementedError, PaymentConfigError } from '@haru/payments';
+import {
+  decryptNullable,
+  encryptSecret,
+  getGatewayForTenant,
+  GatewayNotImplementedError,
+  PaymentConfigError,
+} from '@haru/payments';
 
 import { isValidCpfCnpj, onlyDigits } from '@haru/shared';
 
@@ -84,18 +90,21 @@ export async function createPaymentForAppointment(
   // documento já salvo no contato; senão exige o do form. `needsDocument` sinaliza à UI
   // pra abrir o campo de CPF em vez de só mostrar o erro genérico.
   const documentDigits = document ? onlyDigits(document) : '';
-  const payerDocument = documentDigits || appointment.contact.document || '';
+  const savedDocument = decryptNullable(appointment.contact.document);
+  const payerDocument = documentDigits || savedDocument || '';
   if (!payerDocument) {
     return { error: 'Pra gerar o pagamento, informe seu CPF.', needsDocument: true };
   }
   if (!isValidCpfCnpj(payerDocument)) {
     return { error: 'CPF inválido. Confira os números e tente de novo.', needsDocument: true };
   }
+  // Cifrado at rest pra gravar no banco; o gateway recebe o valor em claro (`cpfCnpj`, abaixo).
+  const payerDocumentEnc = encryptSecret(payerDocument);
   // Persiste no contato pra reuso em cobranças futuras (só quando veio um novo do form).
-  if (documentDigits && documentDigits !== appointment.contact.document) {
+  if (documentDigits && documentDigits !== savedDocument) {
     await prisma.contact.update({
       where: { id: appointment.contact.id },
-      data: { document: documentDigits },
+      data: { document: payerDocumentEnc },
     });
   }
 
@@ -111,7 +120,7 @@ export async function createPaymentForAppointment(
         method: wantedMethod,
         status: 'PENDING',
         amountCents: appointment.service.priceCents,
-        payerDocument,
+        payerDocument: payerDocumentEnc,
       },
     }));
 
@@ -150,7 +159,7 @@ export async function createPaymentForAppointment(
           charge.status === 'PAID' ? 'PAID' : charge.status === 'FAILED' ? 'FAILED' : 'PENDING',
         paidAt: charge.status === 'PAID' ? new Date() : null,
         // Garante o snapshot mesmo quando reaproveitamos um Payment PENDING sem externalId.
-        payerDocument,
+        payerDocument: payerDocumentEnc,
       },
     });
 

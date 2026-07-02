@@ -14,6 +14,10 @@ export type Me = {
   phone: string | null;
   pendingPhone: string | null;
   phoneVerified: boolean;
+  avatarUrl: string | null;
+  document: string | null;
+  birthDate: string | null;
+  appointmentEmailsEnabled: boolean;
 };
 
 export type SupportTurn = { role: 'USER' | 'ASSISTANT'; body: string; createdAt: string };
@@ -42,6 +46,26 @@ export type AppointmentItem = {
 };
 
 export type AppointmentsData = { upcoming: AppointmentItem[]; past: AppointmentItem[] };
+
+// Estabelecimento no diretório de busca (GET /tenants/search).
+export type DiscoverTenant = {
+  id: string;
+  name: string;
+  slug: string;
+  logoUrl: string | null;
+  address: string | null;
+  // Distância em km até o usuário - presente só quando a busca envia lat/lng.
+  distanceKm?: number;
+};
+
+// Favorito do cliente (GET /favorites). Mesmos campos, com o id do tenant explícito.
+export type FavoriteTenant = {
+  tenantId: string;
+  name: string;
+  slug: string;
+  logoUrl: string | null;
+  address: string | null;
+};
 
 export type PublicService = {
   id: string;
@@ -127,6 +151,30 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const api = {
   me: () => request<Me>('/me'),
+  // Atualiza cadastro (nome/CPF/nascimento) e/ou a preferência de e-mails. Envia só os
+  // campos presentes; o servidor aplica cada bloco de forma independente.
+  updateMe: (input: {
+    name?: string;
+    document?: string;
+    birthDate?: string;
+    appointmentEmailsEnabled?: boolean;
+  }) => request<{ ok: true }>('/me', { method: 'PATCH', body: JSON.stringify(input) }),
+  deleteAccount: () => request<{ ok: true }>('/me', { method: 'DELETE' }),
+  // Troca/confirma telefone via OTP por SMS (Twilio Verify), em 2 passos.
+  sendPhoneCode: (phone: string) =>
+    request<{ ok: true }>('/me/phone/send-code', {
+      method: 'POST',
+      body: JSON.stringify({ phone }),
+    }),
+  changePhone: (phone: string, code: string) =>
+    request<{ ok: true }>('/me/phone', { method: 'POST', body: JSON.stringify({ phone, code }) }),
+  // Foto de perfil: a imagem já vem reduzida (128px jpeg) em base64. Trocar apaga a antiga.
+  uploadAvatar: (dataBase64: string) =>
+    request<{ ok: true; avatarUrl: string }>('/me/avatar', {
+      method: 'POST',
+      body: JSON.stringify({ dataBase64 }),
+    }),
+  removeAvatar: () => request<{ ok: true }>('/me/avatar', { method: 'DELETE' }),
   appointments: () => request<AppointmentsData>('/appointments'),
   cancel: (id: string) => request<{ ok: true }>(`/appointments/${id}/cancel`, { method: 'POST' }),
   reschedule: (id: string, newStartsAtIso: string) =>
@@ -162,6 +210,24 @@ export const api = {
   // já usado por conta de senha.
   oauthEnsure: () => request<{ ok: true }>('/auth/oauth', { method: 'POST' }),
   tenant: (slug: string) => request<PublicTenant>(`/tenants/${slug}`),
+  // Diretório: com lat/lng ordena por proximidade; com q filtra por nome. Combináveis.
+  searchTenants: (params: { q?: string; lat?: number; lng?: number }) => {
+    const sp = new URLSearchParams();
+    if (params.q) sp.set('q', params.q);
+    if (params.lat != null && params.lng != null) {
+      sp.set('lat', String(params.lat));
+      sp.set('lng', String(params.lng));
+    }
+    return request<{ results: DiscoverTenant[] }>(`/tenants/search?${sp.toString()}`);
+  },
+
+  // --- Favoritos (cross-tenant, por CustomerAccount) ---
+  favorites: () => request<{ favorites: FavoriteTenant[] }>('/favorites'),
+  addFavorite: (tenantId: string) =>
+    request<{ ok: true }>('/favorites', { method: 'POST', body: JSON.stringify({ tenantId }) }),
+  removeFavorite: (tenantId: string) =>
+    request<{ ok: true }>(`/favorites/${tenantId}`, { method: 'DELETE' }),
+
   tenantSlots: (slug: string, serviceId: string, dateStr: string, professionalId?: string) =>
     request<{ slots: AvailableSlot[] }>(`/tenants/${slug}/slots`, {
       method: 'POST',

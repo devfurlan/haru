@@ -5,6 +5,7 @@ import { formatPhoneBR, maskCpfCnpjInput } from '@haru/shared';
 import { ChangePhoneCard } from './change-phone-card';
 import { CustomerNotificationsCard } from './notifications-card';
 import { CustomerPasswordCard } from './password-card';
+import { DeleteAccountCard } from './delete-account-card';
 import { ProfileForm } from './profile-form';
 
 export const dynamic = 'force-dynamic';
@@ -42,6 +43,8 @@ export default async function CustomerProfilePage() {
       <CustomerNotificationsCard appointmentEmailsEnabled={account.appointmentEmailsEnabled} />
 
       <CustomerPasswordCard />
+
+      <DeleteAccountCard />
     </div>
   );
 }

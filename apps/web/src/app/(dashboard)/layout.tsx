@@ -18,7 +18,7 @@ export default async function DashboardLayout({
   modal: React.ReactNode;
 }) {
   const user = await requireUserAndTenant();
-  const { tenant, email, name } = user;
+  const { tenant, email, name, avatarUrl } = user;
 
   return (
     <div className="flex h-screen">
@@ -29,7 +29,7 @@ export default async function DashboardLayout({
           </Link>
           <div className="-mx-2 space-y-0.5">
             <BusinessMenuLink name={tenant.name} logoUrl={tenant.logoUrl} />
-            <UserMenuLink name={name} email={email} />
+            <UserMenuLink name={name} email={email} avatarUrl={avatarUrl} />
           </div>
         </div>
         <div className="flex-1 overflow-y-auto">

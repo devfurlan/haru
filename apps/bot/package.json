@@ -9,7 +9,8 @@
     "start": "node dist/index.js",
     "tunnel": "npx ngrok@latest http 3001",
     "lint": "eslint src --ext .ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "backfill:encrypt-secrets": "tsx --env-file=../../.env scripts/backfill-encrypt-secrets.ts"
   },
   "dependencies": {
     "@haru/billing": "workspace:*",

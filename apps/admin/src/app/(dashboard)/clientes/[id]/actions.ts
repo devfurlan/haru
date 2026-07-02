@@ -247,12 +247,13 @@ export async function updateWhatsapp(
     return done(tenantId);
   }
 
-  // Token em branco = mantém o atual (campo é mascarado).
+  // Token em branco = mantém o atual (campo é mascarado). Só cifra quando vier um token
+  // NOVO do form; o atual já está cifrado no banco e é regravado como está.
   const current = await prisma.tenant.findUnique({
     where: { id: tenantId },
     select: { whatsappAccessToken: true },
   });
-  const token = accessToken ?? current?.whatsappAccessToken ?? null;
+  const token = accessToken ? encryptSecret(accessToken) : (current?.whatsappAccessToken ?? null);
   if (!token) return { error: 'Informe o access_token na primeira conexão' };
 
   try {

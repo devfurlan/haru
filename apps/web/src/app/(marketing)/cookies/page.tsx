@@ -4,10 +4,10 @@ import Link from 'next/link';
 export const metadata: Metadata = {
   title: 'Política de Cookies - Demandaê',
   description:
-    'O que são cookies, quais o Demandaê utiliza e como você pode gerenciá-los na plataforma de agendamento e pagamentos pelo WhatsApp.',
+    'O que são cookies, quais o Demandaê utiliza e como você pode gerenciá-los na plataforma de agendamento e pagamentos pelo WhatsApp e no aplicativo.',
 };
 
-const LAST_UPDATED = '28 de maio de 2026';
+const LAST_UPDATED = '2 de julho de 2026';
 
 export default function CookiePolicyPage() {
   return (
@@ -62,16 +62,13 @@ export default function CookiePolicyPage() {
               </thead>
               <tbody className="text-muted-foreground">
                 <tr className="border-b">
-                  <td className="py-2 pr-4 align-top font-mono text-xs">sb-access-token</td>
-                  <td className="py-2 pr-4 align-top">
-                    Mantém a sessão autenticada do usuário (Supabase Auth).
+                  <td className="py-2 pr-4 align-top font-mono text-xs">
+                    sb-&lt;referência-do-projeto&gt;-auth-token
                   </td>
-                  <td className="py-2 align-top">Essencial</td>
-                </tr>
-                <tr className="border-b">
-                  <td className="py-2 pr-4 align-top font-mono text-xs">sb-refresh-token</td>
                   <td className="py-2 pr-4 align-top">
-                    Renova a sessão autenticada sem exigir novo login.
+                    Mantém a sessão autenticada do usuário (Supabase Auth). Pode ser dividido em
+                    partes (por exemplo, com sufixos como .0 e .1) por limite de tamanho do
+                    navegador.
                   </td>
                   <td className="py-2 align-top">Essencial</td>
                 </tr>
@@ -79,14 +76,28 @@ export default function CookiePolicyPage() {
             </table>
           </div>
           <p>
-            Os nomes exatos dos cookies de sessão podem variar conforme a configuração do provedor
-            de autenticação. Atualmente não utilizamos cookies de publicidade ou de rastreamento
-            para fins de marketing.
+            O nome exato do cookie de sessão inclui a referência do projeto de autenticação e pode
+            variar conforme a configuração do provedor. Atualmente não utilizamos cookies de
+            publicidade ou de rastreamento para fins de marketing. As únicas tecnologias
+            complementares presentes no site são a meta tag de verificação de domínio do Facebook e o
+            fluxo de cadastro incorporado (Embedded Signup) do WhatsApp, que não são pixels de
+            anúncios nem rastreiam a sua navegação para publicidade.
           </p>
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-xl font-semibold">4. Cookies de terceiros</h2>
+          <h2 className="text-xl font-semibold">4. Armazenamento local no aplicativo</h2>
+          <p>
+            No aplicativo móvel do Demandaê não utilizamos cookies de navegador, mas empregamos o
+            armazenamento local do dispositivo para finalidades equivalentes: manter a sua sessão
+            autenticada, guardar a sua preferência de notificações (ligadas ou desligadas) e
+            armazenar o token de notificações (push). Esses dados são necessários ao funcionamento
+            do aplicativo.
+          </p>
+        </section>
+
+        <section className="space-y-3">
+          <h2 className="text-xl font-semibold">5. Cookies de terceiros</h2>
           <p>
             Alguns serviços que integram a plataforma (como provedores de autenticação,
             infraestrutura e pagamentos) podem definir seus próprios cookies, sujeitos às respectivas
@@ -96,7 +107,7 @@ export default function CookiePolicyPage() {
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-xl font-semibold">5. Como gerenciar cookies</h2>
+          <h2 className="text-xl font-semibold">6. Como gerenciar cookies</h2>
           <p>
             Você pode configurar o seu navegador para bloquear ou apagar cookies. No entanto, ao
             desativar cookies essenciais, partes da plataforma - incluindo o login - podem deixar de
@@ -106,7 +117,7 @@ export default function CookiePolicyPage() {
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-xl font-semibold">6. Alterações desta política</h2>
+          <h2 className="text-xl font-semibold">7. Alterações desta política</h2>
           <p>
             Podemos atualizar esta Política de Cookies periodicamente. A versão vigente será sempre
             publicada nesta página, com a data de última atualização indicada no topo.
@@ -114,7 +125,7 @@ export default function CookiePolicyPage() {
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-xl font-semibold">7. Contato</h2>
+          <h2 className="text-xl font-semibold">8. Contato</h2>
           <p>
             Em caso de dúvidas sobre o uso de cookies, entre em contato pelo e-mail{' '}
             <strong>contato@demandae.com</strong>.

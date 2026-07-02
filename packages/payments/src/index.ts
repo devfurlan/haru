@@ -11,7 +11,13 @@
 
 export { getGatewayForTenant, webhookTokenForTenant, type TenantPaymentConfig } from './factory';
 
-export { encryptSecret, decryptSecret, isEncrypted } from './crypto';
+export {
+  encryptSecret,
+  decryptSecret,
+  isEncrypted,
+  encryptNullable,
+  decryptNullable,
+} from './crypto';
 
 export {
   type ChargeMethod,

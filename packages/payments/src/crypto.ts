@@ -84,3 +84,21 @@ export function isEncrypted(value: string): boolean {
   if (parts.length !== 3) return false;
   return parts.every((p) => p.length > 0 && /^[A-Za-z0-9+/=]+$/.test(p));
 }
+
+/** Cifra `value`; `null`/`""` viram `null` (pra colunas opcionais). */
+export function encryptNullable(value: string | null | undefined): string | null {
+  return value ? encryptSecret(value) : null;
+}
+
+/**
+ * Decifra um valor de coluna opcional. Se ainda estiver em texto puro (linha antiga,
+ * antes do backfill), devolve como está - assim leitura não quebra durante a migração.
+ *
+ * ponytail: passthrough por `isEncrypted`. Um valor legado em texto puro que por acaso
+ * fosse "b64:b64:b64" seria tratado como cifrado e falharia na decifragem - impossível
+ * pros campos reais (CPF só dígitos, token da Meta sem `:`). Some após o backfill.
+ */
+export function decryptNullable(value: string | null | undefined): string | null {
+  if (!value) return null;
+  return isEncrypted(value) ? decryptSecret(value) : value;
+}

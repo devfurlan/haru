@@ -1,7 +1,12 @@
 import { prisma } from '@haru/database';
 import type { AppointmentStatus, CustomerAccount, PaymentStatus } from '@haru/database';
 
-import { isoDateInTz } from '@haru/shared';
+import { isoDateInTz, isValidCpfCnpj, normalizePhoneBR, onlyDigits } from '@haru/shared';
+import { decryptNullable, encryptSecret } from '@haru/payments';
+
+import { claimContactsByPhone } from '@/lib/customer-claim';
+import { getSupabaseAdmin } from '@/lib/supabase/admin';
+import { checkPhoneOtp, sendPhoneOtp } from '@/lib/twilio-verify';
 
 // Leituras da ÁREA DO CLIENTE. Cross-tenant: parte dos Contacts vinculados à conta
 // (customerAccountId) e busca os agendamentos por contactId. O gate de ownership é o
@@ -209,7 +214,139 @@ export async function getCustomerProfile(account: CustomerAccount): Promise<Cust
     name: account.name,
     email: account.email,
     phone: account.phone,
-    document: contact?.document ?? null,
+    document: decryptNullable(contact?.document),
     birthDate: contact?.birthDate ?? null,
   };
+}
+
+// ---------------------------------------------------------------------------
+// MUTAÇÕES da conta do cliente (cores puros). Compartilhados pelas server actions
+// da área do cliente (apps/web) e pelos route handlers do app mobile
+// (/api/mobile/v1/me*). Recebem o `account` já autenticado + args tipados, validam
+// o domínio e retornam { ok } | { error } (sem FormData, sem revalidatePath).
+// ---------------------------------------------------------------------------
+
+export type CustomerMutationResult = { ok: true } | { error: string };
+
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const PHONE_RE = /^55\d{10,11}$/;
+
+/** Normaliza pra E.164 do BR; null se não bater no formato. */
+function normalizePhoneE164(raw: string): string | null {
+  const v = normalizePhoneBR(raw ?? '');
+  return PHONE_RE.test(v) ? v : null;
+}
+
+/**
+ * Atualiza o cadastro: `name` vai na conta + propaga aos Contacts vinculados;
+ * document/birthDate (opcionais) só sobrescrevem quando informados - não apagam o
+ * que já existe. O document salvo pré-preenche o checkout (ver payments-actions.ts).
+ */
+export async function updateCustomerProfileCore(
+  account: CustomerAccount,
+  input: { name: string; document?: string; birthDate?: string },
+): Promise<CustomerMutationResult> {
+  const name = (input.name ?? '').trim();
+  if (name.length < 2 || name.length > 80) return { error: 'Informe seu nome' };
+
+  let documentDigits: string | undefined;
+  const doc = input.document?.trim();
+  if (doc) {
+    if (!isValidCpfCnpj(doc)) return { error: 'CPF/CNPJ inválido' };
+    documentDigits = onlyDigits(doc);
+  }
+
+  let birthDate: Date | undefined;
+  const bd = input.birthDate?.trim();
+  if (bd) {
+    if (!DATE_RE.test(bd)) return { error: 'Data de nascimento inválida' };
+    const d = new Date(`${bd}T00:00:00.000Z`);
+    if (Number.isNaN(d.getTime())) return { error: 'Data de nascimento inválida' };
+    birthDate = d;
+  }
+
+  await prisma.customerAccount.update({ where: { id: account.id }, data: { name } });
+  await prisma.contact.updateMany({
+    where: { customerAccountId: account.id },
+    data: {
+      name,
+      ...(documentDigits ? { document: encryptSecret(documentDigits) } : {}),
+      ...(birthDate ? { birthDate } : {}),
+    },
+  });
+  return { ok: true };
+}
+
+/** Liga/desliga os e-mails de agendamento (confirmação/lembrete/remarcação/cancelamento). */
+export async function setCustomerNotifications(
+  account: CustomerAccount,
+  appointmentEmailsEnabled: boolean,
+): Promise<CustomerMutationResult> {
+  await prisma.customerAccount.update({
+    where: { id: account.id },
+    data: { appointmentEmailsEnabled },
+  });
+  return { ok: true };
+}
+
+/** Envia o OTP por SMS pro NOVO número antes de trocar (prova de posse, igual ao cadastro). */
+export async function sendPhoneChangeCode(
+  account: CustomerAccount,
+  newPhoneRaw: string,
+): Promise<CustomerMutationResult> {
+  const newPhone = normalizePhoneE164(newPhoneRaw);
+  if (!newPhone) return { error: 'Celular inválido - confira o DDD' };
+  if (newPhone === account.phone) return { error: 'Este já é o seu número atual.' };
+  const taken = await prisma.customerAccount.findFirst({
+    where: { phone: newPhone, id: { not: account.id } },
+    select: { id: true },
+  });
+  if (taken) return { error: 'Este número já está em uso por outra conta.' };
+  const res = await sendPhoneOtp(newPhone);
+  if (!res.ok) return { error: res.error };
+  return { ok: true };
+}
+
+/**
+ * Confirma o OTP e passa o número a ser o `phone` oficial (reivindicando os Contacts
+ * de mesmo telefone). O número antigo NÃO é desvinculado - preserva o histórico.
+ */
+export async function changeCustomerPhone(
+  account: CustomerAccount,
+  phoneRaw: string,
+  codeRaw: string,
+): Promise<CustomerMutationResult> {
+  const phone = normalizePhoneE164(phoneRaw);
+  if (!phone) return { error: 'Celular inválido - confira o DDD' };
+  const code = (codeRaw ?? '').replace(/\D/g, '');
+  if (code.length < 4) return { error: 'Informe o código recebido por SMS' };
+  if (phone === account.phone) return { error: 'Este já é o seu número atual.' };
+  const taken = await prisma.customerAccount.findFirst({
+    where: { phone, id: { not: account.id } },
+    select: { id: true },
+  });
+  if (taken) return { error: 'Este número já está em uso por outra conta.' };
+
+  const verified = await checkPhoneOtp(phone, code);
+  if (!verified.ok) return { error: verified.error };
+
+  await prisma.customerAccount.update({
+    where: { id: account.id },
+    data: { phone, pendingPhone: null },
+  });
+  await claimContactsByPhone(account.id, phone);
+  return { ok: true };
+}
+
+/**
+ * Exclui a conta do cliente (ação irreversível, exigida pelas app stores). A cascata
+ * do schema derruba Favorite/PushDevice; os Contacts viram SetNull (o histórico do
+ * agendamento fica com o tenant). Depois remove o usuário do Supabase Auth.
+ */
+export async function deleteCustomerAccount(account: CustomerAccount): Promise<CustomerMutationResult> {
+  await prisma.customerAccount.delete({ where: { id: account.id } });
+  await getSupabaseAdmin()
+    .auth.admin.deleteUser(account.authId)
+    .catch(() => {});
+  return { ok: true };
 }

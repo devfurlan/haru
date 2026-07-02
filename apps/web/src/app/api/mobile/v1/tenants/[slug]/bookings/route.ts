@@ -3,8 +3,13 @@
 // Bearer válido e o telefone bater com a conta, o contato é vinculado à conta.
 import { requireCustomerAccountFromBearer } from '@/lib/customer-auth';
 import { createSinglePublicBooking } from '@/lib/public-booking';
+import { withinRateLimit } from '@/lib/ratelimit';
 
 export async function POST(req: Request, { params }: { params: Promise<{ slug: string }> }) {
+  // Auth opcional aqui, então trava spam de agendamentos por IP (enche a agenda do tenant).
+  if (!(await withinRateLimit(req, 'bookings', 8, 60)))
+    return Response.json({ error: 'Muitas requisições. Tente em instantes.' }, { status: 429 });
+
   const { slug } = await params;
   const body = (await req.json().catch(() => null)) as {
     serviceId?: unknown;

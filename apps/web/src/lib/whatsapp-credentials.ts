@@ -1,4 +1,5 @@
 import { Prisma, prisma } from '@haru/database';
+import { encryptSecret } from '@haru/payments';
 
 export type SaveWhatsappResult = { ok: true } | { ok: false; error: string };
 
@@ -25,7 +26,8 @@ export async function saveWhatsappCredentials(
         whatsappPhoneNumberId: creds.phoneNumberId,
         whatsappBusinessAccountId: creds.businessAccountId ?? null,
         whatsappDisplayPhone: creds.displayPhone ?? null,
-        whatsappAccessToken: creds.accessToken,
+        // Cifrado at rest (AES-256-GCM). Leitura decifra via `decryptNullable`.
+        whatsappAccessToken: encryptSecret(creds.accessToken),
       },
     });
   } catch (err) {

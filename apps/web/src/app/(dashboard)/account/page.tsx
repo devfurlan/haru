@@ -13,7 +13,7 @@ export default async function AccountPage() {
         <p className="text-sm text-muted-foreground">Seus dados de acesso e senha.</p>
       </div>
 
-      <ProfileCard name={user.name} email={user.email} />
+      <ProfileCard name={user.name} email={user.email} avatarUrl={user.avatarUrl} />
 
       <PasswordCard />
     </div>

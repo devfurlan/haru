@@ -97,6 +97,7 @@ export async function getPublicSlots(
     dateStr,
     now: new Date(),
     professionalId: professionalId || undefined,
+    includeBusy: true, // app mostra horários ocupados riscados (design 10)
   });
 }
 

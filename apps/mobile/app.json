@@ -34,7 +34,19 @@
         }
       ],
       "expo-secure-store",
-      "expo-font"
+      "expo-font",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Usamos sua localização para mostrar os estabelecimentos mais próximos de você."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Usamos suas fotos para você definir a foto de perfil."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

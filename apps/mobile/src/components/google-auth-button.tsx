@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, Text } from 'react-native';
+import { ActivityIndicator, Pressable } from 'react-native';
 
 import { GoogleIcon } from '@/components/google-icon';
+import { Text } from '@/components/text';
 import { signInWithGoogle } from '@/lib/google-auth';
 
 /**
@@ -9,7 +10,13 @@ import { signInWithGoogle } from '@/lib/google-auth';
  * onAuthStateChange (lib/auth) troca a sessão e o <Redirect> das telas leva pro app.
  * Erros sobem pelo `onError` pro parent mostrar na mesma área dos outros erros.
  */
-export function GoogleAuthButton({ onError }: { onError?: (message: string) => void }) {
+export function GoogleAuthButton({
+  onError,
+  label = 'Continuar com Google',
+}: {
+  onError?: (message: string) => void;
+  label?: string;
+}) {
   const [submitting, setSubmitting] = useState(false);
 
   async function handlePress() {
@@ -25,7 +32,7 @@ export function GoogleAuthButton({ onError }: { onError?: (message: string) => v
     <Pressable
       disabled={submitting}
       onPress={handlePress}
-      className={`border-ink/15 bg-paper flex-row items-center justify-center gap-3 rounded-xl border py-4 ${
+      className={`border-edge bg-paper flex-row items-center justify-center gap-3 rounded-2xl border py-4 ${
         submitting ? 'opacity-60' : ''
       }`}
     >
@@ -34,7 +41,7 @@ export function GoogleAuthButton({ onError }: { onError?: (message: string) => v
       ) : (
         <>
           <GoogleIcon size={20} />
-          <Text className="text-ink text-base font-semibold">Continuar com Google</Text>
+          <Text className="text-ink text-[15px] font-bold">{label}</Text>
         </>
       )}
     </Pressable>

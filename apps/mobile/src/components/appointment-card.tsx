@@ -1,16 +1,19 @@
 import { Link } from 'expo-router';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 
-import { formatBRL } from '@haru/shared';
-
+import { Text } from '@/components/text';
 import type { AppointmentItem } from '@/lib/api';
 
+import { TenantAvatar } from './tenant-avatar';
+
+// Confirmado/A confirmar usam o chip verde claro do design; cancelado/não compareceu
+// ficam num tom neutro/destrutivo. Realizado fica neutro.
 const STATUS_LABEL: Record<AppointmentItem['status'], { text: string; bg: string; fg: string }> = {
-  PENDING: { text: 'A confirmar', bg: 'bg-coral-soft/20', fg: 'text-coral' },
-  CONFIRMED: { text: 'Confirmado', bg: 'bg-green/10', fg: 'text-green' },
-  CANCELED: { text: 'Cancelado', bg: 'bg-ink/5', fg: 'text-muted' },
-  COMPLETED: { text: 'Realizado', bg: 'bg-ink/5', fg: 'text-ink-soft' },
-  NO_SHOW: { text: 'Não compareceu', bg: 'bg-destructive/10', fg: 'text-destructive' },
+  PENDING: { text: 'A confirmar', bg: 'bg-chip', fg: 'text-green-deep' },
+  CONFIRMED: { text: 'confirmado', bg: 'bg-chip', fg: 'text-green-deep' },
+  CANCELED: { text: 'cancelado', bg: 'bg-ink/5', fg: 'text-muted' },
+  COMPLETED: { text: 'realizado', bg: 'bg-ink/5', fg: 'text-sub' },
+  NO_SHOW: { text: 'não compareceu', bg: 'bg-destructive/10', fg: 'text-destructive' },
 };
 
 const cardShadow = {
@@ -33,48 +36,57 @@ function parts(iso: string, tz: string) {
   };
 }
 
-export function AppointmentCard({ item }: { item: AppointmentItem }) {
+const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
+export function AppointmentCard({ item, first }: { item: AppointmentItem; first?: boolean }) {
   const status = STATUS_LABEL[item.status];
   const { day, month, weekday, time } = parts(item.startsAt, item.tenant.timezone);
   const dim = item.status === 'CANCELED' || item.isPast;
 
+  // "Sáb, 5 jul · 15h30"
+  const whenLine = `${cap(weekday)}, ${Number(day)} ${month} · ${time.replace(':', 'h')}`;
+
   return (
     <Link href={`/appointment/${item.id}`} asChild>
       <Pressable
-        style={cardShadow}
-        className={`mb-3 flex-row items-center gap-4 rounded-2xl bg-paper p-4 active:opacity-80 ${
+        style={first ? cardShadow : undefined}
+        className={`border-line rounded-[18px] border bg-paper p-3.5 active:opacity-80 ${
           dim ? 'opacity-60' : ''
         }`}
       >
-        {/* Chip de data */}
-        <View className="bg-coral/10 h-16 w-16 items-center justify-center rounded-2xl">
-          <Text className="text-coral text-xl font-bold leading-6">{day}</Text>
-          <Text className="text-coral text-xs font-semibold uppercase">{month}</Text>
-        </View>
+        {/* Linha 1: negócio + serviço + status */}
+        <View className="flex-row items-center gap-3">
+          <TenantAvatar name={item.tenant.name} logoUrl={item.tenant.logoUrl} size={52} radius={15} />
 
-        {/* Conteúdo */}
-        <View className="flex-1">
-          <View className="flex-row items-center justify-between">
-            <Text className="text-ink flex-1 text-base font-semibold" numberOfLines={1}>
-              {item.serviceName}
+          <View className="flex-1">
+            <Text
+              style={{ fontFamily: 'Fraunces_600SemiBold' }}
+              className="text-ink text-base"
+              numberOfLines={1}
+            >
+              {item.tenant.name}
             </Text>
-            <Text className="text-ink-soft ml-2 text-sm font-semibold">
-              {formatBRL(item.priceCents)}
+            <Text className="text-sub mt-0.5 text-xs font-medium" numberOfLines={1}>
+              {item.serviceName}
+              {item.professionalName ? ` · com ${item.professionalName}` : ''}
             </Text>
           </View>
 
-          <Text className="text-muted mt-0.5 text-sm" numberOfLines={1}>
-            {item.tenant.name}
-            {item.professionalName ? ` · ${item.professionalName}` : ''}
-          </Text>
+          <View className={`rounded-full px-2.5 py-[5px] ${status.bg}`}>
+            <Text className={`text-[11px] font-bold ${status.fg}`}>{status.text}</Text>
+          </View>
+        </View>
 
-          <View className="mt-2 flex-row items-center justify-between">
-            <Text className="text-ink-soft text-sm capitalize">
-              {weekday} · {time}
+        {/* Divisória */}
+        <View className="border-line mt-3 border-t pt-3">
+          <View className="flex-row items-center justify-between">
+            <Text
+              style={{ fontFamily: 'Fraunces_600SemiBold' }}
+              className="text-green-deep text-[17px]"
+            >
+              {whenLine}
             </Text>
-            <View className={`rounded-full px-2.5 py-1 ${status.bg}`}>
-              <Text className={`text-xs font-semibold ${status.fg}`}>{status.text}</Text>
-            </View>
+            <Text className="text-coral text-[13px] font-bold">Ver</Text>
           </View>
         </View>
       </Pressable>

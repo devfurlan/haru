@@ -1,4 +1,5 @@
 import type { Tenant } from '@haru/database';
+import { decryptNullable } from '@haru/payments';
 
 import { GRAPH_API_URL as API_URL } from './whatsapp-graph';
 
@@ -30,7 +31,8 @@ export async function syncWhatsappProfile(
   tenant: ProfileTenant,
   websiteUrl: string,
 ): Promise<boolean> {
-  if (!tenant.whatsappPhoneNumberId || !tenant.whatsappAccessToken) {
+  const token = decryptNullable(tenant.whatsappAccessToken);
+  if (!tenant.whatsappPhoneNumberId || !token) {
     return false;
   }
 
@@ -48,7 +50,7 @@ export async function syncWhatsappProfile(
       {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${tenant.whatsappAccessToken}`,
+          Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(body),
@@ -105,11 +107,10 @@ export async function uploadWhatsappProfilePicture(
   tenant: PictureTenant,
   jpeg: Buffer,
 ): Promise<boolean> {
-  if (!tenant.whatsappPhoneNumberId || !tenant.whatsappAccessToken) {
+  const token = decryptNullable(tenant.whatsappAccessToken);
+  if (!tenant.whatsappPhoneNumberId || !token) {
     return false;
   }
-
-  const token = tenant.whatsappAccessToken;
 
   const appId = await resolveAppId(token);
   if (!appId) {

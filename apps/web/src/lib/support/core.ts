@@ -1,16 +1,23 @@
 import 'server-only';
 
 import { prisma } from '@haru/database';
-import type { Prisma, SupportCategory } from '@haru/database';
+import type { CustomerAccount, Prisma } from '@haru/database';
 
 import { sendEmail } from '@/lib/email';
 
-import { runSupportAI, type SupportFeedback, type SupportTurn } from './ai';
+import { runSupportAgent, type SupportTurn } from './ai';
 import { buildSystemPrompt } from './prompts';
+import {
+  buildSupportTools,
+  executeSupportTool,
+  type CapturedFeedback,
+  type SupportToolContext,
+} from './tools';
 
 // Núcleo compartilhado do suporte, usado pela server action (web) e pela rota mobile.
-// Um único ponto: valida input, monta contexto, chama a IA, persiste os dois turnos e,
-// quando há feedback, e-mail pro time. Nada é respondido in-app pelo fundador.
+// Valida input, monta o contexto das tools, roda o agente de IA, persiste os dois turnos
+// e, quando o agente registrou feedback, manda e-mail pro time. Nada é respondido in-app
+// pelo fundador.
 
 const SUPPORT_INBOX = process.env.SUPPORT_INBOX_EMAIL ?? 'contato@demandae.com';
 const MAX_BODY = 2000;
@@ -28,25 +35,21 @@ export type SupportAuthor =
     }
   | {
       channel: 'MOBILE';
-      customerAccountId: string;
-      name: string | null;
-      email: string;
+      account: CustomerAccount;
       establishments: { id: string; name: string }[];
     };
 
 export type SupportTurnPublic = { role: 'USER' | 'ASSISTANT'; body: string; createdAt: string };
 
 function authorWhere(a: SupportAuthor): Prisma.SupportMessageWhereInput {
-  return a.channel === 'WEB'
-    ? { userId: a.userId }
-    : { customerAccountId: a.customerAccountId };
+  return a.channel === 'WEB' ? { userId: a.userId } : { customerAccountId: a.account.id };
 }
 
 /** Colunas de identidade gravadas em cada mensagem, conforme o canal. */
 function authorColumns(a: SupportAuthor) {
   return a.channel === 'WEB'
     ? { channel: 'WEB' as const, userId: a.userId, tenantId: a.tenantId }
-    : { channel: 'MOBILE' as const, customerAccountId: a.customerAccountId };
+    : { channel: 'MOBILE' as const, customerAccountId: a.account.id };
 }
 
 /** Histórico completo (para render na UI), em ordem cronológica. */
@@ -79,14 +82,22 @@ export async function respondToSupport(
     .reverse()
     .map((r) => ({ role: r.role === 'USER' ? 'user' : 'assistant', content: r.body }));
 
-  const { reply, feedback } = await runSupportAI(buildSystemPrompt(a), history, message);
+  const ctx: SupportToolContext = {
+    channel: a.channel,
+    account: a.channel === 'MOBILE' ? a.account : null,
+    establishments: a.channel === 'MOBILE' ? a.establishments : [],
+    captured: { feedback: null },
+  };
 
-  // Só aceita um id de estabelecimento que seja de fato do cliente (mobile).
-  const aboutTenantId =
-    a.channel === 'MOBILE' && feedback?.sobreEstabelecimentoId
-      ? (a.establishments.find((e) => e.id === feedback.sobreEstabelecimentoId)?.id ?? null)
-      : null;
+  const { reply } = await runSupportAgent({
+    instructions: buildSystemPrompt(a),
+    history,
+    message,
+    tools: buildSupportTools(a.channel),
+    execute: (name, args) => executeSupportTool(ctx, name, args),
+  });
 
+  const feedback = ctx.captured.feedback;
   const cols = authorColumns(a);
   await prisma.supportMessage.createMany({
     data: [
@@ -94,8 +105,8 @@ export async function respondToSupport(
         ...cols,
         role: 'USER',
         body: message,
-        feedbackCategory: (feedback?.categoria ?? null) as SupportCategory | null,
-        aboutTenantId,
+        feedbackCategory: feedback?.categoria ?? null,
+        aboutTenantId: feedback?.aboutTenantId ?? null,
       },
       { ...cols, role: 'ASSISTANT', body: reply },
     ],
@@ -103,7 +114,7 @@ export async function respondToSupport(
 
   if (feedback) {
     // Fire-and-forget: um e-mail que falha não pode derrubar a resposta ao usuário.
-    void notifyFeedback(a, feedback, message, aboutTenantId);
+    void notifyFeedback(a, feedback, message);
   }
 
   return { reply };
@@ -111,19 +122,20 @@ export async function respondToSupport(
 
 async function notifyFeedback(
   a: SupportAuthor,
-  feedback: SupportFeedback,
+  feedback: CapturedFeedback,
   message: string,
-  aboutTenantId: string | null,
 ): Promise<void> {
   const origem = a.channel === 'WEB' ? 'painel (dono)' : 'app (cliente)';
   const quem =
     a.channel === 'WEB'
       ? `${a.name ?? 'sem nome'} <${a.email}> - negócio: ${a.tenantName}`
-      : `${a.name ?? 'sem nome'} <${a.email}> - cliente do app`;
-  const estabNome =
-    a.channel === 'MOBILE' && aboutTenantId
-      ? (a.establishments.find((e) => e.id === aboutTenantId)?.name ?? aboutTenantId)
-      : null;
+      : `${a.account.name ?? 'sem nome'} <${a.account.email}> - cliente do app`;
+  const estabNome = feedback.aboutTenantId
+    ? (a.channel === 'MOBILE'
+        ? (a.establishments.find((e) => e.id === feedback.aboutTenantId)?.name ??
+          feedback.aboutTenantId)
+        : feedback.aboutTenantId)
+    : null;
 
   const rows: [string, string][] = [
     ['Categoria', feedback.categoria],

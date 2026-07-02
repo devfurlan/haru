@@ -128,6 +128,9 @@ export interface ComputeSlotsInput {
   now: Date;
   /** Passo da grade em minutos (default 30). */
   stepMinutes?: number;
+  /** Também emite os horários ocupados (colisão/bloqueio) com `available:false`, pra a
+   * UI mostrá-los riscados. Passados nunca entram. Default false = só horários livres. */
+  includeBusy?: boolean;
 }
 
 export interface AvailableSlot {
@@ -135,6 +138,12 @@ export interface AvailableSlot {
   startsAtIso: string;
   /** Rótulo "HH:MM" no fuso do tenant. */
   label: string;
+  /** Só presente quando `includeBusy`: false = horário dentro do expediente porém
+   * ocupado (mostrar riscado, não agendável). Ausente/true = livre. */
+  available?: boolean;
+  /** IDs dos profissionais livres neste horário (só quando vem de
+   * `computeSlotsAcrossProfessionals`). O `[0]` é a escolha "sem preferência". */
+  professionalIds?: string[];
 }
 
 const DEFAULT_STEP_MINUTES = 30;
@@ -159,17 +168,24 @@ export function computeAvailableSlots(input: ComputeSlotsInput): AvailableSlot[]
       const start = localWallTimeToUtc(input.dateStr, minute, input.tz);
       const end = new Date(start.getTime() + input.durationMinutes * MS_PER_MINUTE);
 
-      // Já passou (relevante quando o dia-alvo é hoje).
+      // Já passou (relevante quando o dia-alvo é hoje) - nunca mostramos passado.
       if (start <= input.now) continue;
 
       // Colisão com agendamento ativo - mesma fórmula de overlap do resto do app:
       // existing.startsAt < new.endsAt && existing.endsAt > new.startsAt.
       const collides = input.appointments.some((a) => a.startsAt < end && a.endsAt > start);
-      if (collides) continue;
-
       // Colisão com bloqueio pontual da agenda (mesma fórmula de overlap).
       const blocked = (input.exceptions ?? []).some((e) => e.startsAt < end && e.endsAt > start);
-      if (blocked) continue;
+      if (collides || blocked) {
+        if (input.includeBusy) {
+          slots.push({
+            startsAtIso: start.toISOString(),
+            label: formatTimeInTz(start, input.tz),
+            available: false,
+          });
+        }
+        continue;
+      }
 
       slots.push({ startsAtIso: start.toISOString(), label: formatTimeInTz(start, input.tz) });
     }
@@ -198,6 +214,9 @@ export interface ComputeSlotsAcrossInput {
   now: Date;
   stepMinutes?: number;
   professionals: ProfessionalAvailabilityInput[];
+  /** Ver ComputeSlotsInput.includeBusy. Um horário só é `available:false` quando NENHUM
+   * profissional está livre nele (basta um livre pra ficar agendável). */
+  includeBusy?: boolean;
 }
 
 /** Slot livre considerando vários profissionais; lista quem está livre nele. */
@@ -216,8 +235,13 @@ export interface AvailableSlotWithProfessionals extends AvailableSlot {
 export function computeSlotsAcrossProfessionals(
   input: ComputeSlotsAcrossInput,
 ): AvailableSlotWithProfessionals[] {
-  // startsAtIso -> { label, professionalIds[] }
-  const byIso = new Map<string, { label: string; professionalIds: string[] }>();
+  // startsAtIso -> { label, professionalIds[] livres, seenBusy }. `professionalIds` só
+  // acumula quem está LIVRE; `seenBusy` marca que o horário existe (dentro do expediente)
+  // porém ocupado pra algum profissional - vira `available:false` se ninguém ficou livre.
+  const byIso = new Map<
+    string,
+    { label: string; professionalIds: string[]; seenBusy: boolean }
+  >();
 
   for (const prof of input.professionals) {
     const slots = computeAvailableSlots({
@@ -229,10 +253,13 @@ export function computeSlotsAcrossProfessionals(
       exceptions: prof.exceptions,
       now: input.now,
       stepMinutes: input.stepMinutes,
+      includeBusy: input.includeBusy,
     });
     for (const slot of slots) {
-      const entry = byIso.get(slot.startsAtIso) ?? { label: slot.label, professionalIds: [] };
-      entry.professionalIds.push(prof.professionalId);
+      const entry =
+        byIso.get(slot.startsAtIso) ?? { label: slot.label, professionalIds: [], seenBusy: false };
+      if (slot.available === false) entry.seenBusy = true;
+      else entry.professionalIds.push(prof.professionalId);
       byIso.set(slot.startsAtIso, entry);
     }
   }
@@ -242,6 +269,8 @@ export function computeSlotsAcrossProfessionals(
       startsAtIso,
       label: v.label,
       professionalIds: v.professionalIds,
+      // Só anexa `available` no modo includeBusy (senão mantém saída idêntica à de antes).
+      ...(input.includeBusy ? { available: v.professionalIds.length > 0 } : {}),
     }))
     .sort((a, b) => a.startsAtIso.localeCompare(b.startsAtIso));
 }
