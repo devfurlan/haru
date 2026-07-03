@@ -52,6 +52,15 @@
         {
           "photosPermission": "Usamos suas fotos para você definir a foto de perfil."
         }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "enableProguardInReleaseBuilds": true,
+            "enableShrinkResourcesInReleaseBuilds": true
+          }
+        }
       ]
     ],
     "experiments": {

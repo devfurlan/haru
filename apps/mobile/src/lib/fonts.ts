@@ -1,10 +1,11 @@
-import {
-  HankenGrotesk_400Regular,
-  HankenGrotesk_500Medium,
-  HankenGrotesk_600SemiBold,
-  HankenGrotesk_700Bold,
-  HankenGrotesk_800ExtraBold,
-} from '@expo-google-fonts/hanken-grotesk';
+// Import por SUBPATH (não pelo root): o index.js do pacote faz `require()` de TODOS os
+// pesos, então importar do root embutia ~17 fontes por família (todos os pesos + itálicos)
+// no bundle do app. O subpath por peso embute só o .ttf de fato usado.
+import { HankenGrotesk_400Regular } from '@expo-google-fonts/hanken-grotesk/400Regular';
+import { HankenGrotesk_500Medium } from '@expo-google-fonts/hanken-grotesk/500Medium';
+import { HankenGrotesk_600SemiBold } from '@expo-google-fonts/hanken-grotesk/600SemiBold';
+import { HankenGrotesk_700Bold } from '@expo-google-fonts/hanken-grotesk/700Bold';
+import { HankenGrotesk_800ExtraBold } from '@expo-google-fonts/hanken-grotesk/800ExtraBold';
 
 // Fontes da marca "Demandaê" (design Claude):
 // - Fraunces (serif) = display, preços, acentos emocionais. Aplicada via
