@@ -742,6 +742,7 @@ function StepDiaHora({
   onContinue,
   continueLabel,
   continueDisabled,
+  onOpenOptions,
   headingRef,
 }: {
   tenantName: string;
@@ -771,6 +772,8 @@ function StepDiaHora({
   /** Rótulo do botão do rodapé ("Continuar" p/ visitante, "Confirmar" p/ logado). */
   continueLabel: string;
   continueDisabled?: boolean;
+  /** Logado que confirma direto: link discreto pra abrir opções (recorrência). */
+  onOpenOptions?: () => void;
   headingRef: React.RefObject<HTMLHeadingElement | null>;
 }) {
   // Rola o carrossel até o chip escolhido (ex.: quando vem do date-picker).
@@ -954,23 +957,40 @@ function StepDiaHora({
 
       {selectedSlot ? (
         <StickyFooter>
-          <div className="min-w-0 flex-1">
-            <p className="text-muted-foreground truncate text-[11.5px]">
-              {buildSlotSummary(selectedSlot, professionals, timezone)}
-            </p>
-            <p className="text-foreground font-serif text-xl">{formatBRL(service.priceCents)}</p>
+          <div className="w-full space-y-2.5">
+            {/* Logado agenda direto; quem quiser repetir abre as opções (recorrência). */}
+            {onOpenOptions ? (
+              <button
+                type="button"
+                onClick={onOpenOptions}
+                className="text-muted-foreground hover:text-foreground mx-auto flex items-center gap-1.5 text-xs underline-offset-2 transition-colors hover:underline"
+              >
+                <Repeat className="h-3.5 w-3.5" aria-hidden="true" />
+                Repetir esse horário? Ver opções
+              </button>
+            ) : null}
+            <div className="flex items-center gap-3.5">
+              <div className="min-w-0 flex-1">
+                <p className="text-muted-foreground truncate text-[11.5px]">
+                  {buildSlotSummary(selectedSlot, professionals, timezone)}
+                </p>
+                <p className="text-foreground font-serif text-xl">
+                  {formatBRL(service.priceCents)}
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="coral"
+                size="pill"
+                className="px-8 active:scale-[0.98]"
+                onClick={onContinue}
+                disabled={continueDisabled}
+                aria-busy={continueDisabled}
+              >
+                {continueLabel}
+              </Button>
+            </div>
           </div>
-          <Button
-            type="button"
-            variant="coral"
-            size="pill"
-            className="px-8 active:scale-[0.98]"
-            onClick={onContinue}
-            disabled={continueDisabled}
-            aria-busy={continueDisabled}
-          >
-            {continueLabel}
-          </Button>
         </StickyFooter>
       ) : null}
     </>
@@ -2074,6 +2094,8 @@ export function PublicBooking({
             canDirectConfirm ? (isSubmitting ? 'Confirmando…' : 'Confirmar') : 'Continuar'
           }
           continueDisabled={canDirectConfirm && isSubmitting}
+          // Logado confirma direto, mas pode abrir "Seus dados" (onde vive a recorrência).
+          onOpenOptions={canDirectConfirm ? () => setStep('contact') : undefined}
           headingRef={headingRef}
         />
       ) : null}
