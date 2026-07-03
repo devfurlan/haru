@@ -186,6 +186,15 @@ export default function DadosScreen() {
                 <Text className="text-base font-bold text-white">Salvar</Text>
               )}
             </PressScale>
+
+            {/* Link discreto de exclusão de conta (abre o fluxo de retenção). */}
+            <Pressable
+              onPress={() => router.push('/perfil/excluir' as Href)}
+              hitSlop={8}
+              className="mt-8 items-center py-2 active:opacity-60"
+            >
+              <Text className="text-sub text-[13px] underline">Excluir minha conta</Text>
+            </Pressable>
           </ScrollView>
         )}
       </KeyboardAvoidingView>

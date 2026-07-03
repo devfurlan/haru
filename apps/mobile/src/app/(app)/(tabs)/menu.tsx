@@ -207,26 +207,6 @@ export default function MenuScreen() {
     ]);
   }
 
-  async function doDelete() {
-    try {
-      await api.deleteAccount();
-      await signOut(); // limpa a sessão local -> volta pro login
-    } catch (err) {
-      Alert.alert('Ops', err instanceof ApiError ? err.message : 'Não foi possível excluir a conta.');
-    }
-  }
-
-  function confirmDelete() {
-    Alert.alert(
-      'Excluir conta',
-      'Isso apaga sua conta e seus dados de forma permanente. Seus agendamentos continuam registrados nos estabelecimentos. Não dá pra desfazer.',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        { text: 'Excluir', style: 'destructive', onPress: () => void doDelete() },
-      ],
-    );
-  }
-
   const displayName = me?.name || 'Minha conta';
   const initial = (me?.name || me?.email || '?').trim().charAt(0).toUpperCase();
   const subtitle = me?.phone ? maskPhoneBRInput(me.phone) : me?.email || '';
@@ -322,13 +302,10 @@ export default function MenuScreen() {
           last
         />
 
-        {/* Ações da conta */}
-        <View className="mt-7 flex-row items-center gap-6">
-          <Pressable onPress={() => signOut()} className="px-1 py-2 active:opacity-60">
+        {/* Ações da conta (excluir conta vive dentro de "Meus dados"). */}
+        <View className="mt-7">
+          <Pressable onPress={() => signOut()} className="self-start px-1 py-2 active:opacity-60">
             <Text className="text-coral text-sm font-bold">Sair</Text>
-          </Pressable>
-          <Pressable onPress={confirmDelete} className="px-1 py-2 active:opacity-60">
-            <Text className="text-destructive text-sm font-bold">Excluir conta</Text>
           </Pressable>
         </View>
 

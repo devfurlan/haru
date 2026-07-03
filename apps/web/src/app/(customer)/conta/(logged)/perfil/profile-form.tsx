@@ -10,6 +10,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { maskCpfCnpjInput } from '@haru/shared';
 
+import { DeleteAccountLink } from './delete-account-link';
+
 interface ProfileFormProps {
   name: string;
   email: string;
@@ -81,6 +83,11 @@ export function ProfileForm({ name, email, documentDefault, birthDateDefault }: 
 
           <SubmitButton />
         </form>
+
+        {/* Exclusão de conta: entrada discreta dentro da edição de perfil. */}
+        <div className="mt-6 border-t pt-4">
+          <DeleteAccountLink />
+        </div>
       </CardContent>
     </Card>
   );
