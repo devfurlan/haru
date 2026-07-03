@@ -4,3 +4,4 @@
 export * from './availability';
 export * from './booking-days';
 export * from './format';
+export * from './search';

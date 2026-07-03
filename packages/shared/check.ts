@@ -2,7 +2,14 @@
 // @haru/shared check`. Falha se o cálculo de slots ou a colisão quebrarem.
 import assert from 'node:assert';
 
-import { computeAvailableSlots, weekdayInTz, formatPhoneBR, normalizePhoneBR } from './src/index';
+import {
+  computeAvailableSlots,
+  weekdayInTz,
+  formatPhoneBR,
+  normalizePhoneBR,
+  matchesSearch,
+  normalizeForSearch,
+} from './src/index';
 
 const tz = 'America/Sao_Paulo';
 const dateStr = '2026-07-15';
@@ -44,5 +51,17 @@ assert.deepStrictEqual(
 // Formatação de telefone BR ida-e-volta.
 assert.strictEqual(formatPhoneBR('5511914092346'), '(11) 91409-2346');
 assert.strictEqual(normalizePhoneBR('(11) 91409-2346'), '5511914092346');
+
+// Busca textual: normalização e casamento por token (nome + slug).
+assert.strictEqual(normalizeForSearch('São João'), 'sao joao');
+assert.strictEqual(normalizeForSearch('STLima-Barber'), 'stlima barber');
+// o caso reportado: "st lima" acha o slug "stlima-barber" (nome com ou sem espaço)
+assert.ok(matchesSearch('st lima', 'STLima Barber', 'stlima-barber'));
+assert.ok(matchesSearch('st lima', 'STLima', 'stlima-barber'));
+assert.ok(matchesSearch('lima st', 'ST Lima', 'st-lima')); // ordem livre
+assert.ok(matchesSearch('joão', 'Salao Sao Joao')); // acento no termo, só nome
+assert.ok(!matchesSearch('xyz', 'STLima Barber', 'stlima-barber')); // não bate
+assert.ok(!matchesSearch('💈', 'Qualquer', 'qualquer')); // lixo não casa tudo
+assert.ok(!matchesSearch('a e', 'Salao Sao Joao', 'salao-sj')); // tokens de 1 char são ruído
 
 console.log('shared self-check OK');

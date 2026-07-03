@@ -99,6 +99,12 @@
   --animate-pulse-ring-coral: pulse-ring-coral 2s infinite;
   --animate-blink: blink 1.2s infinite;
   --animate-caret-blink: caret-blink 1s ease-out infinite;
+
+  /* Sucesso do agendamento (espelha o overlay animado do app mobile): o painel
+     verde sobe da base e o selo entra com "mola" (overshoot). Título/card usam
+     `rise` + animation-delay inline pra escalonar. */
+  --animate-sheet-up: sheet-up 0.52s cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-seal-pop: seal-pop 0.46s cubic-bezier(0.34, 1.56, 0.64, 1) 0.18s both;
 }
 
 @keyframes rise {
@@ -133,6 +139,26 @@
   }
   100% {
     box-shadow: 0 0 0 0 rgba(255, 90, 54, 0);
+  }
+}
+
+@keyframes sheet-up {
+  from {
+    opacity: 0;
+    transform: translateY(100%);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes seal-pop {
+  from {
+    transform: scale(0);
+  }
+  to {
+    transform: scale(1);
   }
 }
 

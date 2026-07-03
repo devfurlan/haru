@@ -77,6 +77,9 @@ export async function getAvailableSlots(
     dateStr,
     now: new Date(),
     professionalId: professionalId || undefined,
+    // Também traz horários ocupados (available:false) pra a grade riscá-los, igual
+    // ao app mobile - o cliente vê o que está tomado, não só o que sobrou.
+    includeBusy: true,
   });
 }
 

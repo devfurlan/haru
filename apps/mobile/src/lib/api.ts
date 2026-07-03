@@ -54,8 +54,9 @@ export type DiscoverTenant = {
   slug: string;
   logoUrl: string | null;
   address: string | null;
-  // Distância em km até o usuário - presente só quando a busca envia lat/lng.
-  distanceKm?: number;
+  // Distância em km até o usuário - só quando a busca envia lat/lng e o estabelecimento
+  // tem coords cadastradas; null pra quem bate o nome mas não tem GPS.
+  distanceKm?: number | null;
 };
 
 // Favorito do cliente (GET /favorites). Mesmos campos, com o id do tenant explícito.

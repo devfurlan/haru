@@ -2,9 +2,9 @@
 
 import {
   AlertTriangle,
-  ArrowLeft,
   CalendarCheck,
   CalendarDays,
+  Check,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
@@ -20,7 +20,15 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useActionState, useEffect, useMemo, useRef, useState, useTransition } from 'react';
+import {
+  startTransition,
+  useActionState,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+} from 'react';
 import { useFormStatus } from 'react-dom';
 
 import { CustomerSignupForm } from '@/app/(customer)/conta/(public)/criar/signup-form';
@@ -35,7 +43,8 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
-import { type AvailableSlot } from '@haru/shared';
+import { cn } from '@/lib/utils';
+import { type AvailableSlotWithProfessionals } from '@haru/shared';
 import { buildBookingDays, isoDateInTz, labelFromIso, type BookingDay } from '@haru/shared';
 import {
   formatBRL,
@@ -54,6 +63,8 @@ import {
 } from './actions';
 import { createPaymentForAppointment } from './payments-actions';
 
+type AvailableSlot = AvailableSlotWithProfessionals;
+
 interface ServiceOption {
   id: string;
   name: string;
@@ -71,8 +82,12 @@ interface ProfessionalOption {
 
 interface PublicBookingProps {
   slug: string;
+  /** Nome do negócio - mostrado no hero (passo vitrine) e no cabeçalho compacto. */
+  tenantName: string;
+  /** Logo do negócio (opcional) - hero + card de sucesso. */
+  logoUrl: string | null;
   services: ServiceOption[];
-  /** Profissionais com agenda - usados no passo "escolha o profissional". */
+  /** Profissionais com agenda - usados no passo "profissional e serviço". */
   professionals: ProfessionalOption[];
   /** Fuso do tenant - toda conta de data sai dele, nunca do browser. */
   timezone: string;
@@ -89,14 +104,15 @@ interface PublicBookingProps {
 }
 
 /**
- * Passos do fluxo (curto: o cliente vê serviço e horário antes de dar qualquer
- * dado; o contato é pedido junto com a confirmação, no fim):
- *  0      - Vitrine de serviços (estado inicial).
- *  1      - Dia e horário.
- *  2      - Contato + resumo / confirmação.
- *  'done' - Tela de sucesso pós-submit.
+ * Passos do fluxo, espelhando o app mobile (o cliente vê serviço, profissional e
+ * horário antes de dar qualquer dado; o contato vem junto da confirmação, no fim):
+ *  'vitrine' - Capa (hero) + lista de serviços.
+ *  'select'  - Profissional (avatares) + serviço (radio). Pulado se não há profissionais.
+ *  'slot'    - Dia + horário.
+ *  'contact' - Contato + resumo / recorrência / conta / confirmação.
+ *  'done'    - Tela de sucesso animada.
  */
-type Step = 0 | 1 | 2 | 'done';
+type Step = 'vitrine' | 'select' | 'slot' | 'contact' | 'done';
 
 type FrequencyChoice = 'NONE' | RecurrenceFrequency;
 
@@ -109,25 +125,39 @@ const FREQUENCY_LABELS: Record<FrequencyChoice, string> = {
 
 const FREQUENCY_ORDER: FrequencyChoice[] = ['NONE', 'WEEKLY', 'BIWEEKLY', 'MONTHLY'];
 
-const TOTAL_STEPS = 3;
+/** "15:30" -> "15h30"; "14:00" -> "14h" (formato do app mobile). */
+function fmtTime(hhmm: string): string {
+  return hhmm.replace(':', 'h').replace(/h00$/, 'h');
+}
 
-const STEP_TITLES: Record<Exclude<Step, 'done'>, string> = {
-  0: 'Escolha o serviço',
-  1: 'Escolha dia e horário',
-  2: 'Confirme seus dados',
-};
+/** "45 min · só Téo" / "50 min · Téo, Ana" - duração + quem atende (igual mobile). */
+function serviceMeta(s: ServiceOption, professionals: ProfessionalOption[]): string {
+  const names = s.professionalIds
+    .map((id) => professionals.find((p) => p.id === id)?.name)
+    .filter((n): n is string => !!n);
+  const pros = names.length === 1 ? `só ${names[0]}` : names.join(', ');
+  return `${formatDuration(s.durationMinutes)}${pros ? ` · ${pros}` : ''}`;
+}
 
-/** Número humano do passo (1..3) a partir do estado interno. */
-const STEP_NUMBER: Record<Exclude<Step, 'done'>, 1 | 2 | 3> = {
-  0: 1,
-  1: 2,
-  2: 3,
-};
+/** "Sáb, 15h30 · com Téo" pro rodapé do passo de horário (fuso do tenant). */
+function buildSlotSummary(
+  slot: AvailableSlot,
+  professionals: ProfessionalOption[],
+  timezone: string,
+): string {
+  const wdRaw = new Intl.DateTimeFormat('pt-BR', { timeZone: timezone, weekday: 'short' })
+    .format(new Date(slot.startsAtIso))
+    .replace('.', '');
+  const wd = wdRaw.charAt(0).toUpperCase() + wdRaw.slice(1);
+  const time = fmtTime(slot.label);
+  const proId = slot.professionalIds?.[0];
+  const proName = proId ? (professionals.find((p) => p.id === proId)?.name ?? null) : null;
+  return `${wd}, ${time}${proName ? ` · com ${proName}` : ''}`;
+}
 
 /**
- * Quebra o label do servidor ("sáb., 30/05") em duas linhas para o chip de dia:
- * o weekday abreviado em cima e o "dia/mês" embaixo. É tolerante: se o formato
- * mudar, cai no label inteiro como fallback.
+ * Quebra o label do servidor ("sáb., 30/05") em weekday + data para as células.
+ * Tolerante: se o formato mudar, cai no label inteiro.
  */
 function splitDayLabel(label: string): { weekday: string; date: string } {
   const [rawWeekday, ...rest] = label.split(',');
@@ -136,149 +166,365 @@ function splitDayLabel(label: string): { weekday: string; date: string } {
   return { weekday: rawWeekday.trim().replace(/\.$/, ''), date };
 }
 
-/** Indicador de progresso (bolinhas + texto), só para os passos do wizard. */
-function ProgressDots({ step }: { step: Exclude<Step, 'done'> }) {
-  const current = STEP_NUMBER[step];
+// ---------------------------------------------------------------------------
+// Ícones inline (SVG) portados do app mobile
+// ---------------------------------------------------------------------------
+
+/** "Duas pessoas" - avatar "Qualquer" profissional + ícone do card de serviço. */
+function PeopleIcon({ size = 28 }: { size?: number }) {
   return (
-    <div
-      className="flex items-center justify-between gap-3"
-      role="progressbar"
-      aria-valuemin={1}
-      aria-valuemax={TOTAL_STEPS}
-      aria-valuenow={current}
-      aria-label={`Passo ${current} de ${TOTAL_STEPS}: ${STEP_TITLES[step]}`}
-    >
-      <div className="flex items-center gap-2" aria-hidden="true">
-        {Array.from({ length: TOTAL_STEPS }, (_, i) => i + 1).map((n) => (
-          <span
-            key={n}
-            className={
-              'h-2 w-2 rounded-full transition-colors ' +
-              (n === current ? 'bg-coral' : n < current ? 'bg-coral/40' : 'bg-muted')
-            }
-          />
-        ))}
-      </div>
-      <span className="text-muted-foreground text-xs font-medium">
-        Passo {current} de {TOTAL_STEPS}
-      </span>
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx={9} cy={8} r={3.2} stroke="#2fd37a" strokeWidth={2} />
+      <circle cx={16} cy={8} r={3.2} stroke="#2fd37a" strokeWidth={2} />
+      <path
+        d="M3 19c0-3 2.7-5 6-5M13 19c0-3 2.7-5 6-5"
+        stroke="#2fd37a"
+        strokeWidth={2}
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Chrome dos passos (hero, cabeçalho compacto, rodapé sticky)
+// ---------------------------------------------------------------------------
+
+/** Capa do negócio no topo do passo vitrine (fundo esmeralda + nome em Fraunces). */
+function Hero({ tenantName, logoUrl }: { tenantName: string; logoUrl: string | null }) {
+  return (
+    <div className="bg-green-deep relative flex min-h-40 flex-col justify-end overflow-hidden rounded-2xl px-5 pb-5 pt-6">
+      {logoUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={logoUrl}
+          alt=""
+          className="mb-3 h-12 w-12 rounded-2xl object-cover ring-1 ring-white/15"
+        />
+      ) : null}
+      <h1 className="text-paper font-serif text-3xl leading-tight tracking-[-0.01em]">
+        {tenantName}
+      </h1>
     </div>
   );
 }
 
-/** Cabeçalho de passo com botão "Voltar" opcional. Recebe a ref de foco. */
-function StepHeader({
-  title,
-  description,
+/** Cabeçalho compacto (voltar + nome + subtítulo + barra de progresso opcional). */
+function StepChrome({
+  tenantName,
+  subtitle,
+  progress,
   onBack,
   headingRef,
 }: {
-  title: string;
-  description?: string;
-  onBack?: () => void;
+  tenantName: string;
+  subtitle: string;
+  /** 50 ou 100 pra mostrar a barra; null pra escondê-la. */
+  progress: number | null;
+  onBack: () => void;
   headingRef: React.RefObject<HTMLHeadingElement | null>;
 }) {
   return (
-    <div className="space-y-3">
-      {onBack ? (
+    <div className="space-y-3.5">
+      <div className="flex items-center gap-3">
         <button
           type="button"
           onClick={onBack}
-          className="text-muted-foreground hover:text-foreground focus-visible:ring-ring inline-flex items-center gap-1 rounded-md text-sm transition-colors focus-visible:outline-none focus-visible:ring-1"
+          aria-label="Voltar"
+          className="bg-card focus-visible:ring-ring flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border transition-transform focus-visible:outline-none focus-visible:ring-2 active:scale-95"
         >
-          <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-          Voltar
+          <ChevronLeft className="text-green-deep h-5 w-5" />
         </button>
-      ) : null}
-      <div className="space-y-1">
-        <h2
-          ref={headingRef}
-          tabIndex={-1}
-          className="text-foreground font-serif text-xl outline-none"
-        >
-          {title}
-        </h2>
-        {description ? <p className="text-muted-foreground text-sm">{description}</p> : null}
+        <div className="min-w-0">
+          <h2
+            ref={headingRef}
+            tabIndex={-1}
+            className="text-foreground truncate text-sm font-semibold outline-none"
+          >
+            {tenantName}
+          </h2>
+          <p className="text-muted-foreground text-[11.5px]">{subtitle}</p>
+        </div>
       </div>
+      {progress != null ? (
+        <div className="h-1.5 overflow-hidden rounded-full bg-[#e6dcc6]">
+          <div
+            className="bg-green-bright h-full rounded-full transition-[width] duration-300"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+      ) : null}
     </div>
   );
 }
 
-/** Botão de submit final - usa useFormStatus para o estado "pending". */
-function ConfirmButton({ disabled }: { disabled?: boolean }) {
-  const { pending } = useFormStatus();
+/** Barra de ação fixada na base (resumo corrente + CTA), como no app mobile. */
+function StickyFooter({ children }: { children: React.ReactNode }) {
   return (
-    <Button
-      type="submit"
-      variant="coral"
-      size="pill"
-      className="w-full"
-      disabled={pending || disabled}
-      aria-busy={pending}
-    >
-      {pending ? 'Confirmando…' : 'Confirmar agendamento'}
-    </Button>
+    <div className="bg-background sticky bottom-0 z-10 mt-5 flex items-center gap-3.5 border-t pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[0_-10px_28px_-18px_rgba(10,51,36,0.45)]">
+      {children}
+    </div>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Passo 0 - Vitrine de serviços (estado inicial)
+// Passo vitrine - hero + lista de serviços
 // ---------------------------------------------------------------------------
 
 function StepVitrine({
+  tenantName,
+  logoUrl,
   services,
-  onSelect,
-  headingRef,
+  lowestPrice,
+  onSelectService,
+  onQuickBook,
 }: {
+  tenantName: string;
+  logoUrl: string | null;
   services: ServiceOption[];
-  onSelect: (service: ServiceOption) => void;
-  headingRef: React.RefObject<HTMLHeadingElement | null>;
+  lowestPrice: number | null;
+  onSelectService: (service: ServiceOption) => void;
+  onQuickBook: () => void;
 }) {
   return (
-    <div className="space-y-6">
-      <StepHeader
-        title={STEP_TITLES[0]}
-        description="Toque no serviço que você quer agendar."
-        headingRef={headingRef}
-      />
+    <>
+      <div className="space-y-5">
+        <Hero tenantName={tenantName} logoUrl={logoUrl} />
 
-      {services.length === 0 ? (
-        <p className="bg-muted text-muted-foreground rounded-lg border p-4 text-sm">
-          Nenhum serviço disponível no momento.
-        </p>
-      ) : (
-        <ul className="space-y-3" aria-label="Serviços disponíveis">
-          {services.map((service) => (
-            <li key={service.id}>
-              <button
-                type="button"
-                onClick={() => onSelect(service)}
-                className="bg-card focus-visible:ring-ring hover:border-coral/50 w-full rounded-xl border p-4 text-left transition-colors focus-visible:outline-none focus-visible:ring-2"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0 space-y-1">
-                    <p className="text-foreground font-medium">{service.name}</p>
-                    {service.description ? (
-                      <p className="text-muted-foreground text-sm">{service.description}</p>
-                    ) : null}
-                    <p className="text-muted-foreground flex items-center gap-1 text-xs">
-                      <Clock className="h-3.5 w-3.5" aria-hidden="true" />
-                      {formatDuration(service.durationMinutes)}
-                    </p>
-                  </div>
-                  <div className="flex flex-col items-end gap-1">
-                    <span className="text-coral whitespace-nowrap font-semibold">
+        {services.length === 0 ? (
+          <p className="bg-muted text-muted-foreground rounded-xl border p-4 text-sm">
+            Nenhum serviço disponível no momento.
+          </p>
+        ) : (
+          <div className="space-y-2.5">
+            <p className="text-foreground font-serif text-lg">Serviços</p>
+            <ul className="space-y-2.5" aria-label="Serviços disponíveis">
+              {services.map((service) => (
+                <li key={service.id}>
+                  <button
+                    type="button"
+                    onClick={() => onSelectService(service)}
+                    className="bg-card focus-visible:ring-ring hover:border-coral/40 flex w-full items-center justify-between gap-3 rounded-2xl border p-4 text-left transition-[transform,border-color] focus-visible:outline-none focus-visible:ring-2 active:scale-[0.99]"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-foreground text-[15px] font-semibold">{service.name}</p>
+                      <p className="text-muted-foreground mt-0.5 text-xs">
+                        {formatDuration(service.durationMinutes)}
+                      </p>
+                      {service.description ? (
+                        <p className="text-muted-foreground mt-1 text-sm leading-5">
+                          {service.description}
+                        </p>
+                      ) : null}
+                    </div>
+                    <span className="text-green-deep shrink-0 font-serif text-lg">
                       {formatBRL(service.priceCents)}
                     </span>
-                    <ChevronRight className="text-muted-foreground h-4 w-4" aria-hidden="true" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+
+      {services.length > 0 && lowestPrice != null ? (
+        <StickyFooter>
+          <div>
+            <p className="text-muted-foreground text-[11.5px]">a partir de</p>
+            <p className="text-foreground font-serif text-2xl">{formatBRL(lowestPrice)}</p>
+          </div>
+          <Button
+            type="button"
+            variant="coral"
+            size="pill"
+            className="flex-1 active:scale-[0.98]"
+            onClick={onQuickBook}
+          >
+            Agendar
+          </Button>
+        </StickyFooter>
+      ) : null}
+    </>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Passo select - profissional (avatares) + serviço (radio)
+// ---------------------------------------------------------------------------
+
+/** Avatar de profissional (quadrado esmeralda). Selecionado = borda coral. */
+function ProAvatar({
+  selected,
+  onClick,
+  label,
+  children,
+}: {
+  selected: boolean;
+  onClick: () => void;
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex shrink-0 flex-col items-center gap-1.5 transition-transform active:scale-95"
+    >
+      <span
+        className={cn(
+          'bg-green-deep flex h-[60px] w-[60px] items-center justify-center rounded-[18px] border-2',
+          selected ? 'border-coral' : 'border-transparent',
+        )}
+      >
+        {children}
+      </span>
+      <span
+        className={cn(
+          'max-w-[64px] truncate text-xs',
+          selected ? 'text-foreground font-semibold' : 'text-muted-foreground',
+        )}
+      >
+        {label}
+      </span>
+    </button>
+  );
+}
+
+function StepSelect({
+  tenantName,
+  services,
+  serviceProfs,
+  serviceId,
+  professionalId,
+  professionalLabel,
+  onPickProfessional,
+  onPickService,
+  onBack,
+  onContinue,
+  headingRef,
+  professionals,
+}: {
+  tenantName: string;
+  services: ServiceOption[];
+  /** Profissionais que atendem o serviço escolhido (avatares). */
+  serviceProfs: ProfessionalOption[];
+  serviceId: string;
+  professionalId: string;
+  /** Rótulo do profissional pro rodapé ("Qualquer prof." / nome). */
+  professionalLabel: string;
+  onPickProfessional: (id: string) => void;
+  onPickService: (service: ServiceOption) => void;
+  onBack: () => void;
+  onContinue: () => void;
+  headingRef: React.RefObject<HTMLHeadingElement | null>;
+  professionals: ProfessionalOption[];
+}) {
+  const service = services.find((s) => s.id === serviceId) ?? null;
+  return (
+    <>
+      <div className="space-y-5">
+        <StepChrome
+          tenantName={tenantName}
+          subtitle="Passo 1 de 2 · Profissional e serviço"
+          progress={50}
+          onBack={onBack}
+          headingRef={headingRef}
+        />
+
+        {serviceProfs.length > 0 ? (
+          <div className="space-y-2.5">
+            <p className="text-foreground text-[13px] font-semibold">Profissional</p>
+            <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-1" role="radiogroup">
+              <ProAvatar
+                selected={professionalId === ''}
+                onClick={() => onPickProfessional('')}
+                label="Qualquer"
+              >
+                <PeopleIcon />
+              </ProAvatar>
+              {serviceProfs.map((p) => (
+                <ProAvatar
+                  key={p.id}
+                  selected={professionalId === p.id}
+                  onClick={() => onPickProfessional(p.id)}
+                  label={p.name ?? '—'}
+                >
+                  <span className="text-green-bright font-serif text-2xl">
+                    {(p.name ?? '?').trim().charAt(0).toUpperCase()}
+                  </span>
+                </ProAvatar>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
+        <div className="space-y-2.5">
+          <div className="flex items-baseline justify-between">
+            <p className="text-foreground text-[13px] font-semibold">Serviço</p>
+            {serviceProfs.length > 0 ? (
+              <p className="text-muted-foreground text-[11.5px]">de todos os profissionais</p>
+            ) : null}
+          </div>
+          <div className="space-y-2.5">
+            {services.map((s) => {
+              const sel = s.id === serviceId;
+              return (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => onPickService(s)}
+                  aria-pressed={sel}
+                  className={cn(
+                    'bg-card flex w-full items-center gap-3 rounded-2xl px-4 py-3.5 text-left transition-[transform,border-color,box-shadow] active:scale-[0.99]',
+                    sel
+                      ? 'border-green-deep border-[1.5px] shadow-[0_8px_18px_-10px_rgba(10,51,36,0.55)]'
+                      : 'border',
+                  )}
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="text-foreground text-[15px] font-semibold">{s.name}</p>
+                    <p className="text-muted-foreground mt-0.5 text-xs">
+                      {serviceMeta(s, professionals)}
+                    </p>
                   </div>
-                </div>
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
+                  <span className="text-green-deep shrink-0 font-serif text-lg">
+                    {formatBRL(s.priceCents)}
+                  </span>
+                  {sel ? (
+                    <span className="bg-green-deep flex h-6 w-6 shrink-0 items-center justify-center rounded-full">
+                      <Check className="h-3.5 w-3.5 text-white" strokeWidth={3} />
+                    </span>
+                  ) : (
+                    <span className="h-6 w-6 shrink-0 rounded-full border-2 border-[#d6cbb2]" />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      <StickyFooter>
+        <div className="min-w-0 flex-1">
+          <p className="text-muted-foreground truncate text-[11.5px]">
+            {service?.name} · {professionalLabel}
+          </p>
+          <p className="text-foreground font-serif text-xl">
+            {service ? formatBRL(service.priceCents) : ''}
+          </p>
+        </div>
+        <Button
+          type="button"
+          variant="coral"
+          size="pill"
+          className="px-8 active:scale-[0.98]"
+          onClick={onContinue}
+        >
+          Continuar
+        </Button>
+      </StickyFooter>
+    </>
   );
 }
 
@@ -469,10 +715,13 @@ function MonthCalendar({
 }
 
 // ---------------------------------------------------------------------------
-// Passo 2 - Dia / Hora
+// Passo slot - dia (carrossel) + horário (chips)
 // ---------------------------------------------------------------------------
 
 function StepDiaHora({
+  tenantName,
+  service,
+  professionals,
   days,
   timezone,
   minDate,
@@ -482,32 +731,46 @@ function StepDiaHora({
   onSelectDate,
   slots,
   loadingSlots,
+  selectedSlot,
   selectedSlotIso,
   onSelectSlot,
   notice,
-  professionalPicker,
+  error,
+  twoStep,
   onBack,
+  onEditService,
+  onContinue,
+  continueLabel,
+  continueDisabled,
   headingRef,
 }: {
+  tenantName: string;
+  service: ServiceOption;
+  professionals: ProfessionalOption[];
   days: BookingDay[];
-  /** Fuso do tenant - pra rotular um dia escolhido pelo date-picker. */
   timezone: string;
-  /** Primeiro dia selecionável no calendário ("YYYY-MM-DD", fuso do tenant). */
   minDate: string;
-  /** Último dia selecionável no calendário ("YYYY-MM-DD", fuso do tenant). */
   maxDate: string;
   openWeekdays: number[];
   selectedDate: string;
   onSelectDate: (value: string) => void;
   slots: AvailableSlot[];
   loadingSlots: boolean;
+  selectedSlot: AvailableSlot | null;
   selectedSlotIso: string;
   onSelectSlot: (slot: AvailableSlot) => void;
   /** Aviso opcional exibido no topo (ex.: horário escolhido expirou). */
   notice: string | null;
-  /** Seletor de profissional (renderizado acima do calendário quando houver >1). */
-  professionalPicker?: React.ReactNode;
+  /** Erro do submit direto (logado que confirma pelo rodapé). */
+  error: string | null;
+  /** true quando há passo de profissional (mostra "Passo 2 de 2" + progresso). */
+  twoStep: boolean;
   onBack: () => void;
+  onEditService: () => void;
+  onContinue: () => void;
+  /** Rótulo do botão do rodapé ("Continuar" p/ visitante, "Confirmar" p/ logado). */
+  continueLabel: string;
+  continueDisabled?: boolean;
   headingRef: React.RefObject<HTMLHeadingElement | null>;
 }) {
   // Rola o carrossel até o chip escolhido (ex.: quando vem do date-picker).
@@ -518,9 +781,8 @@ function StepDiaHora({
     chip?.scrollIntoView({ inline: 'center', block: 'nearest' });
   }, [selectedDate]);
 
-  // Dia escolhido pelo calendário pode cair fora do carrossel (sábado distante,
-  // p.ex.). Nesse caso anexamos um chip-resumo no fim pra não ficar "selecionado
-  // mas invisível" - `buildBookingDays` só inclui os dias da janela contínua.
+  // Dia do date-picker pode cair fora do carrossel; anexa um chip no fim pra não
+  // ficar "selecionado mas invisível".
   const selectedDay = days.find((d) => d.value === selectedDate) ?? null;
   const railDays =
     selectedDate && !selectedDay
@@ -528,145 +790,216 @@ function StepDiaHora({
       : days;
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-start justify-between gap-3">
-        <StepHeader title={STEP_TITLES[1]} onBack={onBack} headingRef={headingRef} />
-        <div className="shrink-0 pt-7">
-          <MonthCalendar
-            minDate={minDate}
-            maxDate={maxDate}
-            openWeekdays={openWeekdays}
-            selectedDate={selectedDate}
-            onSelect={onSelectDate}
-          />
+    <>
+      <div className="space-y-5">
+        <StepChrome
+          tenantName={tenantName}
+          subtitle={twoStep ? 'Passo 2 de 2 · Dia e horário' : 'Dia e horário'}
+          progress={twoStep ? 100 : null}
+          onBack={onBack}
+          headingRef={headingRef}
+        />
+
+        {/* Resumo do serviço escolhido (toca -> volta pra trocar). */}
+        <button
+          type="button"
+          onClick={onEditService}
+          className="bg-card flex w-full items-center gap-3 rounded-2xl border p-3 text-left transition-transform active:scale-[0.99]"
+        >
+          <span className="bg-green-deep flex h-10 w-10 shrink-0 items-center justify-center rounded-xl">
+            <PeopleIcon size={22} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-foreground truncate text-[14.5px] font-semibold">{service.name}</p>
+            <p className="text-muted-foreground mt-0.5 text-xs">
+              {formatDuration(service.durationMinutes)} · {formatBRL(service.priceCents)}
+            </p>
+          </div>
+          <span className="text-coral text-xs font-bold">Editar</span>
+        </button>
+
+        {notice || error ? (
+          <p
+            role="alert"
+            className="border-destructive/40 bg-destructive/5 text-destructive flex items-start gap-2 rounded-lg border p-3 text-sm"
+          >
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+            <span>{error || notice}</span>
+          </p>
+        ) : null}
+
+        {/* Dia: carrossel de células esmeralda. */}
+        <div className="space-y-2.5">
+          <div className="flex items-center justify-between">
+            <p className="text-foreground text-[13px] font-semibold">Dia</p>
+            <MonthCalendar
+              minDate={minDate}
+              maxDate={maxDate}
+              openWeekdays={openWeekdays}
+              selectedDate={selectedDate}
+              onSelect={onSelectDate}
+            />
+          </div>
+          <div
+            ref={railRef}
+            className="-mx-1 flex gap-[9px] overflow-x-auto px-1 pb-1"
+            role="radiogroup"
+            aria-label="Escolha o dia"
+          >
+            {railDays.length === 0 ? (
+              <p className="text-muted-foreground px-1 text-sm">Nenhuma data disponível.</p>
+            ) : (
+              railDays.map((day) => {
+                const { weekday, date } = splitDayLabel(day.label);
+                // slice direto preserva o acento ("sáb" -> "SÁB"); /\W/ removeria o "á".
+                const wd = weekday.slice(0, 3).toUpperCase();
+                const num = date.split('/')[0] || date || day.label;
+                const isSelected = day.value === selectedDate;
+                const isClosed = !day.open;
+                return (
+                  <button
+                    key={day.value}
+                    type="button"
+                    role="radio"
+                    data-day={day.value}
+                    disabled={isClosed}
+                    aria-checked={isSelected}
+                    aria-label={isClosed ? `${day.label} - sem atendimento` : day.label}
+                    onClick={isClosed ? undefined : () => onSelectDate(day.value)}
+                    className={cn(
+                      'relative flex w-[52px] shrink-0 flex-col items-center rounded-[14px] py-2.5 transition-colors',
+                      isSelected
+                        ? 'bg-green-deep'
+                        : isClosed
+                          ? 'cursor-not-allowed border border-[#e6dcc6] bg-[#f2ebda]'
+                          : 'bg-card hover:border-coral/50 border',
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        'text-[11px] font-medium',
+                        isSelected
+                          ? 'text-[#8fbfa4]'
+                          : isClosed
+                            ? 'text-[#b9ad93]'
+                            : 'text-muted-foreground',
+                      )}
+                    >
+                      {wd}
+                    </span>
+                    <span
+                      className={cn(
+                        'font-serif text-lg',
+                        isSelected ? 'text-cream' : isClosed ? 'text-[#b9ad93]' : 'text-foreground',
+                      )}
+                    >
+                      {num}
+                    </span>
+                    {isClosed ? (
+                      <span className="pointer-events-none absolute left-[9px] right-[9px] top-1/2 h-[1.5px] -rotate-[18deg] bg-[#cbbf9f]" />
+                    ) : null}
+                  </button>
+                );
+              })
+            )}
+          </div>
+        </div>
+
+        {/* Horário: chips creme; ocupados riscados. */}
+        <div className="space-y-2.5">
+          <p className="text-foreground text-[13px] font-semibold">Horário</p>
+          {!selectedDate ? (
+            <p className="bg-muted text-muted-foreground rounded-lg border p-4 text-sm">
+              Selecione um dia para ver os horários.
+            </p>
+          ) : loadingSlots ? (
+            <div className="flex flex-wrap gap-[9px]" aria-hidden="true">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <Skeleton key={i} className="h-[42px] w-[76px] rounded-xl" />
+              ))}
+            </div>
+          ) : slots.length === 0 ? (
+            <p className="bg-muted text-muted-foreground rounded-lg border p-4 text-sm">
+              Nenhum horário livre nesse dia.
+            </p>
+          ) : (
+            <div className="flex flex-wrap gap-[9px]" role="group" aria-label="Horários disponíveis">
+              {slots.map((slot) => {
+                const busy = slot.available === false;
+                const isSelected = slot.startsAtIso === selectedSlotIso;
+                return (
+                  <button
+                    key={slot.startsAtIso}
+                    type="button"
+                    disabled={busy}
+                    aria-pressed={isSelected}
+                    onClick={() => onSelectSlot(slot)}
+                    className={cn(
+                      'w-[76px] rounded-xl py-[11px] text-center text-sm transition-[transform,background-color,border-color]',
+                      busy
+                        ? 'cursor-not-allowed bg-[#f2ebda] font-semibold text-[#b9ad93] line-through'
+                        : isSelected
+                          ? 'bg-coral font-bold text-white'
+                          : 'bg-card text-foreground hover:border-coral border font-semibold active:scale-95',
+                    )}
+                  >
+                    {fmtTime(slot.label)}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
 
-      {professionalPicker}
-
-      {/* Aviso quando o usuário foi trazido de volta por expiração de horário. */}
-      {notice ? (
-        <p
-          role="alert"
-          className="border-destructive/40 bg-destructive/5 text-destructive flex items-start gap-2 rounded-lg border p-3 text-sm"
-        >
-          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-          <span>{notice}</span>
-        </p>
-      ) : null}
-
-      {/* Faixa horizontal rolável de chips de dia. */}
-      <div
-        ref={railRef}
-        className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-2"
-        role="radiogroup"
-        aria-label="Escolha o dia"
-      >
-        {railDays.length === 0 ? (
-          <p className="text-muted-foreground px-1 text-sm">Nenhuma data disponível.</p>
-        ) : (
-          railDays.map((day) => {
-            const { weekday, date } = splitDayLabel(day.label);
-            const isSelected = day.value === selectedDate;
-            const isClosed = !day.open;
-            return (
-              <button
-                key={day.value}
-                type="button"
-                role="radio"
-                data-day={day.value}
-                disabled={isClosed}
-                aria-checked={isSelected}
-                aria-current={isSelected ? 'date' : undefined}
-                aria-label={isClosed ? `${day.label} - sem atendimento` : day.label}
-                onClick={isClosed ? undefined : () => onSelectDate(day.value)}
-                className={
-                  'focus-visible:ring-ring min-w-18 flex min-h-11 shrink-0 flex-col items-center justify-center gap-0.5 rounded-xl border px-3 py-2 text-center transition-colors focus-visible:outline-none focus-visible:ring-2 ' +
-                  (isSelected
-                    ? 'border-coral bg-coral text-white'
-                    : isClosed
-                      ? 'bg-muted/40 text-muted-foreground/50 cursor-not-allowed border-dashed'
-                      : 'bg-card text-foreground hover:border-coral/50')
-                }
-              >
-                <span
-                  className={
-                    'text-[11px] font-medium uppercase ' +
-                    (isSelected
-                      ? 'text-white/90'
-                      : isClosed
-                        ? 'text-muted-foreground/50'
-                        : 'text-muted-foreground')
-                  }
-                >
-                  {weekday.slice(0, 3)}
-                </span>
-                <span className="text-sm font-semibold">{date || day.label}</span>
-              </button>
-            );
-          })
-        )}
-      </div>
-
-      {/* Grade de horários. */}
-      <div className="space-y-3">
-        <p className="text-foreground flex items-center gap-1.5 text-sm font-medium">
-          <Clock className="h-4 w-4" aria-hidden="true" />
-          Horários disponíveis
-          {selectedDate ? (
-            <span className="text-muted-foreground font-normal capitalize">
-              · {railDays.find((d) => d.value === selectedDate)?.label ?? selectedDate}
-            </span>
-          ) : null}
-        </p>
-        {!selectedDate ? (
-          <p className="bg-muted text-muted-foreground rounded-lg border p-4 text-sm">
-            Selecione um dia para ver os horários.
-          </p>
-        ) : loadingSlots ? (
-          <div className="grid grid-cols-3 gap-2 sm:grid-cols-4" aria-hidden="true">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <Skeleton key={i} className="h-10 w-full rounded-md" />
-            ))}
+      {selectedSlot ? (
+        <StickyFooter>
+          <div className="min-w-0 flex-1">
+            <p className="text-muted-foreground truncate text-[11.5px]">
+              {buildSlotSummary(selectedSlot, professionals, timezone)}
+            </p>
+            <p className="text-foreground font-serif text-xl">{formatBRL(service.priceCents)}</p>
           </div>
-        ) : slots.length === 0 ? (
-          <p className="bg-muted text-muted-foreground rounded-lg border p-4 text-sm">
-            Nenhum horário livre nesse dia.
-          </p>
-        ) : (
-          <div
-            className="grid grid-cols-3 gap-2 sm:grid-cols-4"
-            role="group"
-            aria-label="Horários disponíveis"
+          <Button
+            type="button"
+            variant="coral"
+            size="pill"
+            className="px-8 active:scale-[0.98]"
+            onClick={onContinue}
+            disabled={continueDisabled}
+            aria-busy={continueDisabled}
           >
-            {slots.map((slot) => {
-              const isSelected = slot.startsAtIso === selectedSlotIso;
-              return (
-                <Button
-                  key={slot.startsAtIso}
-                  type="button"
-                  variant={isSelected ? 'coral' : 'outline'}
-                  size="sm"
-                  className="h-11"
-                  aria-pressed={isSelected}
-                  onClick={() => onSelectSlot(slot)}
-                >
-                  {slot.label}
-                </Button>
-              );
-            })}
-          </div>
-        )}
-      </div>
-    </div>
+            {continueLabel}
+          </Button>
+        </StickyFooter>
+      ) : null}
+    </>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Passo 2 - Contato + resumo / confirmação (form de submit real)
+// Passo contact - contato + resumo / recorrência / conta / confirmação
 // ---------------------------------------------------------------------------
 
+/** Botão de submit final - usa useFormStatus para o estado "pending". */
+function ConfirmButton({ disabled }: { disabled?: boolean }) {
+  const { pending } = useFormStatus();
+  return (
+    <Button
+      type="submit"
+      variant="coral"
+      size="pill"
+      className="w-full active:scale-[0.99]"
+      disabled={pending || disabled}
+      aria-busy={pending}
+    >
+      {pending ? 'Confirmando…' : 'Confirmar agendamento'}
+    </Button>
+  );
+}
+
 function StepConfirmar({
+  tenantName,
   slug,
   service,
   professionalId,
@@ -690,6 +1023,7 @@ function StepConfirmar({
   onAccountCreated,
   customerName,
 }: {
+  tenantName: string;
   slug: string;
   service: ServiceOption;
   /** Profissional escolhido ('' = sem preferência). Vai no submit. */
@@ -720,8 +1054,7 @@ function StepConfirmar({
   const phoneOk = phone.length >= 10;
   const nameOk = name.trim().length >= 2;
 
-  // Já tem conta? (logado ao chegar OU criou agora.) Aí o contato vira texto + "Editar"
-  // em vez de campos soltos - não faz sentido pedir de novo dados que a conta já tem.
+  // Já tem conta? (logado ao chegar OU criou agora.) Aí o contato vira texto + "Editar".
   const hasAccount = loggedIn || accountCreated;
 
   // Primeiro nome pra saudar (da conta logada ou do que ele digitou).
@@ -730,8 +1063,7 @@ function StepConfirmar({
   // Modal de cadastro inline - não tira o cliente do agendamento. Fecha via onSuccess.
   const [signupOpen, setSignupOpen] = useState(false);
 
-  // Modal de edição de contato (nome + telefone), só pra quem tem conta. Draft local:
-  // só grava no estado do agendamento (onChange*) ao clicar em Salvar.
+  // Modal de edição de contato (nome + telefone), só pra quem tem conta. Draft local.
   const [editOpen, setEditOpen] = useState(false);
   const [draftName, setDraftName] = useState(name);
   const [draftPhone, setDraftPhone] = useState(phone);
@@ -750,8 +1082,14 @@ function StepConfirmar({
   }
 
   return (
-    <div className="space-y-6">
-      <StepHeader title={STEP_TITLES[2]} onBack={onBack} headingRef={headingRef} />
+    <div className="space-y-5">
+      <StepChrome
+        tenantName={tenantName}
+        subtitle="Seus dados"
+        progress={null}
+        onBack={onBack}
+        headingRef={headingRef}
+      />
 
       {/* Resumo do que já foi escolhido (serviço + dia/hora), só leitura. */}
       <dl className="bg-card space-y-3 rounded-xl border p-4 text-sm">
@@ -777,8 +1115,7 @@ function StepConfirmar({
         </div>
       </dl>
 
-      {/* Recorrência é propriedade do próprio agendamento - fica junto do resumo
-          (lei da proximidade), antes de pedir contato ou oferecer conta. */}
+      {/* Recorrência é propriedade do próprio agendamento - fica junto do resumo. */}
       <div className="space-y-3">
         <p className="text-foreground flex items-center gap-1.5 text-sm font-medium">
           <Repeat className="h-4 w-4" aria-hidden="true" />
@@ -822,8 +1159,7 @@ function StepConfirmar({
         ) : null}
       </div>
 
-      {/* Contato. Com conta: mostra nome/telefone como texto (a conta já os tem) e um
-          "Editar" que abre um modal. Convidado: campos abertos, pois é a 1ª vez. */}
+      {/* Contato. Com conta: texto + "Editar". Convidado: campos abertos. */}
       {hasAccount ? (
         <div className="bg-card flex items-start justify-between gap-3 rounded-xl border p-4">
           <dl className="min-w-0 space-y-2 text-sm">
@@ -838,7 +1174,13 @@ function StepConfirmar({
           </dl>
           <Dialog open={editOpen} onOpenChange={setEditOpen}>
             <DialogTrigger asChild>
-              <Button type="button" variant="outline" size="sm" className="shrink-0" onClick={openEdit}>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="shrink-0"
+                onClick={openEdit}
+              >
                 <Pencil className="h-4 w-4" />
                 Editar
               </Button>
@@ -920,12 +1262,7 @@ function StepConfirmar({
         </div>
       )}
 
-      {/* Estado da conta no passo de confirmação:
-          - criou conta agora (modal) -> boas-vindas + como vincular (validar WhatsApp);
-          - já chegou logado          -> avisa que o agendamento entra na conta;
-          - convidado                 -> convite pra criar conta (modal inline, sem sair da página).
-          Abre num modal na PRÓPRIA página (não navega pra fora, não perde o progresso do
-          wizard); a sessão vem por cookie. */}
+      {/* Estado da conta (boas-vindas / logado / convite). */}
       {accountCreated ? (
         <div className="border-green/30 bg-green/5 space-y-1 rounded-xl border p-4">
           <p className="text-foreground flex items-center gap-1.5 text-sm font-medium">
@@ -1017,12 +1354,88 @@ function StepConfirmar({
 }
 
 // ---------------------------------------------------------------------------
-// Tela de sucesso
+// Tela de sucesso (hero animado + blocos web-only abaixo)
 // ---------------------------------------------------------------------------
 
 /**
- * Convite pra criar a área do cliente, com o telefone usado pré-preenchido (vira o
- * elo que liga a conta aos agendamentos). Aparece ao fim de cada agendamento.
+ * Painel de sucesso animado (espelha o overlay do app mobile): o card verde-escuro
+ * sobe da base, o selo entra com "mola" + anel pulsando, e título/card escalonam.
+ */
+function SuccessShell({
+  confirmed,
+  tenantName,
+  logoUrl,
+  summary,
+  priceLabel,
+}: {
+  confirmed: boolean;
+  tenantName: string;
+  logoUrl: string | null;
+  summary: string;
+  priceLabel: string | null;
+}) {
+  return (
+    <div className="animate-sheet-up bg-green-deep overflow-hidden rounded-2xl px-6 pb-7 pt-9 text-center">
+      <div className="flex justify-center">
+        <span
+          className={cn(
+            'animate-seal-pop flex h-20 w-20 items-center justify-center rounded-[26px]',
+            confirmed ? 'bg-green-bright animate-pulse-ring' : 'bg-coral animate-pulse-ring-coral',
+          )}
+        >
+          <Check
+            className={cn('h-9 w-9', confirmed ? 'text-green-deep' : 'text-white')}
+            strokeWidth={3}
+          />
+        </span>
+      </div>
+
+      <h2
+        className="animate-rise text-cream mt-6 font-serif text-3xl"
+        style={{ animationDelay: '0.12s' }}
+      >
+        {confirmed ? 'Tá ' : 'Horário '}
+        <span className={cn('italic', confirmed ? 'text-green-bright' : 'text-coral-soft')}>
+          {confirmed ? 'marcado!' : 'reservado!'}
+        </span>
+      </h2>
+      <p
+        className="animate-rise mx-auto mt-2.5 max-w-[16rem] text-sm leading-6 text-[#8fbfa4]"
+        style={{ animationDelay: '0.18s' }}
+      >
+        {confirmed
+          ? 'Enviamos os detalhes no seu WhatsApp e te esperamos no horário.'
+          : 'O estabelecimento confirma pelo WhatsApp - você não precisa fazer mais nada.'}
+      </p>
+
+      <div className="animate-rise mt-6" style={{ animationDelay: '0.24s' }}>
+        <div className="rounded-2xl border border-[rgba(47,211,122,0.28)] bg-[rgba(255,253,248,0.06)] p-4 text-left">
+          <div className="flex items-center gap-3">
+            {logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={logoUrl} alt="" className="h-11 w-11 rounded-xl object-cover" />
+            ) : (
+              <span className="bg-coral/20 text-coral flex h-11 w-11 items-center justify-center rounded-xl font-serif text-lg">
+                {tenantName.charAt(0)}
+              </span>
+            )}
+            <p className="text-paper truncate font-serif text-base">{tenantName}</p>
+          </div>
+          <div className="my-3 border-t border-dashed border-[rgba(143,191,164,0.4)]" />
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-cream flex-1 text-sm">{summary}</p>
+            {priceLabel ? (
+              <p className="text-coral shrink-0 font-serif text-base">{priceLabel}</p>
+            ) : null}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Convite pra criar a área do cliente, com o telefone usado pré-preenchido.
  */
 function CreateAccountCta({ phone }: { phone: string }) {
   const href = phone ? `/conta/criar?phone=${encodeURIComponent(phone)}` : '/conta/criar';
@@ -1042,10 +1455,7 @@ function CreateAccountCta({ phone }: { phone: string }) {
   );
 }
 
-/**
- * Fecho pra quem JÁ tem conta (chegou logado ou criou no modal): nada de "Criar
- * conta" de novo - só um atalho pra área do cliente, onde o agendamento aparece.
- */
+/** Fecho pra quem JÁ tem conta: só um atalho pra área do cliente. */
 function AccountLinkedCta() {
   return (
     <div className="space-y-2 border-t pt-4 text-center">
@@ -1064,7 +1474,10 @@ function AccountLinkedCta() {
 
 function SuccessScreen({
   confirmed,
+  tenantName,
+  logoUrl,
   summary,
+  priceLabel,
   slug,
   appointmentId,
   paymentAvailable,
@@ -1072,7 +1485,10 @@ function SuccessScreen({
   hasAccount,
 }: {
   confirmed: boolean;
+  tenantName: string;
+  logoUrl: string | null;
   summary: string;
+  priceLabel: string | null;
   slug: string;
   appointmentId: string;
   paymentAvailable: boolean;
@@ -1081,27 +1497,14 @@ function SuccessScreen({
   hasAccount: boolean;
 }) {
   return (
-    <div className="space-y-5 text-center">
-      <div className="flex justify-center">
-        {confirmed ? (
-          <CheckCircle2 className="text-green h-12 w-12" aria-hidden="true" />
-        ) : (
-          <PartyPopper className="text-coral h-12 w-12" aria-hidden="true" />
-        )}
-      </div>
-      <div className="space-y-2">
-        <h2 className="text-foreground font-serif text-2xl">
-          {confirmed ? 'Agendamento confirmado!' : 'Horário reservado!'}
-        </h2>
-        <p className="text-muted-foreground text-sm">
-          {confirmed
-            ? 'Está tudo certo! Enviamos os detalhes no seu WhatsApp e te esperamos no horário.'
-            : 'Seu horário já está reservado. O estabelecimento confirma pelo WhatsApp - você não precisa fazer mais nada.'}
-        </p>
-      </div>
-      <p className="bg-card text-foreground whitespace-pre-line rounded-xl border p-4 text-left text-sm">
-        {summary}
-      </p>
+    <div className="space-y-6">
+      <SuccessShell
+        confirmed={confirmed}
+        tenantName={tenantName}
+        logoUrl={logoUrl}
+        summary={summary}
+        priceLabel={priceLabel}
+      />
 
       {paymentAvailable ? <PaymentBlock slug={slug} appointmentId={appointmentId} /> : null}
 
@@ -1111,12 +1514,13 @@ function SuccessScreen({
 }
 
 /**
- * Tela de sucesso de uma série recorrente: mostra quantas ocorrências entraram e
- * quais datas foram puladas (horário ocupado / fora do expediente). Não oferece
- * pagamento online (cobrança de série fica fora de escopo nesta versão).
+ * Sucesso de uma série recorrente: hero animado + quantas ocorrências entraram e
+ * quais datas foram puladas. Não oferece pagamento online (fora de escopo).
  */
 function SeriesSuccessScreen({
   confirmed,
+  tenantName,
+  logoUrl,
   summary,
   createdCount,
   skipped,
@@ -1126,13 +1530,14 @@ function SeriesSuccessScreen({
   hasAccount,
 }: {
   confirmed: boolean;
+  tenantName: string;
+  logoUrl: string | null;
   summary: string;
   createdCount: number;
   skipped: string[];
   beyondHorizon: number;
   timezone: string;
   phone: string;
-  /** Já tem conta (logado ou criada no fluxo): não reoferecer "Criar conta". */
   hasAccount: boolean;
 }) {
   const skippedFmt = skipped.map((iso) =>
@@ -1146,26 +1551,15 @@ function SeriesSuccessScreen({
     }).format(new Date(iso)),
   );
   return (
-    <div className="space-y-5 text-center">
-      <div className="flex justify-center">
-        {confirmed ? (
-          <CheckCircle2 className="text-green h-12 w-12" aria-hidden="true" />
-        ) : (
-          <PartyPopper className="text-coral h-12 w-12" aria-hidden="true" />
-        )}
-      </div>
-      <div className="space-y-2">
-        <h2 className="text-foreground font-serif text-2xl">
-          {confirmed ? 'Agendamentos confirmados!' : 'Horários reservados!'}
-        </h2>
-        <p className="text-muted-foreground text-sm">
-          Criamos {createdCount} {createdCount === 1 ? 'agendamento' : 'agendamentos'} recorrente
-          {createdCount === 1 ? '' : 's'}. Enviamos os detalhes no seu WhatsApp.
-        </p>
-      </div>
-      <p className="bg-card text-foreground whitespace-pre-line rounded-xl border p-4 text-left text-sm">
-        A partir de {summary}
-      </p>
+    <div className="space-y-6">
+      <SuccessShell
+        confirmed={confirmed}
+        tenantName={tenantName}
+        logoUrl={logoUrl}
+        summary={`${createdCount} ${createdCount === 1 ? 'horário' : 'horários'} · a partir de ${summary}`}
+        priceLabel={null}
+      />
+
       {skippedFmt.length > 0 ? (
         <div className="bg-muted text-muted-foreground rounded-xl border p-4 text-left text-sm">
           <p className="text-foreground font-medium">
@@ -1180,7 +1574,7 @@ function SeriesSuccessScreen({
         </div>
       ) : null}
       {beyondHorizon > 0 ? (
-        <p className="text-muted-foreground text-xs">
+        <p className="text-muted-foreground text-center text-xs">
           {beyondHorizon} {beyondHorizon === 1 ? 'data ficou' : 'datas ficaram'} além do limite de
           90 dias.
         </p>
@@ -1194,27 +1588,22 @@ function SeriesSuccessScreen({
 /**
  * Bloco de pagamento opcional na tela de sucesso. Gera a cobrança sob demanda
  * (Pix mostra QR + copia-e-cola; cartão abre o checkout hospedado do gateway).
- * Não bloqueia a agenda - pagamento é opcional.
  */
 function PaymentBlock({ slug, appointmentId }: { slug: string; appointmentId: string }) {
   const [paying, startPaying] = useTransition();
   const [pix, setPix] = useState<{ qrCode: string | null; copyPaste: string | null } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
-  // CPF do pagador: só aparece quando o servidor pede (`needsDocument`). Cliente
-  // recorrente com documento já salvo paga sem nunca ver o campo.
   const [document, setDocument] = useState('');
   const [askDocument, setAskDocument] = useState(false);
   const documentRef = useRef<HTMLInputElement>(null);
 
-  // Foca o campo de CPF assim que ele aparece (após o servidor pedir o documento).
   useEffect(() => {
     if (askDocument) documentRef.current?.focus();
   }, [askDocument]);
 
   function pay(method: 'PIX' | 'CREDIT_CARD') {
     if (paying) return;
-    // Se já estamos pedindo o CPF, valida localmente antes de ir ao servidor.
     if (askDocument && !isValidCpfCnpj(document)) {
       setError('CPF inválido. Confira os números e tente de novo.');
       documentRef.current?.focus();
@@ -1252,7 +1641,6 @@ function PaymentBlock({ slug, appointmentId }: { slug: string; appointmentId: st
         </p>
       </div>
 
-      {/* Campo de CPF: surge quando o gateway exige documento do pagador. */}
       {askDocument && !pix ? (
         <div className="space-y-1.5">
           <Label htmlFor="payment-document">CPF</Label>
@@ -1356,9 +1744,6 @@ function PaymentBlock({ slug, appointmentId }: { slug: string; appointmentId: st
 // ---------------------------------------------------------------------------
 
 // Contato salvo no dispositivo pra não redigitar WhatsApp/nome a cada agendamento.
-// localStorage (não cookie): o dado só interessa ao cliente, não precisa ir pro
-// servidor. Chave global (sem o slug) porque a pessoa usa o mesmo número em
-// qualquer negócio Demandaê.
 const CONTACT_STORAGE_KEY = 'demandae:booking-contact';
 
 type SavedContact = { phone: string; name: string };
@@ -1374,7 +1759,6 @@ function readSavedContact(): SavedContact | null {
     if (phone.length < 10) return null;
     return { phone, name: typeof parsed.name === 'string' ? parsed.name : '' };
   } catch {
-    // localStorage indisponível (modo privado / cota) ou JSON corrompido - ignora.
     return null;
   }
 }
@@ -1395,6 +1779,8 @@ function saveContact(contact: SavedContact) {
 
 export function PublicBooking({
   slug,
+  tenantName,
+  logoUrl,
   services,
   professionals,
   timezone,
@@ -1405,23 +1791,20 @@ export function PublicBooking({
   customerPhone,
 }: PublicBookingProps) {
   const router = useRouter();
-  const [step, setStep] = useState<Step>(0);
+  const [step, setStep] = useState<Step>('vitrine');
 
-  // Conta criada agora, pelo modal inline do passo de confirmação. Vive no raiz (não
-  // no passo) pra a tela de sucesso também saber - senão ofereceria "Criar conta" pra
-  // quem acabou de criar. `hasAccount` = já tinha OU criou agora.
+  // Há profissionais pra escolher? Define se o passo "select" existe.
+  const hasProfessionals = professionals.length > 0;
+
+  // Conta criada agora, pelo modal inline do passo de confirmação.
   const [accountCreated, setAccountCreated] = useState(false);
   const hasAccount = loggedIn || accountCreated;
   function handleAccountCreated() {
     setAccountCreated(true);
-    // Atualiza os server components (ex.: cabeçalho vira "Minha conta") sem perder o
-    // estado do wizard - refresh no App Router preserva o state dos client components.
     router.refresh();
   }
 
   // Dias atendíveis (carrossel) + janela do date-picker, gerados no fuso do tenant.
-  // openWeekdays nunca muda, então memoiza o Set; os dias só dependem dele e do
-  // horizonte. min/max são "hoje" e "hoje + horizonte" no fuso do tenant.
   const openWeekdaysSet = useMemo(() => new Set(openWeekdays), [openWeekdays]);
   const days = useMemo(
     () => buildBookingDays(timezone, openWeekdaysSet, horizonDays),
@@ -1433,25 +1816,19 @@ export function PublicBooking({
     [timezone, horizonDays],
   );
 
-  // Serviço escolhido (passo 0).
+  // Serviço escolhido (passo vitrine).
   const [serviceId, setServiceId] = useState('');
-  // Profissional escolhido no passo 1 (dia/hora). '' = sem preferência (sistema atribui).
+  // Profissional escolhido no passo select. '' = sem preferência (sistema atribui).
   const [professionalId, setProfessionalId] = useState('');
 
   // Contato (pedido só no passo final). phone = dígitos crus.
   const [phone, setPhone] = useState('');
   const [name, setName] = useState('');
   const [lookingUp, startLookup] = useTransition();
-  // Último telefone já consultado, pra não repetir o lookup automático do nome.
   const lookedUpPhoneRef = useRef('');
 
   // Pré-preenche o contato salvo de um agendamento anterior (mesmo dispositivo).
-  // Roda só no mount, via effect, pra não causar mismatch de hidratação (o SSR
-  // não tem acesso ao localStorage). O usuário começa no passo 0 (vitrine), então
-  // o campo de contato já chega preenchido quando ele avança pro passo 1.
   useEffect(() => {
-    // Logado: os dados vêm da conta (mais autoritativos que o cache do dispositivo),
-    // e o passo final mostra nome/telefone como texto + "Editar" em vez de campos.
     if (loggedIn) {
       if (customerName) setName(customerName);
       if (customerPhone) setPhone(customerPhone.replace(/\D/g, '').slice(0, 13));
@@ -1464,9 +1841,7 @@ export function PublicBooking({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only; props do servidor são estáveis.
   }, []);
 
-  // Auto-preenche o nome de quem já é cliente assim que o telefone fica válido -
-  // sem o campo de nome "aparecer do nada". Não sobrescreve o que o cliente já
-  // tiver digitado (ou preenchido a partir do dispositivo).
+  // Auto-preenche o nome de quem já é cliente assim que o telefone fica válido.
   useEffect(() => {
     if (phone.length < 10 || name.trim()) return;
     if (lookedUpPhoneRef.current === phone) return;
@@ -1483,31 +1858,26 @@ export function PublicBooking({
     });
   }, [phone, name, slug]);
 
-  // Passo 1 - dia / hora
-  const [dateStr, setDateStr] = useState('');
+  // Passo slot - dia / hora. Já abre no 1º dia com expediente (como o app mobile),
+  // então os horários carregam de cara em vez de "selecione um dia". buildBookingDays
+  // apara as pontas fechadas, então days[0] é sempre atendível.
+  const [dateStr, setDateStr] = useState<string>(() => days[0]?.value ?? '');
   const [slots, setSlots] = useState<AvailableSlot[]>([]);
   const [selectedSlotIso, setSelectedSlotIso] = useState('');
   const [loadingSlots, startLoadingSlots] = useTransition();
-  // Aviso exibido no passo 1 quando o usuário é trazido de volta por expiração
-  // do horário/serviço que tinha escolhido (em vez de pular de tela em silêncio).
   const [expiryNotice, setExpiryNotice] = useState<string | null>(null);
-  // Erro do submit em estado local (espelhado do useActionState): assim dá pra
-  // limpá-lo quando o cliente reescolhe dia/horário. Preso ao state da action, o
-  // erro do envio anterior ("já tem agendamento nesse dia") ficaria na tela mesmo
-  // depois de ele trocar de dia, até um novo submit.
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   // Recorrência (opcional, no passo de confirmação). 'NONE' = agendamento único.
   const [frequency, setFrequency] = useState<FrequencyChoice>('NONE');
   const [occurrences, setOccurrences] = useState(4);
 
-  const [state, formAction] = useActionState<CreatePublicBookingResult, FormData>(
+  const [state, formAction, isSubmitting] = useActionState<CreatePublicBookingResult, FormData>(
     createPublicBooking,
     undefined,
   );
 
-  // Foco gerenciado: ao TROCAR de passo, leva o foco pro título do passo. Pula
-  // o primeiro efeito (mount) pra não roubar o foco do usuário na vitrine.
+  // Foco gerenciado: ao TROCAR de passo, leva o foco pro título do passo.
   const headingRef = useRef<HTMLHeadingElement>(null);
   const isMountedRef = useRef(false);
   useEffect(() => {
@@ -1522,7 +1892,7 @@ export function PublicBooking({
     () => services.find((s) => s.id === serviceId) ?? null,
     [services, serviceId],
   );
-  // Profissionais que atendem o serviço escolhido. O seletor só aparece com >1.
+  // Profissionais que atendem o serviço escolhido (avatares do passo select).
   const serviceProfs = useMemo(
     () =>
       selectedService
@@ -1530,9 +1900,6 @@ export function PublicBooking({
         : [],
     [professionals, selectedService],
   );
-  const showProfPicker = serviceProfs.length > 1;
-  // Rótulo do dia escolhido pro resumo. Usa o do carrossel quando existe; senão
-  // (dia vindo do date-picker, fora dos chips) rotula a data ISO no fuso do tenant.
   const selectedDayLabel = useMemo(() => {
     if (!dateStr) return '';
     return days.find((d) => d.value === dateStr)?.label ?? labelFromIso(dateStr, timezone);
@@ -1541,13 +1908,15 @@ export function PublicBooking({
     () => slots.find((s) => s.startsAtIso === selectedSlotIso) ?? null,
     [slots, selectedSlotIso],
   );
+  const professionalLabel = professionalId
+    ? (professionals.find((p) => p.id === professionalId)?.name ?? 'Profissional')
+    : 'Qualquer prof.';
+  const lowestPrice = services.length ? Math.min(...services.map((s) => s.priceCents)) : null;
 
   // Busca slots sempre que serviço + dia estiverem escolhidos. Reseta o slot
-  // selecionado a cada mudança - trocar de dia ou de serviço (voltando atrás)
-  // recarrega tudo, então um horário que expirou some da grade na re-busca.
+  // selecionado a cada mudança (trocar dia/serviço/prof. some com o horário expirado).
   useEffect(() => {
     setSelectedSlotIso('');
-    // Trocar serviço/dia/profissional invalida qualquer erro do submit anterior.
     setSubmitError(null);
     if (!serviceId || !dateStr) {
       setSlots([]);
@@ -1559,8 +1928,7 @@ export function PublicBooking({
     });
   }, [slug, serviceId, dateStr, professionalId]);
 
-  // Sucesso do submit → tela final. Salva o contato pra pré-preencher no próximo
-  // agendamento feito deste dispositivo.
+  // Sucesso do submit → tela final. Salva o contato pro próximo agendamento.
   useEffect(() => {
     if (state && 'ok' in state && state.ok) {
       saveContact({ phone, name });
@@ -1568,21 +1936,17 @@ export function PublicBooking({
     }
   }, [state]);
 
-  // Espelha o erro da action pro estado local; a limpeza acontece ao reescolher
-  // dia/horário (effect de slots acima e handleSelectSlot).
+  // Espelha o erro da action pro estado local (limpa ao reescolher dia/horário).
   useEffect(() => {
     if (state && 'error' in state) setSubmitError(state.error);
   }, [state]);
 
-  // Robustez: se chegamos no passo 2 (confirmação) mas o slot/serviço escolhido
-  // sumiu (ex.: a re-busca o removeu por ter expirado), volta pro passo 1 pra
-  // reescolher. Não dispara durante uma re-busca em andamento (loadingSlots) nem
-  // após o sucesso (step vira 'done'), evitando bounce indevido antes do sucesso.
-  // Diferente do bounce silencioso: avisa o usuário POR QUÊ ele voltou de tela.
+  // Robustez: se chegamos na confirmação mas o slot/serviço sumiu (expirou), volta
+  // pro passo de horário pra reescolher, com aviso.
   useEffect(() => {
-    if (step === 2 && !loadingSlots && (!selectedService || !selectedSlot)) {
+    if (step === 'contact' && !loadingSlots && (!selectedService || !selectedSlot)) {
       setExpiryNotice('Esse horário não está mais disponível. Escolha outro, por favor.');
-      setStep(1);
+      setStep('slot');
     }
   }, [step, loadingSlots, selectedService, selectedSlot]);
 
@@ -1592,8 +1956,23 @@ export function PublicBooking({
     setServiceId(service.id);
     // Troca de serviço pode mudar quem atende: volta pra "sem preferência".
     setProfessionalId('');
-    // Vai direto pro dia/hora: o cliente vê os horários antes de dar qualquer dado.
-    setStep(1);
+    // Com profissionais, passa pelo "profissional e serviço"; senão vai direto ao horário.
+    setStep(hasProfessionals ? 'select' : 'slot');
+  }
+
+  /** Botão "Agendar" do rodapé da vitrine: começa pelo 1º serviço. */
+  function handleQuickBook() {
+    const first = services[0];
+    if (first) handleSelectService(first);
+  }
+
+  /** Trocar de serviço dentro do passo select (mantém o passo). */
+  function handlePickServiceInSelect(service: ServiceOption) {
+    setServiceId(service.id);
+    // Anti-beco: prof. escolhido que não faz o serviço volta pra "Qualquer".
+    if (professionalId && !service.professionalIds.includes(professionalId)) {
+      setProfessionalId('');
+    }
   }
 
   /** Escolher um dia limpa o aviso de expiração (o usuário já está reescolhendo). */
@@ -1602,26 +1981,76 @@ export function PublicBooking({
     setDateStr(value);
   }
 
+  /** Tocar num horário só o SELECIONA (fica coral); o rodapé "Continuar" avança. */
   function handleSelectSlot(slot: AvailableSlot) {
     setExpiryNotice(null);
-    // Reescolher o horário (mesmo dia) também invalida o erro do submit anterior.
     setSubmitError(null);
     setSelectedSlotIso(slot.startsAtIso);
-    setStep(2);
   }
+
+  // Cliente logado com nome+telefone da conta já agenda direto pelo rodapé do
+  // horário (igual ao app mobile): não faz sentido pedir "Seus dados" de quem já
+  // tem conta. Visitante (ou logado sem contato completo) segue pro passo de dados.
+  const contactReady = name.trim().length >= 2 && phone.length >= 10;
+  const canDirectConfirm = loggedIn && contactReady;
+
+  /** Submete o agendamento direto (sem passar pelo passo "Seus dados"). */
+  function submitDirect() {
+    if (!selectedService || !selectedSlotIso) return;
+    const fd = new FormData();
+    fd.set('slug', slug);
+    fd.set('serviceId', serviceId);
+    fd.set('professionalId', professionalId);
+    fd.set('slotIso', selectedSlotIso);
+    fd.set('name', name.trim());
+    fd.set('phone', phone);
+    fd.set('frequency', 'NONE');
+    // Dentro de startTransition pra o isSubmitting (isPending) do useActionState
+    // atualizar - chamar a action solta, fora de transition, não reflete o pending.
+    startTransition(() => formAction(fd));
+  }
+
+  // Voltar do passo slot: pro select (se existe) ou pra vitrine.
+  const slotBackStep: Step = hasProfessionals ? 'select' : 'vitrine';
+  const donePrice = selectedService ? formatBRL(selectedService.priceCents) : null;
 
   // --- Render -----------------------------------------------------------------
 
   return (
-    <div className="mx-auto w-full max-w-md space-y-6">
-      {step !== 'done' && step !== 0 ? <ProgressDots step={step} /> : null}
-
-      {step === 0 ? (
-        <StepVitrine services={services} onSelect={handleSelectService} headingRef={headingRef} />
+    <div className="mx-auto w-full max-w-md">
+      {step === 'vitrine' ? (
+        <StepVitrine
+          tenantName={tenantName}
+          logoUrl={logoUrl}
+          services={services}
+          lowestPrice={lowestPrice}
+          onSelectService={handleSelectService}
+          onQuickBook={handleQuickBook}
+        />
       ) : null}
 
-      {step === 1 ? (
+      {step === 'select' && selectedService ? (
+        <StepSelect
+          tenantName={tenantName}
+          services={services}
+          serviceProfs={serviceProfs}
+          serviceId={serviceId}
+          professionalId={professionalId}
+          professionalLabel={professionalLabel}
+          onPickProfessional={setProfessionalId}
+          onPickService={handlePickServiceInSelect}
+          onBack={() => setStep('vitrine')}
+          onContinue={() => setStep('slot')}
+          headingRef={headingRef}
+          professionals={professionals}
+        />
+      ) : null}
+
+      {step === 'slot' && selectedService ? (
         <StepDiaHora
+          tenantName={tenantName}
+          service={selectedService}
+          professionals={professionals}
           days={days}
           timezone={timezone}
           minDate={minDate}
@@ -1631,44 +2060,27 @@ export function PublicBooking({
           onSelectDate={handleSelectDate}
           slots={slots}
           loadingSlots={loadingSlots}
+          selectedSlot={selectedSlot}
           selectedSlotIso={selectedSlotIso}
           onSelectSlot={handleSelectSlot}
           notice={expiryNotice}
-          professionalPicker={
-            showProfPicker ? (
-              <div className="space-y-1.5">
-                <label
-                  htmlFor="public-professional"
-                  className="text-foreground text-sm font-medium"
-                >
-                  Profissional
-                </label>
-                <select
-                  id="public-professional"
-                  className="border-input focus-visible:ring-ring bg-card flex h-10 w-full rounded-lg border px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-2"
-                  value={professionalId}
-                  onChange={(e) => {
-                    setExpiryNotice(null);
-                    setProfessionalId(e.target.value);
-                  }}
-                >
-                  <option value="">Sem preferência</option>
-                  {serviceProfs.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name ?? 'Profissional'}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            ) : null
+          error={submitError}
+          twoStep={hasProfessionals}
+          onBack={() => setStep(slotBackStep)}
+          onEditService={() => setStep(slotBackStep)}
+          // Logado com contato: confirma direto (pula "Seus dados"). Visitante avança.
+          onContinue={canDirectConfirm ? submitDirect : () => setStep('contact')}
+          continueLabel={
+            canDirectConfirm ? (isSubmitting ? 'Confirmando…' : 'Confirmar') : 'Continuar'
           }
-          onBack={() => setStep(0)}
+          continueDisabled={canDirectConfirm && isSubmitting}
           headingRef={headingRef}
         />
       ) : null}
 
-      {step === 2 && selectedService && selectedSlot ? (
+      {step === 'contact' && selectedService && selectedSlot ? (
         <StepConfirmar
+          tenantName={tenantName}
           slug={slug}
           service={selectedService}
           professionalId={professionalId}
@@ -1685,7 +2097,7 @@ export function PublicBooking({
           onChangeOccurrences={setOccurrences}
           error={submitError}
           formAction={formAction}
-          onBack={() => setStep(1)}
+          onBack={() => setStep('slot')}
           headingRef={headingRef}
           loggedIn={loggedIn}
           accountCreated={accountCreated}
@@ -1698,6 +2110,8 @@ export function PublicBooking({
         'series' in state ? (
           <SeriesSuccessScreen
             confirmed={state.status === 'CONFIRMED'}
+            tenantName={tenantName}
+            logoUrl={logoUrl}
             summary={state.summary}
             createdCount={state.createdCount}
             skipped={state.skipped}
@@ -1709,7 +2123,10 @@ export function PublicBooking({
         ) : (
           <SuccessScreen
             confirmed={state.status === 'CONFIRMED'}
+            tenantName={tenantName}
+            logoUrl={logoUrl}
             summary={state.summary}
+            priceLabel={donePrice}
             slug={slug}
             appointmentId={state.appointmentId}
             paymentAvailable={state.paymentAvailable}

@@ -22,7 +22,7 @@ type CardTenant = {
   slug: string;
   logoUrl: string | null;
   address: string | null;
-  distanceKm?: number;
+  distanceKm?: number | null;
 };
 
 // "800 m" / "1,2 km" a partir da distância em km.
@@ -36,6 +36,9 @@ export default function BuscarScreen() {
   const [results, setResults] = useState<DiscoverTenant[]>([]);
   const [searching, setSearching] = useState(false);
   const [searched, setSearched] = useState(false);
+  // Falha de rede/API na busca - pra não mostrar "Nada encontrado" (que sugere que o
+  // estabelecimento não existe) quando na verdade a requisição quebrou.
+  const [error, setError] = useState(false);
   const params = useLocalSearchParams<{ tab?: string }>();
   const [tab, setTab] = useState<'buscar' | 'favoritos'>(
     params.tab === 'favoritos' ? 'favoritos' : 'buscar',
@@ -87,8 +90,10 @@ export default function BuscarScreen() {
           lng: coords?.lng,
         });
         setResults(results);
+        setError(false);
       } catch {
         setResults([]);
+        setError(true);
       } finally {
         setSearching(false);
         setSearched(true);
@@ -101,6 +106,7 @@ export default function BuscarScreen() {
         setResults([]);
         setSearched(false);
         setSearching(false);
+        setError(false);
         return;
       }
       setSearching(true);
@@ -241,7 +247,9 @@ export default function BuscarScreen() {
               </Text>
             </View>
           )
-        ) : searching || (nearby && results.length === 0 && !searched) || locStatus === 'checking' ? (
+        ) : searching ||
+          (nearby && results.length === 0 && !searched) ||
+          (locStatus === 'checking' && query.trim().length < 2) ? (
           <View>
             {[0, 1, 2, 3].map((i) => (
               <View
@@ -279,6 +287,18 @@ export default function BuscarScreen() {
               pelo nome do estabelecimento acima.
             </Text>
           </View>
+        ) : error ? (
+          <View className="mt-16 items-center px-6">
+            <View className="bg-coral/10 mb-4 h-20 w-20 items-center justify-center rounded-full">
+              <SearchIcon size={34} color="#ff5a36" />
+            </View>
+            <Text style={fraunces} className="text-ink text-center text-xl">
+              Não deu pra buscar agora
+            </Text>
+            <Text className="text-muted mt-2 text-center text-base leading-6">
+              Verifique sua conexão e tente de novo.
+            </Text>
+          </View>
         ) : searched ? (
           <View className="mt-16 items-center px-6">
             <View className="bg-coral/10 mb-4 h-20 w-20 items-center justify-center rounded-full">
@@ -288,7 +308,7 @@ export default function BuscarScreen() {
               Nada encontrado
             </Text>
             <Text className="text-muted mt-2 text-center text-base leading-6">
-              Confira o nome ou peça o @ do estabelecimento pra ele.
+              Confira o nome ou peça o link do estabelecimento pra ele.
             </Text>
           </View>
         ) : (

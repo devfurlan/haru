@@ -1,4 +1,5 @@
 import { prisma } from '@haru/database';
+import { matchesSearch } from '@haru/shared';
 
 import { requireAdmin } from './admin-auth';
 
@@ -6,15 +7,10 @@ import { requireAdmin } from './admin-auth';
 export async function listTenants(search?: string) {
   await requireAdmin(); // defesa em profundidade: o banco é cross-tenant e sem RLS
   const q = search?.trim();
-  return prisma.tenant.findMany({
-    where: q
-      ? {
-          OR: [
-            { name: { contains: q, mode: 'insensitive' } },
-            { slug: { contains: q, mode: 'insensitive' } },
-          ],
-        }
-      : undefined,
+  // Carrega todos e filtra em JS por nome+slug (sem acento, tokenizado) - mesmo matcher do
+  // diretório do app, pra "st lima" achar "stlima-barber" aqui também. A tela já lista todos
+  // os tenants sem paginar; filtrar o mesmo conjunto não custa fetch extra.
+  const rows = await prisma.tenant.findMany({
     select: {
       id: true,
       name: true,
@@ -30,6 +26,7 @@ export async function listTenants(search?: string) {
     },
     orderBy: { createdAt: 'desc' },
   });
+  return q ? rows.filter((t) => matchesSearch(q, t.name, t.slug)) : rows;
 }
 
 export type TenantListRow = Awaited<ReturnType<typeof listTenants>>[number];

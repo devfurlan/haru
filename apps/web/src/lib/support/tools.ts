@@ -1,6 +1,5 @@
 import 'server-only';
 
-import { prisma } from '@haru/database';
 import type { CustomerAccount } from '@haru/database';
 
 import { getCustomerAppointments } from '@/lib/customer';
@@ -15,6 +14,7 @@ import {
   getPublicSlots,
   getPublicTenantData,
 } from '@/lib/public-booking';
+import { searchDirectory } from '@/lib/tenant-directory';
 
 import type { SupportTool } from './ai';
 
@@ -69,10 +69,14 @@ const BOOKING_TOOLS: SupportTool[] = [
   },
   {
     name: 'buscar_estabelecimentos',
-    description: 'Busca estabelecimentos por nome para o cliente agendar do zero.',
+    description:
+      'Busca estabelecimentos por nome ou link (slug) para o cliente agendar do zero. ' +
+      'Tolera acento, maiúsculas e ordem das palavras.',
     parameters: {
       type: 'object',
-      properties: { q: { type: 'string', description: 'Trecho do nome (>= 2 letras).' } },
+      properties: {
+        q: { type: 'string', description: 'Trecho do nome ou do link/slug (>= 2 letras).' },
+      },
       required: ['q'],
     },
   },
@@ -196,12 +200,7 @@ export async function executeSupportTool(
       if (!account) return json({ error: 'indisponível' });
       const q = str(args.q).trim();
       if (q.length < 2) return json({ resultados: [] });
-      const rows = await prisma.tenant.findMany({
-        where: { publicBookingEnabled: true, name: { contains: q, mode: 'insensitive' } },
-        select: { name: true, slug: true },
-        orderBy: { name: 'asc' },
-        take: 10,
-      });
+      const rows = await searchDirectory({ q, limit: 10 });
       return json({ resultados: rows.map((r) => ({ nome: r.name, slug: r.slug })) });
     }
 

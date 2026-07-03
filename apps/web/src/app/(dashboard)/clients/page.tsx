@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { requireUserAndTenant } from '@/lib/auth';
-import { formatPhoneBR } from '@haru/shared';
+import { formatPhoneBR, matchesSearch } from '@haru/shared';
 
 interface PageProps {
   searchParams: Promise<{ q?: string }>;
@@ -17,22 +17,28 @@ export default async function ClientsPage({ searchParams }: PageProps) {
   const query = q?.trim() ?? '';
   const digits = query.replace(/\D/g, '');
 
-  const clients = await prisma.contact.findMany({
-    where: {
-      tenantId: tenant.id,
-      ...(query
-        ? {
-            OR: [
-              { name: { contains: query, mode: 'insensitive' as const } },
-              ...(digits ? [{ phone: { contains: digits } }] : []),
-            ],
-          }
-        : {}),
-    },
-    orderBy: [{ name: 'asc' }, { createdAt: 'desc' }],
-    take: 200,
-    include: { _count: { select: { appointments: true } } },
-  });
+  // ponytail: com termo, carrega os contatos do tenant e filtra em JS - o Postgres aqui não
+  // tem unaccent, então "Joao" precisar casar "João" tem que ser fora do banco. Sem termo,
+  // mantém o take no banco (carregamento padrão não regride). Migrar pra unaccent(name)/
+  // coluna normalizada + índice se um tenant passar de alguns milhares de contatos.
+  const clients = query
+    ? (
+        await prisma.contact.findMany({
+          where: { tenantId: tenant.id },
+          orderBy: [{ name: 'asc' }, { createdAt: 'desc' }],
+          include: { _count: { select: { appointments: true } } },
+        })
+      )
+        .filter(
+          (c) => matchesSearch(query, c.name) || (digits.length > 0 && c.phone.includes(digits)),
+        )
+        .slice(0, 200)
+    : await prisma.contact.findMany({
+        where: { tenantId: tenant.id },
+        orderBy: [{ name: 'asc' }, { createdAt: 'desc' }],
+        take: 200,
+        include: { _count: { select: { appointments: true } } },
+      });
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">

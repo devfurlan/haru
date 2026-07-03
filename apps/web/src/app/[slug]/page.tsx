@@ -92,30 +92,33 @@ export default async function TenantPublicPage({ params }: { params: Promise<{ s
             </Link>
           </Button>
         </div>
-        <header className="space-y-2 text-center">
-          <div className="flex items-center justify-center gap-3">
-            {tenant.logoUrl && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={tenant.logoUrl}
-                alt={tenant.name}
-                className="h-16 w-16 shrink-0 rounded-full object-cover"
-              />
-            )}
-            <h1 className="font-serif text-4xl font-semibold tracking-[-0.01em]">{tenant.name}</h1>
-          </div>
-          <p className="text-muted-foreground text-sm">
-            {showBooking
-              ? 'Agende seu horário em segundos.'
-              : waLink
-                ? 'Agende pelo WhatsApp em segundos.'
-                : 'Confira nossos serviços e horários.'}
-          </p>
-        </header>
+        {/* Com booking ativo, o hero do 1º passo do wizard já mostra nome/logo do
+            negócio (visual do app mobile) - o header centralizado só aparece quando
+            NÃO há agendamento online (vitrine estática). */}
+        {!showBooking && (
+          <header className="space-y-2 text-center">
+            <div className="flex items-center justify-center gap-3">
+              {tenant.logoUrl && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={tenant.logoUrl}
+                  alt={tenant.name}
+                  className="h-16 w-16 shrink-0 rounded-full object-cover"
+                />
+              )}
+              <h1 className="font-serif text-4xl font-semibold tracking-[-0.01em]">{tenant.name}</h1>
+            </div>
+            <p className="text-muted-foreground text-sm">
+              {waLink ? 'Agende pelo WhatsApp em segundos.' : 'Confira nossos serviços e horários.'}
+            </p>
+          </header>
+        )}
 
         {showBooking && (
           <PublicBooking
             slug={tenant.slug}
+            tenantName={tenant.name}
+            logoUrl={tenant.logoUrl}
             services={tenant.services.map((s) => ({
               id: s.id,
               name: s.name,
