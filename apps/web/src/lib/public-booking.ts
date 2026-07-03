@@ -3,7 +3,12 @@
 // 'use server' e acoplados a FormData/cookies). Aqui é lib pura, importável pelos route
 // handlers. Se mudar a regra de booking no web, refletir aqui (e vice-versa).
 
-import { type AppointmentStatus, type CustomerAccount, prisma } from '@haru/database';
+import {
+  type AppointmentStatus,
+  type CustomerAccount,
+  prisma,
+  type RecurrenceFrequency,
+} from '@haru/database';
 
 import {
   BOOKING_HORIZON_DAYS,
@@ -14,7 +19,9 @@ import {
 } from '@haru/shared';
 
 import { loadPublicTenant } from '@/app/[slug]/_tenant';
+import { createAppointmentSeries } from '@/lib/appointment-series';
 import { createBookingCore } from '@/lib/appointment-mutations';
+import { notifyAppointmentCreated } from '@/lib/notify';
 import { getServiceDaySlots, resolveBookingProfessional } from '@/lib/professionals';
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -109,12 +116,25 @@ export type PublicBookingResult =
       summary: string;
       appointmentId: string;
       paymentAvailable: boolean;
+    }
+  | {
+      ok: true;
+      series: true;
+      status: AppointmentStatus;
+      /** Resumo da 1ª ocorrência (serviço · dia/hora). */
+      summary: string;
+      createdCount: number;
+      /** ISOs (UTC) das ocorrências puladas por conflito/expediente. */
+      skipped: string[];
+      beyondHorizon: number;
     };
 
 /**
- * Cria um agendamento avulso a partir do app. Revalida o slot no servidor, resolve o
+ * Cria um agendamento a partir do app. Revalida o slot no servidor, resolve o
  * profissional, aplica o anti-spam por telefone/dia e faz o upsert do contato. Se
  * `account` estiver logado e com o MESMO telefone verificado, vincula o contato à conta.
+ * Com `recurrence`, cria uma SÉRIE (semanal/quinzenal/mensal) em vez de avulso - espelha
+ * o ramo de série de app/[slug]/actions.ts.
  */
 export async function createSinglePublicBooking(input: {
   slug: string;
@@ -124,6 +144,8 @@ export async function createSinglePublicBooking(input: {
   name: string;
   phone: string;
   account: CustomerAccount | null;
+  /** Recorrência opcional. Ausente = agendamento avulso (comportamento atual). */
+  recurrence?: { frequency: RecurrenceFrequency; occurrences: number };
 }): Promise<PublicBookingResult> {
   const tenant = await loadPublicTenant(input.slug);
   if (!tenant || !tenant.publicBookingEnabled) {
@@ -191,6 +213,54 @@ export async function createSinglePublicBooking(input: {
   }
 
   const status = tenant.publicBookingConfirmation as unknown as AppointmentStatus;
+
+  const when = new Intl.DateTimeFormat('pt-BR', {
+    timeZone: tenant.timezone,
+    weekday: 'long',
+    day: '2-digit',
+    month: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(startsAt);
+
+  // Recorrência: cria a série (pula ocorrências ocupadas/fora do expediente e avisa).
+  // A série fica com o profissional resolvido (fixo) e valida cada ocorrência contra a
+  // grade DELE. Não oferece pagamento online (cobrança de série fora de escopo).
+  if (input.recurrence) {
+    const professionalBlocks = tenant.scheduleBlocks.filter(
+      (b) => b.professionalId === professionalId,
+    );
+    const result = await createAppointmentSeries({
+      tenantId: tenant.id,
+      contactId: contact.id,
+      serviceId: service.id,
+      durationMinutes: service.durationMinutes,
+      tz: tenant.timezone,
+      frequency: input.recurrence.frequency,
+      occurrences: input.recurrence.occurrences,
+      firstStartsAtIso: startsAt.toISOString(),
+      status,
+      professionalId,
+      blocks: professionalBlocks,
+    });
+    if (result.createdIds.length === 0) {
+      return { error: 'Nenhum horário da série está livre. Escolha outro horário inicial.' };
+    }
+    // A série não notifica sozinha (diferente do avulso, que notifica via createBookingCore).
+    notifyAppointmentCreated(result.createdIds[0]).catch((err) =>
+      console.error('[public-booking] notify create (series) failed', err),
+    );
+    return {
+      ok: true,
+      series: true,
+      status,
+      summary: `${service.name} · ${when}`,
+      createdCount: result.createdIds.length,
+      skipped: result.skipped,
+      beyondHorizon: result.beyondHorizon,
+    };
+  }
+
   const created = await createBookingCore({
     tenantId: tenant.id,
     contactId: contact.id,
@@ -202,14 +272,6 @@ export async function createSinglePublicBooking(input: {
   });
   if ('error' in created) return { error: created.error };
 
-  const when = new Intl.DateTimeFormat('pt-BR', {
-    timeZone: tenant.timezone,
-    weekday: 'long',
-    day: '2-digit',
-    month: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(startsAt);
   const paymentAvailable = service.priceCents > 0 && tenant.paymentProvider !== null;
 
   return {

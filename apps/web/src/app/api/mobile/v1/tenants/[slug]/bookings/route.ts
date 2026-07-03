@@ -1,9 +1,14 @@
-// POST /api/mobile/v1/tenants/[slug]/bookings - cria um agendamento avulso (do zero).
-// Body: { serviceId, professionalId?, slotIso, name, phone }. Auth opcional: se vier um
-// Bearer válido e o telefone bater com a conta, o contato é vinculado à conta.
+// POST /api/mobile/v1/tenants/[slug]/bookings - cria um agendamento (avulso ou série).
+// Body: { serviceId, professionalId?, slotIso, name, phone, frequency?, occurrences? }.
+// Com frequency (WEEKLY|BIWEEKLY|MONTHLY) + occurrences, cria uma série recorrente. Auth
+// opcional: se vier um Bearer válido e o telefone bater com a conta, o contato é vinculado.
+import type { RecurrenceFrequency } from '@haru/database';
+
 import { requireCustomerAccountFromBearer } from '@/lib/customer-auth';
 import { createSinglePublicBooking } from '@/lib/public-booking';
 import { withinRateLimit } from '@/lib/ratelimit';
+
+const FREQUENCIES: RecurrenceFrequency[] = ['WEEKLY', 'BIWEEKLY', 'MONTHLY'];
 
 export async function POST(req: Request, { params }: { params: Promise<{ slug: string }> }) {
   // Auth opcional aqui, então trava spam de agendamentos por IP (enche a agenda do tenant).
@@ -17,6 +22,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
     slotIso?: unknown;
     name?: unknown;
     phone?: unknown;
+    frequency?: unknown;
+    occurrences?: unknown;
   } | null;
 
   const serviceId = typeof body?.serviceId === 'string' ? body.serviceId : '';
@@ -24,6 +31,15 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
   const slotIso = typeof body?.slotIso === 'string' ? body.slotIso : '';
   const name = typeof body?.name === 'string' ? body.name : '';
   const phone = typeof body?.phone === 'string' ? body.phone : '';
+
+  // Recorrência opcional: só vira série se a frequência for válida. occurrences é
+  // limitado a 2..12 (mesmo range do web); fora disso, cai pra avulso silenciosamente.
+  const freq = body?.frequency;
+  const occ = typeof body?.occurrences === 'number' ? Math.trunc(body.occurrences) : 0;
+  const recurrence =
+    typeof freq === 'string' && FREQUENCIES.includes(freq as RecurrenceFrequency) && occ >= 2
+      ? { frequency: freq as RecurrenceFrequency, occurrences: Math.min(occ, 12) }
+      : undefined;
 
   const account = await requireCustomerAccountFromBearer(req);
 
@@ -35,6 +51,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
     name,
     phone,
     account,
+    recurrence,
   });
   if ('error' in result) return Response.json(result, { status: 400 });
   return Response.json(result);

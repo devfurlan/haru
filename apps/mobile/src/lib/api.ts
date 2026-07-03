@@ -90,13 +90,27 @@ export type PublicTenant = {
   professionals: { id: string; name: string | null }[];
 };
 
-export type BookingResult = {
-  ok: true;
-  status: string;
-  summary: string;
-  appointmentId: string;
-  paymentAvailable: boolean;
-};
+export type RecurrenceFrequency = 'WEEKLY' | 'BIWEEKLY' | 'MONTHLY';
+
+export type BookingResult =
+  | {
+      ok: true;
+      status: string;
+      summary: string;
+      appointmentId: string;
+      paymentAvailable: boolean;
+    }
+  | {
+      ok: true;
+      series: true;
+      status: string;
+      /** Resumo da 1ª ocorrência (serviço · dia/hora). */
+      summary: string;
+      createdCount: number;
+      /** ISOs (UTC) das ocorrências puladas por conflito/expediente. */
+      skipped: string[];
+      beyondHorizon: number;
+    };
 
 export type PaymentResult =
   | {
@@ -242,6 +256,9 @@ export const api = {
       slotIso: string;
       name: string;
       phone: string;
+      /** Recorrência opcional. Ausente/omitido = agendamento avulso. */
+      frequency?: RecurrenceFrequency;
+      occurrences?: number;
     },
   ) =>
     request<BookingResult>(`/tenants/${slug}/bookings`, {

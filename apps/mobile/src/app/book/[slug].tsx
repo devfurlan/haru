@@ -23,11 +23,29 @@ import { PaymentSection } from '@/components/payment-section';
 import { PressScale } from '@/components/press-scale';
 import { SlotPicker } from '@/components/slot-picker';
 import { Text, TextInput } from '@/components/text';
-import { api, ApiError, type PublicService, type PublicTenant } from '@/lib/api';
+import {
+  api,
+  ApiError,
+  type PublicService,
+  type PublicTenant,
+  type RecurrenceFrequency,
+} from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useFavorites } from '@/lib/use-favorites';
 
 type Step = 'service' | 'select' | 'slot' | 'contact';
+
+// Recorrência (opcional, no passo de contato). 'NONE' = agendamento avulso. Espelha o
+// web (StepConfirmar); as constantes de UI ficam inline (a lógica de série é do servidor).
+type FrequencyChoice = 'NONE' | RecurrenceFrequency;
+const FREQUENCY_ORDER: FrequencyChoice[] = ['NONE', 'WEEKLY', 'BIWEEKLY', 'MONTHLY'];
+const FREQUENCY_LABELS: Record<FrequencyChoice, string> = {
+  NONE: 'Uma vez',
+  WEEKLY: 'Toda semana',
+  BIWEEKLY: 'A cada 15 dias',
+  MONTHLY: 'Todo mês',
+};
+const OCCURRENCE_OPTIONS = [2, 3, 4, 6, 8, 12];
 
 const fraunces = { fontFamily: 'Fraunces_600SemiBold' };
 
@@ -163,9 +181,13 @@ export default function BookScreen() {
   const [phone, setPhone] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [booked, setBooked] = useState<{ appointmentId: string; paymentAvailable: boolean } | null>(
-    null,
-  );
+  const [frequency, setFrequency] = useState<FrequencyChoice>('NONE');
+  const [occurrences, setOccurrences] = useState(4);
+  const [booked, setBooked] = useState<
+    | { kind: 'single'; appointmentId: string; paymentAvailable: boolean }
+    | { kind: 'series'; createdCount: number; skipped: string[]; beyondHorizon: number }
+    | null
+  >(null);
 
   useEffect(() => {
     let active = true;
@@ -218,8 +240,22 @@ export default function BookScreen() {
         slotIso,
         name: name.trim(),
         phone,
+        ...(frequency !== 'NONE' ? { frequency, occurrences } : {}),
       });
-      setBooked({ appointmentId: result.appointmentId, paymentAvailable: result.paymentAvailable });
+      if ('series' in result) {
+        setBooked({
+          kind: 'series',
+          createdCount: result.createdCount,
+          skipped: result.skipped,
+          beyondHorizon: result.beyondHorizon,
+        });
+      } else {
+        setBooked({
+          kind: 'single',
+          appointmentId: result.appointmentId,
+          paymentAvailable: result.paymentAvailable,
+        });
+      }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Não foi possível agendar');
     } finally {
@@ -264,6 +300,51 @@ export default function BookScreen() {
   const lowestPrice = tenant.services.length
     ? Math.min(...tenant.services.map((s) => s.priceCents))
     : null;
+
+  // Ações do rodapé da tela de sucesso (adicionar à agenda / compartilhar / CTA),
+  // iguais no sucesso avulso e de série - definidas uma vez.
+  const successActions = (
+    <>
+      {slotIso && service ? (
+        <View className="flex-row gap-2.5">
+          <PressScale
+            onPress={() =>
+              Linking.openURL(
+                gcalUrl(
+                  `${service.name} · ${tenant.name}`,
+                  slotIso,
+                  service.durationMinutes,
+                  tenant.name,
+                ),
+              )
+            }
+            className="flex-1 flex-row items-center justify-center gap-2 rounded-2xl border border-[rgba(250,245,234,0.24)] py-3.5 active:opacity-70"
+          >
+            <CalendarIcon size={18} color="#faf5ea" />
+            <Text className="text-cream text-[14px] font-bold">Agenda</Text>
+          </PressScale>
+          <PressScale
+            onPress={() =>
+              Share.share({
+                message: `${service.name} na ${tenant.name}\n${buildConfirmWhen(slotIso, tenant.timezone)}`,
+              })
+            }
+            className="flex-1 flex-row items-center justify-center gap-2 rounded-2xl border border-[rgba(250,245,234,0.24)] py-3.5 active:opacity-70"
+          >
+            <ShareIcon />
+            <Text className="text-cream text-[14px] font-bold">Compartilhar</Text>
+          </PressScale>
+        </View>
+      ) : null}
+      <Link href={session ? '/' : '/login'} asChild>
+        <Pressable className="bg-coral items-center rounded-2xl py-4 active:scale-[0.98] active:opacity-90">
+          <Text className="text-[15px] font-bold text-white">
+            {session ? 'Ver meus agendamentos' : 'Entrar na minha conta'}
+          </Text>
+        </Pressable>
+      </Link>
+    </>
+  );
 
   return (
     <View className="flex-1">
@@ -557,6 +638,55 @@ export default function BookScreen() {
                 </>
               ) : step === 'contact' ? (
                 <View>
+                  {/* Recorrência (espelha o web StepConfirmar): repetir o agendamento. */}
+                  <Text className="text-ink-soft mb-2.5 text-[12.5px] font-semibold">
+                    Repetir agendamento?
+                  </Text>
+                  <View className="mb-4 flex-row flex-wrap gap-2">
+                    {FREQUENCY_ORDER.map((f) => {
+                      const sel = frequency === f;
+                      return (
+                        <Pressable
+                          key={f}
+                          onPress={() => setFrequency(f)}
+                          className={`rounded-full px-3.5 py-2 ${sel ? 'bg-coral' : 'border-edge bg-paper border'}`}
+                        >
+                          <Text
+                            className={`text-[13px] font-semibold ${sel ? 'text-white' : 'text-ink'}`}
+                          >
+                            {FREQUENCY_LABELS[f]}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                  {frequency !== 'NONE' ? (
+                    <>
+                      <Text className="text-sub mb-2 text-xs">Quantas vezes no total?</Text>
+                      <View className="mb-2 flex-row flex-wrap gap-2">
+                        {OCCURRENCE_OPTIONS.map((n) => {
+                          const sel = occurrences === n;
+                          return (
+                            <Pressable
+                              key={n}
+                              onPress={() => setOccurrences(n)}
+                              className={`rounded-full px-4 py-2 ${sel ? 'bg-coral' : 'border-edge bg-paper border'}`}
+                            >
+                              <Text
+                                className={`text-[13px] font-semibold ${sel ? 'text-white' : 'text-ink'}`}
+                              >
+                                {n}×
+                              </Text>
+                            </Pressable>
+                          );
+                        })}
+                      </View>
+                      <Text className="text-sub mb-4 text-[11.5px]">
+                        Pulamos datas sem horário livre (até 90 dias).
+                      </Text>
+                    </>
+                  ) : null}
+
                   <Text className="text-ink-soft mb-1.5 text-[12.5px] font-semibold">Nome</Text>
                   <TextInput
                     className="border-edge bg-paper text-ink mb-4 rounded-[14px] border px-4 py-[15px] text-base"
@@ -626,30 +756,44 @@ export default function BookScreen() {
             {/* Rodapé do passo dia+horário: resumo do horário + confirmar (design 10). */}
             {step === 'slot' && slotIso && service ? (
               <View
-                className="bg-cream border-line flex-row items-center gap-3.5 border-t px-6 pt-3.5"
+                className="bg-cream border-line border-t px-6 pt-3"
                 style={{ paddingBottom: insets.bottom + 12 }}
               >
-                <View className="flex-1">
-                  <Text className="text-sub text-[11.5px]" numberOfLines={1}>
-                    {slotSummary}
-                  </Text>
-                  <Text style={fraunces} className="text-ink text-[20px]">
-                    {formatBRL(service.priceCents)}
-                  </Text>
-                </View>
-                <PressScale
-                  onPress={handleSlotConfirm}
-                  disabled={submitting}
-                  className="bg-coral items-center rounded-2xl px-8 py-4 active:opacity-90"
-                >
-                  {submitting ? (
-                    <ActivityIndicator color="#ffffff" size="small" />
-                  ) : (
-                    <Text className="text-[15px] font-bold text-white">
-                      {session && hasContact ? 'Confirmar' : 'Continuar'}
+                {/* Logado confirma direto; quem quiser repetir abre as opções (recorrência). */}
+                {session && hasContact ? (
+                  <Pressable
+                    onPress={() => setStep('contact')}
+                    hitSlop={6}
+                    className="mb-2.5 flex-row items-center justify-center active:opacity-60"
+                  >
+                    <Text className="text-sub text-xs underline">
+                      Repetir toda semana? Ver opções
                     </Text>
-                  )}
-                </PressScale>
+                  </Pressable>
+                ) : null}
+                <View className="flex-row items-center gap-3.5">
+                  <View className="flex-1">
+                    <Text className="text-sub text-[11.5px]" numberOfLines={1}>
+                      {slotSummary}
+                    </Text>
+                    <Text style={fraunces} className="text-ink text-[20px]">
+                      {formatBRL(service.priceCents)}
+                    </Text>
+                  </View>
+                  <PressScale
+                    onPress={handleSlotConfirm}
+                    disabled={submitting}
+                    className="bg-coral items-center rounded-2xl px-8 py-4 active:opacity-90"
+                  >
+                    {submitting ? (
+                      <ActivityIndicator color="#ffffff" size="small" />
+                    ) : (
+                      <Text className="text-[15px] font-bold text-white">
+                        {session && hasContact ? 'Confirmar' : 'Continuar'}
+                      </Text>
+                    )}
+                  </PressScale>
+                </View>
               </View>
             ) : null}
           </>
@@ -657,7 +801,29 @@ export default function BookScreen() {
       </KeyboardAvoidingView>
       </SafeAreaView>
 
-      {booked ? (
+      {booked && booked.kind === 'series' ? (
+        <BookingSuccess
+          titlePlain="Tudo"
+          titleAccent="marcado!"
+          message={`Criamos ${booked.createdCount} ${booked.createdCount === 1 ? 'horário recorrente' : 'horários recorrentes'}. Enviamos a confirmação pro seu WhatsApp e e-mail.`}
+          tenant={{ name: tenant.name, logoUrl: tenant.logoUrl }}
+          line={service?.name ?? null}
+          when={slotIso ? buildConfirmWhen(slotIso, tenant.timezone) : null}
+          price={service ? formatBRL(service.priceCents) : null}
+        >
+          {booked.skipped.length > 0 || booked.beyondHorizon > 0 ? (
+            <Text className="text-center text-[12px] leading-5 text-[#8fbfa4]">
+              {booked.skipped.length > 0
+                ? `Pulamos ${booked.skipped.length} ${booked.skipped.length === 1 ? 'data sem horário livre. ' : 'datas sem horário livre. '}`
+                : ''}
+              {booked.beyondHorizon > 0
+                ? `${booked.beyondHorizon} ${booked.beyondHorizon === 1 ? 'data ficou' : 'datas ficaram'} além de 90 dias.`
+                : ''}
+            </Text>
+          ) : null}
+          {successActions}
+        </BookingSuccess>
+      ) : booked ? (
         <BookingSuccess
           titlePlain="Tá"
           titleAccent="marcado!"
@@ -670,39 +836,7 @@ export default function BookScreen() {
           {booked.paymentAvailable ? (
             <PaymentSection slug={slug} appointmentId={booked.appointmentId} />
           ) : null}
-          {slotIso && service ? (
-            <View className="flex-row gap-2.5">
-              <PressScale
-                onPress={() =>
-                  Linking.openURL(
-                    gcalUrl(`${service.name} · ${tenant.name}`, slotIso, service.durationMinutes, tenant.name),
-                  )
-                }
-                className="flex-1 flex-row items-center justify-center gap-2 rounded-2xl border border-[rgba(250,245,234,0.24)] py-3.5 active:opacity-70"
-              >
-                <CalendarIcon size={18} color="#faf5ea" />
-                <Text className="text-cream text-[14px] font-bold">Agenda</Text>
-              </PressScale>
-              <PressScale
-                onPress={() =>
-                  Share.share({
-                    message: `${service.name} na ${tenant.name}\n${buildConfirmWhen(slotIso, tenant.timezone)}`,
-                  })
-                }
-                className="flex-1 flex-row items-center justify-center gap-2 rounded-2xl border border-[rgba(250,245,234,0.24)] py-3.5 active:opacity-70"
-              >
-                <ShareIcon />
-                <Text className="text-cream text-[14px] font-bold">Compartilhar</Text>
-              </PressScale>
-            </View>
-          ) : null}
-          <Link href={session ? '/' : '/login'} asChild>
-            <Pressable className="bg-coral items-center rounded-2xl py-4 active:scale-[0.98] active:opacity-90">
-              <Text className="text-[15px] font-bold text-white">
-                {session ? 'Ver meus agendamentos' : 'Entrar na minha conta'}
-              </Text>
-            </Pressable>
-          </Link>
+          {successActions}
         </BookingSuccess>
       ) : null}
     </View>
