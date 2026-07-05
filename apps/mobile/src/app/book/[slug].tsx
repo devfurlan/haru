@@ -1,11 +1,10 @@
+import { Image } from 'expo-image';
 import { Link, router, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Keyboard,
   KeyboardAvoidingView,
-  Linking,
-  Platform,
   Pressable,
   ScrollView,
   Share,
@@ -14,8 +13,18 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle, Path } from 'react-native-svg';
 
-import { type AvailableSlot, formatBRL, formatDuration, maskPhoneBRInput } from '@haru/shared';
+import {
+  type AvailableSlot,
+  formatBRL,
+  formatDuration,
+  isoDateInTz,
+  maskPhoneBRInput,
+  RECURRENCE_MAX_HORIZON_DAYS,
+  type SeriesOccurrencePreview,
+  type SeriesOccurrenceStatus,
+} from '@haru/shared';
 
+import { AddToCalendarSheet } from '@/components/add-to-calendar-sheet';
 import { BookingSuccess } from '@/components/booking-success';
 import { CalendarIcon } from '@/components/calendar-icon';
 import { HeartIcon } from '@/components/heart-icon';
@@ -40,7 +49,7 @@ type Step = 'service' | 'select' | 'slot' | 'contact';
 type FrequencyChoice = 'NONE' | RecurrenceFrequency;
 const FREQUENCY_ORDER: FrequencyChoice[] = ['NONE', 'WEEKLY', 'BIWEEKLY', 'MONTHLY'];
 const FREQUENCY_LABELS: Record<FrequencyChoice, string> = {
-  NONE: 'Uma vez',
+  NONE: 'Não',
   WEEKLY: 'Toda semana',
   BIWEEKLY: 'A cada 15 dias',
   MONTHLY: 'Todo mês',
@@ -98,22 +107,6 @@ function buildConfirmWhen(iso: string, timezone: string) {
   return `${wd}, ${dm} · ${time}`;
 }
 
-// Link "adicionar à agenda" via template do Google Agenda (abre app/navegador) - sem
-// dependência nativa de calendário. ponytail: cobre iOS e Android; trocar por expo-calendar
-// se quiserem o seletor de calendário do SO.
-function gcalUrl(title: string, iso: string, minutes: number, location: string) {
-  const fmt = (d: Date) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
-  const start = new Date(iso);
-  const end = new Date(start.getTime() + minutes * 60000);
-  const q = [
-    'action=TEMPLATE',
-    `text=${encodeURIComponent(title)}`,
-    `dates=${fmt(start)}/${fmt(end)}`,
-    `location=${encodeURIComponent(location)}`,
-  ].join('&');
-  return `https://calendar.google.com/calendar/render?${q}`;
-}
-
 function ShareIcon({ size = 18, color = '#faf5ea' }: { size?: number; color?: string }) {
   return (
     <Svg
@@ -157,6 +150,169 @@ function ProgressBar({ current }: { current: Step }) {
   );
 }
 
+const OCC_STATUS_LABEL: Record<SeriesOccurrenceStatus, string> = {
+  free: 'livre',
+  taken: 'ocupado',
+  closed: 'sem expediente',
+  past: 'fora do prazo',
+  beyond: 'além de 90 dias',
+};
+
+// "Sáb, 05/07" e "10h" a partir de um ISO, no fuso do tenant (linhas da prévia).
+function fmtOccDate(iso: string, tz: string) {
+  const d = new Date(iso);
+  const wdRaw = new Intl.DateTimeFormat('pt-BR', { timeZone: tz, weekday: 'short' })
+    .format(d)
+    .replace('.', '');
+  const wd = wdRaw.charAt(0).toUpperCase() + wdRaw.slice(1);
+  const dm = new Intl.DateTimeFormat('pt-BR', { timeZone: tz, day: '2-digit', month: '2-digit' }).format(
+    d,
+  );
+  return `${wd}, ${dm}`;
+}
+function fmtOccTime(iso: string, tz: string) {
+  return new Intl.DateTimeFormat('pt-BR', { timeZone: tz, hour: '2-digit', minute: '2-digit' })
+    .format(new Date(iso))
+    .replace(':', 'h')
+    .replace(/h00$/, 'h');
+}
+
+// Uma linha da prévia editável: data (mesmo dia/horário do 1º agendamento) + status.
+// "Trocar dia/horário" abre um seletor de dia + horário (SlotPicker) semeado no dia da
+// ocorrência, buscando horários do MESMO profissional da série - cobre feriado/dia lotado.
+// A 1ª (âncora) é fixa.
+function SeriesRow({
+  occ,
+  index,
+  timezone,
+  slug,
+  serviceId,
+  professionalId,
+  openWeekdays,
+  edit,
+  swapOpen,
+  onToggleSwap,
+  onSwap,
+  onRemove,
+  onRestore,
+}: {
+  occ: SeriesOccurrencePreview;
+  index: number;
+  timezone: string;
+  slug: string;
+  serviceId: string;
+  /** Profissional resolvido da série - os horários trocados têm que ser DELE. */
+  professionalId: string;
+  openWeekdays: number[];
+  edit: string | 'removed' | undefined;
+  swapOpen: boolean;
+  onToggleSwap: () => void;
+  onSwap: (pickIso: string) => void;
+  onRemove: () => void;
+  onRestore: () => void;
+}) {
+  const isAnchor = index === 0;
+  const removed = edit === 'removed';
+  // 'removed' também é string - só é ISO trocado quando NÃO é o marcador de remoção.
+  const swappedIso = !removed && typeof edit === 'string' ? edit : null;
+  const shownIso = swappedIso ?? occ.targetIso;
+  const dropped = occ.status === 'past' || occ.status === 'beyond';
+  const conflict =
+    !isAnchor && !removed && !swappedIso && (occ.status === 'taken' || occ.status === 'closed');
+  const OK = '#0e7a45';
+  const WARN = '#b45309';
+  const MUTED = '#8a9a90';
+
+  const loadSlots = useCallback(
+    // Busca de série (90 dias, profissional fixo) - não a de avulso, que corta em 60.
+    (dateStr: string) =>
+      api.seriesDaySlots(slug, serviceId, professionalId, dateStr).then((r) => r.slots),
+    [slug, serviceId, professionalId],
+  );
+
+  return (
+    <View
+      className={`rounded-2xl border px-3.5 py-3 ${
+        conflict
+          ? 'border-[#e6b980] bg-[#fbf3e6]'
+          : removed || dropped
+            ? 'border-edge border-dashed bg-[#efeadd]'
+            : 'border-edge bg-paper'
+      }`}
+    >
+      <View className="flex-row items-center">
+        <View className="flex-1">
+          <Text
+            className={`text-[13.5px] font-semibold ${
+              removed || dropped ? 'text-sub line-through' : 'text-ink'
+            }`}
+          >
+            {fmtOccDate(shownIso, timezone)}
+            <Text className="text-sub font-normal">{`  ·  ${fmtOccTime(shownIso, timezone)}`}</Text>
+          </Text>
+        </View>
+        {isAnchor ? (
+          <Text style={{ color: OK }} className="text-[12px] font-semibold">
+            ✓ 1º horário
+          </Text>
+        ) : removed ? (
+          <Pressable onPress={onRestore} hitSlop={6}>
+            <Text className="text-coral text-[12px] font-bold">Desfazer</Text>
+          </Pressable>
+        ) : dropped ? (
+          <Text style={{ color: MUTED }} className="text-[12px]">
+            {OCC_STATUS_LABEL[occ.status]}
+          </Text>
+        ) : swappedIso ? (
+          <Text style={{ color: OK }} className="text-[12px] font-semibold">
+            ✓ trocado
+          </Text>
+        ) : occ.status === 'free' ? (
+          <Text style={{ color: OK }} className="text-[12px] font-semibold">
+            ✓ livre
+          </Text>
+        ) : (
+          <Text style={{ color: WARN }} className="text-[12px] font-semibold">
+            {OCC_STATUS_LABEL[occ.status]}
+          </Text>
+        )}
+      </View>
+
+      {!isAnchor && !removed && !dropped ? (
+        <View className="mt-2 flex-row items-center gap-4">
+          <Pressable onPress={onToggleSwap} hitSlop={6}>
+            <Text className="text-ink text-[12px] font-semibold underline">
+              {swapOpen ? 'Fechar' : 'Trocar dia/horário'}
+            </Text>
+          </Pressable>
+          <Pressable onPress={onRemove} hitSlop={6}>
+            <Text className="text-sub text-[12px] underline">Remover</Text>
+          </Pressable>
+        </View>
+      ) : null}
+
+      {swapOpen && !removed ? (
+        <View className="border-edge mt-3 border-t pt-3">
+          <SlotPicker
+            timezone={timezone}
+            openWeekdays={openWeekdays}
+            loadSlots={loadSlots}
+            onConfirm={(iso) => onSwap(iso)}
+            submitting={false}
+            // Semeia (dia + destaque do horário) na escolha ATUAL (trocada, se houver),
+            // não na original - senão reabrir "Trocar" volta pro dia/hora antigo.
+            initialDay={isoDateInTz(new Date(shownIso), timezone)}
+            selectedSlot={shownIso}
+            horizonDays={RECURRENCE_MAX_HORIZON_DAYS}
+            dayLabel="Trocar dia"
+            timeLabel="Horário"
+          />
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
 export default function BookScreen() {
   const { slug } = useLocalSearchParams<{ slug: string }>();
   const { session } = useAuth();
@@ -183,11 +339,21 @@ export default function BookScreen() {
   const [error, setError] = useState<string | null>(null);
   const [frequency, setFrequency] = useState<FrequencyChoice>('NONE');
   const [occurrences, setOccurrences] = useState(4);
+  // Prévia editável da recorrência: ocorrências (mesmo dia/horário) + edições do cliente.
+  // edits[targetIso]: string = horário escolhido (alvo ou trocado); 'removed' = tirada.
+  const [preview, setPreview] = useState<SeriesOccurrencePreview[] | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  const [edits, setEdits] = useState<Record<string, string | 'removed'>>({});
+  const [swapOpenIso, setSwapOpenIso] = useState<string | null>(null);
+  // Profissional resolvido da série (vem da prévia); usado ao trocar o dia de uma ocorrência.
+  const [previewProfessionalId, setPreviewProfessionalId] = useState('');
   const [booked, setBooked] = useState<
     | { kind: 'single'; appointmentId: string; paymentAvailable: boolean }
     | { kind: 'series'; createdCount: number; skipped: string[]; beyondHorizon: number }
     | null
   >(null);
+  const [calOpen, setCalOpen] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -212,7 +378,10 @@ export default function BookScreen() {
       .then((me) => {
         if (!active) return;
         if (me.name) setName(me.name);
-        if (me.phone) setPhone(maskPhoneBRInput(me.phone));
+        // Telefone do cadastro vive em pendingPhone até a verificação por OTP; usa ele no
+        // fallback (igual ao web) senão o logado cai no form "Seus dados" sem necessidade.
+        const phone = me.phone ?? me.pendingPhone;
+        if (phone) setPhone(maskPhoneBRInput(phone));
       })
       .catch(() => {});
     return () => {
@@ -228,6 +397,63 @@ export default function BookScreen() {
     [slug, service, professionalId],
   );
 
+  // Prévia editável da recorrência: recarrega ao mudar frequência/quantidade/slot/profissional.
+  useEffect(() => {
+    if (frequency === 'NONE' || !slotIso || !service) {
+      setPreview(null);
+      setEdits({});
+      setPreviewError(null);
+      return;
+    }
+    let active = true;
+    setPreviewLoading(true);
+    setPreviewError(null);
+    setSwapOpenIso(null);
+    api
+      .previewSeries(slug, {
+        serviceId: service.id,
+        professionalId: professionalId ?? undefined,
+        slotIso,
+        frequency,
+        occurrences,
+      })
+      .then((res) => {
+        if (!active) return;
+        setPreview(res.occurrences);
+        setPreviewProfessionalId(res.professionalId);
+        setEdits({});
+      })
+      .catch((err) => {
+        if (active)
+          setPreviewError(
+            err instanceof ApiError ? err.message : 'Não foi possível carregar as datas.',
+          );
+      })
+      .finally(() => {
+        if (active) setPreviewLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [frequency, occurrences, slotIso, professionalId, slug, service]);
+
+  // ISOs finais: âncora sempre entra; livres no alvo; conflitos só se trocados; resto fora.
+  const chosenIsos = useMemo(() => {
+    if (frequency === 'NONE' || !preview) return [];
+    const out: string[] = [];
+    preview.forEach((occ, i) => {
+      if (i === 0) {
+        out.push(occ.targetIso);
+        return;
+      }
+      const e = edits[occ.targetIso];
+      if (e === 'removed') return;
+      if (typeof e === 'string') out.push(e);
+      else if (occ.status === 'free') out.push(occ.targetIso);
+    });
+    return out;
+  }, [frequency, preview, edits]);
+
   async function handleConfirm() {
     if (!service || !slotIso) return;
     Keyboard.dismiss(); // some o teclado antes da tela de sucesso subir
@@ -240,7 +466,7 @@ export default function BookScreen() {
         slotIso,
         name: name.trim(),
         phone,
-        ...(frequency !== 'NONE' ? { frequency, occurrences } : {}),
+        ...(frequency !== 'NONE' ? { frequency, slotIsos: chosenIsos } : {}),
       });
       if ('series' in result) {
         setBooked({
@@ -294,7 +520,11 @@ export default function BookScreen() {
   }
 
   const hasContact = name.trim().length >= 2 && phone.replace(/\D/g, '').length >= 10;
-  const canConfirm = hasContact && !submitting;
+  const isSeries = frequency !== 'NONE';
+  // Logado com contato completo não precisa dos campos nome+WhatsApp - a conta já tem.
+  const hideContact = !!session && hasContact;
+  const seriesReady = !isSeries || (!previewLoading && chosenIsos.length >= 2);
+  const canConfirm = hasContact && !submitting && seriesReady;
 
   const canBook = tenant.publicBookingEnabled && tenant.services.length > 0;
   const lowestPrice = tenant.services.length
@@ -308,16 +538,7 @@ export default function BookScreen() {
       {slotIso && service ? (
         <View className="flex-row gap-2.5">
           <PressScale
-            onPress={() =>
-              Linking.openURL(
-                gcalUrl(
-                  `${service.name} · ${tenant.name}`,
-                  slotIso,
-                  service.durationMinutes,
-                  tenant.name,
-                ),
-              )
-            }
+            onPress={() => setCalOpen(true)}
             className="flex-1 flex-row items-center justify-center gap-2 rounded-2xl border border-[rgba(250,245,234,0.24)] py-3.5 active:opacity-70"
           >
             <CalendarIcon size={18} color="#faf5ea" />
@@ -350,7 +571,7 @@ export default function BookScreen() {
     <View className="flex-1">
       <SafeAreaView className="bg-cream flex-1" edges={['top']}>
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior="padding"
         className="flex-1"
       >
         {step === 'service' ? (
@@ -492,8 +713,9 @@ export default function BookScreen() {
             <ScrollView className="flex-1 px-6" contentContainerClassName="pb-12 pt-4">
               {step === 'select' ? (
                 <>
-                  {/* Profissional (design 09): "Qualquer" + avatares dos profissionais. */}
-                  {tenant.professionals.length > 0 ? (
+                  {/* Profissional (design 09): "Qualquer" + avatares dos profissionais.
+                      Estabelecimento com um único profissional não mostra a seleção. */}
+                  {tenant.professionals.length > 1 ? (
                     <>
                       <Text className="text-ink text-[13px] font-semibold">Profissional</Text>
                       <ScrollView
@@ -520,13 +742,22 @@ export default function BookScreen() {
                               className="items-center"
                             >
                               <View
-                                className={`bg-green-deep h-[60px] w-[60px] items-center justify-center rounded-[18px] ${
+                                className={`bg-green-deep h-[60px] w-[60px] items-center justify-center overflow-hidden rounded-[18px] ${
                                   sel ? 'border-[2.5px] border-coral' : ''
                                 }`}
                               >
-                                <Text style={fraunces} className="text-green-bright text-2xl">
-                                  {(p.name ?? '?').trim().charAt(0).toUpperCase()}
-                                </Text>
+                                {p.avatarUrl ? (
+                                  <Image
+                                    source={{ uri: p.avatarUrl }}
+                                    style={{ width: '100%', height: '100%' }}
+                                    contentFit="cover"
+                                    transition={150}
+                                  />
+                                ) : (
+                                  <Text style={fraunces} className="text-green-bright text-2xl">
+                                    {(p.name ?? '?').trim().charAt(0).toUpperCase()}
+                                  </Text>
+                                )}
                               </View>
                               <Text className="text-sub mt-1.5 max-w-[64px] text-xs" numberOfLines={1}>
                                 {p.name ?? '—'}
@@ -541,7 +772,9 @@ export default function BookScreen() {
                   {/* Serviço (radio): escolhe qual serviço agendar. */}
                   <View className="mt-5 flex-row items-baseline justify-between">
                     <Text className="text-ink text-[13px] font-semibold">Serviço</Text>
-                    <Text className="text-sub text-[11.5px]">de todos os profissionais</Text>
+                    {tenant.professionals.length > 1 ? (
+                      <Text className="text-sub text-[11.5px]">de todos os profissionais</Text>
+                    ) : null}
                   </View>
                   <View className="mt-[11px] gap-[11px]">
                     {tenant.services.map((s) => {
@@ -660,10 +893,10 @@ export default function BookScreen() {
                       );
                     })}
                   </View>
-                  {frequency !== 'NONE' ? (
+                  {isSeries ? (
                     <>
                       <Text className="text-sub mb-2 text-xs">Quantas vezes no total?</Text>
-                      <View className="mb-2 flex-row flex-wrap gap-2">
+                      <View className="mb-3 flex-row flex-wrap gap-2">
                         {OCCURRENCE_OPTIONS.map((n) => {
                           const sel = occurrences === n;
                           return (
@@ -681,37 +914,94 @@ export default function BookScreen() {
                           );
                         })}
                       </View>
-                      <Text className="text-sub mb-4 text-[11.5px]">
-                        Pulamos datas sem horário livre (até 90 dias).
+                      <Text className="text-sub mb-3 text-[11.5px]">
+                        Mantemos o mesmo dia e horário. Onde não há vaga, você troca ou remove.
                       </Text>
+
+                      {/* Prévia editável das datas geradas. */}
+                      {previewLoading ? (
+                        <View className="mb-4 flex-row items-center gap-2 py-2">
+                          <ActivityIndicator color="#0e7a45" size="small" />
+                          <Text className="text-sub text-[13px]">Carregando datas…</Text>
+                        </View>
+                      ) : previewError ? (
+                        <Text className="text-destructive mb-4 text-sm">{previewError}</Text>
+                      ) : preview && preview.length > 0 ? (
+                        <View className="mb-4 gap-2">
+                          {preview.map((occ, i) => (
+                            <SeriesRow
+                              key={occ.targetIso}
+                              occ={occ}
+                              index={i}
+                              timezone={tenant.timezone}
+                              slug={slug}
+                              serviceId={service?.id ?? ''}
+                              professionalId={previewProfessionalId}
+                              openWeekdays={tenant.openWeekdays}
+                              edit={edits[occ.targetIso]}
+                              swapOpen={swapOpenIso === occ.targetIso}
+                              onToggleSwap={() =>
+                                setSwapOpenIso((cur) =>
+                                  cur === occ.targetIso ? null : occ.targetIso,
+                                )
+                              }
+                              onSwap={(pick) => {
+                                setEdits((e) => ({ ...e, [occ.targetIso]: pick }));
+                                setSwapOpenIso(null);
+                              }}
+                              onRemove={() =>
+                                setEdits((e) => ({ ...e, [occ.targetIso]: 'removed' }))
+                              }
+                              onRestore={() =>
+                                setEdits((e) => {
+                                  const copy = { ...e };
+                                  delete copy[occ.targetIso];
+                                  return copy;
+                                })
+                              }
+                            />
+                          ))}
+                          <Text className="text-sub mt-1 text-[11.5px]">
+                            {chosenIsos.length}{' '}
+                            {chosenIsos.length === 1
+                              ? 'horário será marcado'
+                              : 'horários serão marcados'}
+                            .
+                          </Text>
+                        </View>
+                      ) : null}
                     </>
                   ) : null}
 
-                  <Text className="text-ink-soft mb-1.5 text-[12.5px] font-semibold">Nome</Text>
-                  <TextInput
-                    className="border-edge bg-paper text-ink mb-4 rounded-[14px] border px-4 py-[15px] text-base"
-                    value={name}
-                    onChangeText={setName}
-                    placeholder="Seu nome"
-                    placeholderTextColor="#9aa8a0"
-                  />
-                  <Text className="text-ink-soft mb-1.5 text-[12.5px] font-semibold">WhatsApp</Text>
-                  <TextInput
-                    className="border-edge bg-paper text-ink mb-6 rounded-[14px] border px-4 py-[15px] text-base"
-                    value={phone}
-                    onChangeText={(t) => setPhone(maskPhoneBRInput(t))}
-                    placeholder="(11) 91234-5678"
-                    placeholderTextColor="#9aa8a0"
-                    keyboardType="phone-pad"
-                    inputMode="tel"
-                  />
-                  {error ? (
-                    <Text className="text-destructive mb-4 text-sm">{error}</Text>
-                  ) : null}
+                  {hideContact ? null : (
+                    <>
+                      <Text className="text-ink-soft mb-1.5 text-[12.5px] font-semibold">Nome</Text>
+                      <TextInput
+                        className="border-edge bg-paper text-ink mb-4 rounded-[14px] border px-4 py-[15px] text-base"
+                        value={name}
+                        onChangeText={setName}
+                        placeholder="Seu nome"
+                        placeholderTextColor="#9aa8a0"
+                      />
+                      <Text className="text-ink-soft mb-1.5 text-[12.5px] font-semibold">
+                        WhatsApp
+                      </Text>
+                      <TextInput
+                        className="border-edge bg-paper text-ink mb-6 rounded-[14px] border px-4 py-[15px] text-base"
+                        value={phone}
+                        onChangeText={(t) => setPhone(maskPhoneBRInput(t))}
+                        placeholder="(11) 91234-5678"
+                        placeholderTextColor="#9aa8a0"
+                        keyboardType="phone-pad"
+                        inputMode="tel"
+                      />
+                    </>
+                  )}
+                  {error ? <Text className="text-destructive mb-4 text-sm">{error}</Text> : null}
                   <PressScale
                     disabled={!canConfirm}
                     onPress={handleConfirm}
-                    className={`items-center rounded-2xl py-4 ${canConfirm ? 'bg-coral' : 'bg-coral/50'}`}
+                    className={`mt-1 items-center rounded-2xl py-4 ${canConfirm ? 'bg-coral' : 'bg-coral/50'}`}
                   >
                     {submitting ? (
                       <View className="flex-row items-center gap-2">
@@ -719,7 +1009,11 @@ export default function BookScreen() {
                         <Text className="text-[15px] font-bold text-white">Confirmando…</Text>
                       </View>
                     ) : (
-                      <Text className="text-[15px] font-bold text-white">Confirmar agendamento</Text>
+                      <Text className="text-[15px] font-bold text-white">
+                        {isSeries
+                          ? `Confirmar ${chosenIsos.length} ${chosenIsos.length === 1 ? 'horário' : 'horários'}`
+                          : 'Confirmar agendamento'}
+                      </Text>
                     )}
                   </PressScale>
                 </View>
@@ -838,6 +1132,19 @@ export default function BookScreen() {
           ) : null}
           {successActions}
         </BookingSuccess>
+      ) : null}
+
+      {booked && slotIso && service ? (
+        <AddToCalendarSheet
+          visible={calOpen}
+          onClose={() => setCalOpen(false)}
+          event={{
+            title: `${service.name} · ${tenant.name}`,
+            startIso: slotIso,
+            minutes: service.durationMinutes,
+            location: tenant.name,
+          }}
+        />
       ) : null}
     </View>
   );

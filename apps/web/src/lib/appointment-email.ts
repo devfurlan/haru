@@ -3,7 +3,7 @@ import 'server-only';
 import { prisma } from '@haru/database';
 
 import { appUrl, emailShell, ownerOf, sendEmail } from '@/lib/email';
-import { formatPhoneBR } from '@haru/shared';
+import { buildIcs, formatPhoneBR, googleCalendarUrl, type CalendarEvent } from '@haru/shared';
 
 /**
  * E-mails de agendamento (Resend) para o CLIENTE (quem agenda) e para o DONO.
@@ -49,12 +49,19 @@ function detailsBlock(when: string, serviceName: string, person?: string): strin
   return `<br/><br/>📅 ${when}<br/>✂️ ${serviceName}` + (person ? `<br/>👤 ${person}` : '');
 }
 
+/** Botão "Adicionar à agenda" (Google Agenda) - injetado no corpo dos e-mails do cliente. */
+function calendarButton(url: string): string {
+  return `<br/><br/><a href="${url}" style="display:inline-block;background:#0f1f18;color:#fff;text-decoration:none;font-size:14px;padding:10px 18px;border-radius:8px">🗓️ Adicionar à agenda</a>`;
+}
+
 interface CopyCtx {
   name: string | null;
   tenantName: string;
   when: string;
   serviceName: string;
   person?: string;
+  /** Presente em criado/confirmado/remarcado: renderiza o botão "Adicionar à agenda". */
+  calendarUrl?: string;
 }
 
 /** Assunto + html do e-mail do CLIENTE por evento. */
@@ -63,7 +70,7 @@ function customerEmail(
   ctx: CopyCtx,
 ): { subject: string; html: string } {
   const hi = ctx.name ? `Olá, ${ctx.name}!` : 'Olá!';
-  const det = detailsBlock(ctx.when, ctx.serviceName);
+  const det = detailsBlock(ctx.when, ctx.serviceName) + (ctx.calendarUrl ? calendarButton(ctx.calendarUrl) : '');
   const cta = 'Ver meus agendamentos';
   const link = `${appUrl()}/conta/agendamentos`;
   switch (event) {
@@ -237,9 +244,15 @@ export async function sendAppointmentEmails(args: SendAppointmentEmailsArgs): Pr
     where: { id: appointmentId },
     select: {
       startsAt: true,
-      service: { select: { name: true } },
+      service: { select: { name: true, durationMinutes: true } },
       tenant: {
-        select: { id: true, name: true, timezone: true, ownerAppointmentEmailsEnabled: true },
+        select: {
+          id: true,
+          name: true,
+          timezone: true,
+          address: true,
+          ownerAppointmentEmailsEnabled: true,
+        },
       },
       contact: {
         select: {
@@ -259,6 +272,30 @@ export async function sendAppointmentEmails(args: SendAppointmentEmailsArgs): Pr
   const when = formatWhen(appt.startsAt, appt.tenant.timezone);
   const serviceName = appt.service.name;
 
+  // "Adicionar à agenda" em tudo menos cancelamento: mesmo evento vira botão (Google)
+  // e anexo .ics (add-to-calendar nativo em Apple/Gmail/Outlook).
+  const calEvent: CalendarEvent | null =
+    event === 'canceled'
+      ? null
+      : {
+          title: `${serviceName} · ${tenantName}`,
+          startIso: appt.startsAt.toISOString(),
+          minutes: appt.service.durationMinutes,
+          location: appt.tenant.address ?? undefined,
+        };
+  const icsAttachment = calEvent
+    ? [
+        {
+          filename: 'agendamento.ics',
+          content: Buffer.from(
+            buildIcs({ ...calEvent, uid: `${appointmentId}@demandae` }),
+            'utf8',
+          ).toString('base64'),
+          contentType: 'text/calendar',
+        },
+      ]
+    : undefined;
+
   // --- Cliente: e-mail vem da conta (sempre tem) com fallback ao Contact.email ---
   if (notifyCustomer) {
     const account = appt.contact.customerAccount;
@@ -270,8 +307,9 @@ export async function sendAppointmentEmails(args: SendAppointmentEmailsArgs): Pr
         tenantName,
         when,
         serviceName,
+        calendarUrl: calEvent ? googleCalendarUrl(calEvent) : undefined,
       });
-      await sendEmail(to, subject, html);
+      await sendEmail(to, subject, html, icsAttachment);
     }
   }
 

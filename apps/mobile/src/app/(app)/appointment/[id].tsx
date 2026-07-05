@@ -1,6 +1,7 @@
+import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Linking, Pressable, ScrollView, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
 
@@ -34,6 +35,13 @@ function formatWhen(iso: string, tz: string) {
     new Intl.DateTimeFormat('pt-BR', { timeZone: tz, ...o }).format(d).replace('.', '');
   const wd = f({ weekday: 'short' });
   return `${wd.charAt(0).toUpperCase()}${wd.slice(1)}, ${f({ day: 'numeric' })} ${f({ month: 'short' })} · ${f({ hour: '2-digit', minute: '2-digit' }).replace(':', 'h')}`;
+}
+
+// URL de "como chegar": Google Maps universal (abre o app se instalado, senão navegador),
+// funciona em iOS e Android. Destino por coordenadas quando houver; senão o endereço.
+function directionsUrl(t: AppointmentItem['tenant']) {
+  const dest = t.latitude != null && t.longitude != null ? `${t.latitude},${t.longitude}` : t.address;
+  return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(dest ?? '')}`;
 }
 
 export default function AppointmentDetailScreen() {
@@ -242,7 +250,38 @@ export default function AppointmentDetailScreen() {
             </View>
           </View>
 
-          {/* Card claro: duração + profissional (mapa do mockup omitido - sem endereço na API) */}
+          {/* Endereço + mapa + como chegar (design 13) - só quando o estabelecimento tem endereço. */}
+          {item.tenant.address ? (
+            <Pressable
+              onPress={() => Linking.openURL(directionsUrl(item.tenant))}
+              className="bg-paper border-line mt-[14px] overflow-hidden rounded-[18px] border active:opacity-90"
+            >
+              {/* Mapa real (tiles OSM) quando há coords; senão cai no placeholder gradiente. */}
+              {item.tenant.latitude != null && item.tenant.longitude != null ? (
+                <MapThumb lat={item.tenant.latitude} lng={item.tenant.longitude} />
+              ) : (
+                <View style={{ height: MAP_H }}>
+                  <LinearGradient
+                    colors={['#cfe0d5', '#9fc0ab']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={{ flex: 1 }}
+                  />
+                  <MapPin />
+                </View>
+              )}
+              <View className="flex-row items-center justify-between px-[15px] py-[13px]">
+                <Text className="text-ink flex-1 pr-3 text-sm font-semibold" numberOfLines={2}>
+                  {item.tenant.address}
+                </Text>
+                <View className="rounded-full bg-[#eaf6ee] px-3 py-2">
+                  <Text className="text-green-deep text-[12.5px] font-bold">Como chegar</Text>
+                </View>
+              </View>
+            </Pressable>
+          ) : null}
+
+          {/* Card claro: duração + profissional */}
           <View className="bg-paper border-line mt-[14px] rounded-[18px] border px-[15px] py-1">
             <Row
               label="Duração"
@@ -419,6 +458,84 @@ export default function AppointmentDetailScreen() {
           onClose={() => (submitting ? null : setCancelOpen(false))}
         />
       ) : null}
+    </View>
+  );
+}
+
+// Pino coral (teardrop) centralizado no container - marca o ponto exato no mapa.
+function MapPin() {
+  return (
+    <View
+      className="bg-coral absolute left-1/2 top-1/2 h-[26px] w-[26px]"
+      style={{
+        marginLeft: -13,
+        marginTop: -17,
+        borderTopLeftRadius: 13,
+        borderTopRightRadius: 13,
+        borderBottomRightRadius: 13,
+        borderBottomLeftRadius: 0,
+        transform: [{ rotate: '-45deg' }],
+        shadowColor: '#ff5a36',
+        shadowOpacity: 0.6,
+        shadowRadius: 8,
+        shadowOffset: { width: 0, height: 4 },
+      }}
+    />
+  );
+}
+
+const MAP_H = 110;
+const TILE = 256;
+const MAP_ZOOM = 16;
+
+// Miniatura de mapa real: grade 3x3 de tiles do OpenStreetMap centrada nas coordenadas,
+// deslocada pra o ponto cair no centro do viewport (onde fica o pino). Keyless, sem
+// módulo nativo - só <Image>. ponytail: tiles direto do OSM servem no tamanho atual; se
+// escalar, migrar pra provider com key (MapTiler/Geoapify) ou react-native-maps - a
+// política de uso do OSM desencoraja tráfego alto sem User-Agent identificando o app.
+function MapThumb({ lat, lng }: { lat: number; lng: number }) {
+  const [w, setW] = useState(0);
+  const n = 2 ** MAP_ZOOM;
+  // Coordenadas fracionárias de tile (projeção Web Mercator / slippy map).
+  const fx = ((lng + 180) / 360) * n;
+  const latRad = (lat * Math.PI) / 180;
+  const fy = ((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2) * n;
+  const tx0 = Math.floor(fx);
+  const ty0 = Math.floor(fy);
+
+  const tiles: { tx: number; ty: number }[] = [];
+  for (let dx = -1; dx <= 1; dx++) {
+    for (let dy = -1; dy <= 1; dy++) {
+      const tx = tx0 + dx;
+      const ty = ty0 + dy;
+      if (tx >= 0 && ty >= 0 && tx < n && ty < n) tiles.push({ tx, ty });
+    }
+  }
+
+  return (
+    <View
+      onLayout={(e) => setW(e.nativeEvent.layout.width)}
+      style={{ height: MAP_H, backgroundColor: '#dfe7df', overflow: 'hidden' }}
+    >
+      {w > 0 &&
+        tiles.map(({ tx, ty }) => (
+          <Image
+            key={`${tx}-${ty}`}
+            source={{ uri: `https://tile.openstreetmap.org/${MAP_ZOOM}/${tx}/${ty}.png` }}
+            style={{
+              position: 'absolute',
+              width: TILE,
+              height: TILE,
+              left: w / 2 + (tx - fx) * TILE,
+              top: MAP_H / 2 + (ty - fy) * TILE,
+            }}
+          />
+        ))}
+      <MapPin />
+      {/* Atribuição exigida pela licença do OpenStreetMap. */}
+      <Text style={{ position: 'absolute', right: 5, bottom: 3 }} className="text-[8px] text-[#5a6b60]">
+        © OpenStreetMap
+      </Text>
     </View>
   );
 }

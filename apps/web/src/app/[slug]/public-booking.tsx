@@ -12,7 +12,6 @@ import {
   Copy,
   CreditCard,
   PartyPopper,
-  Pencil,
   QrCode,
   Repeat,
   Sparkles,
@@ -44,7 +43,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
-import { type AvailableSlotWithProfessionals } from '@haru/shared';
+import { type AvailableSlotWithProfessionals, type SeriesOccurrencePreview } from '@haru/shared';
 import { buildBookingDays, isoDateInTz, labelFromIso, type BookingDay } from '@haru/shared';
 import {
   formatBRL,
@@ -53,13 +52,19 @@ import {
   isValidCpfCnpj,
   maskCpfCnpjInput,
 } from '@haru/shared';
-import { RECURRENCE_OCCURRENCE_OPTIONS, type RecurrenceFrequency } from '@/lib/recurrence';
+import {
+  RECURRENCE_MAX_HORIZON_DAYS,
+  RECURRENCE_OCCURRENCE_OPTIONS,
+  type RecurrenceFrequency,
+} from '@/lib/recurrence';
 
 import {
   createPublicBooking,
   type CreatePublicBookingResult,
   getAvailableSlots,
+  getSeriesDaySlots,
   lookupContact,
+  previewPublicSeries,
 } from './actions';
 import { createPaymentForAppointment } from './payments-actions';
 
@@ -78,6 +83,7 @@ interface ServiceOption {
 interface ProfessionalOption {
   id: string;
   name: string | null;
+  avatarUrl: string | null;
 }
 
 interface PublicBookingProps {
@@ -117,7 +123,7 @@ type Step = 'vitrine' | 'select' | 'slot' | 'contact' | 'done';
 type FrequencyChoice = 'NONE' | RecurrenceFrequency;
 
 const FREQUENCY_LABELS: Record<FrequencyChoice, string> = {
-  NONE: 'Uma vez',
+  NONE: 'Não',
   WEEKLY: 'Toda semana',
   BIWEEKLY: 'A cada 15 dias',
   MONTHLY: 'Todo mês',
@@ -128,6 +134,28 @@ const FREQUENCY_ORDER: FrequencyChoice[] = ['NONE', 'WEEKLY', 'BIWEEKLY', 'MONTH
 /** "15:30" -> "15h30"; "14:00" -> "14h" (formato do app mobile). */
 function fmtTime(hhmm: string): string {
   return hhmm.replace(':', 'h').replace(/h00$/, 'h');
+}
+
+/** "Sáb, 05/07" a partir de um ISO, no fuso do tenant (linha da prévia de recorrência). */
+function fmtOccurrenceDate(iso: string, tz: string): string {
+  const d = new Date(iso);
+  const wdRaw = new Intl.DateTimeFormat('pt-BR', { timeZone: tz, weekday: 'short' })
+    .format(d)
+    .replace('.', '');
+  const wd = wdRaw.charAt(0).toUpperCase() + wdRaw.slice(1);
+  const dm = new Intl.DateTimeFormat('pt-BR', { timeZone: tz, day: '2-digit', month: '2-digit' }).format(
+    d,
+  );
+  return `${wd}, ${dm}`;
+}
+
+/** "10h" / "10h30" a partir de um ISO, no fuso do tenant. */
+function fmtOccurrenceTime(iso: string, tz: string): string {
+  return fmtTime(
+    new Intl.DateTimeFormat('pt-BR', { timeZone: tz, hour: '2-digit', minute: '2-digit' }).format(
+      new Date(iso),
+    ),
+  );
 }
 
 /** "45 min · só Téo" / "50 min · Téo, Ana" - duração + quem atende (igual mobile). */
@@ -261,7 +289,7 @@ function StepChrome({
 /** Barra de ação fixada na base (resumo corrente + CTA), como no app mobile. */
 function StickyFooter({ children }: { children: React.ReactNode }) {
   return (
-    <div className="bg-background sticky bottom-0 z-10 mt-5 flex items-center gap-3.5 border-t pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[0_-10px_28px_-18px_rgba(10,51,36,0.45)]">
+    <div className="bg-background sticky bottom-0 z-10 mt-5 flex items-center gap-3.5 border-t pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 shadow-[0_-10px_28px_-18px_rgba(10,51,36,0.45)]">
       {children}
     </div>
   );
@@ -373,7 +401,7 @@ function ProAvatar({
     >
       <span
         className={cn(
-          'bg-green-deep flex h-[60px] w-[60px] items-center justify-center rounded-[18px] border-2',
+          'bg-green-deep flex h-[60px] w-[60px] items-center justify-center overflow-hidden rounded-[18px] border-2',
           selected ? 'border-coral' : 'border-transparent',
         )}
       >
@@ -432,7 +460,8 @@ function StepSelect({
           headingRef={headingRef}
         />
 
-        {serviceProfs.length > 0 ? (
+        {/* Só faz sentido escolher profissional quando há mais de uma opção para o serviço. */}
+        {serviceProfs.length > 1 ? (
           <div className="space-y-2.5">
             <p className="text-foreground text-[13px] font-semibold">Profissional</p>
             <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-1" role="radiogroup">
@@ -450,9 +479,18 @@ function StepSelect({
                   onClick={() => onPickProfessional(p.id)}
                   label={p.name ?? '—'}
                 >
-                  <span className="text-green-bright font-serif text-2xl">
-                    {(p.name ?? '?').trim().charAt(0).toUpperCase()}
-                  </span>
+                  {p.avatarUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element -- URL externa (Supabase Storage), tamanho fixo
+                    <img
+                      src={p.avatarUrl}
+                      alt={p.name ?? ''}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <span className="text-green-bright font-serif text-2xl">
+                      {(p.name ?? '?').trim().charAt(0).toUpperCase()}
+                    </span>
+                  )}
                 </ProAvatar>
               ))}
             </div>
@@ -462,7 +500,7 @@ function StepSelect({
         <div className="space-y-2.5">
           <div className="flex items-baseline justify-between">
             <p className="text-foreground text-[13px] font-semibold">Serviço</p>
-            {serviceProfs.length > 0 ? (
+            {serviceProfs.length > 1 ? (
               <p className="text-muted-foreground text-[11.5px]">de todos os profissionais</p>
             ) : null}
           </div>
@@ -926,7 +964,11 @@ function StepDiaHora({
               Nenhum horário livre nesse dia.
             </p>
           ) : (
-            <div className="flex flex-wrap gap-[9px]" role="group" aria-label="Horários disponíveis">
+            <div
+              className="flex flex-wrap gap-[9px]"
+              role="group"
+              aria-label="Horários disponíveis"
+            >
               {slots.map((slot) => {
                 const busy = slot.available === false;
                 const isSelected = slot.startsAtIso === selectedSlotIso;
@@ -1002,7 +1044,7 @@ function StepDiaHora({
 // ---------------------------------------------------------------------------
 
 /** Botão de submit final - usa useFormStatus para o estado "pending". */
-function ConfirmButton({ disabled }: { disabled?: boolean }) {
+function ConfirmButton({ disabled, label }: { disabled?: boolean; label?: string }) {
   const { pending } = useFormStatus();
   return (
     <Button
@@ -1013,8 +1055,316 @@ function ConfirmButton({ disabled }: { disabled?: boolean }) {
       disabled={pending || disabled}
       aria-busy={pending}
     >
-      {pending ? 'Confirmando…' : 'Confirmar agendamento'}
+      {pending ? 'Confirmando…' : (label ?? 'Confirmar agendamento')}
     </Button>
+  );
+}
+
+const OCCURRENCE_STATUS_META: Record<
+  SeriesOccurrencePreview['status'],
+  { tag: string; tone: 'ok' | 'warn' | 'muted' }
+> = {
+  free: { tag: 'livre', tone: 'ok' },
+  taken: { tag: 'ocupado', tone: 'warn' },
+  closed: { tag: 'sem expediente', tone: 'warn' },
+  past: { tag: 'fora do prazo', tone: 'muted' },
+  beyond: { tag: 'além de 90 dias', tone: 'muted' },
+};
+
+/**
+ * Uma linha da prévia: data (mesmo dia/horário do 1º agendamento) + status. "Trocar
+ * dia/horário" abre um seletor - horários do próprio dia (já vieram na prévia) e um
+ * calendário pra saltar pra outro dia (feriado/lotado) buscando os horários DAQUELE dia,
+ * sempre do MESMO profissional da série. A 1ª (âncora) é fixa.
+ */
+function OccurrenceRow({
+  occ,
+  index,
+  timezone,
+  edit,
+  slug,
+  serviceId,
+  professionalId,
+  minDate,
+  maxDate,
+  openWeekdays,
+  onSwap,
+  onRemove,
+  onRestore,
+}: {
+  occ: SeriesOccurrencePreview;
+  index: number;
+  timezone: string;
+  edit: string | 'removed' | undefined;
+  slug: string;
+  serviceId: string;
+  /** Profissional resolvido da série - os horários trocados têm que ser DELE. */
+  professionalId: string;
+  minDate: string;
+  maxDate: string;
+  openWeekdays: number[];
+  onSwap: (pickIso: string) => void;
+  onRemove: () => void;
+  onRestore: () => void;
+}) {
+  const isAnchor = index === 0;
+  const removed = edit === 'removed';
+  // 'removed' também é string - só é ISO trocado quando NÃO é o marcador de remoção.
+  const swappedIso = !removed && typeof edit === 'string' ? edit : null;
+  const shownIso = swappedIso ?? occ.targetIso;
+  const meta = OCCURRENCE_STATUS_META[occ.status];
+  const dropped = occ.status === 'past' || occ.status === 'beyond';
+  const conflict = !isAnchor && !removed && !swappedIso && meta.tone === 'warn';
+
+  const [open, setOpen] = useState(false);
+  const occDate = isoDateInTz(new Date(occ.targetIso), timezone);
+  const [viewDate, setViewDate] = useState(occDate);
+  const [fetched, setFetched] = useState<Record<string, { startsAtIso: string; label: string }[]>>(
+    {},
+  );
+  const [loading, setLoading] = useState(false);
+
+  // Horários do dia em foco: o dia original já veio na prévia (occ.slots); outros dias buscam.
+  const daySlots = viewDate === occDate ? occ.slots : (fetched[viewDate] ?? []);
+
+  async function pickDate(d: string) {
+    setViewDate(d);
+    if (d === occDate || fetched[d]) return;
+    setLoading(true);
+    try {
+      // Busca de série (90 dias, profissional fixo) - não a de avulso, que corta em 60.
+      const slots = await getSeriesDaySlots(slug, serviceId, professionalId, d);
+      setFetched((f) => ({
+        ...f,
+        [d]: slots
+          .filter((s) => s.available !== false)
+          .map((s) => ({ startsAtIso: s.startsAtIso, label: s.label })),
+      }));
+    } catch {
+      setFetched((f) => ({ ...f, [d]: [] }));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <li
+      className={cn(
+        'rounded-xl border p-3 text-sm transition-colors',
+        removed || dropped ? 'bg-muted/40 border-dashed' : 'bg-card',
+        conflict ? 'border-amber-300/70 bg-amber-50/40' : '',
+      )}
+    >
+      <div className="flex items-center gap-3">
+        <div className="min-w-0 flex-1">
+          <p
+            className={cn(
+              'font-medium capitalize',
+              removed || dropped ? 'text-muted-foreground line-through' : 'text-foreground',
+            )}
+          >
+            {fmtOccurrenceDate(shownIso, timezone)}
+            <span className="text-muted-foreground ml-1.5 font-normal normal-case">
+              · {fmtOccurrenceTime(shownIso, timezone)}
+            </span>
+          </p>
+        </div>
+
+        {/* Tag à direita (mesmo padrão em todas as linhas, inclusive a âncora). */}
+        {isAnchor ? (
+          <span className="text-green flex shrink-0 items-center gap-1 text-xs font-medium">
+            <Check className="h-3.5 w-3.5" /> 1º horário
+          </span>
+        ) : removed ? (
+          <button
+            type="button"
+            onClick={onRestore}
+            className="text-coral shrink-0 text-xs font-semibold underline-offset-2 hover:underline"
+          >
+            Desfazer
+          </button>
+        ) : dropped ? (
+          <span className="text-muted-foreground shrink-0 text-xs">{meta.tag}</span>
+        ) : swappedIso ? (
+          <span className="text-green flex shrink-0 items-center gap-1 text-xs font-medium">
+            <Check className="h-3.5 w-3.5" /> trocado
+          </span>
+        ) : occ.status === 'free' ? (
+          <span className="text-green flex shrink-0 items-center gap-1 text-xs font-medium">
+            <Check className="h-3.5 w-3.5" /> {meta.tag}
+          </span>
+        ) : (
+          <span className="flex shrink-0 items-center gap-1 text-xs font-medium text-amber-600">
+            <AlertTriangle className="h-3.5 w-3.5" /> {meta.tag}
+          </span>
+        )}
+      </div>
+
+      {/* Ações - âncora é fixa; descartadas/removidas não editam. */}
+      {!isAnchor && !removed && !dropped ? (
+        <div className="mt-2 flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setOpen((o) => !o)}
+            className="text-foreground text-xs font-semibold underline-offset-2 hover:underline"
+          >
+            {open ? 'Fechar' : 'Trocar dia/horário'}
+          </button>
+          <button
+            type="button"
+            onClick={onRemove}
+            className="text-muted-foreground hover:text-destructive text-xs underline-offset-2 hover:underline"
+          >
+            Remover
+          </button>
+        </div>
+      ) : null}
+
+      {/* Seletor: dia (calendário) + horários daquele dia. */}
+      {open && !removed ? (
+        <div className="mt-3 space-y-2 border-t pt-3">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-muted-foreground text-xs capitalize">
+              {labelFromIso(viewDate, timezone)}
+            </p>
+            <MonthCalendar
+              minDate={minDate}
+              maxDate={maxDate}
+              openWeekdays={openWeekdays}
+              selectedDate={viewDate}
+              onSelect={pickDate}
+            />
+          </div>
+          {loading ? (
+            <div className="flex flex-wrap gap-2" aria-hidden="true">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <Skeleton key={i} className="h-8 w-16 rounded-lg" />
+              ))}
+            </div>
+          ) : daySlots.length > 0 ? (
+            <div className="flex flex-wrap gap-2">
+              {daySlots.map((s) => {
+                const sel = shownIso === s.startsAtIso;
+                return (
+                  <button
+                    key={s.startsAtIso}
+                    type="button"
+                    onClick={() => {
+                      onSwap(s.startsAtIso);
+                      setOpen(false);
+                    }}
+                    className={cn(
+                      'rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors',
+                      sel
+                        ? 'bg-coral border-coral text-white'
+                        : 'bg-card hover:border-coral text-foreground',
+                    )}
+                  >
+                    {fmtTime(s.label)}
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="text-muted-foreground text-xs">
+              Sem horário livre nesse dia. Toque em &quot;Outras datas&quot; pra escolher outro, ou
+              remova.
+            </p>
+          )}
+        </div>
+      ) : null}
+    </li>
+  );
+}
+
+/**
+ * Prévia editável das ocorrências de uma série. Cada linha é uma OccurrenceRow (com seu
+ * próprio seletor de dia/horário). Não sabe do submit - reporta as escolhas via callbacks;
+ * o pai calcula os ISOs finais.
+ */
+function SeriesPreviewList({
+  preview,
+  loading,
+  error,
+  timezone,
+  edits,
+  slug,
+  serviceId,
+  professionalId,
+  minDate,
+  maxDate,
+  openWeekdays,
+  onSwap,
+  onRemove,
+  onRestore,
+  chosenCount,
+}: {
+  preview: SeriesOccurrencePreview[] | null;
+  loading: boolean;
+  error: string | null;
+  timezone: string;
+  edits: Record<string, string | 'removed'>;
+  slug: string;
+  serviceId: string;
+  /** Profissional resolvido da série (vem da prévia); '' até a prévia chegar. */
+  professionalId: string;
+  minDate: string;
+  maxDate: string;
+  openWeekdays: number[];
+  onSwap: (targetIso: string, pickIso: string) => void;
+  onRemove: (targetIso: string) => void;
+  onRestore: (targetIso: string) => void;
+  chosenCount: number;
+}) {
+  if (loading) {
+    return (
+      <div className="space-y-2" aria-hidden="true">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <Skeleton key={i} className="h-12 w-full rounded-xl" />
+        ))}
+      </div>
+    );
+  }
+  if (error) {
+    return (
+      <p
+        role="alert"
+        className="border-destructive/40 bg-destructive/5 text-destructive rounded-lg border p-3 text-sm"
+      >
+        {error}
+      </p>
+    );
+  }
+  if (!preview || preview.length === 0) return null;
+
+  return (
+    <div className="space-y-2">
+      <ul className="space-y-2" aria-label="Datas da recorrência">
+        {preview.map((occ, i) => (
+          <OccurrenceRow
+            key={occ.targetIso}
+            occ={occ}
+            index={i}
+            timezone={timezone}
+            edit={edits[occ.targetIso]}
+            slug={slug}
+            serviceId={serviceId}
+            professionalId={professionalId}
+            minDate={minDate}
+            maxDate={maxDate}
+            openWeekdays={openWeekdays}
+            onSwap={(pick) => onSwap(occ.targetIso, pick)}
+            onRemove={() => onRemove(occ.targetIso)}
+            onRestore={() => onRestore(occ.targetIso)}
+          />
+        ))}
+      </ul>
+
+      <p className="text-muted-foreground text-xs">
+        {chosenCount} {chosenCount === 1 ? 'horário será marcado' : 'horários serão marcados'}.
+        {preview.some((o) => o.status === 'beyond') ? ' Datas além de 90 dias não entram.' : ''}
+      </p>
+    </div>
   );
 }
 
@@ -1025,6 +1375,10 @@ function StepConfirmar({
   professionalId,
   dayLabel,
   slot,
+  timezone,
+  minDate,
+  maxDate,
+  openWeekdays,
   name,
   onChangeName,
   phone,
@@ -1050,6 +1404,12 @@ function StepConfirmar({
   professionalId: string;
   dayLabel: string;
   slot: AvailableSlot;
+  /** Janela do date-picker de troca de dia (mesmos limites do passo de horário). */
+  minDate: string;
+  maxDate: string;
+  openWeekdays: number[];
+  /** Fuso do tenant - pra formatar as datas da prévia de recorrência. */
+  timezone: string;
   name: string;
   onChangeName: (value: string) => void;
   phone: string;
@@ -1074,8 +1434,10 @@ function StepConfirmar({
   const phoneOk = phone.length >= 10;
   const nameOk = name.trim().length >= 2;
 
-  // Já tem conta? (logado ao chegar OU criou agora.) Aí o contato vira texto + "Editar".
+  // Já tem conta? (logado ao chegar OU criou agora.)
   const hasAccount = loggedIn || accountCreated;
+  // Logado com contato completo não precisa ver/editar nome+WhatsApp - a conta já tem.
+  const hideContact = hasAccount && phoneOk && nameOk;
 
   // Primeiro nome pra saudar (da conta logada ou do que ele digitou).
   const firstName = (customerName || name).trim().split(/\s+/)[0] ?? '';
@@ -1083,23 +1445,76 @@ function StepConfirmar({
   // Modal de cadastro inline - não tira o cliente do agendamento. Fecha via onSuccess.
   const [signupOpen, setSignupOpen] = useState(false);
 
-  // Modal de edição de contato (nome + telefone), só pra quem tem conta. Draft local.
-  const [editOpen, setEditOpen] = useState(false);
-  const [draftName, setDraftName] = useState(name);
-  const [draftPhone, setDraftPhone] = useState(phone);
-  const draftNameOk = draftName.trim().length >= 2;
-  const draftPhoneOk = draftPhone.length >= 10;
-  function openEdit() {
-    setDraftName(name);
-    setDraftPhone(phone);
-    setEditOpen(true);
-  }
-  function saveEdit() {
-    if (!draftNameOk || !draftPhoneOk) return;
-    onChangeName(draftName.trim());
-    onChangePhone(draftPhone);
-    setEditOpen(false);
-  }
+  // --- Prévia editável da recorrência --------------------------------------
+  // Por ISO-alvo, a decisão do cliente: string = horário escolhido (o alvo ou um trocado);
+  // 'removed' = data tirada da série. Sem entrada = default por status (livre entra, conflito não).
+  const [preview, setPreview] = useState<SeriesOccurrencePreview[] | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  const [edits, setEdits] = useState<Record<string, string | 'removed'>>({});
+  // Profissional resolvido da série (vem da prévia); usado ao trocar o dia de uma ocorrência.
+  const [previewProfessionalId, setPreviewProfessionalId] = useState('');
+
+  // Recarrega a prévia quando muda frequência/quantidade/slot/profissional; reseta edições.
+  useEffect(() => {
+    if (frequency === 'NONE') {
+      setPreview(null);
+      setEdits({});
+      setPreviewError(null);
+      return;
+    }
+    let active = true;
+    setPreviewLoading(true);
+    setPreviewError(null);
+    previewPublicSeries({
+      slug,
+      serviceId: service.id,
+      professionalId: professionalId || undefined,
+      slotIso: slot.startsAtIso,
+      frequency,
+      occurrences,
+    })
+      .then((res) => {
+        if (!active) return;
+        if ('error' in res) {
+          setPreview(null);
+          setPreviewError(res.error);
+        } else {
+          setPreview(res.occurrences);
+          setPreviewProfessionalId(res.professionalId);
+          setEdits({});
+        }
+      })
+      .catch(() => {
+        if (active) setPreviewError('Não foi possível carregar as datas. Tente de novo.');
+      })
+      .finally(() => {
+        if (active) setPreviewLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [frequency, occurrences, slug, service.id, professionalId, slot.startsAtIso]);
+
+  // ISOs finais do submit: âncora sempre entra; livres no alvo; conflitos só se trocados;
+  // removidos/passados/além ficam de fora.
+  const chosenIsos = useMemo(() => {
+    if (frequency === 'NONE' || !preview) return [];
+    const out: string[] = [];
+    preview.forEach((occ, i) => {
+      if (i === 0) {
+        out.push(occ.targetIso);
+        return;
+      }
+      const e = edits[occ.targetIso];
+      if (e === 'removed') return;
+      if (typeof e === 'string') out.push(e);
+      else if (occ.status === 'free') out.push(occ.targetIso);
+    });
+    return out;
+  }, [frequency, preview, edits]);
+
+  const isSeries = frequency !== 'NONE';
 
   return (
     <div className="space-y-5">
@@ -1155,98 +1570,64 @@ function StepConfirmar({
             </Button>
           ))}
         </div>
-        {frequency !== 'NONE' ? (
-          <div className="space-y-2">
-            <p className="text-muted-foreground text-sm">Quantas vezes no total?</p>
-            <div className="flex flex-wrap gap-2" role="group" aria-label="Número de ocorrências">
-              {RECURRENCE_OCCURRENCE_OPTIONS.map((n) => (
-                <Button
-                  key={n}
-                  type="button"
-                  variant={occurrences === n ? 'coral' : 'outline'}
-                  size="sm"
-                  aria-pressed={occurrences === n}
-                  onClick={() => onChangeOccurrences(n)}
-                >
-                  {n}×
-                </Button>
-              ))}
+        {isSeries ? (
+          <div className="space-y-3">
+            <div className="space-y-2">
+              <p className="text-muted-foreground text-sm">Quantas vezes no total?</p>
+              <div
+                className="flex flex-wrap gap-2"
+                role="group"
+                aria-label="Número de ocorrências"
+              >
+                {RECURRENCE_OCCURRENCE_OPTIONS.map((n) => (
+                  <Button
+                    key={n}
+                    type="button"
+                    variant={occurrences === n ? 'coral' : 'outline'}
+                    size="sm"
+                    aria-pressed={occurrences === n}
+                    onClick={() => onChangeOccurrences(n)}
+                  >
+                    {n}×
+                  </Button>
+                ))}
+              </div>
             </div>
+
             <p className="text-muted-foreground text-xs">
-              Pulamos automaticamente datas sem horário livre (até 90 dias).
+              Mantemos o mesmo dia da semana e horário. Onde não há vaga, você troca ou remove.
             </p>
+
+            <SeriesPreviewList
+              preview={preview}
+              loading={previewLoading}
+              error={previewError}
+              timezone={timezone}
+              edits={edits}
+              slug={slug}
+              serviceId={service.id}
+              professionalId={previewProfessionalId}
+              minDate={minDate}
+              maxDate={maxDate}
+              openWeekdays={openWeekdays}
+              onSwap={(iso, pick) => setEdits((e) => ({ ...e, [iso]: pick }))}
+              onRemove={(iso) => setEdits((e) => ({ ...e, [iso]: 'removed' }))}
+              onRestore={(iso) =>
+                setEdits((e) => {
+                  const copy = { ...e };
+                  delete copy[iso];
+                  return copy;
+                })
+              }
+              chosenCount={chosenIsos.length}
+            />
           </div>
         ) : null}
       </div>
 
-      {/* Contato. Com conta: texto + "Editar". Convidado: campos abertos. */}
-      {hasAccount ? (
-        <div className="bg-card flex items-start justify-between gap-3 rounded-xl border p-4">
-          <dl className="min-w-0 space-y-2 text-sm">
-            <div>
-              <dt className="text-muted-foreground">WhatsApp</dt>
-              <dd className="text-foreground font-medium">{formatPhoneBR(phone) || phone || '-'}</dd>
-            </div>
-            <div>
-              <dt className="text-muted-foreground">Nome</dt>
-              <dd className="text-foreground font-medium">{name || '-'}</dd>
-            </div>
-          </dl>
-          <Dialog open={editOpen} onOpenChange={setEditOpen}>
-            <DialogTrigger asChild>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="shrink-0"
-                onClick={openEdit}
-              >
-                <Pencil className="h-4 w-4" />
-                Editar
-              </Button>
-            </DialogTrigger>
-            <DialogContent dismissable={false} className="max-w-sm">
-              <DialogHeader>
-                <DialogTitle>Editar seus dados</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div className="space-y-1.5">
-                  <Label htmlFor="edit-phone">WhatsApp</Label>
-                  <Input
-                    id="edit-phone"
-                    type="tel"
-                    inputMode="numeric"
-                    autoComplete="tel"
-                    placeholder="(11) 91234-5678"
-                    value={formatPhoneBR(draftPhone) || draftPhone}
-                    onChange={(e) => setDraftPhone(e.target.value.replace(/\D/g, '').slice(0, 13))}
-                    aria-invalid={draftPhone.length > 0 && !draftPhoneOk}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="edit-name">Nome</Label>
-                  <Input
-                    id="edit-name"
-                    autoComplete="name"
-                    placeholder="Como podemos te chamar?"
-                    value={draftName}
-                    onChange={(e) => setDraftName(e.target.value)}
-                    aria-invalid={draftName.length > 0 && !draftNameOk}
-                  />
-                </div>
-                <div className="flex justify-end gap-2">
-                  <Button type="button" variant="ghost" onClick={() => setEditOpen(false)}>
-                    Cancelar
-                  </Button>
-                  <Button type="button" onClick={saveEdit} disabled={!draftNameOk || !draftPhoneOk}>
-                    Salvar
-                  </Button>
-                </div>
-              </div>
-            </DialogContent>
-          </Dialog>
-        </div>
-      ) : (
+      {/* Contato. Logado com dados completos não vê nada (a conta já tem). Convidado
+          (ou logado sem telefone) preenche os campos. */}
+      {hideContact ? null : (
         <div className="space-y-4">
           <div className="space-y-1.5">
             <Label htmlFor="booking-phone">WhatsApp</Label>
@@ -1290,8 +1671,8 @@ function StepConfirmar({
             Boas-vindas{firstName ? `, ${firstName}` : ''}! Sua conta está pronta.
           </p>
           <p className="text-muted-foreground text-sm">
-            É só confirmar o agendamento abaixo. Pra ele entrar no seu histórico, valide seu WhatsApp
-            na sua conta.
+            É só confirmar o agendamento abaixo. Pra ele entrar no seu histórico, valide seu
+            WhatsApp na sua conta.
           </p>
         </div>
       ) : loggedIn ? null : (
@@ -1354,9 +1735,11 @@ function StepConfirmar({
         <input type="hidden" name="name" value={name.trim()} />
         <input type="hidden" name="phone" value={phone} />
         <input type="hidden" name="frequency" value={frequency} />
-        {frequency !== 'NONE' ? (
-          <input type="hidden" name="occurrences" value={occurrences} />
-        ) : null}
+        {isSeries
+          ? chosenIsos.map((iso) => (
+              <input key={iso} type="hidden" name="slotIsos" value={iso} />
+            ))
+          : null}
 
         {error ? (
           <p
@@ -1367,7 +1750,19 @@ function StepConfirmar({
           </p>
         ) : null}
 
-        <ConfirmButton disabled={!phoneOk || !nameOk || lookingUp} />
+        <ConfirmButton
+          disabled={
+            !phoneOk ||
+            !nameOk ||
+            lookingUp ||
+            (isSeries && (previewLoading || chosenIsos.length < 2))
+          }
+          label={
+            isSeries
+              ? `Confirmar ${chosenIsos.length} ${chosenIsos.length === 1 ? 'horário' : 'horários'}`
+              : undefined
+          }
+        />
       </form>
     </div>
   );
@@ -1835,6 +2230,16 @@ export function PublicBooking({
     () => isoDateInTz(new Date(Date.now() + (horizonDays - 1) * 86_400_000), timezone),
     [timezone, horizonDays],
   );
+  // Troca de dia de uma ocorrência alcança o horizonte de recorrência (90d), maior que o
+  // de agendamento avulso (maxDate). Vai só pro calendário do StepConfirmar.
+  const seriesMaxDate = useMemo(
+    () =>
+      isoDateInTz(
+        new Date(Date.now() + (RECURRENCE_MAX_HORIZON_DAYS - 1) * 86_400_000),
+        timezone,
+      ),
+    [timezone],
+  );
 
   // Serviço escolhido (passo vitrine).
   const [serviceId, setServiceId] = useState('');
@@ -2108,6 +2513,10 @@ export function PublicBooking({
           professionalId={professionalId}
           dayLabel={selectedDayLabel}
           slot={selectedSlot}
+          timezone={timezone}
+          minDate={minDate}
+          maxDate={seriesMaxDate}
+          openWeekdays={openWeekdays}
           name={name}
           onChangeName={setName}
           phone={phone}

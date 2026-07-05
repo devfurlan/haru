@@ -48,8 +48,10 @@ export function BottomTabBar({ state, navigation }: TabBarProps) {
     }).start();
   }, [state.index, anim]);
 
-  const tabW = width > 0 ? (width - PADDING_X * 2) / state.routes.length : 0;
-  const pillX = Animated.add(PADDING_X, Animated.multiply(anim, tabW));
+  // width já é o conteúdo sem o padding (o pai aplica paddingHorizontal), então a
+  // célula de cada aba é width / N e a pílula começa em x=0 - não somar PADDING_X de novo.
+  const tabW = width > 0 ? width / state.routes.length : 0;
+  const pillX = Animated.multiply(anim, tabW);
 
   return (
     <View

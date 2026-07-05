@@ -18,6 +18,13 @@
   --brand-green-deep: #0a3324;
   --brand-coral: #ff5a36;
   --brand-coral-soft: #ff7b5c;
+  /* Tokens do design mobile (espelham apps/mobile/tailwind.config.js): card escuro do
+     próximo agendamento, chip verde-claro, texto secundário e hairlines de card/input. */
+  --brand-green-card: #083020;
+  --brand-chip: #eaf6ee;
+  --brand-sub: #7c8a80;
+  --brand-line: #f0e8d4;
+  --brand-edge: #e2d9c4;
 
   /* Tokens semânticos (shadcn) mapeados na marca */
   --background: var(--brand-cream);
@@ -79,6 +86,11 @@
   --color-green-deep: var(--brand-green-deep);
   --color-coral: var(--brand-coral);
   --color-coral-soft: var(--brand-coral-soft);
+  --color-green-card: var(--brand-green-card);
+  --color-chip: var(--brand-chip);
+  --color-sub: var(--brand-sub);
+  --color-line: var(--brand-line);
+  --color-edge: var(--brand-edge);
 
   --font-sans: var(--font-hanken), ui-sans-serif, system-ui, sans-serif;
   --font-serif: var(--font-fraunces), ui-serif, Georgia, 'Times New Roman', serif;

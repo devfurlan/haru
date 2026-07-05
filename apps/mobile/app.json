@@ -7,9 +7,6 @@
     "icon": "./assets/images/icon.png",
     "scheme": "demandae",
     "userInterfaceStyle": "automatic",
-    "ios": {
-      "icon": "./assets/expo.icon"
-    },
     "android": {
       "package": "com.demandae.app",
       "adaptiveIcon": {
@@ -34,9 +31,9 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#faf5ea",
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 76
+          "backgroundColor": "#0a3324",
+          "image": "./assets/images/splash-seal.png",
+          "imageWidth": 200
         }
       ],
       "expo-secure-store",

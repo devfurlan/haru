@@ -201,6 +201,12 @@ model CustomerAccount {
   /// `phone` pra nunca disparar o claim sem prova de posse; serve só pra pré-preencher
   /// a barra de confirmação pós-login. É limpo quando o número é confirmado.
   pendingPhone             String?
+  /// CPF/CNPJ (só dígitos, criptografado com encryptSecret) informado pelo cliente no
+  /// próprio cadastro - prefixa o checkout ("não pedimos de novo"). Vive na conta (não
+  /// só nos Contacts por-tenant) pra sobreviver quando ainda não há nenhum agendamento.
+  document                 String?
+  /// Data de nascimento (meia-noite UTC) informada no cadastro. Mesmo motivo do document.
+  birthDate                DateTime?
   /// Prova de consentimento (Termos/Privacidade) no cadastro do cliente.
   termsAcceptedAt          DateTime?
   /// Versão dos Termos aceita (ver TERMS_VERSION em apps/web/src/lib/legal.ts).

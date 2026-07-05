@@ -43,11 +43,17 @@ export default function BuscarScreen() {
   const [tab, setTab] = useState<'buscar' | 'favoritos'>(
     params.tab === 'favoritos' ? 'favoritos' : 'buscar',
   );
-  // Abrir "Favoritos" a partir do Perfil pré-seleciona a aba (a tab fica montada,
-  // então o init do useState não basta - sincroniza quando o param muda).
-  useEffect(() => {
-    if (params.tab === 'favoritos') setTab('favoritos');
-  }, [params.tab]);
+  // Abrir "Favoritos" a partir do menu pré-seleciona a aba. O param "gruda" na rota,
+  // então sincronizamos no foco e limpamos o param - senão, entrar 2x com o mesmo
+  // tab=favoritos não muda o valor e a aba não troca (fica onde o usuário deixou).
+  useFocusEffect(
+    useCallback(() => {
+      if (params.tab === 'favoritos') {
+        setTab('favoritos');
+        router.setParams({ tab: undefined });
+      }
+    }, [params.tab]),
+  );
   // Localização do usuário: 'checking' enquanto pede permissão, 'denied' se negada.
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [locStatus, setLocStatus] = useState<'checking' | 'granted' | 'denied'>('checking');
@@ -266,14 +272,7 @@ export default function BuscarScreen() {
             ))}
           </View>
         ) : results.length > 0 ? (
-          <>
-            {nearby ? (
-              <Text className="text-sub mb-3 text-[13px] font-semibold uppercase tracking-wide">
-                Perto de você
-              </Text>
-            ) : null}
-            {results.map((t) => renderCard(t))}
-          </>
+          <>{results.map((t) => renderCard(t))}</>
         ) : locStatus === 'denied' && query.trim().length < 2 ? (
           <View className="mt-16 items-center px-6">
             <View className="bg-coral/10 mb-4 h-20 w-20 items-center justify-center rounded-full">

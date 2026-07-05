@@ -5,21 +5,8 @@
 // server-side com service role; o arquivo antigo é apagado do bucket ao trocar.
 import { prisma } from '@haru/database';
 
-import { removeAvatar, uploadAvatar } from '@/lib/avatar-storage';
+import { removeAvatar, uploadAvatar, validateAvatarBuffer } from '@/lib/avatar-storage';
 import { requireCustomerAccountFromBearer } from '@/lib/customer-auth';
-
-const MAX_AVATAR_BYTES = 2 * 1024 * 1024; // avatar reduzido cabe folgado em 2 MB
-
-/** Confere pela assinatura (magic bytes) que o blob é mesmo uma imagem, não bytes
- * arbitrários. O app manda JPEG; aceitamos também PNG/WebP por robustez. */
-function isSupportedImage(buf: Buffer): boolean {
-  if (buf.length < 12) return false;
-  if (buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return true; // JPEG
-  if (buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47) return true; // PNG
-  if (buf.toString('ascii', 0, 4) === 'RIFF' && buf.toString('ascii', 8, 12) === 'WEBP')
-    return true;
-  return false;
-}
 
 export async function POST(req: Request) {
   const account = await requireCustomerAccountFromBearer(req);
@@ -37,12 +24,10 @@ export async function POST(req: Request) {
   }
 
   const buffer = Buffer.from(dataBase64, 'base64');
-  if (buffer.length === 0) return Response.json({ error: 'Imagem inválida' }, { status: 400 });
-  if (buffer.length > MAX_AVATAR_BYTES) {
-    return Response.json({ error: 'Imagem muito grande (máx. 2 MB).' }, { status: 413 });
-  }
-  if (!isSupportedImage(buffer)) {
-    return Response.json({ error: 'Formato inválido (use JPEG, PNG ou WebP).' }, { status: 400 });
+  const invalid = validateAvatarBuffer(buffer);
+  if (invalid) {
+    const status = invalid.includes('2 MB') ? 413 : 400;
+    return Response.json({ error: invalid }, { status });
   }
 
   const uploaded = await uploadAvatar(

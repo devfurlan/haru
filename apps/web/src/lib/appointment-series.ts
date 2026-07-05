@@ -30,6 +30,12 @@ export interface CreateAppointmentSeriesInput {
   occurrences: number;
   /** Slot da primeira ocorrência (ISO UTC), já validado pelo caller. */
   firstStartsAtIso: string;
+  /**
+   * Datas explícitas da série (ISO UTC), quando o cliente montou a prévia editável
+   * (trocou/removeu ocorrências). Ausente = gera automaticamente a partir do 1º slot
+   * (caminho do painel). Cada ISO é RE-validado aqui - não se confia no cliente.
+   */
+  occurrenceIsos?: string[];
   /** Status com que cada ocorrência entra (CONFIRMED no painel; config do tenant no público). */
   status: AppointmentStatus;
   /** Profissional fixo da série inteira (mesma pessoa em todas as ocorrências). */
@@ -58,12 +64,11 @@ export async function createAppointmentSeries(
   const now = new Date();
   const maxInstant = new Date(now.getTime() + RECURRENCE_MAX_HORIZON_DAYS * MS_PER_DAY);
 
-  const dates = generateSeriesDates(
-    input.firstStartsAtIso,
-    input.tz,
-    input.frequency,
-    input.occurrences,
-  );
+  // Prévia editável manda as datas prontas (já sem as removidas); o painel deixa gerar.
+  const dates =
+    input.occurrenceIsos && input.occurrenceIsos.length > 0
+      ? [...new Set(input.occurrenceIsos)].sort() // ISO ordena cronologicamente
+      : generateSeriesDates(input.firstStartsAtIso, input.tz, input.frequency, input.occurrences);
 
   // Bloqueios pontuais da agenda - uma ocorrência que cai num bloqueio é pulada,
   // como já se faz com colisão e expediente. Busca uma vez só (N de ocorrências
@@ -112,6 +117,14 @@ export async function createAppointmentSeries(
       select: { id: true },
     });
     if (conflict) {
+      skipped.push(iso);
+      continue;
+    }
+    // Colisão DENTRO do próprio lote: com a prévia editável o cliente pode mandar duas
+    // ocorrências no mesmo dia em horários que se sobrepõem (serviço > passo da grade).
+    // A checagem no banco (acima) não pega isso porque nenhuma das duas foi criada ainda.
+    const overlapsBatch = toCreate.some((t) => t.startsAt < endsAt && t.endsAt > startsAt);
+    if (overlapsBatch) {
       skipped.push(iso);
       continue;
     }

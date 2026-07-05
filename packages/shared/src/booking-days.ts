@@ -84,11 +84,27 @@ export function buildBookingDays(
 ): BookingDay[] {
   if (openWeekdays.size === 0) return [];
   const now = Date.now();
+  // Formatters construídos UMA vez e reusados no loop. Construir um Intl.DateTimeFormat por
+  // dia (3 × horizonDays, ex. 270 pra 90 dias) trava a UI ao montar o carrossel no mobile
+  // (Hermes/Android) - o painel só aparece depois. Reusar cai pra 3 construções.
+  const wdFmt = new Intl.DateTimeFormat('en-US', { timeZone: tz, weekday: 'short' });
+  const isoFmt = new Intl.DateTimeFormat('en-CA', {
+    timeZone: tz,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  });
+  const labelFmt = new Intl.DateTimeFormat('pt-BR', {
+    timeZone: tz,
+    weekday: 'short',
+    day: '2-digit',
+    month: '2-digit',
+  });
   const days: BookingDay[] = [];
   for (let i = 0; i < horizonDays; i++) {
     const date = new Date(now + i * MS_PER_DAY);
-    const open = openWeekdays.has(weekdayOf(date, tz));
-    days.push({ value: isoDateInTz(date, tz), label: labelDateInTz(date, tz), open });
+    const open = openWeekdays.has(WD_SHORT[wdFmt.format(date).slice(0, 3)] ?? 0);
+    days.push({ value: isoFmt.format(date), label: labelFmt.format(date), open });
   }
   // Apara as pontas fechadas: começa/termina sempre num dia atendível.
   let start = 0;

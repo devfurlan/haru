@@ -5,7 +5,6 @@ import { useActionState, useEffect } from 'react';
 import { useFormStatus } from 'react-dom';
 
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { PasswordInput } from '@/components/ui/password-input';
 
@@ -49,10 +48,10 @@ export function ResetPasswordForm() {
       </div>
       <div className="space-y-2">
         <Label htmlFor="confirm">Confirme a senha</Label>
-        <Input
+        <PasswordInput
           id="confirm"
           name="confirm"
-          type="password"
+          strength={false}
           autoComplete="new-password"
           minLength={8}
           required

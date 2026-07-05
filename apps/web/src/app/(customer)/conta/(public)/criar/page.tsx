@@ -26,7 +26,7 @@ export default async function CustomerSignupPage() {
         <p className="text-muted-foreground text-center text-sm">
           Já tem conta?{' '}
           <Link
-            href="/conta/entrar"
+            href="/login"
             className="text-foreground font-medium underline-offset-4 hover:underline"
           >
             Entrar

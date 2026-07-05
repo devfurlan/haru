@@ -11,6 +11,27 @@ import { getSupabaseAdmin } from '@/lib/supabase/admin';
 const BUCKET = 'tenant-assets';
 const PUBLIC_PREFIX = `/storage/v1/object/public/${BUCKET}/`;
 
+const MAX_AVATAR_BYTES = 2 * 1024 * 1024; // avatar reduzido cabe folgado em 2 MB
+
+/**
+ * Confere pela assinatura (magic bytes) que o blob é mesmo uma imagem (JPEG/PNG/WebP) e
+ * cabe no limite. Guard único usado pela rota mobile (POST /me/avatar) e pela action web
+ * do perfil do cliente - um chamador não some do outro. Retorna `null` se ok, ou a
+ * mensagem de erro pronta pra devolver ao usuário.
+ */
+export function validateAvatarBuffer(buffer: Buffer): string | null {
+  if (buffer.length === 0) return 'Imagem inválida';
+  if (buffer.length > MAX_AVATAR_BYTES) return 'Imagem muito grande (máx. 2 MB).';
+  if (buffer.length < 12) return 'Formato inválido (use JPEG, PNG ou WebP).';
+  const isJpeg = buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff;
+  const isPng =
+    buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47;
+  const isWebp =
+    buffer.toString('ascii', 0, 4) === 'RIFF' && buffer.toString('ascii', 8, 12) === 'WEBP';
+  if (!isJpeg && !isPng && !isWebp) return 'Formato inválido (use JPEG, PNG ou WebP).';
+  return null;
+}
+
 /** Extrai o path dentro do bucket a partir da URL pública salva; null se não for do bucket. */
 function pathFromUrl(url: string | null | undefined): string | null {
   if (!url) return null;

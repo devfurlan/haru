@@ -26,6 +26,7 @@ export default async function SettingsPage() {
       role: true,
       status: true,
       isProfessional: true,
+      avatarUrl: true,
     },
   });
 

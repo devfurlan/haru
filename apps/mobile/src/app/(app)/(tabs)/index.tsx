@@ -1,3 +1,4 @@
+import { Image } from 'expo-image';
 import { Link, router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, View } from 'react-native';
@@ -10,6 +11,7 @@ import { HeartIcon } from '@/components/heart-icon';
 import { SearchIcon } from '@/components/search-icon';
 import { TenantAvatar } from '@/components/tenant-avatar';
 import { api, ApiError, type AppointmentItem, type AppointmentsData, type Me } from '@/lib/api';
+import { useBoot } from '@/lib/boot';
 import { useFavorites } from '@/lib/use-favorites';
 
 const fraunces = { fontFamily: 'Fraunces_600SemiBold' };
@@ -119,6 +121,33 @@ function NextAppointmentCard({ next }: { next: AppointmentItem }) {
   );
 }
 
+// Aviso na home enquanto a conta não confirmou o WhatsApp por OTP. Leva pra
+// /perfil/telefone (prefill do pendingPhone, mesmo comportamento do perfil/dados).
+function ConfirmPhoneAlert({ me }: { me: Me }) {
+  return (
+    <Pressable
+      onPress={() =>
+        router.push({
+          pathname: '/perfil/telefone',
+          params: !me.phone && me.pendingPhone ? { prefill: me.pendingPhone } : {},
+        })
+      }
+      className="border-coral/25 bg-coral/10 flex-row items-center gap-3 rounded-[18px] border px-4 py-3.5 active:opacity-80"
+    >
+      <View className="bg-coral h-9 w-9 items-center justify-center rounded-full">
+        <Text className="text-base font-bold text-white">!</Text>
+      </View>
+      <View className="flex-1">
+        <Text className="text-ink text-[14.5px] font-semibold">Confirme seu WhatsApp</Text>
+        <Text className="text-sub mt-0.5 text-[12.5px] leading-[17px]">
+          Toque para confirmar e receber lembretes dos seus agendamentos.
+        </Text>
+      </View>
+      <Text className="text-coral text-lg">›</Text>
+    </Pressable>
+  );
+}
+
 function EmptyNextCard() {
   return (
     <View className="border-line bg-paper rounded-[22px] border p-5">
@@ -170,6 +199,7 @@ export default function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { list: favorites, ids, reload: reloadFavs, toggle } = useFavorites();
+  const { markContentReady } = useBoot();
 
   const loadCore = useCallback(async () => {
     setError(null);
@@ -184,8 +214,12 @@ export default function HomeScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      Promise.all([loadCore(), reloadFavs()]).finally(() => setLoading(false));
-    }, [loadCore, reloadFavs]),
+      // markContentReady solta o splash da boot só depois que a 1ª carga resolveu.
+      Promise.all([loadCore(), reloadFavs()]).finally(() => {
+        setLoading(false);
+        markContentReady();
+      });
+    }, [loadCore, reloadFavs, markContentReady]),
   );
 
   const onRefresh = useCallback(async () => {
@@ -228,11 +262,23 @@ export default function HomeScreen() {
                 >
                   <HelpIcon />
                 </Pressable>
-                <View className="bg-green-bright h-[42px] w-[42px] items-center justify-center rounded-[14px]">
-                  <Text style={fraunces} className="text-green-deep text-base">
-                    {initial}
-                  </Text>
-                </View>
+                <Pressable
+                  onPress={() => router.push('/menu')}
+                  className="bg-green-bright h-[42px] w-[42px] items-center justify-center overflow-hidden rounded-[14px] active:opacity-80"
+                >
+                  {me?.avatarUrl ? (
+                    <Image
+                      source={{ uri: me.avatarUrl }}
+                      style={{ width: '100%', height: '100%' }}
+                      contentFit="cover"
+                      transition={150}
+                    />
+                  ) : (
+                    <Text style={fraunces} className="text-green-deep text-base">
+                      {initial}
+                    </Text>
+                  )}
+                </Pressable>
               </View>
             </View>
 
@@ -248,6 +294,12 @@ export default function HomeScreen() {
               {next ? <NextAppointmentCard next={next} /> : <EmptyNextCard />}
             </View>
           </View>
+
+          {me && !me.phoneVerified ? (
+            <View className="px-6 pt-6">
+              <ConfirmPhoneAlert me={me} />
+            </View>
+          ) : null}
 
           {error ? (
             <View className="items-center px-6 pt-6">
@@ -268,7 +320,7 @@ export default function HomeScreen() {
               subtitle="barbearias, salões…"
             />
             <Shortcut
-              onPress={() => router.push('/buscar')}
+              onPress={() => router.push({ pathname: '/buscar', params: { tab: 'favoritos' } })}
               iconBg="bg-[#ffeee9]"
               icon={<HeartIcon filled size={21} />}
               title="Favoritos"
@@ -282,7 +334,10 @@ export default function HomeScreen() {
               Volte pra…
             </Text>
             {favorites.length > 0 ? (
-              <Pressable onPress={() => router.push('/buscar')} className="active:opacity-70">
+              <Pressable
+                onPress={() => router.push({ pathname: '/buscar', params: { tab: 'favoritos' } })}
+                className="active:opacity-70"
+              >
                 <Text className="text-coral text-[13px] font-semibold">ver tudo</Text>
               </Pressable>
             ) : null}
@@ -334,7 +389,7 @@ export default function HomeScreen() {
             </ScrollView>
           ) : (
             <View className="px-6 pt-3.5">
-              <Link href="/buscar" asChild>
+              <Link href={{ pathname: '/buscar', params: { tab: 'favoritos' } }} asChild>
                 <Pressable className="border-ink/10 items-center rounded-2xl border border-dashed px-6 py-6 active:opacity-80">
                   <HeartIcon size={26} color="#9aa8a0" />
                   <Text className="text-muted mt-2 text-center text-sm leading-5">

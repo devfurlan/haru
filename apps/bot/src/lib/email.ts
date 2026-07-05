@@ -17,7 +17,15 @@ export function appUrl(): string {
   return (process.env.APP_URL ?? 'https://demandae.app').replace(/\/$/, '');
 }
 
-export async function sendEmail(to: string, subject: string, html: string): Promise<boolean> {
+/** Anexo Resend: `content` em base64. Ex.: convite .ics de "adicionar à agenda". */
+export type EmailAttachment = { filename: string; content: string; contentType?: string };
+
+export async function sendEmail(
+  to: string,
+  subject: string,
+  html: string,
+  attachments?: EmailAttachment[],
+): Promise<boolean> {
   const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.BILLING_EMAIL_FROM;
   if (!apiKey || !from) {
@@ -25,10 +33,18 @@ export async function sendEmail(to: string, subject: string, html: string): Prom
     return false;
   }
   try {
+    const body: Record<string, unknown> = { from, to, subject, html };
+    if (attachments?.length) {
+      body.attachments = attachments.map((a) => ({
+        filename: a.filename,
+        content: a.content,
+        ...(a.contentType ? { content_type: a.contentType } : {}),
+      }));
+    }
     const res = await fetch(RESEND_URL, {
       method: 'POST',
       headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ from, to, subject, html }),
+      body: JSON.stringify(body),
     });
     if (!res.ok) {
       console.error('[bot-email] resend', res.status, await res.text().catch(() => ''));

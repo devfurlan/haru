@@ -9,6 +9,8 @@ import {
   normalizePhoneBR,
   matchesSearch,
   normalizeForSearch,
+  googleCalendarUrl,
+  buildIcs,
 } from './src/index';
 
 const tz = 'America/Sao_Paulo';
@@ -63,5 +65,24 @@ assert.ok(matchesSearch('joão', 'Salao Sao Joao')); // acento no termo, só nom
 assert.ok(!matchesSearch('xyz', 'STLima Barber', 'stlima-barber')); // não bate
 assert.ok(!matchesSearch('💈', 'Qualquer', 'qualquer')); // lixo não casa tudo
 assert.ok(!matchesSearch('a e', 'Salao Sao Joao', 'salao-sj')); // tokens de 1 char são ruído
+
+// "Adicionar à agenda": Google URL + .ics de um evento de 30min. Confere o intervalo
+// UTC (18:00->18:30) e que o .ics tem o VEVENT com DTSTART/DTEND e SUMMARY escapado.
+const ev = {
+  title: 'Corte masculino · Barbearia do Téo',
+  startIso: '2026-07-15T18:00:00.000Z',
+  minutes: 30,
+  location: 'Rua Aurora, 210; Centro',
+};
+const gurl = googleCalendarUrl(ev);
+assert.ok(gurl.includes('dates=20260715T180000Z/20260715T183000Z'), 'google dates UTC');
+assert.ok(gurl.includes('text=Corte%20masculino'), 'google title encodado');
+const ics = buildIcs({ ...ev, uid: 'appt-123@demandae' });
+assert.ok(ics.startsWith('BEGIN:VCALENDAR\r\n'), 'ics abre VCALENDAR com CRLF');
+assert.ok(ics.includes('DTSTART:20260715T180000Z'), 'ics DTSTART');
+assert.ok(ics.includes('DTEND:20260715T183000Z'), 'ics DTEND');
+assert.ok(ics.includes('UID:appt-123@demandae'), 'ics UID estável');
+assert.ok(ics.includes('LOCATION:Rua Aurora\\, 210\\; Centro'), 'ics escapa vírgula/;');
+assert.ok(ics.trim().endsWith('END:VCALENDAR'), 'ics fecha VCALENDAR');
 
 console.log('shared self-check OK');

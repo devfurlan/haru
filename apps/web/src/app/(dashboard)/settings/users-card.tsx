@@ -18,11 +18,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { formatPhoneBR, maskPhoneBRInput } from '@haru/shared';
 
+import { AvatarUploader } from '../account/avatar-uploader';
 import {
   deleteUser,
   inviteUser,
+  removeMemberAvatar,
   resendInvite,
   updateUser,
+  uploadMemberAvatar,
   type InviteUserActionResult,
   type ResendInviteActionResult,
   type UserActionResult,
@@ -36,6 +39,7 @@ export interface UserRow {
   role: 'OWNER' | 'STAFF';
   status: 'INVITED' | 'ACTIVE';
   isProfessional: boolean;
+  avatarUrl: string | null;
 }
 
 interface UsersCardProps {
@@ -245,6 +249,14 @@ function EditDialog({
           <DialogTitle>Editar usuário</DialogTitle>
           <DialogDescription>{user.email}</DialogDescription>
         </DialogHeader>
+        {/* Foto só faz sentido pra profissional - é quem aparece no booking (web/app). */}
+        {user.isProfessional && (
+          <AvatarUploader
+            avatarUrl={user.avatarUrl}
+            upload={uploadMemberAvatar.bind(null, user.id)}
+            remove={removeMemberAvatar.bind(null, user.id)}
+          />
+        )}
         <form action={formAction} className="space-y-4">
           <input type="hidden" name="userId" value={user.id} />
           <div className="space-y-2">

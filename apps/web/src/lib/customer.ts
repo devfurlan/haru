@@ -26,7 +26,16 @@ export interface CustomerAppointmentItem {
   whenLabel: string;
   status: AppointmentStatus;
   seriesId: string | null;
-  tenant: { id: string; name: string; slug: string; timezone: string; logoUrl: string | null };
+  tenant: {
+    id: string;
+    name: string;
+    slug: string;
+    timezone: string;
+    logoUrl: string | null;
+    address: string | null;
+    latitude: number | null;
+    longitude: number | null;
+  };
   /** Dias com expediente do profissional (pra remarcar / agendar de novo). */
   openWeekdays: number[];
   /** Dia atual do agendamento (YYYY-MM-DD no fuso do tenant) - pré-seleção. */
@@ -74,7 +83,18 @@ export async function getCustomerAppointments(
     include: {
       service: { select: { name: true, durationMinutes: true, priceCents: true, active: true } },
       professional: { select: { name: true } },
-      tenant: { select: { id: true, name: true, slug: true, timezone: true, logoUrl: true } },
+      tenant: {
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          timezone: true,
+          logoUrl: true,
+          address: true,
+          latitude: true,
+          longitude: true,
+        },
+      },
       payments: {
         orderBy: { createdAt: 'desc' },
         take: 1,
@@ -192,6 +212,8 @@ export interface CustomerProfile {
   name: string | null;
   email: string;
   phone: string | null;
+  /** Número do cadastro ainda não confirmado por OTP (null se já confirmado). */
+  pendingPhone: string | null;
   document: string | null;
   birthDate: Date | null;
 }
@@ -201,21 +223,27 @@ export interface CustomerProfile {
  * (que vivem nos Contacts) são lidos do Contact mais recente que os tenha.
  */
 export async function getCustomerProfile(account: CustomerAccount): Promise<CustomerProfile> {
-  const contact = await prisma.contact.findFirst({
-    where: {
-      customerAccountId: account.id,
-      OR: [{ document: { not: null } }, { birthDate: { not: null } }],
-    },
-    orderBy: { updatedAt: 'desc' },
-    select: { document: true, birthDate: true },
-  });
+  // Fallback só pra contas legadas que gravaram document/birthDate no Contact antes de a
+  // conta passar a ser a fonte da verdade. Contas novas leem direto da conta.
+  const needsFallback = account.document == null && account.birthDate == null;
+  const contact = needsFallback
+    ? await prisma.contact.findFirst({
+        where: {
+          customerAccountId: account.id,
+          OR: [{ document: { not: null } }, { birthDate: { not: null } }],
+        },
+        orderBy: { updatedAt: 'desc' },
+        select: { document: true, birthDate: true },
+      })
+    : null;
 
   return {
     name: account.name,
     email: account.email,
     phone: account.phone,
-    document: decryptNullable(contact?.document),
-    birthDate: contact?.birthDate ?? null,
+    pendingPhone: account.pendingPhone,
+    document: decryptNullable(account.document ?? contact?.document),
+    birthDate: account.birthDate ?? contact?.birthDate ?? null,
   };
 }
 
@@ -265,12 +293,23 @@ export async function updateCustomerProfileCore(
     birthDate = d;
   }
 
-  await prisma.customerAccount.update({ where: { id: account.id }, data: { name } });
+  const encryptedDoc = documentDigits ? encryptSecret(documentDigits) : undefined;
+  // Fonte da verdade: a conta (sobrevive sem nenhum Contact). Só grava document/birthDate
+  // quando vieram no input - salvar só o nome não pode apagar CPF/nascimento já guardados.
+  await prisma.customerAccount.update({
+    where: { id: account.id },
+    data: {
+      name,
+      ...(encryptedDoc ? { document: encryptedDoc } : {}),
+      ...(birthDate ? { birthDate } : {}),
+    },
+  });
+  // Mantém os Contacts por-tenant em sincronia (registros do estabelecimento).
   await prisma.contact.updateMany({
     where: { customerAccountId: account.id },
     data: {
       name,
-      ...(documentDigits ? { document: encryptSecret(documentDigits) } : {}),
+      ...(encryptedDoc ? { document: encryptedDoc } : {}),
       ...(birthDate ? { birthDate } : {}),
     },
   });

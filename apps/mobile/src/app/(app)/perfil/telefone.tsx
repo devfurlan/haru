@@ -1,9 +1,10 @@
 import { maskPhoneBRInput } from '@haru/shared';
-import { router } from 'expo-router';
-import { useState } from 'react';
-import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, View } from 'react-native';
+import { router, useLocalSearchParams } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, KeyboardAvoidingView, Pressable, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { OtpInput } from '@/components/otp-input';
 import { PressScale } from '@/components/press-scale';
 import { ScreenHeader } from '@/components/screen-header';
 import { Text, TextInput } from '@/components/text';
@@ -15,11 +16,20 @@ const INPUT = 'border-edge bg-paper text-ink rounded-[13px] border px-4 py-[14px
 // código pro número informado, depois confirma. Serve tanto pra trocar quanto pra
 // confirmar o telefone pela 1ª vez (conta ainda sem número verificado).
 export default function TelefoneScreen() {
+  const { prefill } = useLocalSearchParams<{ prefill?: string }>();
   const [step, setStep] = useState<'phone' | 'code'>('phone');
-  const [phone, setPhone] = useState('');
+  const [phone, setPhone] = useState(() => (prefill ? maskPhoneBRInput(prefill) : ''));
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Cooldown de reenvio (45s), padronizado com o web (ResendCodeButton).
+  const [cooldown, setCooldown] = useState(0);
+
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const t = setTimeout(() => setCooldown((c) => c - 1), 1000);
+    return () => clearTimeout(t);
+  }, [cooldown]);
 
   const phoneDigits = phone.replace(/\D/g, '');
   const canSend = phoneDigits.length >= 10 && !busy;
@@ -31,6 +41,7 @@ export default function TelefoneScreen() {
     try {
       await api.sendPhoneCode(phone);
       setStep('code');
+      setCooldown(45);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Não foi possível enviar o código.');
     } finally {
@@ -54,7 +65,7 @@ export default function TelefoneScreen() {
   return (
     <SafeAreaView className="bg-cream flex-1" edges={['top']}>
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior="padding"
         className="flex-1"
       >
         <ScreenHeader title="Telefone" eyebrow="Conta" />
@@ -84,23 +95,17 @@ export default function TelefoneScreen() {
                 <Text className="text-ink font-semibold">{phone}</Text>.
               </Text>
               <Text className="text-ink mb-1.5 text-xs font-semibold">Código</Text>
-              <TextInput
-                className={`${INPUT} text-center tracking-[8px]`}
-                value={code}
-                onChangeText={(t) => setCode(t.replace(/\D/g, '').slice(0, 6))}
-                placeholder="000000"
-                placeholderTextColor="#9aa89e"
-                keyboardType="number-pad"
-                inputMode="numeric"
-                autoFocus
-                maxLength={6}
-              />
+              <OtpInput value={code} onChangeText={setCode} length={6} autoFocus />
               <View className="mt-4 flex-row items-center justify-between">
                 <Pressable onPress={() => setStep('phone')} hitSlop={8}>
                   <Text className="text-muted text-[13px]">Trocar número</Text>
                 </Pressable>
-                <Pressable onPress={sendCode} disabled={busy} hitSlop={8}>
-                  <Text className="text-coral text-[13px] font-semibold">Reenviar código</Text>
+                <Pressable onPress={sendCode} disabled={busy || cooldown > 0} hitSlop={8}>
+                  <Text
+                    className={`text-[13px] font-semibold ${cooldown > 0 ? 'text-muted' : 'text-coral'}`}
+                  >
+                    {cooldown > 0 ? `Reenviar em ${cooldown}s` : 'Reenviar código'}
+                  </Text>
                 </Pressable>
               </View>
             </>

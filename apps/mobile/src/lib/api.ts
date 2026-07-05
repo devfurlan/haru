@@ -1,11 +1,14 @@
 // Cliente da API mobile (/api/mobile/v1/*). Anexa o Bearer token da sessão Supabase
 // em cada request. Os tipos espelham o JSON dos route handlers (datas viram string ISO).
-import type { AvailableSlot } from '@haru/shared';
+import type { AvailableSlot, SeriesPreview } from '@haru/shared';
 
 import { supabase } from './supabase';
 
 const BASE = process.env.EXPO_PUBLIC_API_URL;
 if (!BASE) throw new Error('Falta EXPO_PUBLIC_API_URL no .env');
+// Em dev, imprime no terminal do Metro qual API o bundle está usando - pega na hora
+// bundle velho apontando pra túnel morto / localhost.
+if (__DEV__) console.log('[api] BASE =', BASE);
 
 export type Me = {
   id: string;
@@ -37,7 +40,16 @@ export type AppointmentItem = {
   whenLabel: string;
   status: 'PENDING' | 'CONFIRMED' | 'CANCELED' | 'COMPLETED' | 'NO_SHOW';
   seriesId: string | null;
-  tenant: { id: string; name: string; slug: string; timezone: string; logoUrl: string | null };
+  tenant: {
+    id: string;
+    name: string;
+    slug: string;
+    timezone: string;
+    logoUrl: string | null;
+    address: string | null;
+    latitude: number | null;
+    longitude: number | null;
+  };
   openWeekdays: number[];
   currentDateStr: string;
   isPast: boolean;
@@ -87,7 +99,7 @@ export type PublicTenant = {
   horizonDays: number;
   openWeekdays: number[];
   services: PublicService[];
-  professionals: { id: string; name: string | null }[];
+  professionals: { id: string; name: string | null; avatarUrl: string | null }[];
 };
 
 export type RecurrenceFrequency = 'WEEKLY' | 'BIWEEKLY' | 'MONTHLY';
@@ -248,6 +260,29 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ serviceId, dateStr, professionalId }),
     }),
+  // Horários de um dia pra trocar o dia de uma ocorrência da série (janela de 90 dias,
+  // profissional fixo). Separado de tenantSlots, que corta no horizonte de avulso (60d).
+  seriesDaySlots: (slug: string, serviceId: string, professionalId: string, dateStr: string) =>
+    request<{ slots: AvailableSlot[] }>(`/tenants/${slug}/bookings/series-slots`, {
+      method: 'POST',
+      body: JSON.stringify({ serviceId, professionalId, dateStr }),
+    }),
+  // Prévia editável da recorrência: ocorrências (mesmo dia/horário) com status + horários
+  // livres do dia, pro app deixar trocar/remover antes de confirmar.
+  previewSeries: (
+    slug: string,
+    input: {
+      serviceId: string;
+      professionalId?: string;
+      slotIso: string;
+      frequency: RecurrenceFrequency;
+      occurrences: number;
+    },
+  ) =>
+    request<SeriesPreview>(`/tenants/${slug}/bookings/preview`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
   createBooking: (
     slug: string,
     input: {
@@ -258,7 +293,8 @@ export const api = {
       phone: string;
       /** Recorrência opcional. Ausente/omitido = agendamento avulso. */
       frequency?: RecurrenceFrequency;
-      occurrences?: number;
+      /** Ocorrências escolhidas na prévia editável (ISO UTC, inclui a 1ª). */
+      slotIsos?: string[];
     },
   ) =>
     request<BookingResult>(`/tenants/${slug}/bookings`, {

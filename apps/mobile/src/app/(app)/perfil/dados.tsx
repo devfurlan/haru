@@ -1,10 +1,9 @@
 import { formatPhoneBR, maskCpfCnpjInput } from '@haru/shared';
-import { router, type Href } from 'expo-router';
-import { useEffect, useState, type ReactNode } from 'react';
+import { router, useFocusEffect, type Href } from 'expo-router';
+import { useCallback, useRef, useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
-  Platform,
   Pressable,
   ScrollView,
   View,
@@ -52,20 +51,27 @@ export default function DadosScreen() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const hydrated = useRef(false);
 
   function hydrate(m: Me) {
     setMe(m);
     setName(m.name ?? '');
     setDocument(m.document ? maskCpfCnpjInput(m.document) : '');
     setBirth(ymdToBR(m.birthDate));
+    hydrated.current = true;
   }
 
-  useEffect(() => {
-    api
-      .me()
-      .then(hydrate)
-      .catch(() => setError('Não foi possível carregar seus dados.'));
-  }, []);
+  // Recarrega ao focar a tela (inclusive ao voltar do fluxo de telefone), pra refletir
+  // o número recém-confirmado. Depois da 1ª vez só atualiza `me`, pra não sobrescrever
+  // edições não salvas de nome/CPF/nascimento.
+  useFocusEffect(
+    useCallback(() => {
+      api
+        .me()
+        .then((m) => (hydrated.current ? setMe(m) : hydrate(m)))
+        .catch(() => setError('Não foi possível carregar seus dados.'));
+    }, []),
+  );
 
   const dirty =
     !!me &&
@@ -96,7 +102,7 @@ export default function DadosScreen() {
   return (
     <SafeAreaView className="bg-cream flex-1" edges={['top']}>
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior="padding"
         className="flex-1"
       >
         <ScreenHeader title="Meus dados" eyebrow="Conta" />
@@ -156,16 +162,34 @@ export default function DadosScreen() {
               </Field>
             </View>
 
-            {/* Telefone: abre o fluxo de OTP (trocar/confirmar). */}
+            {/* Telefone: abre o fluxo de OTP. Mostra o confirmado (me.phone) ou, na
+                falta dele, o número do cadastro ainda pendente de confirmação. */}
             <View className="mt-5">
               <Text className="text-ink mb-1.5 text-xs font-semibold">Telefone</Text>
               <Pressable
-                onPress={() => router.push('/perfil/telefone' as Href)}
+                onPress={() =>
+                  router.push({
+                    pathname: '/perfil/telefone',
+                    // Ao confirmar pela 1ª vez, leva o número pendente pré-preenchido.
+                    params: !me?.phone && me?.pendingPhone ? { prefill: me.pendingPhone } : {},
+                  } as Href)
+                }
                 className="border-edge bg-paper flex-row items-center justify-between rounded-[13px] border px-4 py-[13px] active:opacity-70"
               >
-                <Text className={`text-[15px] ${me?.phone ? 'text-ink' : 'text-muted'}`}>
-                  {me?.phone ? formatPhoneBR(me.phone) : 'Nenhum confirmado'}
-                </Text>
+                <View className="flex-1">
+                  <Text
+                    className={`text-[15px] ${me?.phone ?? me?.pendingPhone ? 'text-ink' : 'text-muted'}`}
+                  >
+                    {me?.phone
+                      ? formatPhoneBR(me.phone)
+                      : me?.pendingPhone
+                        ? formatPhoneBR(me.pendingPhone)
+                        : 'Nenhum confirmado'}
+                  </Text>
+                  {!me?.phone && me?.pendingPhone ? (
+                    <Text className="text-sub mt-0.5 text-[12px]">Aguardando confirmação</Text>
+                  ) : null}
+                </View>
                 <Text className="text-coral text-[13px] font-semibold">
                   {me?.phone ? 'Trocar' : 'Confirmar'}
                 </Text>
@@ -173,7 +197,14 @@ export default function DadosScreen() {
             </View>
 
             {error ? <Text className="text-destructive mt-4 text-sm">{error}</Text> : null}
-            {saved ? <Text className="text-green-deep mt-4 text-sm">Dados salvos.</Text> : null}
+            {saved && !dirty ? (
+              <View className="border-green/30 bg-green/10 mt-4 flex-row items-center gap-2 rounded-xl border px-4 py-3">
+                <Text className="text-green text-[15px]">✓</Text>
+                <Text className="text-green flex-1 text-[14px] font-semibold">
+                  Dados salvos com sucesso.
+                </Text>
+              </View>
+            ) : null}
 
             <PressScale
               disabled={!canSave}

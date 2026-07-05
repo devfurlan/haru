@@ -4,7 +4,6 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Linking,
-  Platform,
   Pressable,
   ScrollView,
   View,
@@ -15,6 +14,7 @@ import Svg, { Path } from 'react-native-svg';
 import { maskPhoneBRInput } from '@haru/shared';
 
 import { GoogleAuthButton } from '@/components/google-auth-button';
+import { PasswordInput } from '@/components/password-input';
 import { PressScale } from '@/components/press-scale';
 import { Text, TextInput } from '@/components/text';
 import { api, ApiError } from '@/lib/api';
@@ -72,7 +72,7 @@ export default function SignupScreen() {
   return (
     <SafeAreaView className="bg-cream flex-1">
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior="padding"
         className="flex-1"
       >
         <ScrollView
@@ -156,13 +156,12 @@ export default function SignupScreen() {
             </Field>
 
             <Field label="Senha">
-              <TextInput
-                className="border-edge bg-paper text-ink rounded-[13px] border px-4 py-[13px] text-[15px]"
+              <PasswordInput
+                className="px-4 py-[13px] text-[15px]"
+                containerClassName="rounded-[13px]"
                 value={password}
                 onChangeText={setPassword}
                 placeholder="mínimo 8 caracteres"
-                placeholderTextColor="#9aa89e"
-                secureTextEntry
               />
             </Field>
           </View>
@@ -212,10 +211,6 @@ export default function SignupScreen() {
               <Text className="text-base font-bold text-white">Criar conta</Text>
             )}
           </PressScale>
-
-          <Text className="text-sub mt-3 text-center text-[11px] leading-[17px]">
-            Ao criar conta, você concorda com os Termos e a Política de Privacidade.
-          </Text>
 
           <Link href="/login" asChild>
             <Pressable className="mt-3.5">

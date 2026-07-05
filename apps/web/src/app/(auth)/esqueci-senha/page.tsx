@@ -6,9 +6,15 @@ import { getCurrentUserAndTenant } from '@/lib/auth';
 
 import { ForgotPasswordForm } from './forgot-password-form';
 
-export default async function ForgotPasswordPage() {
+export default async function ForgotPasswordPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ email?: string }>;
+}) {
   const current = await getCurrentUserAndTenant();
   if (current) redirect('/dashboard');
+
+  const { email } = await searchParams;
 
   return (
     <Card>
@@ -19,7 +25,7 @@ export default async function ForgotPasswordPage() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <ForgotPasswordForm />
+        <ForgotPasswordForm defaultEmail={email} />
         <p className="text-muted-foreground text-center text-sm">
           Lembrou a senha?{' '}
           <Link

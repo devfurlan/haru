@@ -3,16 +3,15 @@ import { useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
-  Platform,
   Pressable,
   ScrollView,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { EyeIcon } from '@/components/eye-icon';
 import { GoogleAuthButton } from '@/components/google-auth-button';
 import { Logo } from '@/components/logo';
+import { PasswordInput } from '@/components/password-input';
 import { PressScale } from '@/components/press-scale';
 import { Text, TextInput } from '@/components/text';
 import { useAuth } from '@/lib/auth';
@@ -23,8 +22,6 @@ export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-  const [passwordFocused, setPasswordFocused] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Já logado: sai da tela de login pro app.
@@ -62,7 +59,7 @@ export default function LoginScreen() {
   return (
     <SafeAreaView className="bg-cream flex-1" edges={['top', 'bottom']}>
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior="padding"
         className="flex-1"
       >
         <ScrollView
@@ -105,28 +102,15 @@ export default function LoginScreen() {
 
               <View>
                 <Text className="text-ink mb-1.5 text-[12.5px] font-semibold">Senha</Text>
-                <View
-                  className={`bg-paper flex-row items-center rounded-[14px] pr-2.5 ${passwordFocused ? 'border-green-deep border-[1.5px]' : 'border-edge border'}`}
-                >
-                  <TextInput
-                    className="text-ink flex-1 px-4 py-[15px] text-base"
-                    value={password}
-                    onChangeText={setPassword}
-                    onFocus={() => setPasswordFocused(true)}
-                    onBlur={() => setPasswordFocused(false)}
-                    placeholder="Sua senha"
-                    placeholderTextColor="#9aa8a0"
-                    secureTextEntry={!showPassword}
-                    autoComplete="current-password"
-                    autoCapitalize="none"
-                  />
-                  <Pressable onPress={() => setShowPassword((v) => !v)} hitSlop={8} className="p-2">
-                    <EyeIcon off={showPassword} color="#9aa89e" />
-                  </Pressable>
-                </View>
+                <PasswordInput
+                  value={password}
+                  onChangeText={setPassword}
+                  placeholder="Sua senha"
+                  autoComplete="current-password"
+                />
               </View>
 
-              <Link href="/esqueci-senha" asChild>
+              <Link href={{ pathname: '/esqueci-senha', params: { email: email.trim() } }} asChild>
                 <Pressable className="self-end" hitSlop={8}>
                   <Text className="text-green-deep text-[12.5px] font-semibold">
                     Esqueci a senha

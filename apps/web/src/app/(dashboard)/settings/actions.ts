@@ -93,6 +93,19 @@ const tenantSchema = z.object({
     .transform((v) => (v && v.trim() ? v.trim() : null)),
 });
 
+// lat/lng chegam de inputs hidden (client, forjáveis): só aceita números finitos e
+// dentro do território brasileiro. Fora disso -> null, cai no fallback de geocode.
+function validCoords(
+  latRaw: FormDataEntryValue | null,
+  lngRaw: FormDataEntryValue | null,
+): { lat: number; lng: number } | null {
+  const lat = Number(latRaw);
+  const lng = Number(lngRaw);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  if (lat < -34 || lat > 6 || lng < -74 || lng > -33) return null;
+  return { lat, lng };
+}
+
 export type TenantActionResult = { error: string } | { ok: true };
 
 export async function updateTenant(
@@ -113,12 +126,16 @@ export async function updateTenant(
     return { error: parsed.error.issues[0]?.message ?? 'Dados inválidos' };
   }
 
-  // Geocodifica o endereço p/ alimentar a busca por proximidade no app. Só quando
-  // muda: endereço vazio zera as coords; inalterado mantém as atuais; novo texto vai
-  // pro Nominatim (best-effort, falha vira null sem travar o save).
+  // Coords p/ alimentar a busca por proximidade no app. Quando o dono escolhe uma
+  // sugestão do autocomplete (Photon), lat/lng vêm no form e são usados direto. Se ele
+  // digita à mão (sem coords no form) e o texto mudou, geocodifica via Nominatim como
+  // fallback. Endereço vazio zera; inalterado sem coords novas mantém as atuais.
+  const picked = validCoords(formData.get('latitude'), formData.get('longitude'));
   let geo: { latitude: number | null; longitude: number | null } | undefined;
   if (parsed.data.address == null) {
     geo = { latitude: null, longitude: null };
+  } else if (picked) {
+    geo = { latitude: picked.lat, longitude: picked.lng };
   } else if (parsed.data.address !== tenant.address) {
     const g = await geocodeAddress(parsed.data.address);
     geo = { latitude: g?.lat ?? null, longitude: g?.lng ?? null };
@@ -351,10 +368,68 @@ export async function removeUserAvatar(): Promise<TenantActionResult> {
   return { ok: true };
 }
 
+// --- Foto de perfil de OUTRO membro (admin gerencia a equipe) --------------
+// Mesmo fluxo do avatar próprio, mas o admin sobe a foto de um profissional do
+// tenant (aparece no booking web/mobile). Valida que o alvo é do mesmo tenant.
+
+/** Carrega o membro-alvo garantindo que pertence ao tenant do admin. */
+async function loadMemberOfAdmin(userId: string) {
+  const { tenant } = await requireAdmin();
+  const target = await prisma.user.findUnique({ where: { id: userId } });
+  if (!target || target.tenantId !== tenant.id) return null;
+  return { tenant, target };
+}
+
+export async function uploadMemberAvatar(
+  userId: string,
+  formData: FormData,
+): Promise<LogoUploadResult> {
+  const ctx = await loadMemberOfAdmin(userId);
+  if (!ctx) return { error: 'Usuário não encontrado neste estabelecimento.' };
+  const { tenant, target } = ctx;
+
+  const file = formData.get('file');
+  if (!(file instanceof File) || file.size === 0) {
+    return { error: 'Arquivo da foto ausente' };
+  }
+  if (file.size > MAX_AVATAR_BYTES) {
+    return { error: 'Imagem muito grande (máx. 2 MB).' };
+  }
+  if (file.type !== 'image/webp') {
+    return { error: 'Formato inválido.' };
+  }
+
+  const uploaded = await uploadAvatar(
+    `${tenant.id}/users/${target.id}`,
+    Buffer.from(await file.arrayBuffer()),
+    'webp',
+    'image/webp',
+    target.avatarUrl,
+  );
+  if ('error' in uploaded) return { error: uploaded.error };
+
+  await prisma.user.update({ where: { id: target.id }, data: { avatarUrl: uploaded.url } });
+
+  revalidatePath('/settings');
+  return { ok: true, logoUrl: uploaded.url };
+}
+
+export async function removeMemberAvatar(userId: string): Promise<TenantActionResult> {
+  const ctx = await loadMemberOfAdmin(userId);
+  if (!ctx) return { error: 'Usuário não encontrado neste estabelecimento.' };
+
+  await removeAvatar(ctx.target.avatarUrl);
+  await prisma.user.update({ where: { id: ctx.target.id }, data: { avatarUrl: null } });
+
+  revalidatePath('/settings');
+  return { ok: true };
+}
+
 // --- Troca de senha (Supabase Auth) ---------------------------------------
 
 const passwordSchema = z
   .object({
+    current: z.string().min(1, 'Informe a senha atual'),
     password: z.string().min(8, 'A senha deve ter ao menos 8 caracteres').max(72),
     confirm: z.string(),
   })
@@ -373,6 +448,7 @@ export async function changePassword(
   await requireUserAndTenant();
 
   const parsed = passwordSchema.safeParse({
+    current: formData.get('current'),
     password: formData.get('password'),
     confirm: formData.get('confirm'),
   });
@@ -381,6 +457,21 @@ export async function changePassword(
   }
 
   const supabase = await createClient();
+
+  // Supabase não tem "verificar senha"; reautentica com a senha atual antes de trocar.
+  const { data: userData } = await supabase.auth.getUser();
+  const email = userData.user?.email;
+  if (!email) {
+    return { error: 'Sessão expirada. Entre novamente.' };
+  }
+  const { error: signInError } = await supabase.auth.signInWithPassword({
+    email,
+    password: parsed.data.current,
+  });
+  if (signInError) {
+    return { error: 'Senha atual incorreta.' };
+  }
+
   const { error } = await supabase.auth.updateUser({ password: parsed.data.password });
   if (error) {
     return { error: error.message };

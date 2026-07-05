@@ -1,14 +1,13 @@
 import { router } from 'expo-router';
 import { useState, type ReactNode } from 'react';
-import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { PasswordInput } from '@/components/password-input';
 import { PressScale } from '@/components/press-scale';
 import { ScreenHeader } from '@/components/screen-header';
-import { Text, TextInput } from '@/components/text';
+import { Text } from '@/components/text';
 import { supabase } from '@/lib/supabase';
-
-const INPUT = 'border-edge bg-paper text-ink rounded-[13px] border px-4 py-[13px] text-[15px]';
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -22,13 +21,15 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 // Troca de senha do cliente logado. A sessão já existe, então vai direto no Supabase
 // (updateUser) - sem endpoint próprio. Recuperar senha esquecida é outro fluxo (/esqueci-senha).
 export default function SenhaScreen() {
+  const [current, setCurrent] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
 
-  const canSave = password.length >= 8 && password === confirm && !saving;
+  const canSave =
+    current.length > 0 && password.length >= 8 && password === confirm && !saving;
 
   async function handleSave() {
     setError(null);
@@ -36,6 +37,21 @@ export default function SenhaScreen() {
     if (password !== confirm) return setError('As senhas não conferem.');
     setSaving(true);
     try {
+      // Supabase não tem "verificar senha"; reautentica com a senha atual antes de trocar.
+      const { data } = await supabase.auth.getUser();
+      const email = data.user?.email;
+      if (!email) {
+        setError('Sessão expirada. Entre novamente.');
+        return;
+      }
+      const { error: signInErr } = await supabase.auth.signInWithPassword({
+        email,
+        password: current,
+      });
+      if (signInErr) {
+        setError('Senha atual incorreta.');
+        return;
+      }
       const { error: err } = await supabase.auth.updateUser({ password });
       if (err) setError('Não foi possível alterar a senha. Tente novamente.');
       else setDone(true);
@@ -49,7 +65,7 @@ export default function SenhaScreen() {
   return (
     <SafeAreaView className="bg-cream flex-1" edges={['top']}>
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior="padding"
         className="flex-1"
       >
         <ScreenHeader title="Alterar senha" eyebrow="Conta" />
@@ -74,26 +90,31 @@ export default function SenhaScreen() {
           ) : (
             <>
               <View className="gap-3.5">
+                <Field label="Senha atual">
+                  <PasswordInput
+                    className="px-4 py-[13px] text-[15px]"
+                    containerClassName="rounded-[13px]"
+                    value={current}
+                    onChangeText={setCurrent}
+                    placeholder="sua senha atual"
+                  />
+                </Field>
                 <Field label="Nova senha">
-                  <TextInput
-                    className={INPUT}
+                  <PasswordInput
+                    className="px-4 py-[13px] text-[15px]"
+                    containerClassName="rounded-[13px]"
                     value={password}
                     onChangeText={setPassword}
                     placeholder="mínimo 8 caracteres"
-                    placeholderTextColor="#9aa89e"
-                    secureTextEntry
-                    autoCapitalize="none"
                   />
                 </Field>
                 <Field label="Confirmar senha">
-                  <TextInput
-                    className={INPUT}
+                  <PasswordInput
+                    className="px-4 py-[13px] text-[15px]"
+                    containerClassName="rounded-[13px]"
                     value={confirm}
                     onChangeText={setConfirm}
                     placeholder="repita a senha"
-                    placeholderTextColor="#9aa89e"
-                    secureTextEntry
-                    autoCapitalize="none"
                   />
                 </Field>
               </View>

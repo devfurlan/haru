@@ -4,9 +4,11 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
 
-import { prisma, type AppointmentStatus } from '@haru/database';
+import { Prisma, prisma, type AppointmentStatus } from '@haru/database';
 
 import { traduzErroSignUp } from '@/lib/auth-errors';
+import { removeAvatar, uploadAvatar, validateAvatarBuffer } from '@/lib/avatar-storage';
+import { searchDirectory, type DirectoryTenant } from '@/lib/tenant-directory';
 import type { AvailableSlot } from '@haru/shared';
 import {
   cancelOwnedAppointment,
@@ -104,54 +106,14 @@ export async function customerSignUp(
   redirect('/conta');
 }
 
-const customerSignInSchema = z.object({
-  email: z.string().email('Email inválido'),
-  password: z.string().min(1, 'Senha obrigatória'),
-});
-
-export async function customerSignIn(
-  _prev: CustomerActionResult,
-  formData: FormData,
-): Promise<CustomerActionResult> {
-  const parsed = customerSignInSchema.safeParse({
-    email: formData.get('email'),
-    password: formData.get('password'),
-  });
-  if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? 'Dados inválidos' };
-  }
-
-  const supabase = await createClient();
-  const { data, error } = await supabase.auth.signInWithPassword(parsed.data);
-  if (error || !data.user) {
-    return { error: 'Credenciais inválidas' };
-  }
-
-  // Esta é a entrada de quem agenda. Se a sessão for de um dono/equipe (só tem
-  // User), manda pro painel em vez de prender aqui.
-  const account = await prisma.customerAccount.findUnique({
-    where: { authId: data.user.id },
-  });
-  if (!account) {
-    const user = await prisma.user.findUnique({ where: { authId: data.user.id } });
-    if (user) {
-      revalidatePath('/', 'layout');
-      redirect('/dashboard');
-    }
-    // Sessão sem vínculo no domínio (caso raro/órfão): encerra e avisa.
-    await supabase.auth.signOut();
-    return { error: 'Não encontramos uma conta de agendamentos para este acesso.' };
-  }
-
-  revalidatePath('/', 'layout');
-  redirect('/conta');
-}
+// Login unificado em /login usa a action signIn de (auth)/actions.ts, que já faz o
+// cross-route dono/cliente. Não há mais customerSignIn.
 
 export async function customerSignOut() {
   const supabase = await createClient();
   await supabase.auth.signOut();
   revalidatePath('/', 'layout');
-  redirect('/conta/entrar');
+  redirect('/login');
 }
 
 /**
@@ -168,7 +130,7 @@ export async function customerDeleteAccount(): Promise<CustomerActionResult> {
   const supabase = await createClient();
   await supabase.auth.signOut();
   revalidatePath('/', 'layout');
-  redirect('/conta/entrar');
+  redirect('/login');
 }
 
 // ---------------------------------------------------------------------------
@@ -397,6 +359,7 @@ export type CustomerPasswordResult = { error: string } | { ok: true } | undefine
 
 const passwordSchema = z
   .object({
+    current: z.string().min(1, 'Informe a senha atual'),
     password: z.string().min(8, 'A senha deve ter ao menos 8 caracteres'),
     confirm: z.string(),
   })
@@ -412,6 +375,7 @@ export async function customerChangePassword(
   await requireCustomerAccount();
 
   const parsed = passwordSchema.safeParse({
+    current: formData.get('current'),
     password: formData.get('password'),
     confirm: formData.get('confirm'),
   });
@@ -420,9 +384,133 @@ export async function customerChangePassword(
   }
 
   const supabase = await createClient();
+
+  // Supabase não tem "verificar senha"; reautentica com a senha atual antes de trocar.
+  const { data: userData } = await supabase.auth.getUser();
+  const email = userData.user?.email;
+  if (!email) {
+    return { error: 'Sessão expirada. Entre novamente.' };
+  }
+  const { error: signInError } = await supabase.auth.signInWithPassword({
+    email,
+    password: parsed.data.current,
+  });
+  if (signInError) {
+    return { error: 'Senha atual incorreta.' };
+  }
+
   const { error } = await supabase.auth.updateUser({ password: parsed.data.password });
   if (error) {
     return { error: 'Não foi possível alterar a senha. Tente novamente.' };
   }
+  return { ok: true };
+}
+
+// ---------------------------------------------------------------------------
+// Buscar + favoritos (aba "Buscar", paridade com o app mobile). Só camada web fina:
+// a busca (Haversine) vive em @/lib/tenant-directory; favoritos usam o mesmo model
+// Favorite do endpoint mobile (api/mobile/v1/favorites).
+// ---------------------------------------------------------------------------
+
+/** Diretório de estabelecimentos p/ a aba Buscar. Logado (a rota já garante a sessão). */
+export async function searchTenants(opts: {
+  q?: string;
+  lat?: number;
+  lng?: number;
+}): Promise<DirectoryTenant[]> {
+  await requireCustomerAccount();
+  return searchDirectory(opts);
+}
+
+export type FavoriteItem = {
+  tenantId: string;
+  name: string;
+  slug: string;
+  logoUrl: string | null;
+  address: string | null;
+};
+
+export async function getFavorites(): Promise<FavoriteItem[]> {
+  const account = await requireCustomerAccount();
+  const rows = await prisma.favorite.findMany({
+    where: { customerAccountId: account.id },
+    include: {
+      tenant: { select: { id: true, name: true, slug: true, logoUrl: true, address: true } },
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+  return rows.map((f) => ({
+    tenantId: f.tenant.id,
+    name: f.tenant.name,
+    slug: f.tenant.slug,
+    logoUrl: f.tenant.logoUrl,
+    address: f.tenant.address,
+  }));
+}
+
+export async function addFavorite(tenantId: string): Promise<CustomerActionResult> {
+  const account = await requireCustomerAccount();
+  if (!tenantId) return { error: 'Estabelecimento inválido' };
+  try {
+    await prisma.favorite.create({ data: { customerAccountId: account.id, tenantId } });
+  } catch (err) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError) {
+      if (err.code === 'P2002') return { ok: true }; // já era favorito (idempotente)
+      if (err.code === 'P2003') return { error: 'Estabelecimento inválido' };
+    }
+    throw err;
+  }
+  return { ok: true };
+}
+
+export async function removeFavorite(tenantId: string): Promise<CustomerActionResult> {
+  const account = await requireCustomerAccount();
+  await prisma.favorite.deleteMany({ where: { customerAccountId: account.id, tenantId } });
+  return { ok: true };
+}
+
+// ---------------------------------------------------------------------------
+// Avatar do cliente. A imagem chega já reduzida (canvas no client, ~256px JPEG);
+// aqui só validamos os bytes e persistimos. Mesmo storage/campo do endpoint mobile
+// (api/mobile/v1/me/avatar) - o guard é o `validateAvatarBuffer` compartilhado.
+// ---------------------------------------------------------------------------
+
+export type AvatarResult = { ok: true; avatarUrl: string } | { error: string };
+
+export async function updateAvatar(formData: FormData): Promise<AvatarResult> {
+  const account = await requireCustomerAccount();
+
+  const file = formData.get('file');
+  if (!(file instanceof File) || file.size === 0) return { error: 'Imagem ausente' };
+
+  const buffer = Buffer.from(await file.arrayBuffer());
+  const invalid = validateAvatarBuffer(buffer);
+  if (invalid) return { error: invalid };
+
+  const uploaded = await uploadAvatar(
+    `customers/${account.id}`,
+    buffer,
+    'jpg',
+    'image/jpeg',
+    account.avatarUrl,
+  );
+  if ('error' in uploaded) return { error: uploaded.error };
+
+  await prisma.customerAccount.update({
+    where: { id: account.id },
+    data: { avatarUrl: uploaded.url },
+  });
+
+  revalidatePath('/conta');
+  revalidatePath('/conta/perfil');
+  return { ok: true, avatarUrl: uploaded.url };
+}
+
+export async function removeCustomerAvatar(): Promise<CustomerActionResult> {
+  const account = await requireCustomerAccount();
+  await removeAvatar(account.avatarUrl);
+  await prisma.customerAccount.update({ where: { id: account.id }, data: { avatarUrl: null } });
+  revalidatePath('/conta');
+  revalidatePath('/conta/perfil');
   return { ok: true };
 }

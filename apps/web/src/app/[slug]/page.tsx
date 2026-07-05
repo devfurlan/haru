@@ -86,7 +86,7 @@ export default async function TenantPublicPage({ params }: { params: Promise<{ s
         <div className="flex items-center justify-between gap-2">
           <BusinessHoursDialog hours={businessHours} />
           <Button asChild variant="ghost" size="sm">
-            <Link href={customerAccount ? '/conta' : '/conta/entrar'}>
+            <Link href={customerAccount ? '/conta' : '/login'}>
               <UserRound className="h-4 w-4" />
               {customerAccount ? 'Minha conta' : 'Entrar na minha conta'}
             </Link>
@@ -106,7 +106,9 @@ export default async function TenantPublicPage({ params }: { params: Promise<{ s
                   className="h-16 w-16 shrink-0 rounded-full object-cover"
                 />
               )}
-              <h1 className="font-serif text-4xl font-semibold tracking-[-0.01em]">{tenant.name}</h1>
+              <h1 className="font-serif text-4xl font-semibold tracking-[-0.01em]">
+                {tenant.name}
+              </h1>
             </div>
             <p className="text-muted-foreground text-sm">
               {waLink ? 'Agende pelo WhatsApp em segundos.' : 'Confira nossos serviços e horários.'}
@@ -127,7 +129,11 @@ export default async function TenantPublicPage({ params }: { params: Promise<{ s
               priceCents: s.priceCents,
               professionalIds: s.professionals.map((p) => p.professionalId),
             }))}
-            professionals={tenant.users.map((u) => ({ id: u.id, name: u.name }))}
+            professionals={tenant.users.map((u) => ({
+              id: u.id,
+              name: u.name,
+              avatarUrl: u.avatarUrl,
+            }))}
             timezone={tenant.timezone}
             openWeekdays={openWeekdays}
             horizonDays={BOOKING_HORIZON_DAYS}

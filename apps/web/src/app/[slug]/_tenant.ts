@@ -48,7 +48,7 @@ export async function loadPublicTenant(slug: string) {
       users: {
         where: { isProfessional: true },
         orderBy: [{ name: 'asc' }, { createdAt: 'asc' }],
-        select: { id: true, name: true },
+        select: { id: true, name: true, avatarUrl: true },
       },
     },
   });

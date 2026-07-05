@@ -18,22 +18,22 @@ export async function GET(request: NextRequest) {
   // `next` é sempre caminho interno - barrar URL absoluta/protocol-relative evita open redirect.
   const next = safeInternalPath(searchParams.get('next'), '/conta');
 
-  if (!code) redirect('/conta/entrar?error=oauth');
+  if (!code) redirect('/login?error=oauth');
 
   const supabase = await createClient();
   const { error } = await supabase.auth.exchangeCodeForSession(code);
-  if (error) redirect('/conta/entrar?error=oauth');
+  if (error) redirect('/login?error=oauth');
 
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) redirect('/conta/entrar?error=oauth');
+  if (!user) redirect('/login?error=oauth');
 
   const result = await ensureCustomerAccount(user);
   if ('error' in result) {
     // E-mail já tem conta com senha (outro authId): desloga e manda entrar com senha.
     await supabase.auth.signOut();
-    redirect('/conta/entrar?error=email-existente');
+    redirect('/login?error=email-existente');
   }
 
   redirect(next);

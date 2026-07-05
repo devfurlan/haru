@@ -3,5 +3,7 @@
 // agendamento no fuso do tenant e formatação BR (moeda, telefone, CPF/CNPJ, datas).
 export * from './availability';
 export * from './booking-days';
+export * from './calendar';
 export * from './format';
+export * from './recurrence';
 export * from './search';

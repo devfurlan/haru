@@ -1,5 +1,6 @@
 'use client';
 
+import { Eye, EyeOff } from 'lucide-react';
 import * as React from 'react';
 
 import { Input } from '@/components/ui/input';
@@ -28,23 +29,36 @@ const LEVELS = [
 
 const PasswordInput = React.forwardRef<
   HTMLInputElement,
-  React.InputHTMLAttributes<HTMLInputElement>
->(({ onChange, ...props }, ref) => {
+  React.InputHTMLAttributes<HTMLInputElement> & { strength?: boolean }
+>(({ onChange, strength = true, className, ...props }, ref) => {
   const [score, setScore] = React.useState(0);
+  const [visible, setVisible] = React.useState(false);
   const level = LEVELS[score];
 
   return (
     <>
-      <Input
-        ref={ref}
-        type="password"
-        onChange={(e) => {
-          setScore(scorePassword(e.target.value));
-          onChange?.(e);
-        }}
-        {...props}
-      />
-      {score > 0 && (
+      <div className="relative">
+        <Input
+          ref={ref}
+          type={visible ? 'text' : 'password'}
+          className={cn('pr-9', className)}
+          onChange={(e) => {
+            if (strength) setScore(scorePassword(e.target.value));
+            onChange?.(e);
+          }}
+          {...props}
+        />
+        <button
+          type="button"
+          tabIndex={-1}
+          onClick={() => setVisible((v) => !v)}
+          aria-label={visible ? 'Ocultar senha' : 'Mostrar senha'}
+          className="text-muted-foreground hover:text-foreground absolute inset-y-0 right-0 flex items-center px-2.5"
+        >
+          {visible ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+        </button>
+      </div>
+      {strength && score > 0 && (
         <div className="flex items-center gap-2" aria-live="polite">
           <div className="flex flex-1 gap-1">
             {[1, 2, 3].map((seg) => (

@@ -7,7 +7,16 @@ import { type AppointmentStatus, prisma } from '@haru/database';
 
 import { createBookingCore } from '@/lib/appointment-mutations';
 import { createAppointmentSeries } from '@/lib/appointment-series';
-import { type AvailableSlotWithProfessionals, localWallTimeToUtc } from '@haru/shared';
+import {
+  previewPublicSeries as previewSeriesCore,
+  previewSeriesDaySlots,
+} from '@/lib/public-series';
+import {
+  type AvailableSlotWithProfessionals,
+  localWallTimeToUtc,
+  type RecurrenceFrequency,
+  type SeriesPreview,
+} from '@haru/shared';
 import { BOOKING_HORIZON_DAYS, isoDateInTz } from '@haru/shared';
 import { getCustomerAccount } from '@/lib/customer-auth';
 import { normalizePhoneBR } from '@haru/shared';
@@ -83,6 +92,44 @@ export async function getAvailableSlots(
   });
 }
 
+/**
+ * Prévia editável de uma série recorrente: dado o 1º slot + frequência + quantidade,
+ * devolve cada ocorrência (mesmo dia-da-semana/horário) com seu status e os horários
+ * livres do dia (pro cliente trocar/remover antes de confirmar). Rota pública, só leitura.
+ */
+export async function previewPublicSeries(input: {
+  slug: string;
+  serviceId: string;
+  professionalId?: string;
+  slotIso: string;
+  frequency: RecurrenceFrequency;
+  occurrences: number;
+}): Promise<SeriesPreview | { error: string }> {
+  const result = await previewSeriesCore({
+    slug: input.slug,
+    serviceId: input.serviceId,
+    professionalId: input.professionalId,
+    firstStartsAtIso: input.slotIso,
+    frequency: input.frequency,
+    occurrences: input.occurrences,
+  });
+  if ('error' in result) return { error: result.error };
+  return { professionalId: result.professionalId, occurrences: result.occurrences };
+}
+
+/**
+ * Horários de um dia pra trocar o dia de uma ocorrência da série (janela de 90 dias, do
+ * profissional resolvido). Rota pública, só leitura.
+ */
+export async function getSeriesDaySlots(
+  slug: string,
+  serviceId: string,
+  professionalId: string,
+  dateStr: string,
+): Promise<AvailableSlotWithProfessionals[]> {
+  return previewSeriesDaySlots({ slug, serviceId, professionalId, dateStr });
+}
+
 const PHONE_RE = /^55\d{10,11}$/;
 
 export type ContactLookupResult = { exists: boolean; name: string | null };
@@ -144,7 +191,8 @@ const bookingSchema = z.object({
     .refine((v) => /^55\d{10,11}$/.test(v), { message: 'WhatsApp inválido - confira o DDD' }),
   // Recorrência (opcional). 'NONE'/ausente = agendamento avulso.
   frequency: z.enum(['NONE', 'WEEKLY', 'BIWEEKLY', 'MONTHLY']).default('NONE'),
-  occurrences: z.coerce.number().int().min(2).max(12).optional(),
+  // Ocorrências escolhidas na prévia editável (ISO UTC, incluindo a 1ª). Vazio = avulso.
+  slotIsos: z.array(z.string().min(1)).max(12).optional(),
 });
 
 export type CreatePublicBookingResult =
@@ -194,7 +242,7 @@ export async function createPublicBooking(
     name: formData.get('name'),
     phone: formData.get('phone'),
     frequency: formData.get('frequency') ?? 'NONE',
-    occurrences: formData.get('occurrences') ?? undefined,
+    slotIsos: formData.getAll('slotIsos').map(String),
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? 'Dados inválidos' };
@@ -258,15 +306,20 @@ export async function createPublicBooking(
     create: { tenantId: tenant.id, phone, name, profileCompletedAt: new Date() },
   });
 
-  // Se um cliente logado está agendando com o PRÓPRIO número (o telefone verificado
-  // da conta), vincula este contato a ela. Só com telefone igual ao da conta - senão
-  // alguém logado agendaria com número alheio e reivindicaria o histórico de terceiros.
+  // Cliente logado agendando com o PRÓPRIO número: vincula este contato à conta pra ele ver
+  // o agendamento. Com o número já verificado (account.phone), reivindica até contato
+  // pré-existente (posse provada). Sem verificação (só pendingPhone, comum logo após o
+  // cadastro), só vincula se o contato nasceu neste booking (!existing) - aí não há
+  // histórico de terceiro sob esse número pra vazar, só o próprio agendamento.
   const account = await getCustomerAccount();
-  if (account && account.phone === phone) {
-    await prisma.contact.updateMany({
-      where: { id: contact.id, customerAccountId: null },
-      data: { customerAccountId: account.id },
-    });
+  if (account) {
+    const ownNumber = account.phone === phone || (!existing && account.pendingPhone === phone);
+    if (ownNumber) {
+      await prisma.contact.updateMany({
+        where: { id: contact.id, customerAccountId: null },
+        data: { customerAccountId: account.id },
+      });
+    }
   }
 
   // publicBookingConfirmation (PENDING|CONFIRMED) é subconjunto de AppointmentStatus.
@@ -285,8 +338,14 @@ export async function createPublicBooking(
   // expediente e avisa). Não oferece pagamento online nesta versão (cobrança de
   // série fica fora de escopo).
   if (frequency !== 'NONE') {
-    if (!parsed.data.occurrences) {
-      return { error: 'Escolha quantas vezes o agendamento se repete' };
+    // Ocorrências escolhidas na prévia (inclui a 1ª). A âncora sempre entra, mesmo que o
+    // cliente a tenha omitido por engano - é o slot já resolvido acima.
+    const isos = [
+      startsAt.toISOString(),
+      ...(parsed.data.slotIsos ?? []).filter((s) => s && s !== startsAt.toISOString()),
+    ];
+    if (isos.length < 2) {
+      return { error: 'Escolha pelo menos 2 datas pra repetir' };
     }
     // Série fica com o profissional resolvido (fixo) e valida cada ocorrência
     // contra a grade DELE.
@@ -300,8 +359,9 @@ export async function createPublicBooking(
       durationMinutes: service.durationMinutes,
       tz: tenant.timezone,
       frequency,
-      occurrences: parsed.data.occurrences,
+      occurrences: isos.length,
       firstStartsAtIso: startsAt.toISOString(),
+      occurrenceIsos: isos,
       status,
       professionalId,
       blocks: professionalBlocks,

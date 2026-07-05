@@ -4,7 +4,10 @@
   "version": "1.0.0",
   "expo": {
     "autolinking": {
-      "exclude": ["@expo/ui", "expo-glass-effect", "expo-symbols"]
+      "exclude": [
+        "expo-glass-effect",
+        "expo-symbols"
+      ]
     }
   },
   "dependencies": {
@@ -14,25 +17,25 @@
     "@react-native-async-storage/async-storage": "2.2.0",
     "@supabase/supabase-js": "^2.108.2",
     "aes-js": "^3.1.2",
-    "expo": "~57.0.1",
-    "expo-build-properties": "~57.0.2",
+    "expo": "~57.0.2",
+    "expo-build-properties": "~57.0.3",
     "expo-clipboard": "~57.0.0",
-    "expo-constants": "~57.0.2",
+    "expo-constants": "~57.0.3",
     "expo-crypto": "~57.0.0",
-    "expo-dev-client": "~57.0.4",
+    "expo-dev-client": "~57.0.5",
     "expo-device": "~57.0.0",
     "expo-font": "~57.0.0",
     "expo-haptics": "~57.0.0",
     "expo-image": "~57.0.0",
-    "expo-image-manipulator": "~57.0.1",
-    "expo-image-picker": "~57.0.1",
+    "expo-image-manipulator": "~57.0.2",
+    "expo-image-picker": "~57.0.2",
     "expo-linear-gradient": "~57.0.0",
     "expo-linking": "~57.0.1",
-    "expo-location": "~57.0.1",
-    "expo-notifications": "~57.0.2",
-    "expo-router": "~57.0.2",
+    "expo-location": "~57.0.2",
+    "expo-notifications": "~57.0.3",
+    "expo-router": "~57.0.3",
     "expo-secure-store": "~57.0.0",
-    "expo-splash-screen": "~57.0.1",
+    "expo-splash-screen": "~57.0.2",
     "expo-status-bar": "~57.0.0",
     "expo-system-ui": "~57.0.0",
     "expo-web-browser": "~57.0.0",
@@ -61,6 +64,8 @@
   "scripts": {
     "start": "expo start",
     "start:prod": "EXPO_PUBLIC_SUPABASE_URL=https://rmhlslarbamcqxdxfope.supabase.co EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_SdjvZc43yMaQQzZnB2ysVQ_36ktWfip EXPO_PUBLIC_API_URL=https://www.demandae.com expo start --dev-client --tunnel",
+    "start:local": "EXPO_PUBLIC_SUPABASE_URL=http://localhost:54361 EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH EXPO_PUBLIC_API_URL=http://localhost:4361 expo start --dev-client",
+    "start:local:tunnel": "bash scripts/start-local-tunnel.sh",
     "reset-project": "node ./scripts/reset-project.js",
     "android": "expo start --android",
     "ios": "expo start --ios",

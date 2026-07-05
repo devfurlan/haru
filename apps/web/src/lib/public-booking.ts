@@ -47,7 +47,7 @@ export type PublicTenantData = {
     /** IDs dos profissionais que atendem este serviço. */
     professionalIds: string[];
   }[];
-  professionals: { id: string; name: string | null }[];
+  professionals: { id: string; name: string | null; avatarUrl: string | null }[];
 };
 
 /** Dados públicos do tenant pro app (serviços ativos, profissionais, dias de expediente). */
@@ -74,7 +74,7 @@ export async function getPublicTenantData(slug: string): Promise<PublicTenantDat
       priceCents: s.priceCents,
       professionalIds: s.professionals.map((p) => p.professionalId),
     })),
-    professionals: tenant.users.map((u) => ({ id: u.id, name: u.name })),
+    professionals: tenant.users.map((u) => ({ id: u.id, name: u.name, avatarUrl: u.avatarUrl })),
   };
 }
 
@@ -145,7 +145,12 @@ export async function createSinglePublicBooking(input: {
   phone: string;
   account: CustomerAccount | null;
   /** Recorrência opcional. Ausente = agendamento avulso (comportamento atual). */
-  recurrence?: { frequency: RecurrenceFrequency; occurrences: number };
+  recurrence?: {
+    frequency: RecurrenceFrequency;
+    occurrences: number;
+    /** Ocorrências escolhidas na prévia editável (ISO UTC, inclui a 1ª). */
+    occurrenceIsos?: string[];
+  };
 }): Promise<PublicBookingResult> {
   const tenant = await loadPublicTenant(input.slug);
   if (!tenant || !tenant.publicBookingEnabled) {
@@ -204,12 +209,20 @@ export async function createSinglePublicBooking(input: {
     create: { tenantId: tenant.id, phone, name, profileCompletedAt: new Date() },
   });
 
-  // Cliente logado agendando com o PRÓPRIO número verificado: vincula o contato à conta.
-  if (input.account && input.account.phone === phone) {
-    await prisma.contact.updateMany({
-      where: { id: contact.id, customerAccountId: null },
-      data: { customerAccountId: input.account.id },
-    });
+  // Cliente logado agendando com o PRÓPRIO número: vincula o contato à conta pra ele ver
+  // o agendamento no app. Com o número já verificado (account.phone), pode reivindicar um
+  // contato pré-existente (posse provada). Sem verificação (só pendingPhone, caso comum
+  // logo após o cadastro), só vincula se o contato acabou de nascer neste booking (!existing)
+  // - aí não há histórico de terceiro sob esse número pra vazar, só o próprio agendamento.
+  if (input.account) {
+    const acc = input.account;
+    const ownNumber = acc.phone === phone || (!existing && acc.pendingPhone === phone);
+    if (ownNumber) {
+      await prisma.contact.updateMany({
+        where: { id: contact.id, customerAccountId: null },
+        data: { customerAccountId: acc.id },
+      });
+    }
   }
 
   const status = tenant.publicBookingConfirmation as unknown as AppointmentStatus;
@@ -239,6 +252,7 @@ export async function createSinglePublicBooking(input: {
       frequency: input.recurrence.frequency,
       occurrences: input.recurrence.occurrences,
       firstStartsAtIso: startsAt.toISOString(),
+      occurrenceIsos: input.recurrence.occurrenceIsos,
       status,
       professionalId,
       blocks: professionalBlocks,

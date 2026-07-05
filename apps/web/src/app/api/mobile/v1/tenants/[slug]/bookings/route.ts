@@ -24,6 +24,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
     phone?: unknown;
     frequency?: unknown;
     occurrences?: unknown;
+    slotIsos?: unknown;
   } | null;
 
   const serviceId = typeof body?.serviceId === 'string' ? body.serviceId : '';
@@ -32,13 +33,16 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
   const name = typeof body?.name === 'string' ? body.name : '';
   const phone = typeof body?.phone === 'string' ? body.phone : '';
 
-  // Recorrência opcional: só vira série se a frequência for válida. occurrences é
-  // limitado a 2..12 (mesmo range do web); fora disso, cai pra avulso silenciosamente.
+  // Recorrência opcional: só vira série se a frequência for válida. As ocorrências vêm
+  // da prévia editável em `slotIsos` (ISO UTC, inclui a 1ª); precisa de >= 2. Sem elas,
+  // cai pra avulso silenciosamente.
   const freq = body?.frequency;
-  const occ = typeof body?.occurrences === 'number' ? Math.trunc(body.occurrences) : 0;
+  const isos = Array.isArray(body?.slotIsos)
+    ? body.slotIsos.filter((s): s is string => typeof s === 'string' && s.length > 0).slice(0, 12)
+    : [];
   const recurrence =
-    typeof freq === 'string' && FREQUENCIES.includes(freq as RecurrenceFrequency) && occ >= 2
-      ? { frequency: freq as RecurrenceFrequency, occurrences: Math.min(occ, 12) }
+    typeof freq === 'string' && FREQUENCIES.includes(freq as RecurrenceFrequency) && isos.length >= 2
+      ? { frequency: freq as RecurrenceFrequency, occurrences: isos.length, occurrenceIsos: isos }
       : undefined;
 
   const account = await requireCustomerAccountFromBearer(req);

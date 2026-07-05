@@ -28,7 +28,14 @@ function SubmitButton({ disabled }: { disabled: boolean }) {
   );
 }
 
-export function ChangePhoneCard({ currentPhoneDisplay }: { currentPhoneDisplay: string }) {
+export function ChangePhoneCard({
+  currentPhoneDisplay,
+  pendingPhoneDisplay = '',
+}: {
+  currentPhoneDisplay: string;
+  /** Número do cadastro ainda não confirmado por OTP (só quando não há confirmado). */
+  pendingPhoneDisplay?: string;
+}) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [codeSent, setCodeSent] = useState(false);
@@ -72,6 +79,7 @@ export function ChangePhoneCard({ currentPhoneDisplay }: { currentPhoneDisplay: 
   }
 
   const hasPhone = currentPhoneDisplay.trim().length > 0;
+  const hasPending = !hasPhone && pendingPhoneDisplay.trim().length > 0;
 
   return (
     <Card>
@@ -80,13 +88,23 @@ export function ChangePhoneCard({ currentPhoneDisplay }: { currentPhoneDisplay: 
         <CardDescription>
           {hasPhone
             ? `Número atual: ${currentPhoneDisplay}. É o que liga sua conta aos seus agendamentos.`
-            : 'Confirme seu WhatsApp para ver e gerenciar aqui os agendamentos que você fez em qualquer estabelecimento.'}
+            : hasPending
+              ? `Você cadastrou ${pendingPhoneDisplay}, mas ainda não confirmou. Confirme para ligar sua conta aos seus agendamentos.`
+              : 'Confirme seu WhatsApp para ver e gerenciar aqui os agendamentos que você fez em qualquer estabelecimento.'}
         </CardDescription>
       </CardHeader>
       <CardContent>
         {!open ? (
-          <Button type="button" variant="outline" onClick={() => setOpen(true)}>
-            {hasPhone ? 'Trocar número' : 'Conectar meu WhatsApp'}
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              // Ao confirmar o pendente, já entra com o número preenchido.
+              if (hasPending) setPhone(maskPhoneBRInput(pendingPhoneDisplay));
+              setOpen(true);
+            }}
+          >
+            {hasPhone ? 'Trocar número' : hasPending ? 'Confirmar número' : 'Conectar meu WhatsApp'}
           </Button>
         ) : !codeSent ? (
           // Passo 1: novo número.

@@ -10,9 +10,10 @@ import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
 
 import { AuthProvider } from '@/lib/auth';
+import { BootProvider } from '@/lib/boot';
 import { hankenFonts } from '@/lib/fonts';
 
 import '../global.css';
@@ -40,10 +41,14 @@ export default function RootLayout() {
 
   return (
     <AuthProvider>
-      <SafeAreaProvider>
-        <StatusBar style="dark" />
-        <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#faf5ea' } }} />
-      </SafeAreaProvider>
+      <BootProvider>
+        {/* initialMetrics: insets síncronos no 1º frame - sem isso a tela pinta
+            uma vez com insets 0 (conteúdo sob a status bar/notch) e só depois "pula". */}
+        <SafeAreaProvider initialMetrics={initialWindowMetrics}>
+          <StatusBar style="dark" />
+          <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#faf5ea' } }} />
+        </SafeAreaProvider>
+      </BootProvider>
     </AuthProvider>
   );
 }

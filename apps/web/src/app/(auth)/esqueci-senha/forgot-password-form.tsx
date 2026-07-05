@@ -18,7 +18,7 @@ function SubmitButton() {
   );
 }
 
-export function ForgotPasswordForm() {
+export function ForgotPasswordForm({ defaultEmail }: { defaultEmail?: string }) {
   const [state, formAction] = useActionState<ForgotPasswordResult, FormData>(
     requestPasswordReset,
     undefined,
@@ -38,7 +38,14 @@ export function ForgotPasswordForm() {
     <form action={formAction} className="space-y-4">
       <div className="space-y-2">
         <Label htmlFor="email">Email</Label>
-        <Input id="email" name="email" type="email" autoComplete="email" required />
+        <Input
+          id="email"
+          name="email"
+          type="email"
+          autoComplete="email"
+          required
+          defaultValue={defaultEmail}
+        />
       </div>
       {state && 'error' in state && <p className="text-destructive text-sm">{state.error}</p>}
       <SubmitButton />

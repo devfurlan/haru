@@ -5,10 +5,13 @@ import { useRef, useState, useTransition } from 'react';
 
 import { Button } from '@/components/ui/button';
 
-import { removeUserAvatar, uploadUserAvatar } from '../settings/actions';
+import type { LogoUploadResult, TenantActionResult } from '../settings/actions';
 
 interface AvatarUploaderProps {
   avatarUrl: string | null;
+  /** Sobe a foto (já reduzida a webp). Perfil próprio ou de um membro (admin). */
+  upload: (fd: FormData) => Promise<LogoUploadResult>;
+  remove: () => Promise<TenantActionResult>;
 }
 
 const AVATAR_SIZE = 128; // px - saída quadrada reduzida; cobre o maior uso (~80px) com folga de retina
@@ -45,7 +48,7 @@ function toSquareWebp(file: File): Promise<Blob> {
   });
 }
 
-export function AvatarUploader({ avatarUrl }: AvatarUploaderProps) {
+export function AvatarUploader({ avatarUrl, upload, remove }: AvatarUploaderProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<string | null>(avatarUrl);
   const [error, setError] = useState<string | null>(null);
@@ -68,7 +71,7 @@ export function AvatarUploader({ avatarUrl }: AvatarUploaderProps) {
       const webp = await toSquareWebp(file);
       const fd = new FormData();
       fd.set('file', new File([webp], 'avatar.webp', { type: 'image/webp' }));
-      const result = await uploadUserAvatar(fd);
+      const result = await upload(fd);
       if ('error' in result) {
         setError(result.error);
         return;
@@ -133,9 +136,9 @@ export function AvatarUploader({ avatarUrl }: AvatarUploaderProps) {
                 size="sm"
                 disabled={uploading || removing}
                 onClick={() => {
-                  if (!window.confirm('Remover sua foto de perfil?')) return;
+                  if (!window.confirm('Remover a foto de perfil?')) return;
                   startRemove(() =>
-                    removeUserAvatar().then((r) => {
+                    remove().then((r) => {
                       if (r && 'error' in r) setError(r.error);
                       else setPreview(null);
                     }),

@@ -8,7 +8,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
-import { updateProfile, type ProfileActionResult } from '../settings/actions';
+import {
+  removeUserAvatar,
+  updateProfile,
+  uploadUserAvatar,
+  type ProfileActionResult,
+} from '../settings/actions';
 import { AvatarUploader } from './avatar-uploader';
 
 interface ProfileCardProps {
@@ -39,7 +44,7 @@ export function ProfileCard({ name, email, avatarUrl }: ProfileCardProps) {
         <CardDescription>Como você aparece no painel. O e-mail é o seu login.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        <AvatarUploader avatarUrl={avatarUrl} />
+        <AvatarUploader avatarUrl={avatarUrl} upload={uploadUserAvatar} remove={removeUserAvatar} />
 
         <form action={formAction} className="space-y-4">
           <div className="space-y-2">
@@ -50,12 +55,12 @@ export function ProfileCard({ name, email, avatarUrl }: ProfileCardProps) {
           <div className="space-y-2">
             <Label htmlFor="profile-email">E-mail</Label>
             <Input id="profile-email" value={email} disabled readOnly />
-            <p className="text-xs text-muted-foreground">
+            <p className="text-muted-foreground text-xs">
               Para alterar o e-mail de acesso, fale com o suporte.
             </p>
           </div>
 
-          {state && 'error' in state && <p className="text-sm text-destructive">{state.error}</p>}
+          {state && 'error' in state && <p className="text-destructive text-sm">{state.error}</p>}
           {state && 'ok' in state && <p className="text-sm text-emerald-600">Salvo.</p>}
 
           <SubmitButton />

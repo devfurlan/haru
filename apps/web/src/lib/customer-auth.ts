@@ -23,10 +23,10 @@ export const getCustomerAccount = cache(async (): Promise<CustomerAccount | null
   return prisma.customerAccount.findUnique({ where: { authId: authUser.id } });
 });
 
-/** Variante que redireciona pra /conta/entrar se não houver conta de cliente. */
+/** Variante que redireciona pra /login se não houver conta de cliente. */
 export async function requireCustomerAccount(): Promise<CustomerAccount> {
   const account = await getCustomerAccount();
-  if (!account) redirect('/conta/entrar');
+  if (!account) redirect('/login');
   return account;
 }
 

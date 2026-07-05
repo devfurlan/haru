@@ -11,7 +11,7 @@ import { useEffect, useState } from 'react';
 export function ResendCodeButton({
   onResend,
   sending,
-  seconds = 30,
+  seconds = 45,
 }: {
   onResend: () => void;
   sending: boolean;

@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
 import { updateTenant, type TenantActionResult } from '../settings/actions';
+import { AddressAutocomplete } from './address-autocomplete';
 import { LogoUploader } from './logo-uploader';
 
 interface TenantCardProps {
@@ -131,18 +132,7 @@ export function TenantCard({
             </p>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="address">Endereço - opcional</Label>
-            <Input
-              id="address"
-              name="address"
-              defaultValue={address ?? ''}
-              placeholder="Rua Exemplo, 123 - Centro, Cidade/UF"
-            />
-            <p className="text-muted-foreground text-xs">
-              Aparece pro cliente na sua página pública.
-            </p>
-          </div>
+          <AddressAutocomplete defaultValue={address ?? ''} />
 
           <div className="space-y-2">
             <Label htmlFor="description">Descrição - opcional</Label>
