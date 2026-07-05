@@ -88,7 +88,8 @@ export default async function CustomerProfilePage() {
         <Row href={PRIVACY_URL} external label="Política de Privacidade" />
       </div>
 
-      <div className="mt-7">
+      {/* No desktop o "Sair" já fica fixo no header; aqui só no mobile (sem header). */}
+      <div className="mt-7 md:hidden">
         <CustomerSignOutButton />
       </div>
     </div>

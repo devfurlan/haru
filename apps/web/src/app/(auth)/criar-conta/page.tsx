@@ -2,13 +2,13 @@ import { CalendarCheck, ChevronRight, Store } from 'lucide-react';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 
-import { Card } from '@/components/ui/card';
+import { AuthTitle } from '@/components/auth-ui';
 import { getCurrentUserAndTenant } from '@/lib/auth';
 import { getCustomerAccount } from '@/lib/customer-auth';
 
-// Entrada única de cadastro: o usuário escolhe o tipo antes de ir pro formulário
-// certo. Deep-links do pricing (/signup?plano=) e da página do negócio (/conta/criar)
-// continuam indo direto pro form específico, sem passar por aqui.
+// Entrada única de cadastro: o usuário escolhe o tipo antes de ir pro formulário certo.
+// Deep-links do pricing (/signup?plano=) e da página do negócio (/conta/criar) continuam
+// indo direto pro form específico, sem passar por aqui.
 const OPTIONS = [
   {
     href: '/conta/criar',
@@ -30,36 +30,34 @@ export default async function CreateAccountChooser() {
   if (customer) redirect('/conta');
 
   return (
-    <div className="space-y-4">
-      <div className="space-y-1 text-center">
-        <h1 className="font-serif text-2xl font-semibold">Criar conta</h1>
-        <p className="text-muted-foreground text-sm">O que você quer fazer no Demandaê?</p>
-      </div>
+    <>
+      <AuthTitle plain="Criar" accent="conta" subtitle="O que você quer fazer no Demandaê?" />
 
-      {OPTIONS.map(({ href, icon: Icon, title, description }) => (
-        <Link key={href} href={href} className="group block">
-          <Card className="hover:border-foreground/30 flex items-center gap-4 p-4 transition-colors">
-            <div className="bg-secondary text-foreground flex size-11 shrink-0 items-center justify-center rounded-full">
+      <div className="mt-[26px] space-y-3">
+        {OPTIONS.map(({ href, icon: Icon, title, description }) => (
+          <Link
+            key={href}
+            href={href}
+            className="border-line bg-paper flex items-center gap-4 rounded-[18px] border p-4 transition-transform active:scale-[0.99]"
+          >
+            <div className="bg-chip text-green-deep flex size-11 shrink-0 items-center justify-center rounded-full">
               <Icon className="size-5" />
             </div>
-            <div className="flex-1 space-y-0.5">
-              <p className="font-medium leading-tight">{title}</p>
-              <p className="text-muted-foreground text-sm">{description}</p>
+            <div className="min-w-0 flex-1">
+              <p className="text-ink font-semibold leading-tight">{title}</p>
+              <p className="text-sub mt-0.5 text-sm">{description}</p>
             </div>
-            <ChevronRight className="text-muted-foreground group-hover:text-foreground size-5 shrink-0 transition-colors" />
-          </Card>
-        </Link>
-      ))}
+            <ChevronRight className="size-5 shrink-0 text-[#c3b79c]" />
+          </Link>
+        ))}
+      </div>
 
-      <p className="text-muted-foreground text-center text-sm">
+      <p className="text-muted-foreground mt-5 text-center text-sm">
         Já tem conta?{' '}
-        <Link
-          href="/login"
-          className="text-foreground font-medium underline-offset-4 hover:underline"
-        >
+        <Link href="/login" className="text-coral font-bold">
           Entrar
         </Link>
       </p>
-    </div>
+    </>
   );
 }

@@ -2,34 +2,17 @@
 
 import Link from 'next/link';
 import { useActionState, useEffect, useRef, useState } from 'react';
-import { useFormStatus } from 'react-dom';
 
 import { customerSignUp, type CustomerActionResult } from '@/app/(customer)/actions';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { PasswordInput } from '@/components/ui/password-input';
+import { AuthField, AuthPassword, AuthSubmit } from '@/components/auth-ui';
 import { maskPhoneBRInput } from '@haru/shared';
 
-function CreateButton() {
-  const { pending } = useFormStatus();
-  return (
-    <Button type="submit" className="w-full" disabled={pending}>
-      {pending ? 'Criando…' : 'Criar conta'}
-    </Button>
-  );
-}
-
 /**
- * Cadastro do cliente em um passo só: nome, e-mail, senha, celular e termos. O
- * celular NÃO é verificado aqui (sem SMS no cadastro) - entra como pendente e a
- * confirmação por código é pedida depois do login, na barra fixa no topo da área
- * logada. Só após confirmar é que o número vira oficial e conecta a conta ao
- * histórico de agendamentos (claim).
- *
- * Usada em dois lugares: na página /conta/criar (redireciona pra /conta ao criar)
- * e como modal dentro do agendamento (`inline` + `onSuccess`) - aí não navega pra
- * fora e chega com nome/celular já digitados no booking pré-preenchidos.
+ * Cadastro do cliente em um passo só: nome, e-mail, senha, celular e termos. O celular
+ * NÃO é verificado aqui (sem SMS no cadastro) - entra como pendente e a confirmação por
+ * código é pedida depois do login. Usada na página /conta/criar (redireciona pra /conta)
+ * e como modal dentro do agendamento (`inline` + `onSuccess`), com nome/celular já
+ * pré-preenchidos do booking.
  */
 export function CustomerSignupForm({
   inline = false,
@@ -37,7 +20,6 @@ export function CustomerSignupForm({
   defaultPhone = '',
   onSuccess,
 }: {
-  /** Modal dentro do agendamento: não redireciona; chama onSuccess ao criar. */
   inline?: boolean;
   defaultName?: string;
   defaultPhone?: string;
@@ -49,8 +31,7 @@ export function CustomerSignupForm({
     undefined,
   );
 
-  // Inline: ao criar a conta o servidor devolve ok (sem redirect). Avisa uma vez
-  // pro pai fechar o modal e seguir o agendamento.
+  // Inline: ao criar a conta o servidor devolve ok (sem redirect). Avisa uma vez pro pai.
   const firedRef = useRef(false);
   useEffect(() => {
     if (state && 'ok' in state && !firedRef.current) {
@@ -60,79 +41,74 @@ export function CustomerSignupForm({
   }, [state, onSuccess]);
 
   return (
-    <form action={formAction} className="space-y-4">
+    <form action={formAction} className="space-y-3">
       {inline ? <input type="hidden" name="inline" value="1" /> : null}
-      <div className="space-y-2">
-        <Label htmlFor="name">Seu nome</Label>
-        <Input
-          id="name"
-          name="name"
-          type="text"
-          autoComplete="name"
-          defaultValue={defaultName}
-          required
-        />
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="email">Email</Label>
-        <Input id="email" name="email" type="email" autoComplete="email" required />
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="password">Senha</Label>
-        <PasswordInput
-          id="password"
-          name="password"
-          autoComplete="new-password"
-          minLength={8}
-          required
-        />
-        <p className="text-muted-foreground text-xs">Mínimo de 8 caracteres.</p>
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="phone">Celular</Label>
-        <Input
-          id="phone"
-          name="phone"
-          type="tel"
-          inputMode="tel"
-          autoComplete="tel"
-          placeholder="(11) 91234-5678"
-          value={phone}
-          onChange={(e) => setPhone(maskPhoneBRInput(e.target.value))}
-          required
-        />
-      </div>
-      <div className="flex items-start gap-2">
+      <AuthField
+        label="Nome"
+        id="name"
+        name="name"
+        type="text"
+        autoComplete="name"
+        defaultValue={defaultName}
+        required
+        placeholder="Seu nome"
+      />
+      <AuthField
+        label="E-mail"
+        id="email"
+        name="email"
+        type="email"
+        autoComplete="email"
+        required
+        placeholder="seu@email.com"
+      />
+      <AuthField
+        label="WhatsApp"
+        id="phone"
+        name="phone"
+        type="tel"
+        inputMode="tel"
+        autoComplete="tel"
+        placeholder="(11) 91234-5678"
+        value={phone}
+        onChange={(e) => setPhone(maskPhoneBRInput(e.target.value))}
+        required
+      />
+      <AuthPassword
+        label="Senha"
+        id="password"
+        name="password"
+        autoComplete="new-password"
+        minLength={8}
+        required
+        placeholder="mínimo 8 caracteres"
+      />
+
+      <label className="flex items-start gap-2.5 pt-1">
         <input
           id="acceptTerms"
           name="acceptTerms"
           type="checkbox"
           required
-          className="border-input accent-foreground mt-0.5 size-4 shrink-0 rounded"
+          className="accent-green-deep mt-0.5 size-[18px] shrink-0 rounded"
         />
-        <Label
-          htmlFor="acceptTerms"
-          className="text-muted-foreground text-xs font-normal leading-relaxed"
-        >
-          Li e concordo com os{' '}
-          <Link href="/termos" target="_blank" className="font-medium underline underline-offset-4">
-            Termos de Serviço
+        <span className="text-sub text-[13px] leading-relaxed">
+          Aceito os{' '}
+          <Link href="/termos" target="_blank" className="text-coral font-semibold underline">
+            Termos de Uso
           </Link>{' '}
           e a{' '}
-          <Link
-            href="/privacidade"
-            target="_blank"
-            className="font-medium underline underline-offset-4"
-          >
+          <Link href="/privacidade" target="_blank" className="text-coral font-semibold underline">
             Política de Privacidade
           </Link>
           .
-        </Label>
-      </div>
+        </span>
+      </label>
 
       {state && 'error' in state && <p className="text-destructive text-sm">{state.error}</p>}
-
-      <CreateButton />
+      <div className="pt-1">
+        <AuthSubmit label="Criar conta" pendingLabel="Criando…" />
+      </div>
     </form>
   );
 }

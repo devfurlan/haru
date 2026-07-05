@@ -14,6 +14,7 @@ import { CustomerSignOutButton } from './customer-sign-out-button';
 // vive embaixo no mobile (bottom tab bar) e no topo no desktop.
 export default async function CustomerLoggedLayout({ children }: { children: React.ReactNode }) {
   const account = await requireCustomerAccount();
+  const headerInitial = (account.name ?? account.email ?? '?').trim().charAt(0).toUpperCase();
 
   return (
     <div className="bg-cream min-h-screen">
@@ -24,7 +25,20 @@ export default async function CustomerLoggedLayout({ children }: { children: Rea
             <Logo size="sm" />
           </Link>
           <div className="flex items-center gap-3">
-            <span className="text-muted-foreground text-sm">{account.name ?? account.email}</span>
+            <Link
+              href="/conta/perfil"
+              className="flex items-center gap-2 transition-opacity hover:opacity-80"
+            >
+              <span className="bg-green-deep flex h-8 w-8 items-center justify-center overflow-hidden rounded-full">
+                {account.avatarUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={account.avatarUrl} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  <span className="text-green-bright font-serif text-sm">{headerInitial}</span>
+                )}
+              </span>
+              <span className="text-foreground text-sm">{account.name ?? account.email}</span>
+            </Link>
             <CustomerSignOutButton />
           </div>
         </div>

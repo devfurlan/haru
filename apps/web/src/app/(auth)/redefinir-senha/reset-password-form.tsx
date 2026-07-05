@@ -2,22 +2,10 @@
 
 import { useRouter } from 'next/navigation';
 import { useActionState, useEffect } from 'react';
-import { useFormStatus } from 'react-dom';
 
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { PasswordInput } from '@/components/ui/password-input';
+import { AuthPassword, AuthSubmit } from '@/components/auth-ui';
 
 import { resetPassword, type ResetPasswordResult } from './actions';
-
-function SubmitButton() {
-  const { pending } = useFormStatus();
-  return (
-    <Button type="submit" className="w-full" disabled={pending}>
-      {pending ? 'Salvando…' : 'Redefinir senha'}
-    </Button>
-  );
-}
 
 export function ResetPasswordForm() {
   const router = useRouter();
@@ -35,30 +23,27 @@ export function ResetPasswordForm() {
   }, [state, router]);
 
   return (
-    <form action={formAction} className="space-y-4">
-      <div className="space-y-2">
-        <Label htmlFor="password">Nova senha</Label>
-        <PasswordInput
-          id="password"
-          name="password"
-          autoComplete="new-password"
-          minLength={8}
-          required
-        />
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="confirm">Confirme a senha</Label>
-        <PasswordInput
-          id="confirm"
-          name="confirm"
-          strength={false}
-          autoComplete="new-password"
-          minLength={8}
-          required
-        />
-      </div>
+    <form action={formAction} className="mt-[26px] space-y-4">
+      <AuthPassword
+        label="Nova senha"
+        id="password"
+        name="password"
+        autoComplete="new-password"
+        minLength={8}
+        required
+        placeholder="mínimo 8 caracteres"
+      />
+      <AuthPassword
+        label="Confirme a senha"
+        id="confirm"
+        name="confirm"
+        autoComplete="new-password"
+        minLength={8}
+        required
+        placeholder="repita a senha"
+      />
       {state && 'error' in state && <p className="text-destructive text-sm">{state.error}</p>}
-      <SubmitButton />
+      <AuthSubmit label="Redefinir senha" pendingLabel="Salvando…" />
     </form>
   );
 }
