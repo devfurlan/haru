@@ -202,6 +202,28 @@ Templates que o código envia hoje. O **corpo** é uma sugestão (texto que o ne
 - **Corpo sugerido:**
   > Olá! Você foi convidado para acessar o painel de _{{1}}_ no Demandaê. Ative sua conta e defina sua senha aqui: {{2}}
 
+### Alertas ao dono (templates da PLATAFORMA)
+
+Diferente dos de cima (cada Tenant cria os seus na conta dele), estes vivem na **WABA da própria plataforma Demandaê** e são enviados **pelo número da plataforma** pro WhatsApp do dono do estabelecimento - **nunca** pelo número do bot do Tenant (que é canal do cliente final). São **opt-in** (o dono liga em `/settings`, "Alertas de uso e cobrança por WhatsApp") e o envio fica **inativo (no-op logado)** até os templates serem aprovados na Meta e as envs preenchidas: `WHATSAPP_PLATFORM_PHONE_NUMBER_ID`, `WHATSAPP_PLATFORM_ACCESS_TOKEN`, `WHATSAPP_TEMPLATE_USAGE_ALERT`, `WHATSAPP_TEMPLATE_PAYMENT_FAILED`. Enquanto isso, o e-mail e a notificação in-app já cobrem o dono; o WhatsApp é reforço.
+
+#### Alerta de uso (90% / 95% / 100%)
+
+- **Nome (env `WHATSAPP_TEMPLATE_USAGE_ALERT`):** sugestão `demandae_usage_alert` · **Idioma:** `pt_BR` · **Categoria Meta:** `UTILITY`
+- **Variáveis:** `{{1}}` nome do negócio · `{{2}}` recurso (agendamentos / conversas do bot) · `{{3}}` percentual usado (ex.: `90%`)
+- **Enviado em:** [apps/bot/src/lib/usageAlerts.ts](apps/bot/src/lib/usageAlerts.ts) (loop de uso - só 90/95/100, nunca 85, pra não spamar)
+- **Corpo sugerido:**
+  > Oi! 👋 Você já usou {{3}} dos seus {{2}} do plano em _{{1}}_ neste ciclo. Ao estourar o limite, as novas criações no painel pausam (seus clientes seguem agendando). Dá uma olhada nos planos quando puder.
+
+#### Cobrança falhou
+
+- **Nome (env `WHATSAPP_TEMPLATE_PAYMENT_FAILED`):** sugestão `demandae_payment_failed` · **Idioma:** `pt_BR` · **Categoria Meta:** `UTILITY`
+- **Variáveis:** `{{1}}` nome do negócio · `{{2}}` link para atualizar o cartão
+- **Enviado em:** [apps/web/src/app/api/webhooks/billing/asaas/route.ts](apps/web/src/app/api/webhooks/billing/asaas/route.ts) (via `onPaymentFailed`, junto do e-mail + in-app)
+- **Corpo sugerido:**
+  > Oi! Não confirmamos o pagamento da assinatura de _{{1}}_ e o acesso foi pausado. Regularize por aqui pra reativar o bot e o painel: {{2}}
+
+**Aprovação:** criar os dois na conta WhatsApp Business **da plataforma** (WhatsApp Manager → _Modelos de mensagem_), categoria `UTILITY`, aguardar aprovação e preencher as envs acima. A aprovação em si não é feita nesta camada - só a lista + o envio env-gated ficam prontos.
+
 Notas:
 
 - **Fallback:** se o Tenant não tem template configurado, o código cai para texto livre - que **só entrega se o cliente falou com o número nas últimas 24h**. Por isso os templates são o caminho oficial.

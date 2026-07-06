@@ -4,6 +4,7 @@ import { BillingBanner } from '@/components/billing-banner';
 import { BusinessMenuLink } from '@/components/business-menu-link';
 import { DashboardNav } from '@/components/dashboard-nav';
 import { Logo } from '@/components/logo';
+import { NotificationBell } from '@/components/notification-bell';
 import { SignOutButton } from '@/components/sign-out-button';
 import { UsageBanner } from '@/components/usage-banner';
 import { SupportWidget } from '@/components/support/support-widget';
@@ -24,9 +25,12 @@ export default async function DashboardLayout({
     <div className="flex h-screen">
       <aside className="bg-muted/30 hidden h-screen w-64 shrink-0 flex-col border-r md:flex">
         <div className="border-b px-4 py-4">
-          <Link href="/" aria-label="Demandaê" className="mb-3 block">
-            <Logo pulse size="sm" />
-          </Link>
+          <div className="mb-3 flex items-center justify-between">
+            <Link href="/" aria-label="Demandaê" className="block">
+              <Logo pulse size="sm" />
+            </Link>
+            <NotificationBell tenantId={tenant.id} />
+          </div>
           <div className="-mx-2 space-y-0.5">
             <BusinessMenuLink name={tenant.name} logoUrl={tenant.logoUrl} />
             <UserMenuLink name={name} email={email} avatarUrl={avatarUrl} />

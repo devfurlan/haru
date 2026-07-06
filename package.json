@@ -6,6 +6,8 @@
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev",
+    "dev:web": "pnpm --filter web dev",
+    "dev:bot": "pnpm --filter bot dev",
     "dev:local": "pnpm supabase:start && turbo dev",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",

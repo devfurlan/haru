@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 
 import { prisma } from '../src/index.js';
-import { seedPlans } from './plans.js';
+import { seedAddonPlans, seedPlans } from './plans.js';
 
 const TEST_EMAIL = 'admin@teste.local';
 const TEST_PASSWORD = 'haru1234';
@@ -15,11 +15,9 @@ function required(name: string): string {
 }
 
 async function ensureAuthUser(): Promise<string> {
-  const supabase = createClient(
-    required('SUPABASE_URL'),
-    required('SUPABASE_SECRET_KEY'),
-    { auth: { autoRefreshToken: false, persistSession: false } },
-  );
+  const supabase = createClient(required('SUPABASE_URL'), required('SUPABASE_SECRET_KEY'), {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
 
   // Lista paginada (em dev nunca temos muitos users - primeira página resolve)
   const { data: list, error: listError } = await supabase.auth.admin.listUsers({ perPage: 200 });
@@ -37,8 +35,9 @@ async function ensureAuthUser(): Promise<string> {
 }
 
 async function main() {
-  console.log('[seed] populando catálogo de planos...');
+  console.log('[seed] populando catálogo de planos + addon...');
   await seedPlans(prisma);
+  await seedAddonPlans(prisma);
 
   console.log('[seed] criando auth user...');
   const authId = await ensureAuthUser();
@@ -165,13 +164,84 @@ async function main() {
 async function seedRegionTenants() {
   const CENTER = { lat: -22.7539, lng: -47.4139 };
   const establishments = [
-    { name: 'Barbearia Dom Corte', slug: 'barbearia-dom-corte', address: 'Rua do Bosque, 120 - Vila Mollon, Santa Bárbara d\'Oeste - SP', dLat: 0.004, dLng: 0.003, services: [['Corte de cabelo', 30, 4500], ['Barba', 20, 3000]] },
-    { name: 'Studio Bella Hair', slug: 'studio-bella-hair', address: 'Av. Santa Bárbara, 850 - Centro, Santa Bárbara d\'Oeste - SP', dLat: -0.006, dLng: 0.008, services: [['Escova', 40, 6000], ['Corte feminino', 50, 8000], ['Coloração', 90, 15000]] },
-    { name: 'Esmalteria Nails & Co', slug: 'esmalteria-nails-co', address: 'Rua Riachuelo, 45 - Centro, Santa Bárbara d\'Oeste - SP', dLat: 0.009, dLng: -0.005, services: [['Manicure', 40, 4000], ['Pedicure', 45, 4500]] },
-    { name: 'Espaço Zen Massoterapia', slug: 'espaco-zen-massoterapia', address: 'Rua Duque de Caxias, 300 - Jardim Europa, Santa Bárbara d\'Oeste - SP', dLat: -0.011, dLng: -0.007, services: [['Massagem relaxante', 60, 12000], ['Massagem terapêutica', 60, 14000]] },
-    { name: 'Clínica Sorriso Odonto', slug: 'clinica-sorriso-odonto', address: 'Av. de Cillo, 1500 - Centro, Santa Bárbara d\'Oeste - SP', dLat: 0.013, dLng: 0.012, services: [['Limpeza', 40, 12000], ['Avaliação', 30, 0]] },
-    { name: 'Pet Shop Amigo Fiel', slug: 'pet-shop-amigo-fiel', address: 'Rua Tamoio, 78 - Jardim Pérola, Santa Bárbara d\'Oeste - SP', dLat: -0.015, dLng: 0.006, services: [['Banho', 45, 5000], ['Banho e tosa', 90, 9000]] },
-    { name: 'Studio Nova Sobrancelha', slug: 'studio-nova-sobrancelha', address: 'Av. Monte Castelo, 2200 - Jardim Mollon, Santa Bárbara d\'Oeste - SP', dLat: 0.007, dLng: -0.014, services: [['Design de sobrancelha', 30, 3500], ['Henna', 40, 5000]] },
+    {
+      name: 'Barbearia Dom Corte',
+      slug: 'barbearia-dom-corte',
+      address: "Rua do Bosque, 120 - Vila Mollon, Santa Bárbara d'Oeste - SP",
+      dLat: 0.004,
+      dLng: 0.003,
+      services: [
+        ['Corte de cabelo', 30, 4500],
+        ['Barba', 20, 3000],
+      ],
+    },
+    {
+      name: 'Studio Bella Hair',
+      slug: 'studio-bella-hair',
+      address: "Av. Santa Bárbara, 850 - Centro, Santa Bárbara d'Oeste - SP",
+      dLat: -0.006,
+      dLng: 0.008,
+      services: [
+        ['Escova', 40, 6000],
+        ['Corte feminino', 50, 8000],
+        ['Coloração', 90, 15000],
+      ],
+    },
+    {
+      name: 'Esmalteria Nails & Co',
+      slug: 'esmalteria-nails-co',
+      address: "Rua Riachuelo, 45 - Centro, Santa Bárbara d'Oeste - SP",
+      dLat: 0.009,
+      dLng: -0.005,
+      services: [
+        ['Manicure', 40, 4000],
+        ['Pedicure', 45, 4500],
+      ],
+    },
+    {
+      name: 'Espaço Zen Massoterapia',
+      slug: 'espaco-zen-massoterapia',
+      address: "Rua Duque de Caxias, 300 - Jardim Europa, Santa Bárbara d'Oeste - SP",
+      dLat: -0.011,
+      dLng: -0.007,
+      services: [
+        ['Massagem relaxante', 60, 12000],
+        ['Massagem terapêutica', 60, 14000],
+      ],
+    },
+    {
+      name: 'Clínica Sorriso Odonto',
+      slug: 'clinica-sorriso-odonto',
+      address: "Av. de Cillo, 1500 - Centro, Santa Bárbara d'Oeste - SP",
+      dLat: 0.013,
+      dLng: 0.012,
+      services: [
+        ['Limpeza', 40, 12000],
+        ['Avaliação', 30, 0],
+      ],
+    },
+    {
+      name: 'Pet Shop Amigo Fiel',
+      slug: 'pet-shop-amigo-fiel',
+      address: "Rua Tamoio, 78 - Jardim Pérola, Santa Bárbara d'Oeste - SP",
+      dLat: -0.015,
+      dLng: 0.006,
+      services: [
+        ['Banho', 45, 5000],
+        ['Banho e tosa', 90, 9000],
+      ],
+    },
+    {
+      name: 'Studio Nova Sobrancelha',
+      slug: 'studio-nova-sobrancelha',
+      address: "Av. Monte Castelo, 2200 - Jardim Mollon, Santa Bárbara d'Oeste - SP",
+      dLat: 0.007,
+      dLng: -0.014,
+      services: [
+        ['Design de sobrancelha', 30, 3500],
+        ['Henna', 40, 5000],
+      ],
+    },
   ] as const;
 
   for (const e of establishments) {
@@ -233,10 +303,28 @@ async function seedRegionTenants() {
     await prisma.scheduleBlock.deleteMany({ where: { tenantId: tenant.id } });
     const blocks = [];
     for (let weekday = 1; weekday <= 5; weekday++) {
-      blocks.push({ tenantId: tenant.id, professionalId: pro.id, weekday, startMinute: 9 * 60, endMinute: 12 * 60 });
-      blocks.push({ tenantId: tenant.id, professionalId: pro.id, weekday, startMinute: 13 * 60, endMinute: 18 * 60 });
+      blocks.push({
+        tenantId: tenant.id,
+        professionalId: pro.id,
+        weekday,
+        startMinute: 9 * 60,
+        endMinute: 12 * 60,
+      });
+      blocks.push({
+        tenantId: tenant.id,
+        professionalId: pro.id,
+        weekday,
+        startMinute: 13 * 60,
+        endMinute: 18 * 60,
+      });
     }
-    blocks.push({ tenantId: tenant.id, professionalId: pro.id, weekday: 6, startMinute: 9 * 60, endMinute: 13 * 60 });
+    blocks.push({
+      tenantId: tenant.id,
+      professionalId: pro.id,
+      weekday: 6,
+      startMinute: 9 * 60,
+      endMinute: 13 * 60,
+    });
     await prisma.scheduleBlock.createMany({ data: blocks });
   }
 

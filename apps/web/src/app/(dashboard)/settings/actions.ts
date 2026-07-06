@@ -8,19 +8,15 @@ import { prisma } from '@haru/database';
 import {
   canAddProfessional,
   canAddReceptionist,
+  canConnectOwnWhatsapp,
   getProfessionalUsage,
   getReceptionistUsage,
   hasFeature,
+  isAppointmentLimitReached,
 } from '@haru/billing';
 import { encryptSecret } from '@haru/payments';
 
 import { requireAdmin, requireUserAndTenant } from '@/lib/auth';
-import {
-  BillingConfigError,
-  createOneTimeCharge,
-  findPendingChargeByReference,
-} from '@/lib/billing/asaas';
-import { SETUP_FEE_CENTS } from '@/lib/billing/pricing';
 import { removeAvatar, uploadAvatar } from '@/lib/avatar-storage';
 import { getBaseUrl } from '@/lib/base-url';
 import { geocodeAddress } from '@/lib/geocode';
@@ -509,6 +505,16 @@ export async function connectWhatsapp(
 ): Promise<WhatsappActionResult> {
   const { tenant } = await requireAdmin();
 
+  // Conectar uma WABA própria é a variante "número próprio" do addon Atendente IA (com setup
+  // pago) - nunca uma feature avulsa do plano base. Fecha o bypass server-side de conectar
+  // WhatsApp sem o addon. (Fluxo de conexão vive em assinatura/atendente-ia.)
+  if (!canConnectOwnWhatsapp(tenant.subscription)) {
+    return {
+      error:
+        'Conectar um número próprio de WhatsApp faz parte do addon Atendente IA (número próprio). Ative o addon em Assinatura → Atendente IA para configurar.',
+    };
+  }
+
   const parsed = whatsappSchema.safeParse({
     phoneNumberId: formData.get('phoneNumberId'),
     businessAccountId: formData.get('businessAccountId'),
@@ -701,6 +707,7 @@ const notificationsSchema = z
     // Checkbox: presente ("on") = ligado; ausente = desligado.
     handoffEmailEnabled: z.preprocess((v) => v === 'on' || v === 'true', z.boolean()),
     ownerAppointmentEmailsEnabled: z.preprocess((v) => v === 'on' || v === 'true', z.boolean()),
+    ownerWhatsappAlertsEnabled: z.preprocess((v) => v === 'on' || v === 'true', z.boolean()),
     reminderTemplateName: templateNameSchema,
     reminderTemplateLanguage: templateLanguageSchema,
     cancelTemplateName: templateNameSchema,
@@ -738,6 +745,7 @@ export async function updateNotifications(
     reminderHoursBefore: formData.get('reminderHoursBefore'),
     handoffEmailEnabled: formData.get('handoffEmailEnabled'),
     ownerAppointmentEmailsEnabled: formData.get('ownerAppointmentEmailsEnabled'),
+    ownerWhatsappAlertsEnabled: formData.get('ownerWhatsappAlertsEnabled'),
     reminderTemplateName: formData.get('reminderTemplateName'),
     reminderTemplateLanguage: formData.get('reminderTemplateLanguage'),
     cancelTemplateName: formData.get('cancelTemplateName'),
@@ -776,6 +784,7 @@ export async function updateNotifications(
       reminderHoursBefore: parsed.data.reminderHoursBefore,
       handoffEmailEnabled: parsed.data.handoffEmailEnabled,
       ownerAppointmentEmailsEnabled: parsed.data.ownerAppointmentEmailsEnabled,
+      ownerWhatsappAlertsEnabled: parsed.data.ownerWhatsappAlertsEnabled,
       reminderTemplateName: parsed.data.reminderTemplateName,
       reminderTemplateLanguage: parsed.data.reminderTemplateLanguage,
       cancelTemplateName: parsed.data.cancelTemplateName,
@@ -924,6 +933,16 @@ export async function inviteUser(
     }
   }
 
+  // Bloqueio owner-side ao atingir o teto de agendamentos do ciclo (item 4): não
+  // adiciona novo profissional enquanto no limite. Cota distinta de canAddProfessional
+  // (esta é o teto de agendamentos, não o de profissionais). Fair use não cai aqui.
+  if (isProfessional && (await isAppointmentLimitReached(tenant))) {
+    return {
+      error:
+        'Você atingiu o limite de agendamentos do seu plano neste ciclo. Faça upgrade para adicionar novos profissionais.',
+    };
+  }
+
   const admin = getSupabaseAdmin();
 
   // 1) Cria o auth.users sem senha (email confirmado - ativação define a senha).
@@ -1039,6 +1058,13 @@ export async function updateUser(
           error: `Seu plano permite até ${tenant.subscription?.maxProfessionals ?? 0} profissionais (com agenda).`,
         };
       }
+      // Teto de agendamentos do ciclo atingido: não promove a profissional (item 4).
+      if (await isAppointmentLimitReached(tenant)) {
+        return {
+          error:
+            'Você atingiu o limite de agendamentos do seu plano neste ciclo. Faça upgrade para adicionar novos profissionais.',
+        };
+      }
     } else {
       const used = await getReceptionistUsage(tenant.id);
       if (!canAddReceptionist(tenant.subscription, used)) {
@@ -1127,69 +1153,3 @@ export async function resendInvite(userId: string): Promise<ResendInviteActionRe
   return { ok: true, sent, activationUrl };
 }
 
-// --- Configuração assistida do WhatsApp (setup opcional) --------------------
-
-export type WhatsappSetupResult =
-  | { error: string }
-  /** Anual: setup incluído, sem cobrança. */
-  | { ok: true; free: true }
-  /** Mensal: cobrança avulsa gerada - manda pra fatura do Asaas. */
-  | { ok: true; free: false; invoiceUrl: string | null };
-
-/**
- * Contrata a configuração assistida do WhatsApp (opcional - o WhatsApp é opcional).
- * Grátis no anual; no mensal gera uma cobrança avulsa (R$297) e devolve a fatura.
- * Idempotente: se já contratado (setupChargedAt), não cobra de novo. Não bloqueia o uso.
- */
-export async function startWhatsappSetup(): Promise<WhatsappSetupResult> {
-  const { tenant } = await requireAdmin();
-  const sub = tenant.subscription;
-  if (!sub) return { error: 'Assine um plano antes de contratar a configuração assistida.' };
-  if (sub.setupChargedAt) return { error: 'A configuração assistida já foi contratada.' };
-
-  // Anual: setup incluído (grátis). Só marca como coberto.
-  if (sub.billingCycle === 'ANNUAL') {
-    await prisma.subscription.update({
-      where: { id: sub.id },
-      data: { setupChargedAt: new Date() },
-    });
-    revalidatePath('/settings');
-    return { ok: true, free: true };
-  }
-
-  // Mensal: cobrança avulsa (precisa do customer do Asaas, criado no checkout do plano).
-  if (!sub.asaasCustomerId) {
-    return {
-      error: 'Conclua o pagamento do seu plano antes de contratar a configuração assistida.',
-    };
-  }
-  // NÃO marca setupChargedAt aqui: marcar antes de pagar cobriria setup não pago e não há
-  // reconciliação por webhook da cobrança avulsa. A oferta some sozinha quando o WhatsApp
-  // conclui a conexão (a UI condiciona a !connected). externalReference torna a cobrança
-  // idempotente (reclicar antes de pagar reaproveita a fatura, não gera outra).
-  const ref = `whatsapp-setup:${sub.id}`;
-  try {
-    const existing = await findPendingChargeByReference(ref);
-    if (existing?.invoiceUrl) {
-      return { ok: true, free: false, invoiceUrl: existing.invoiceUrl };
-    }
-    const charge = await createOneTimeCharge({
-      customerId: sub.asaasCustomerId,
-      amountCents: SETUP_FEE_CENTS,
-      description: 'Configuração assistida do WhatsApp (setup único) - Demandaê',
-      externalReference: ref,
-    });
-    if (!charge.invoiceUrl) {
-      return { error: 'Não foi possível gerar a fatura agora. Tente novamente.' };
-    }
-    revalidatePath('/settings');
-    return { ok: true, free: false, invoiceUrl: charge.invoiceUrl };
-  } catch (err) {
-    if (err instanceof BillingConfigError) {
-      console.error('[whatsapp-setup] config', err);
-      return { error: 'Cobrança indisponível no momento. Tente mais tarde.' };
-    }
-    console.error('[whatsapp-setup] falhou', err);
-    return { error: 'Não foi possível gerar a cobrança. Tente novamente.' };
-  }
-}

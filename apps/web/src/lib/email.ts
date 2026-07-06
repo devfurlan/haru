@@ -83,3 +83,45 @@ export function emailShell(title: string, body: string, cta: string, link: strin
       <p style="font-size:12px;color:#888">Demandaê - agendamento e atendimento por IA no WhatsApp.</p>
     </div>`;
 }
+
+// Identidade visual Demandaê (mesma do e-mail branded de agendamento em appointment-email.ts):
+// faixa coral no topo, wordmark, card creme. Fontes da marca com fallback (clientes de
+// e-mail não carregam webfonts).
+const BRAND_SERIF = "'Fraunces', Georgia, 'Times New Roman', serif";
+const BRAND_SANS =
+  "'Hanken Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, system-ui, sans-serif";
+
+/**
+ * Casca branded dos e-mails do DONO (billing/retenção): card creme, faixa coral, wordmark
+ * Demandaê, corpo em HTML livre (aceita <strong>, <br>, listas) e 1 botão de CTA. Table-based
+ * + estilos inline pra sobreviver aos clientes de e-mail (Gmail/Outlook). Consistente com o
+ * e-mail de agendamento - fecha a identidade visual dos e-mails do produto.
+ */
+export function brandedShell(title: string, body: string, cta: string, link: string): string {
+  return `
+  <div style="margin:0;padding:0;background:#faf5ea;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#faf5ea;">
+      <tr><td align="center" style="padding:32px 16px;">
+        <table role="presentation" width="520" cellpadding="0" cellspacing="0" style="width:520px;max-width:100%;background:#ffffff;border:1px solid #ece3d3;border-top:3px solid #ff5a36;border-radius:16px;">
+          <tr><td style="padding:28px 36px 0;">
+            <span style="font-family:${BRAND_SERIF};font-weight:900;font-size:22px;letter-spacing:-0.02em;color:#0f1f18;">Demanda<span style="color:#ff5a36;">ê</span></span><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#ff5a36;margin-left:5px;"></span>
+          </td></tr>
+          <tr><td style="padding:22px 36px 0;">
+            <h1 style="margin:0;font-family:${BRAND_SERIF};font-weight:800;font-size:21px;line-height:1.3;color:#0f1f18;">${title}</h1>
+          </td></tr>
+          <tr><td style="padding:12px 36px 0;">
+            <div style="font-family:${BRAND_SANS};font-size:14px;line-height:1.65;color:#27392f;">${body}</div>
+          </td></tr>
+          <tr><td style="padding:24px 36px 4px;">
+            <a href="${link}" style="display:inline-block;background:#ff5a36;color:#ffffff;font-family:${BRAND_SANS};font-size:14px;font-weight:600;text-decoration:none;padding:12px 22px;border-radius:10px;">${cta}</a>
+          </td></tr>
+          <tr><td style="padding:26px 36px 28px;">
+            <div style="border-top:1px solid #ece3d3;padding-top:18px;font-family:${BRAND_SANS};font-size:12px;line-height:1.5;color:#9aa39d;">
+              Demanda<span style="color:#ff5a36;">ê</span> · agendamento e atendimento por IA no WhatsApp.
+            </div>
+          </td></tr>
+        </table>
+      </td></tr>
+    </table>
+  </div>`;
+}

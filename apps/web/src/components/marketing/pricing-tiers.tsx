@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 
 import { Button } from '@/components/ui/button';
+import { PLAN_INSTALLMENT_CENTS } from '@/lib/billing/pricing';
 import { cn } from '@/lib/utils';
 
 export interface PricingTier {
@@ -61,17 +62,15 @@ interface Feat {
  */
 function featuresFor(t: PricingTier, prevName: string | null): Feat[] {
   const appts = `${fmtLimit(t.appointmentsPerMonth)} agendamentos/mês`;
-  const ia = `${fmtLimit(t.aiMessagesPerMonth)} mensagens de IA/mês`;
 
   switch (t.tier) {
     case 'ESSENCIAL':
       return [
-        { on: true, text: 'Bot de IA no WhatsApp + lembretes' },
-        { on: true, text: 'Agenda pública + app do cliente' },
+        { on: true, text: 'App do cliente + agenda pública na web' },
         { on: true, text: 'Painel completo + histórico' },
+        { on: true, text: 'Confirmações e lembretes automáticos no WhatsApp' },
         { on: true, text: appts },
-        { on: true, text: ia },
-        { on: false, text: '1 profissional' },
+        { on: true, text: '1 profissional' },
         { on: false, text: 'Pagamentos online' },
         { on: false, text: 'Webhooks' },
       ];
@@ -82,7 +81,6 @@ function featuresFor(t: PricingTier, prevName: string | null): Feat[] {
         { on: true, text: `Equipe: até ${fmtLimit(t.maxProfessionals)} profissionais` },
         { on: true, text: 'Webhooks (Discord, Slack, Zapier, n8n)' },
         { on: true, text: appts },
-        { on: true, text: ia },
       ];
     case 'NEGOCIO':
       return [
@@ -90,13 +88,12 @@ function featuresFor(t: PricingTier, prevName: string | null): Feat[] {
         { on: true, text: 'Profissionais ilimitados' },
         { on: true, text: 'Suporte prioritário' },
         { on: true, text: appts },
-        { on: true, text: ia },
       ];
     default:
       return [
-        { on: true, text: 'Bot de IA no WhatsApp + lembretes' },
+        { on: true, text: 'App do cliente + agenda pública na web' },
+        { on: true, text: 'Confirmações e lembretes no WhatsApp' },
         { on: true, text: appts },
-        { on: true, text: ia },
         { on: t.onlinePayments, text: 'Pagamentos online (Pix/cartão)' },
         {
           on: t.team,
@@ -175,15 +172,15 @@ export function PricingTiers({ tiers }: { tiers: PricingTier[] }) {
         </div>
       </div>
 
-      {/* Selo do anual: 2 meses grátis + setup grátis andam sempre juntos (é pacote). */}
+      {/* Selo do anual: 2 meses grátis (à vista = 10× o mensal). */}
       <div className="mt-3 flex min-h-6 justify-center">
         {isAnnual ? (
           <span className="bg-green/10 text-green inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold">
-            <Sparkles aria-hidden className="size-3.5" />2 meses grátis + setup grátis
+            <Sparkles aria-hidden className="size-3.5" />2 meses grátis no plano anual
           </span>
         ) : (
           <span className="text-ink-soft/70 text-xs">
-            No plano anual você ganha 2 meses grátis + setup grátis.
+            No plano anual você ganha 2 meses grátis.
           </span>
         )}
       </div>
@@ -200,6 +197,10 @@ export function PricingTiers({ tiers }: { tiers: PricingTier[] }) {
           // Economia do anual vs mensal = 12 mensalidades - preço anual. (Setup fora: é
           // opcional, então não infla o número - vira uma linha à parte "grátis no anual".)
           const totalSavingsCents = t.priceMonthlyCents * 12 - t.priceAnnualCents;
+          // Parcela do anual 12x com taxas (dado do gateway; ver PLAN_INSTALLMENT_CENTS).
+          // ponytail: quando a coluna Plan.priceAnnualInstallmentCents estiver migrada,
+          // trocar por t.priceAnnualInstallmentCents e aposentar a constante.
+          const installmentCents = PLAN_INSTALLMENT_CENTS[t.tier];
 
           return (
             <div
@@ -251,8 +252,9 @@ export function PricingTiers({ tiers }: { tiers: PricingTier[] }) {
                           featured ? 'text-cream/60' : 'text-ink-soft/70',
                         )}
                       >
-                        <p className="font-medium">{brl(t.priceAnnualCents)}/ano cobrado 1×</p>
-                        <p>ou 12× de {brlCents(t.priceAnnualCents / 12)} no cartão</p>
+                        <p className="font-medium">
+                          cobrado {brl(t.priceAnnualCents)}/ano à vista
+                        </p>
                         <span
                           className={cn(
                             'mt-1 inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold',
@@ -263,7 +265,12 @@ export function PricingTiers({ tiers }: { tiers: PricingTier[] }) {
                         >
                           Economize {brl(totalSavingsCents)}/ano
                         </span>
-                        <p className="pt-0.5">Setup do WhatsApp grátis (opcional)</p>
+                        {installmentCents && (
+                          <p className="pt-0.5">
+                            ou 12× de {brlCents(installmentCents)} no cartão (com taxas)
+                          </p>
+                        )}
+                        <p>Sem taxa de instalação.</p>
                       </div>
                     ) : (
                       <p
@@ -272,7 +279,7 @@ export function PricingTiers({ tiers }: { tiers: PricingTier[] }) {
                           featured ? 'text-cream/60' : 'text-ink-soft/70',
                         )}
                       >
-                        Setup do WhatsApp: R$ 297 (opcional)
+                        Comece agora, sem taxa de instalação.
                       </p>
                     )}
                   </>

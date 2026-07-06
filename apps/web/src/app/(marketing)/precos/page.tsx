@@ -1,3 +1,4 @@
+import { PrecosAddon } from '@/components/marketing/precos-addon';
 import { PrecosComparison } from '@/components/marketing/precos-comparison';
 import { PrecosFaq } from '@/components/marketing/precos-faq';
 import { PrecosFounder } from '@/components/marketing/precos-founder';
@@ -15,6 +16,7 @@ export default function PrecosPage() {
   return (
     <>
       <Pricing />
+      <PrecosAddon />
       {/* Prova social real (depoimentos dos primeiros clientes) entra aqui quando existir. */}
       <PrecosFounder />
       <PrecosFaq />

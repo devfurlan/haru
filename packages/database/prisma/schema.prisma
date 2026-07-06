@@ -72,6 +72,10 @@ model Tenant {
   /// o cliente cancela/remarca. NÃO inclui lembrete por agendamento (evita flood em
   /// agenda cheia). Controlado pelo dono em /settings; não afeta os e-mails do cliente.
   ownerAppointmentEmailsEnabled Boolean @default(true)
+  /// Opt-in do dono a receber alertas (uso/cobrança) por WhatsApp, enviados pelo número
+  /// da PLATAFORMA Demandaê (nunca pelo número do bot do tenant). Default off - só envia
+  /// se ligado E o OWNER tiver telefone. O e-mail é sempre enviado; o WhatsApp é reforço.
+  ownerWhatsappAlertsEnabled    Boolean @default(false)
   /// Templates aprovados na Meta. Quando definidos, mensagens são enviadas via
   /// template em vez de freeform - escapam da regra das 24h. Todos esperam
   /// 3 variáveis no body: {{1}}=nome do cliente, {{2}}=data/hora formatada,
@@ -87,6 +91,18 @@ model Tenant {
   /// Espera 2 variáveis no body: {{1}}=nome do estabelecimento, {{2}}=link de ativação.
   inviteTemplateName            String?
   inviteTemplateLanguage        String? @default("pt_BR")
+
+  // --- Atendente IA (addon) ---------------------------------------------------
+  /// Identidade que o Atendente IA usa pra se apresentar ao cliente final. Coletada
+  /// na ativação do addon. Crítico na variante "número Demandaê" (número compartilhado):
+  /// o bot precisa dizer de qual estabelecimento fala. Consumo destes campos é feito no
+  /// pipeline do bot (fora do escopo desta camada, que só persiste).
+  /// Nome exibido pelo bot (ex.: "Barbearia do Téo"). null = usa `name`.
+  botDisplayName String?
+  /// Tom de voz desejado (texto livre, ex.: "descontraído e direto"). null = padrão.
+  botTone        String?
+  /// Saudação de abertura personalizada. null = o bot usa a saudação padrão.
+  botGreeting    String?
 
   // --- Pagamentos -------------------------------------------------------------
   /// Gateway de pagamento ativo. null = pagamentos desativados (sem botão "Pagar"
@@ -120,6 +136,8 @@ model Tenant {
   aiUsageLogs        AiUsageLog[]
   favorites          Favorite[]
   subscription       Subscription?
+  usageAlerts        UsageAlert[]
+  notifications      Notification[]
 }
 
 model User {
@@ -619,12 +637,18 @@ model Plan {
   tier PlanTier @unique
   name String
 
-  /// Preços em centavos. priceAnnualCents = total do ciclo anual (já com desconto).
-  priceMonthlyCents Int
-  priceAnnualCents  Int
+  /// Preços em centavos. priceAnnualCents = total do ciclo anual à vista (já com desconto).
+  priceMonthlyCents           Int
+  priceAnnualCents            Int
+  /// Valor de CADA parcela no anual 12x (taxas de parcelamento repassadas ao cliente,
+  /// logo 12x este valor > priceAnnualCents à vista). Ver BillingCycle.ANNUAL_INSTALLMENTS.
+  priceAnnualInstallmentCents Int @default(0)
 
   /// Limites mensais. null = ilimitado (Enterprise).
   appointmentsPerMonth Int?
+  /// @deprecated IA inbound saiu do plano base e virou addon (ver `AddonPlan` +
+  /// `Subscription.addonConversationsLimit`). Mantido só p/ não quebrar telas antigas;
+  /// remover quando a tela de billing for refeita. Seed novo grava null (base sem bot).
   aiMessagesPerMonth   Int?
   /// Máximo de profissionais (usuários com agenda própria). 1 = só o dono. null = ilimitado.
   maxProfessionals     Int?
@@ -644,6 +668,35 @@ model Plan {
   updatedAt DateTime @updatedAt
 }
 
+/// Catálogo do addon "Atendente IA no WhatsApp" - bot conversacional inbound com
+/// teto de conversas PRÓPRIO, INDEPENDENTE do plano base. Um Tenant pode ter plano
+/// Solo com Bot Time ativo, por exemplo. Mesma lógica de grandfather do `Plan`: a
+/// `Subscription` fotografa estes valores nas colunas `addon*` na ativação, e o
+/// gating lê do snapshot, não daqui.
+model AddonPlan {
+  id   String    @id @default(cuid())
+  tier AddonTier @unique
+  name String
+
+  priceMonthlyCents           Int
+  /// Anual à vista / 12x do addon. 0 = não ofertado (o doc de pricing só definiu o
+  /// mensal do addon; colunas prontas p/ quando os ciclos anuais forem precificados).
+  priceAnnualCents            Int @default(0)
+  priceAnnualInstallmentCents Int @default(0)
+  /// Setup do addon (configuração da WABA). SEMPRE cobrado - nunca grátis, nem no
+  /// anual, nem em promoção (paga trabalho real de WABA + config).
+  setupFeeCents               Int
+
+  /// Teto de conversas/mês do bot. null = ilimitado (fair use / Enterprise).
+  conversationsPerMonth Int?
+
+  active       Boolean @default(true)
+  displayOrder Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 /// Assinatura do SaaS de um Tenant (1:1). Guarda um SNAPSHOT dos termos do Plan
 /// no momento da contratação - o gating lê daqui, não do Plan ao vivo, garantindo
 /// que reprecificar um Plan não muda quem já assina (grandfather).
@@ -656,12 +709,20 @@ model Subscription {
   status       SubscriptionStatus @default(PENDING)
   billingCycle BillingCycle       @default(MONTHLY)
 
+  /// Downgrade agendado: plano/ciclo a aplicar na PRÓXIMA renovação (nunca retroativo).
+  /// Upgrade aplica na hora e limpa estes. O webhook de renovação lê estes campos, troca
+  /// o snapshot pelo plano pendente e os zera. null = sem troca agendada.
+  pendingPlanTier     PlanTier?
+  pendingBillingCycle BillingCycle?
+
   /// Janela do ciclo atual de cobrança.
   currentPeriodStart DateTime?
   currentPeriodEnd   DateTime?
   /// Prazo da garantia de satisfação (reembolso integral até esta data, ~30d).
   guaranteeUntil     DateTime?
   canceledAt         DateTime?
+  /// Motivo opcional informado pelo dono ao cancelar (feedback). null = não informou.
+  canceledReason     String?
 
   // --- Snapshot dos termos contratados (copiado do Plan na ativação) ---
   /// Preço efetivamente contratado, em centavos, referente ao billingCycle.
@@ -674,6 +735,26 @@ model Subscription {
   featWebhooks       Boolean @default(false)
   featTeam           Boolean @default(false)
 
+  // --- Addon "Atendente IA no WhatsApp" (snapshot próprio, grandfather) ----------
+  /// Tier do addon contratado. null = sem addon (só plano base). Independente do
+  /// `planTier` (Solo base + Bot Time é válido). É setado já na ESCOLHA (antes de
+  /// pagar/ativar) - por isso o gating de "addon ativo" olha `addonActivatedAt`, não isto.
+  addonTier               AddonTier?
+  /// Canal escolhido na ativação: número compartilhado do Demandaê (sem setup, ativa na
+  /// hora) ou número próprio do estabelecimento (WABA + setup assistido). null = sem addon.
+  addonChannel            AddonChannel?
+  /// Ciclo do addon (pode diferir do ciclo base). null quando não há addon.
+  addonBillingCycle       BillingCycle?
+  /// Snapshot dos termos do addon na ativação (congela preço/teto - grandfather).
+  addonPriceCents         Int?
+  addonSetupFeeCents      Int?
+  addonConversationsLimit Int?
+  /// Setup do addon (R$1.497) já cobrado - sempre cobrado na ativação; guarda contra
+  /// cobrança dupla. null = addon nunca ativado.
+  addonSetupChargedAt     DateTime?
+  addonActivatedAt        DateTime?
+  addonCanceledAt         DateTime?
+
   // --- Asaas (recorrência - Fase 2) ---
   asaasCustomerId     String?
   asaasSubscriptionId String?
@@ -682,15 +763,72 @@ model Subscription {
   /// e-mail/recibo duplicado nem reprocessar.
   lastBilledPaymentId String?
 
-  /// Quando a configuração assistida do WhatsApp (setup) foi contratada: no checkout
-  /// (opt-in mensal), na ativação do WhatsApp, ou coberta pelo anual (grátis). null =
-  /// ainda não contratada - a oferta aparece na ativação. Evita cobrar o setup 2x.
-  setupChargedAt DateTime?
+  /// Marca quando o lembrete de renovação (7d antes) já saiu neste ciclo. Resetado a
+  /// null na renovação (webhook ACTIVE) pra rearmar no ciclo seguinte. Dedup do cron.
+  renewalReminderSentAt DateTime?
+
+  /// Ledger local de cobranças desta assinatura (rastreabilidade: cada cobrança
+  /// linkada ao plano/ciclo vigente no momento). Ver model Charge.
+  charges Charge[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([status])
+}
+
+/// Dedup dos alertas de uso PUSH (email/WhatsApp): uma linha por (tenant, métrica,
+/// janela de cota). `level` = maior nível já alertado nessa janela (85/90/95/100), pra
+/// não repetir o mesmo alerta no mesmo ciclo nem alertar "pra trás". Nova janela de
+/// cobrança = novo `windowStart` = linha nova = alertas zerados (reset por ciclo). O
+/// banner in-app é status ao vivo e não passa por aqui. Ver @haru/billing nextUsageAlerts.
+model UsageAlert {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  /// 'appointments' (plano base) | 'conversations' (addon) | 'fairuse' (alerta interno).
+  metric      String
+  /// Início da janela de cota (mensal, ancorada no dia do ciclo) a que o alerta pertence.
+  windowStart DateTime
+  /// Maior nível já alertado nesta janela: 85 | 90 | 95 | 100.
+  level     Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, metric, windowStart])
+  @@index([tenantId])
+}
+
+/// Centro de notificações in-app (sino do painel). Uma linha por aviso destinado ao DONO
+/// do estabelecimento. Dois canais: ACCOUNT (conta/uso/cobrança - acionável) e PRODUCT
+/// (novidades do produto - broadcast, um fan-out por tenant). `kind` identifica o tipo
+/// (ex.: "usage.appointments.90", "billing.past_due", "renewal.upcoming", "product.news")
+/// e serve de dedup + ícone. Escrito pelo loop de uso (bot), pelo webhook de billing e
+/// pelo cron de renovação. Ler = marcar readAt. Leitura por tenant (não por usuário).
+model Notification {
+  id       String              @id @default(cuid())
+  tenantId String
+  tenant   Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  channel  NotificationChannel
+  /// Tipo do aviso (dedup + ícone), ex.: "usage.appointments.90", "billing.past_due".
+  kind     String
+  title    String
+  body     String
+  /// CTA opcional: rótulo + destino relativo no app (ex.: "/assinatura").
+  ctaLabel String?
+  ctaHref  String?
+  /// null = não lida. Marcada quando o dono abre o sino.
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([tenantId, createdAt])
+}
+
+enum NotificationChannel {
+  /// Conta: uso, cobrança, renovação. Acionável.
+  ACCOUNT
+  /// Novidades e updates de produto. Broadcast (canal separado).
+  PRODUCT
 }
 
 enum PlanTier {
@@ -715,7 +853,111 @@ enum SubscriptionStatus {
 
 enum BillingCycle {
   MONTHLY
+  /// Anual à vista (10x o mensal - "2 meses grátis").
   ANNUAL
+  /// Anual parcelado em 12x com taxas de parcelamento repassadas ao cliente.
+  ANNUAL_INSTALLMENTS
+}
+
+/// Tiers do addon "Atendente IA no WhatsApp", com tetos de conversa próprios,
+/// independentes do plano base. Rótulos amigáveis em ADDON_TIER_LABEL (@haru/billing).
+enum AddonTier {
+  BOT_SOLO
+  BOT_TIME
+  BOT_MULTI
+}
+
+/// Canal do addon "Atendente IA". DEMANDAE = bot no número compartilhado da plataforma
+/// (se identifica como o estabelecimento; sem WABA, sem setup, ativa na hora). OWN =
+/// número próprio do estabelecimento (WABA via Embedded Signup + setup R$1.497 assistido).
+enum AddonChannel {
+  DEMANDAE
+  OWN
+}
+
+/// Ledger local de cobranças da assinatura do SaaS. Uma linha por pagamento no Asaas
+/// (assinatura recorrente, parcelamento 12x, ou setup avulso do addon). Existe para
+/// RASTREABILIDADE: cada cobrança carrega o plano/ciclo/valor vigentes no momento
+/// (snapshot, não referência viva ao Plan), o vínculo com a Subscription, e o estado do
+/// pagamento e da NF. O webhook do Asaas é o único escritor (idempotente por
+/// asaasPaymentId). Ver apps/web .../api/webhooks/billing/asaas.
+model Charge {
+  id             String       @id @default(cuid())
+  subscriptionId String
+  subscription   Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  /// id do pagamento no Asaas (payment.id). Unique = dedup natural do webhook
+  /// (CONFIRMED e RECEIVED chegam para o mesmo pagamento).
+  asaasPaymentId String @unique
+  /// id da assinatura Asaas quando a cobrança é recorrente (mensal/anual à vista).
+  /// null para 12x (installment avulso) e para o setup do addon.
+  asaasSubscriptionId String?
+
+  /// O que esta cobrança cobre (rastreabilidade dos componentes da fatura).
+  kind ChargeKind
+  /// Snapshot do plano/ciclo/valor vigentes NO MOMENTO da cobrança (grandfather).
+  planTier     PlanTier
+  billingCycle BillingCycle
+  amountCents  Int
+
+  status     ChargeStatus @default(PENDING)
+  dueDate    DateTime?
+  paidAt     DateTime?
+  refundedAt DateTime?
+
+  /// Gancho fiscal: estado da emissão de NF desta cobrança e o custo (R$0,40/emissão)
+  /// registrado para cálculo de margem. Integração NFS-e via Asaas (assíncrona: o gancho
+  /// agenda/autoriza; o webhook INVOICE_* fecha o estado).
+  nfStatus    NfStatus @default(NONE)
+  /// Custo da emissão (R$0,40), gravado só quando a nota é AUTORIZADA de fato (é quando o
+  /// Asaas cobra). Fica 0 se a emissão falhar. Alimenta o cálculo de margem.
+  nfCostCents Int      @default(0)
+  /// id da nota no Asaas (invoice.id) - reconcilia o webhook INVOICE_* com esta cobrança.
+  asaasInvoiceId String? @unique
+  /// Link do PDF da nota autorizada (enviado ao cliente por e-mail).
+  nfUrl          String?
+  /// Número fiscal da nota autorizada (recibo/rastreio).
+  nfNumber       String?
+  /// Última mensagem de erro de emissão (quando nfStatus=FAILED).
+  nfError        String?
+  /// Tentativas de emissão já feitas - teto de retentativa do cron, evita loop de erro.
+  nfAttempts     Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([subscriptionId])
+  @@index([status])
+}
+
+enum ChargeKind {
+  /// Mensalidade/anuidade do plano base.
+  PLAN
+  /// Só o addon "Atendente IA" (fatura própria).
+  ADDON
+  /// Plano base + addon somados na mesma fatura (mesmo ciclo).
+  PLAN_ADDON
+  /// Setup do addon (R$1.497), sempre cobrança avulsa no ato da ativação.
+  SETUP
+}
+
+enum ChargeStatus {
+  PENDING
+  CONFIRMED
+  OVERDUE
+  REFUNDED
+  CANCELED
+}
+
+enum NfStatus {
+  /// Sem NF prevista para esta cobrança.
+  NONE
+  /// Emissão disparada (gancho), aguardando integração fiscal real.
+  PENDING
+  /// NF emitida (integração fiscal futura marca isto).
+  ISSUED
+  /// Falha na emissão.
+  FAILED
 }
 
 // --- Suporte in-app (bot de IA que responde dúvidas e coleta feedback) --------
@@ -733,16 +975,16 @@ model SupportMessage {
   body    String
 
   /// WEB: User (dono/staff) que escreveu/recebeu. null no mobile.
-  userId String?
+  userId            String?
   /// WEB: tenant do usuário logado (contexto do negócio). null no mobile.
-  tenantId String?
+  tenantId          String?
   /// MOBILE: cliente final. null no web.
   customerAccountId String?
 
   /// Set só quando a mensagem do usuário foi classificada como feedback.
   feedbackCategory SupportCategory?
   /// MOBILE: quando o feedback é sobre um estabelecimento específico do cliente.
-  aboutTenantId String?
+  aboutTenantId    String?
 
   createdAt DateTime @default(now())
 

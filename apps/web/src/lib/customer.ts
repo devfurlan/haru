@@ -328,6 +328,25 @@ export async function setCustomerNotifications(
   return { ok: true };
 }
 
+/**
+ * Grava o WhatsApp como PENDENTE (sem OTP), igual ao cadastro por senha. Usado no
+ * onboarding de quem entra com Google (que não informa telefone) - assim a conta fica
+ * completa e o agendamento passa a pré-preencher em vez de pedir "Seus dados". NÃO
+ * reivindica histórico: isso exige prova de posse via OTP (ver changeCustomerPhone).
+ */
+export async function setCustomerPendingPhone(
+  account: CustomerAccount,
+  phoneRaw: string,
+): Promise<CustomerMutationResult> {
+  const phone = normalizePhoneE164(phoneRaw);
+  if (!phone) return { error: 'Celular inválido - confira o DDD' };
+  await prisma.customerAccount.update({
+    where: { id: account.id },
+    data: { pendingPhone: phone },
+  });
+  return { ok: true };
+}
+
 /** Envia o OTP por SMS pro NOVO número antes de trocar (prova de posse, igual ao cadastro). */
 export async function sendPhoneChangeCode(
   account: CustomerAccount,
@@ -382,7 +401,9 @@ export async function changeCustomerPhone(
  * do schema derruba Favorite/PushDevice; os Contacts viram SetNull (o histórico do
  * agendamento fica com o tenant). Depois remove o usuário do Supabase Auth.
  */
-export async function deleteCustomerAccount(account: CustomerAccount): Promise<CustomerMutationResult> {
+export async function deleteCustomerAccount(
+  account: CustomerAccount,
+): Promise<CustomerMutationResult> {
   await prisma.customerAccount.delete({ where: { id: account.id } });
   await getSupabaseAdmin()
     .auth.admin.deleteUser(account.authId)

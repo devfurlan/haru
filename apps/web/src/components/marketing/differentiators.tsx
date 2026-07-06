@@ -4,28 +4,28 @@ import { SectionHeading } from './section-heading';
 const diffs = [
   {
     n: '01',
-    h: 'Zero fricção',
-    p: 'Seu cliente agenda pelo WhatsApp dele, do jeito que já usa. Sem app novo, sem baixar nada.',
+    h: 'Plataforma completa',
+    p: 'App do cliente, página pública e painel num produto só. Não é um bot solto no WhatsApp - é a sua operação inteira.',
   },
   {
     n: '02',
-    h: 'IA de verdade',
-    p: 'Entende texto livre e até áudio. Nada de menu robótico travado.',
+    h: 'O cliente escolhe o canal',
+    p: 'App ou web: ele agenda por onde preferir e nunca fica preso a um só. O WhatsApp confirma e lembra - e, com o Atendente IA, também conversa e agenda.',
   },
   {
     n: '03',
-    h: 'Menos faltas',
-    p: 'Lembrete automático antes do horário reduz o no-show sem você lembrar nada.',
+    h: 'Você comanda tudo',
+    p: 'Todo agendamento, de todo canal, numa agenda só. Você vê o dia inteiro, a equipe e as faltas num lugar.',
   },
   {
     n: '04',
-    h: 'Agenda certa',
-    p: 'A IA respeita seu expediente e nunca marca em cima de outro agendamento.',
+    h: 'Menos faltas, sem esforço',
+    p: 'Confirmação e lembrete automáticos no WhatsApp reduzem o no-show sem você precisar lembrar de nada.',
   },
   {
     n: '05',
-    h: 'Pronto em minutos',
-    p: 'Conecta o WhatsApp, cadastra os serviços e já está atendendo.',
+    h: 'Comece em minutos',
+    p: 'Cadastra os serviços, publica sua página e já está atendendo. Sem taxa de instalação no plano base.',
   },
 ];
 
@@ -35,19 +35,19 @@ export function Differentiators() {
       <Container>
         <SectionHeading
           eyebrow="Por que o Demandaê"
-          title="Cinco motivos pra largar a agenda de papel."
+          title="Cinco motivos pra sair da agenda de papel."
         >
-          Não é mais um chatbot de botãozinho. É um atendente que conversa de verdade e cuida da sua
-          agenda pra você.
+          Não é mais um bot no WhatsApp. É a plataforma que junta app, web e painel - e põe você no
+          comando de tudo.
         </SectionHeading>
-        <div className="grid gap-px overflow-hidden rounded-3xl border border-border bg-border sm:grid-cols-2 lg:grid-cols-5">
+        <div className="border-border bg-border grid gap-px overflow-hidden rounded-3xl border sm:grid-cols-2 lg:grid-cols-5">
           {diffs.map((d) => (
-            <div key={d.n} className="bg-paper p-8 transition-colors hover:bg-cream-2">
-              <div className="mb-3.5 font-serif text-[2.4rem] font-black leading-none text-coral">
+            <div key={d.n} className="bg-paper hover:bg-cream-2 p-8 transition-colors">
+              <div className="text-coral mb-3.5 font-serif text-[2.4rem] font-black leading-none">
                 {d.n}
               </div>
               <h3 className="mb-2 text-[1.05rem] font-bold">{d.h}</h3>
-              <p className="text-sm leading-relaxed text-ink-soft">{d.p}</p>
+              <p className="text-ink-soft text-sm leading-relaxed">{d.p}</p>
             </div>
           ))}
         </div>

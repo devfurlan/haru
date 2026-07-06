@@ -21,6 +21,7 @@ type Props = {
   titlePlain?: string; // "Tá" (opcional; ex.: "Remarcado!" usa só o acento)
   titleAccent: string; // "marcado!"
   message: string;
+  pending?: boolean; // sucesso pendente (selo coral) vs confirmado (selo verde) - espelha o web
   tenant: { name: string; logoUrl?: string | null };
   line?: string | null; // "Corte masculino · com Téo"
   when?: string | null; // "Sáb, 5 jul · 15h30"
@@ -41,6 +42,7 @@ export function BookingSuccess({
   titlePlain,
   titleAccent,
   message,
+  pending = false,
   tenant,
   line,
   when,
@@ -120,7 +122,7 @@ export function BookingSuccess({
                 <Animated.View
                   style={[
                     glowStyle,
-                    { position: 'absolute', top: -10, left: -10, right: -10, bottom: -10, borderRadius: 60, backgroundColor: '#2fd37a' },
+                    { position: 'absolute', top: -10, left: -10, right: -10, bottom: -10, borderRadius: 60, backgroundColor: pending ? '#ff5a36' : '#2fd37a' },
                   ]}
                 />
               ) : null}
@@ -129,13 +131,13 @@ export function BookingSuccess({
                   className={
                     isX
                       ? 'h-[84px] w-[84px] items-center justify-center rounded-[28px] border border-[rgba(143,191,164,0.3)] bg-[rgba(255,253,248,0.08)]'
-                      : 'bg-green-bright h-[84px] w-[84px] items-center justify-center rounded-[28px]'
+                      : `${pending ? 'bg-coral' : 'bg-green-bright'} h-[84px] w-[84px] items-center justify-center rounded-[28px]`
                   }
                 >
                   <Svg width={44} height={44} viewBox="0 0 24 24" fill="none">
                     <Path
                       d={sealPath}
-                      stroke={isX ? '#faf5ea' : '#0a3324'}
+                      stroke={isX || pending ? '#faf5ea' : '#0a3324'}
                       strokeWidth={icon === 'check' ? 3.2 : 2.8}
                       strokeLinecap="round"
                       strokeLinejoin="round"
@@ -151,7 +153,10 @@ export function BookingSuccess({
                 className="text-cream mt-[22px] text-center text-[34px] leading-[36px] tracking-tight"
               >
                 {titlePlain ? `${titlePlain} ` : ''}
-                <Text style={frauncesItalic} className={isX ? 'text-[#8fbfa4]' : 'text-green-bright'}>
+                <Text
+                  style={frauncesItalic}
+                  className={isX ? 'text-[#8fbfa4]' : pending ? 'text-coral-soft' : 'text-green-bright'}
+                >
                   {titleAccent}
                 </Text>
               </Text>

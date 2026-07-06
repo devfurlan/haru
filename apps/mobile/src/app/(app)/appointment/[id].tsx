@@ -1,7 +1,8 @@
+import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Image, Linking, Pressable, ScrollView, View } from 'react-native';
+import { ActivityIndicator, Alert, Linking, Pressable, ScrollView, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
 
@@ -19,6 +20,10 @@ import { api, ApiError, type AppointmentItem } from '@/lib/api';
 type Mode = 'view' | 'reschedule' | 'rebook';
 
 const fraunces = { fontFamily: 'Fraunces_600SemiBold' };
+
+// Avisos de remarcação/cancelamento saem por e-mail + área logada; WhatsApp só quando o tenant
+// tem canal próprio ativo. Deixar false até a saída transacional pela plataforma (issue A6).
+const WHATSAPP_CONFIRMATION_ACTIVE = false;
 
 const STATUS_LABEL: Record<AppointmentItem['status'], string> = {
   PENDING: 'pendente',
@@ -126,7 +131,9 @@ export default function AppointmentDetailScreen() {
         setResult({
           plain: 'Novo horário',
           accent: 'confirmado',
-          message: 'Avisamos a barbearia. A confirmação foi pro seu WhatsApp e e-mail.',
+          message: WHATSAPP_CONFIRMATION_ACTIVE
+            ? 'Avisamos a barbearia. A confirmação foi pro seu WhatsApp e e-mail.'
+            : 'Avisamos a barbearia. Os detalhes estão no seu e-mail e na sua conta.',
           when: formatWhen(iso, item.tenant.timezone),
           previousWhen,
           icon: 'refresh',
@@ -135,7 +142,9 @@ export default function AppointmentDetailScreen() {
         await api.rebook(id, iso);
         setResult({
           accent: 'Agendado!',
-          message: 'Novo horário confirmado. Enviamos os detalhes pro seu WhatsApp e e-mail.',
+          message: WHATSAPP_CONFIRMATION_ACTIVE
+            ? 'Novo horário confirmado. Enviamos os detalhes pro seu WhatsApp e e-mail.'
+            : 'Novo horário confirmado. Enviamos os detalhes pro seu e-mail e estão na sua conta.',
           when: formatWhen(iso, item.tenant.timezone),
         });
       }
@@ -490,7 +499,8 @@ const MAP_ZOOM = 16;
 
 // Miniatura de mapa real: grade 3x3 de tiles do OpenStreetMap centrada nas coordenadas,
 // deslocada pra o ponto cair no centro do viewport (onde fica o pino). Keyless, sem
-// módulo nativo - só <Image>. ponytail: tiles direto do OSM servem no tamanho atual; se
+// módulo nativo - <Image> do expo-image (Glide: downsample/cache/memória, evita o aviso
+// de bitmap do Play). ponytail: tiles direto do OSM servem no tamanho atual; se
 // escalar, migrar pra provider com key (MapTiler/Geoapify) ou react-native-maps - a
 // política de uso do OSM desencoraja tráfego alto sem User-Agent identificando o app.
 function MapThumb({ lat, lng }: { lat: number; lng: number }) {

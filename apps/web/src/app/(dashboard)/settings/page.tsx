@@ -9,7 +9,6 @@ import { PlanCard } from './plan-card';
 import { PublicBookingCard } from './public-booking-card';
 import { TimezoneCard } from './timezone-card';
 import { UsersCard, type UserRow } from './users-card';
-import { WhatsappCard } from './whatsapp-card';
 
 export default async function SettingsPage() {
   const { id: currentUserId, tenant } = await requireAdmin();
@@ -41,18 +40,6 @@ export default async function SettingsPage() {
 
       <UsersCard users={users as UserRow[]} currentUserId={currentUserId} />
 
-      <WhatsappCard
-        phoneNumberId={tenant.whatsappPhoneNumberId}
-        businessAccountId={tenant.whatsappBusinessAccountId}
-        displayPhone={tenant.whatsappDisplayPhone}
-        hasAccessToken={Boolean(tenant.whatsappAccessToken)}
-        setupOffer={{
-          // Oferece a config assistida enquanto: tem assinatura e ainda não contratou o setup.
-          eligible: Boolean(tenant.subscription) && !tenant.subscription?.setupChargedAt,
-          free: tenant.subscription?.billingCycle === 'ANNUAL',
-        }}
-      />
-
       <PublicBookingCard
         slug={tenant.slug}
         publicBookingEnabled={tenant.publicBookingEnabled}
@@ -78,6 +65,7 @@ export default async function SettingsPage() {
         reminderHoursBefore={tenant.reminderHoursBefore}
         handoffEmailEnabled={tenant.handoffEmailEnabled}
         ownerAppointmentEmailsEnabled={tenant.ownerAppointmentEmailsEnabled}
+        ownerWhatsappAlertsEnabled={tenant.ownerWhatsappAlertsEnabled}
         reminderTemplateName={tenant.reminderTemplateName}
         reminderTemplateLanguage={tenant.reminderTemplateLanguage}
         cancelTemplateName={tenant.cancelTemplateName}

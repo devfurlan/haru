@@ -25,11 +25,13 @@ export function AddressAutocomplete({ defaultValue }: { defaultValue: string }) 
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(-1);
+  const [touched, setTouched] = useState(false);
 
   useEffect(() => {
     const q = value.trim();
-    // Só busca com selection pendente (usuário digitando), não logo após escolher.
-    if (coords || q.length < 4) {
+    // Só busca depois que o usuário editar (senão o endereço já salvo abriria a lista no load),
+    // e não logo após escolher (coords preenchido).
+    if (!touched || coords || q.length < 4) {
       setSuggestions([]);
       return;
     }
@@ -56,8 +58,12 @@ export function AddressAutocomplete({ defaultValue }: { defaultValue: string }) 
             lat: f.geometry!.coordinates![1],
           }))
           .filter((s) => s.label);
-        setSuggestions(hits);
-        setOpen(hits.length > 0);
+        // Photon devolve vários pontos da mesma via (lat/lon distintos) que caem no mesmo
+        // rótulo sem número - fica a primeira ocorrência de cada label.
+        const seen = new Set<string>();
+        const unique = hits.filter((s) => !seen.has(s.label) && seen.add(s.label));
+        setSuggestions(unique);
+        setOpen(unique.length > 0);
         setActive(-1);
       } catch {
         // rede/abort - deixa sem sugestões, o campo continua editável à mão.
@@ -67,7 +73,7 @@ export function AddressAutocomplete({ defaultValue }: { defaultValue: string }) 
       clearTimeout(t);
       ctrl.abort();
     };
-  }, [value, coords]);
+  }, [value, coords, touched]);
 
   function choose(s: Suggestion) {
     setValue(s.label);
@@ -104,6 +110,7 @@ export function AddressAutocomplete({ defaultValue }: { defaultValue: string }) 
           onChange={(e) => {
             setValue(e.target.value);
             setCoords(null); // texto novo invalida as coords da sugestão anterior
+            setTouched(true);
           }}
           onKeyDown={onKeyDown}
           onBlur={() => setTimeout(() => setOpen(false), 120)}

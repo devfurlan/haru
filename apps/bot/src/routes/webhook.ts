@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 
-import { isSubscriptionActive } from '@haru/billing';
+import { isAddonActive } from '@haru/billing';
 
 import { Sentry } from '../instrument.js';
 import { env } from '../lib/env.js';
@@ -133,11 +133,14 @@ async function processWebhook(payload: WebhookPayload, app: FastifyInstance) {
         continue;
       }
 
-      // Bot é pago-only: sem assinatura ativa (ou em carência), não processa nada.
-      if (!isSubscriptionActive(tenant.subscription)) {
+      // Bot conversacional inbound é EXCLUSIVO do addon "Atendente IA no WhatsApp": nenhum
+      // plano base inclui atendimento inbound. Sem o addon ativo, não processa. Cobre as duas
+      // variantes de canal do addon (número próprio ou número Demandaê) - isAddonActive já
+      // exige assinatura base ativa + addon ativado.
+      if (!isAddonActive(tenant.subscription)) {
         app.log.warn(
           { tenantId: tenant.id, status: tenant.subscription?.status ?? 'none' },
-          'Assinatura inativa - bot não responde',
+          'Sem addon Atendente IA ativo - bot não responde',
         );
         continue;
       }

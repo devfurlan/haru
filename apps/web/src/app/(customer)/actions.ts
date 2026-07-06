@@ -22,11 +22,13 @@ import {
   deleteCustomerAccount,
   sendPhoneChangeCode,
   setCustomerNotifications,
+  setCustomerPendingPhone,
   updateCustomerProfileCore,
 } from '@/lib/customer';
 import { requireCustomerAccount } from '@/lib/customer-auth';
 import { withinRateLimitFor } from '@/lib/ratelimit';
 import { normalizePhoneBR } from '@haru/shared';
+import { safeInternalPath } from '@/lib/safe-redirect';
 import { TERMS_VERSION } from '@/lib/legal';
 import { createClient } from '@/lib/supabase/server';
 
@@ -225,6 +227,24 @@ export async function customerChangePhone(
   revalidatePath('/conta/perfil');
   revalidatePath('/conta');
   return { ok: true };
+}
+
+/**
+ * Salva o WhatsApp (pendente, sem SMS) de quem entrou com Google e ainda não tinha número,
+ * e volta pro destino (`next`). Depois disso o agendamento conhece o telefone e nunca mais
+ * pede "Seus dados". A confirmação por OTP (claim do histórico) segue sendo opcional/depois.
+ */
+export async function customerSaveWhatsapp(
+  _prev: CustomerActionResult,
+  formData: FormData,
+): Promise<CustomerActionResult> {
+  const account = await requireCustomerAccount();
+  const result = await setCustomerPendingPhone(account, String(formData.get('phone') ?? ''));
+  if ('error' in result) return { error: result.error };
+
+  revalidatePath('/', 'layout');
+  const next = formData.get('next');
+  redirect(safeInternalPath(typeof next === 'string' ? next : null, '/conta'));
 }
 
 // ---------------------------------------------------------------------------

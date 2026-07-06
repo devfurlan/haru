@@ -6,7 +6,6 @@ import { useActionState, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { SETUP_FEE_CENTS } from '@/lib/billing/pricing';
 
 import { subscribe, type CheckoutResult } from './actions';
 
@@ -15,10 +14,18 @@ export interface PlanOption {
   name: string;
   priceMonthlyCents: number;
   priceAnnualCents: number;
+  /** Valor de CADA parcela no anual 12x (taxas de parcelamento já repassadas). */
+  priceAnnualInstallmentCents: number;
 }
 
-type Cycle = 'MONTHLY' | 'ANNUAL';
+type Cycle = 'MONTHLY' | 'ANNUAL' | 'ANNUAL_INSTALLMENTS';
 type Method = 'CARD' | 'PIX';
+
+const CYCLE_LABEL: Record<Cycle, string> = {
+  MONTHLY: 'Mensal',
+  ANNUAL: 'Anual à vista',
+  ANNUAL_INSTALLMENTS: 'Anual 12x',
+};
 
 function fmtBRL(cents: number): string {
   return (cents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -29,14 +36,11 @@ export function SubscribeForm({
   currentTier,
   preselectedTier,
   currentStatus,
-  setupAlreadyCharged = false,
 }: {
   plans: PlanOption[];
   currentTier: PlanTier | null;
   preselectedTier?: PlanTier | null;
   currentStatus: string | null;
-  /** Setup já quitado/coberto - não reoferecer o checkbox (espelha o guard do server). */
-  setupAlreadyCharged?: boolean;
 }) {
   const [tier, setTier] = useState<PlanTier>(
     currentTier ?? preselectedTier ?? plans[0]?.tier ?? 'ESSENCIAL',
@@ -48,12 +52,25 @@ export function SubscribeForm({
     undefined,
   );
 
-  const [wantsSetup, setWantsSetup] = useState(false);
   const selected = plans.find((p) => p.tier === tier) ?? plans[0];
-  // Setup é opcional e só na 1ª contratação mensal (espelha a regra do server action).
-  const firstContract = currentStatus === null || currentStatus === 'PENDING';
-  const setupOffered = cycle === 'MONTHLY' && firstContract && !setupAlreadyCharged;
-  const setupApplies = setupOffered && wantsSetup;
+
+  // Tudo derivado das colunas do plano (fonte de verdade); nada hardcodado. A parcela do
+  // 12x já traz as taxas de parcelamento embutidas, por isso 12x o valor total > à vista.
+  const monthlyCents = selected?.priceMonthlyCents ?? 0;
+  const annualCents = selected?.priceAnnualCents ?? 0;
+  const installmentCents = selected?.priceAnnualInstallmentCents ?? 0;
+  const installmentTotalCents = installmentCents * 12;
+  const annualCashSavingCents = monthlyCents * 12 - annualCents; // economia do à vista vs mensal
+  const cheaperThanMonthly = installmentCents > 0 && installmentCents < monthlyCents;
+  // 12x só faz sentido no cartão (parcelamento não existe em Pix) e só se o plano tiver preço.
+  const twelveXEnabled = installmentCents > 0 && method === 'CARD';
+  const isAnnual = cycle === 'ANNUAL' || cycle === 'ANNUAL_INSTALLMENTS';
+
+  // Escolheu 12x e depois trocou pra um método sem parcelamento: volta pro anual à vista.
+  useEffect(() => {
+    if (cycle === 'ANNUAL_INSTALLMENTS' && !twelveXEnabled) setCycle('ANNUAL');
+  }, [cycle, twelveXEnabled]);
+
   const error = state && 'error' in state ? state.error : null;
   const pixOk = state && 'ok' in state && state.method === 'PIX' ? state : null;
   const cardOk = state && 'ok' in state && state.method === 'CARD' ? state : null;
@@ -110,26 +127,97 @@ export function SubscribeForm({
         </p>
       )}
 
-      {/* Ciclo */}
+      {/* Ciclo: mensal x anual. O anual abre a comparação à vista / 12x abaixo. */}
       <div className="flex gap-2">
-        {(['MONTHLY', 'ANNUAL'] as Cycle[]).map((c) => (
+        <button
+          type="button"
+          onClick={() => setCycle('MONTHLY')}
+          className={`rounded-md border px-3 py-1.5 text-sm ${
+            cycle === 'MONTHLY' ? 'bg-foreground text-background' : 'bg-background'
+          }`}
+        >
+          Mensal
+        </button>
+        <button
+          type="button"
+          onClick={() => setCycle('ANNUAL')}
+          className={`rounded-md border px-3 py-1.5 text-sm ${
+            isAnnual ? 'bg-foreground text-background' : 'bg-background'
+          }`}
+        >
+          Anual (2 meses grátis)
+        </button>
+      </div>
+
+      {/* Comparação à vista x 12x (só no anual). Cada card seleciona o ciclo. */}
+      {isAnnual && selected && (
+        <div className="grid gap-3 sm:grid-cols-2">
           <button
             type="button"
-            key={c}
-            onClick={() => setCycle(c)}
-            className={`rounded-md border px-3 py-1.5 text-sm ${
-              cycle === c ? 'bg-foreground text-background' : 'bg-background'
+            onClick={() => setCycle('ANNUAL')}
+            className={`rounded-xl border p-4 text-left transition-colors ${
+              cycle === 'ANNUAL' ? 'border-primary ring-primary ring-1' : 'hover:bg-muted/40'
             }`}
           >
-            {c === 'MONTHLY' ? 'Mensal' : 'Anual (2 meses grátis)'}
+            <p className="text-muted-foreground text-xs font-medium">Anual à vista</p>
+            <p className="font-serif text-xl font-semibold tabular-nums">
+              {fmtBRL(annualCents)}
+              <span className="text-muted-foreground text-sm font-normal">/ano</span>
+            </p>
+            {annualCashSavingCents > 0 && (
+              <p className="mt-1 text-xs text-emerald-700">
+                Economia de {fmtBRL(annualCashSavingCents)} no ano
+              </p>
+            )}
           </button>
-        ))}
-      </div>
+
+          <button
+            type="button"
+            disabled={!twelveXEnabled}
+            onClick={() => setCycle('ANNUAL_INSTALLMENTS')}
+            className={`rounded-xl border p-4 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
+              cycle === 'ANNUAL_INSTALLMENTS'
+                ? 'border-primary ring-primary ring-1'
+                : 'enabled:hover:bg-muted/40'
+            }`}
+          >
+            <p className="text-muted-foreground text-xs font-medium">Anual 12x no cartão</p>
+            <p className="font-serif text-xl font-semibold tabular-nums">
+              {fmtBRL(installmentCents)}
+              <span className="text-muted-foreground text-sm font-normal">/mês</span>
+            </p>
+            <p className="text-muted-foreground mt-1 text-xs">
+              12x de {fmtBRL(installmentCents)} · total {fmtBRL(installmentTotalCents)}
+            </p>
+            {cheaperThanMonthly && (
+              <p className="text-coral mt-1 text-xs font-semibold">
+                Mais barato que o mensal de {fmtBRL(monthlyCents)}
+              </p>
+            )}
+            {!twelveXEnabled && installmentCents > 0 && (
+              <p className="text-muted-foreground mt-1 text-xs">Disponível no cartão de crédito</p>
+            )}
+          </button>
+
+          {cycle === 'ANNUAL_INSTALLMENTS' && (
+            <p className="text-muted-foreground sm:col-span-2 text-xs">
+              As taxas de parcelamento já estão incluídas na parcela e são repassadas ao cliente -
+              nada é cobrado à parte.
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Planos */}
       <div className="space-y-2">
         {plans.map((p) => {
-          const price = cycle === 'ANNUAL' ? p.priceAnnualCents : p.priceMonthlyCents;
+          const price =
+            cycle === 'ANNUAL'
+              ? p.priceAnnualCents
+              : cycle === 'ANNUAL_INSTALLMENTS'
+                ? p.priceAnnualInstallmentCents
+                : p.priceMonthlyCents;
+          const priceSuffix = cycle === 'ANNUAL' ? '/ano' : '/mês';
           return (
             <label
               key={p.tier}
@@ -148,7 +236,7 @@ export function SubscribeForm({
               </span>
               <span className="text-sm">
                 {fmtBRL(price)}
-                <span className="text-muted-foreground">/{cycle === 'ANNUAL' ? 'ano' : 'mês'}</span>
+                <span className="text-muted-foreground">{priceSuffix}</span>
               </span>
             </label>
           );
@@ -192,49 +280,6 @@ export function SubscribeForm({
           ? 'Você será levado ao ambiente seguro do Asaas para digitar o cartão. Não armazenamos os dados do cartão.'
           : 'Geramos um Pix; a assinatura ativa assim que o pagamento for confirmado.'}
       </p>
-
-      {/* Config assistida do WhatsApp: opcional (o WhatsApp é opcional). Só no mensal. */}
-      {setupOffered && (
-        <label className="flex cursor-pointer items-start gap-2 rounded-lg border p-3 text-sm">
-          <input
-            type="checkbox"
-            name="wantsSetup"
-            checked={wantsSetup}
-            onChange={(e) => setWantsSetup(e.target.checked)}
-            className="mt-0.5"
-          />
-          <span>
-            <span className="font-medium">
-              Configuração assistida do WhatsApp (+{fmtBRL(SETUP_FEE_CENTS)})
-            </span>
-            <span className="text-muted-foreground block text-xs">
-              Opcional. Nosso time conecta seu WhatsApp à Meta pra você. Dá pra ativar depois, se
-              preferir - ou usar só a agenda, o painel e o app do cliente.
-            </span>
-          </span>
-        </label>
-      )}
-
-      {/* Resumo do setup - transparência: o setup entra na 1ª cobrança mensal. */}
-      {setupApplies && selected && (
-        <div className="bg-muted/20 space-y-1 rounded-lg border p-3 text-sm">
-          <div className="flex justify-between">
-            <span>Plano {selected.name} (1º mês)</span>
-            <span>{fmtBRL(selected.priceMonthlyCents)}</span>
-          </div>
-          <div className="flex justify-between">
-            <span>Configuração assistida (setup único)</span>
-            <span>{fmtBRL(SETUP_FEE_CENTS)}</span>
-          </div>
-          <div className="flex justify-between border-t pt-1 font-semibold">
-            <span>1ª cobrança</span>
-            <span>{fmtBRL(selected.priceMonthlyCents + SETUP_FEE_CENTS)}</span>
-          </div>
-          <p className="text-muted-foreground pt-0.5 text-xs">
-            Depois {fmtBRL(selected.priceMonthlyCents)}/mês. O setup é grátis no plano anual.
-          </p>
-        </div>
-      )}
 
       {error && <p className="text-sm text-red-600">{error}</p>}
 

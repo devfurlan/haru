@@ -73,7 +73,7 @@ export function PaymentSection({ slug, appointmentId }: { slug: string; appointm
           className="border-ink/10 bg-paper text-ink mb-3 rounded-xl border px-4 py-3 text-base"
           value={document}
           onChangeText={(t) => setDocument(maskCpfCnpjInput(t))}
-          placeholder="Seu CPF"
+          placeholder="000.000.000-00"
           placeholderTextColor="#9aa8a0"
           keyboardType="number-pad"
         />
@@ -92,7 +92,7 @@ export function PaymentSection({ slug, appointmentId }: { slug: string; appointm
           onPress={() => pay('CREDIT_CARD')}
           className="border-green/40 flex-1 items-center rounded-xl border py-3 active:opacity-60"
         >
-          <Text className="text-green text-sm font-semibold">Cartão</Text>
+          <Text className="text-green text-sm font-semibold">Pagar com cartão</Text>
         </Pressable>
       </View>
       {loading && <ActivityIndicator className="mt-3" color="#0e7a45" />}

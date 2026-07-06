@@ -1,4 +1,4 @@
-import type { BillingCycle, Plan, PlanTier } from '@haru/database';
+import type { AddonTier, BillingCycle, Plan, PlanTier } from '@haru/database';
 
 /**
  * Helpers de billing reimplementados localmente (espelham `@haru/billing`).
@@ -12,6 +12,12 @@ export const TIER_LABEL: Record<PlanTier, string> = {
   PROFISSIONAL: 'Time',
   NEGOCIO: 'Multi',
   ENTERPRISE: 'Custom',
+};
+
+export const ADDON_TIER_LABEL: Record<AddonTier, string> = {
+  BOT_SOLO: 'Bot Solo',
+  BOT_TIME: 'Bot Time',
+  BOT_MULTI: 'Bot Multi',
 };
 
 export interface PlanSnapshot {

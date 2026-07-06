@@ -5,8 +5,8 @@ import { SectionHeading } from './section-heading';
 
 const faqs = [
   {
-    q: 'Preciso usar o WhatsApp?',
-    a: 'Não é obrigatório. Dá pra usar só a agenda pública, o painel e o app do cliente. Se quiser o bot de IA no WhatsApp, a configuração assistida é opcional: R$ 297 (uma vez) no mensal e grátis no anual.',
+    q: 'Preciso do WhatsApp Business API?',
+    a: 'Só se você ativar o addon Atendente IA - e mesmo assim a gente configura tudo pra você. No plano base, as confirmações e lembretes saem pelo WhatsApp sem nenhuma configuração da sua parte.',
   },
   {
     q: 'E se meu negócio crescer?',
@@ -21,12 +21,12 @@ const faqs = [
     a: 'Um clique no painel, sem multa e sem fidelidade.',
   },
   {
-    q: 'Quanto custa a configuração do WhatsApp?',
-    a: 'É opcional - só se você quiser ativar o bot. A configuração assistida sai por R$ 297 (uma vez) no plano mensal e é grátis no anual; nosso time cuida da conexão com a Meta pra você.',
+    q: 'O plano tem taxa de instalação?',
+    a: 'Não. Você entra direto, sem taxa de entrada. A única exceção é o addon Atendente IA no WhatsApp, que tem um setup único - ele paga a configuração da sua conta oficial na Meta.',
   },
   {
     q: 'E se eu passar do limite de agendamentos?',
-    a: 'Avisamos com antecedência (85%, 90% e 95%) pra você fazer upgrade - nunca bloqueamos o seu cliente.',
+    a: 'Avisamos com antecedência (85%, 90% e 95%) pra você fazer upgrade - nunca bloqueamos o seu cliente final.',
   },
 ];
 

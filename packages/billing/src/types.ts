@@ -1,13 +1,20 @@
-import type { PlanTier } from '@haru/database';
+import type { AddonTier, PlanTier } from '@haru/database';
 
 /**
- * Chaves de feature controladas por plano. Esta é a única parte do catálogo que
- * vive em código (estrutural) - os VALORES (preços/limites/flags) ficam no banco
- * (model `Plan`) e são fotografados na `Subscription`.
+ * Features booleanas do PLANO base (flags gravadas no snapshot da Subscription).
+ * Os VALORES (preços/limites/flags) ficam no banco (`Plan`) e são fotografados na
+ * `Subscription`; só as CHAVES (estrutura) vivem em código.
  */
-export type FeatureKey = 'onlinePayments' | 'webhooks' | 'team';
+export type PlanFeatureKey = 'onlinePayments' | 'webhooks' | 'team';
 
-/** Nome amigável (PT-BR) de cada tier, para mensagens de upgrade. */
+/**
+ * Chaves de feature controladas por assinatura. `aiAttendant` (o addon do bot) NÃO é
+ * liberado por tier de plano e sim por uma assinatura de addon ativa - por isso não
+ * aparece em FEATURE_MIN_TIER. `team` = capacidade de múltiplos profissionais.
+ */
+export type FeatureKey = PlanFeatureKey | 'aiAttendant';
+
+/** Nome amigável (PT-BR) de cada tier de plano, para mensagens de upgrade. */
 export const TIER_LABEL: Record<PlanTier, string> = {
   ESSENCIAL: 'Solo',
   PROFISSIONAL: 'Time',
@@ -15,8 +22,15 @@ export const TIER_LABEL: Record<PlanTier, string> = {
   ENTERPRISE: 'Custom',
 };
 
-/** Tier mínimo que libera cada feature - usado em mensagens "Disponível no plano X". */
-export const FEATURE_MIN_TIER: Record<FeatureKey, PlanTier> = {
+/** Nome amigável (PT-BR) de cada tier do addon "Atendente IA no WhatsApp". */
+export const ADDON_TIER_LABEL: Record<AddonTier, string> = {
+  BOT_SOLO: 'Bot Solo',
+  BOT_TIME: 'Bot Time',
+  BOT_MULTI: 'Bot Multi',
+};
+
+/** Tier mínimo que libera cada feature de plano - p/ mensagens "Disponível no plano X". */
+export const FEATURE_MIN_TIER: Record<PlanFeatureKey, PlanTier> = {
   onlinePayments: 'PROFISSIONAL',
   webhooks: 'PROFISSIONAL',
   team: 'PROFISSIONAL',

@@ -22,6 +22,7 @@ import {
 } from '@/lib/professionals';
 import { BOOKING_HORIZON_DAYS, isoDateInTz } from '@haru/shared';
 import { normalizePhoneBR } from '@haru/shared';
+import { isAppointmentLimitReached } from '@haru/billing';
 import { notifyAppointmentCreated } from '@/lib/notify';
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -224,6 +225,16 @@ export async function createManualAppointment(
 ): Promise<CreateAppointmentResult> {
   const user = await requireUserAndTenant();
   const { tenant } = user;
+
+  // Bloqueio owner-side ao atingir o teto do ciclo (item 4): o dono não cria mais
+  // agendamentos manuais (avulso/encaixe/série). O cliente final continua agendando
+  // pelo caminho público/bot, que NÃO passa por aqui. Fair use nunca cai neste guard.
+  if (await isAppointmentLimitReached(tenant)) {
+    return {
+      error:
+        'Você atingiu o limite de agendamentos do seu plano neste ciclo. Faça upgrade para criar novos - seus clientes continuam agendando normalmente.',
+    };
+  }
 
   const parsed = createSchema.safeParse({
     serviceId: formData.get('serviceId'),

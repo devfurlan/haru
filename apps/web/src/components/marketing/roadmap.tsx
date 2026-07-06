@@ -7,14 +7,14 @@ const road = [
     p: 'Envio de fotos, PDFs e comprovantes pelo chat (hoje são ignorados).',
   },
   {
-    h: 'Múltiplos profissionais',
-    p: 'Agenda separada por profissional da equipe, cada um com seus horários.',
+    h: 'Avaliações dos clientes',
+    p: 'Nota e comentário depois do atendimento, exibidos na sua página pública.',
   },
 ];
 
 export function Roadmap() {
   return (
-    <section id="breve" className="bg-cream-2 py-24">
+    <section id="breve" className="py-24">
       <Container>
         <SectionHeading eyebrow="No forno" title="O que vem por aí.">
           Recursos em desenvolvimento. Ainda não estão no ar - mas já estão no nosso mapa.

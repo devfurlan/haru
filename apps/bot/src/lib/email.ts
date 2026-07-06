@@ -198,3 +198,102 @@ export async function emailHandoffRequested(
     ),
   );
 }
+
+const USAGE_LABEL = { appointments: 'agendamentos', conversations: 'conversas do bot' } as const;
+
+/**
+ * Alerta de uso pro DONO: chegou a 85/90/95/100% do teto do ciclo (agendamentos do
+ * plano base OU conversas do addon). Tom escala com o nível - 85% é oportunidade sem
+ * drama; 95% é urgência; 100% avisa que as CRIAÇÕES do painel pausam (o cliente final
+ * segue agendando). Dedup é do caller (uma vez por nível/ciclo). Best-effort.
+ */
+export async function emailUsageAlert(
+  tenantId: string,
+  data: {
+    metric: 'appointments' | 'conversations';
+    level: 85 | 90 | 95 | 100;
+    used: number;
+    limit: number;
+  },
+): Promise<void> {
+  const o = await ownerOf(tenantId);
+  if (!o) return;
+
+  const label = USAGE_LABEL[data.metric];
+  const hi = o.name ? `Olá, ${o.name}!` : 'Olá!';
+  const pct = Math.round((data.used / data.limit) * 100);
+  const uso = `<strong>${data.used}/${data.limit}</strong>`;
+  const noNegocio = `em <strong>${o.tenantName}</strong>`;
+
+  let subject: string;
+  let title: string;
+  let body: string;
+  if (data.level >= 100) {
+    subject = `Você atingiu o limite de ${label} - Demandaê`;
+    title = `Limite de ${label} atingido`;
+    body =
+      `${hi} Você chegou a ${uso} ${label} neste ciclo ${noNegocio}. ` +
+      (data.metric === 'appointments'
+        ? `A criação de novos serviços, profissionais e agendamentos manuais fica pausada até o upgrade - mas <strong>seus clientes continuam agendando normalmente</strong>. `
+        : `O bot segue atendendo os clientes, mas você já passou do teto de conversas do addon. `) +
+      `Faça o upgrade para liberar mais volume.`;
+  } else if (data.level >= 95) {
+    subject = `⚠️ ${pct}% dos ${label} usados - Demandaê`;
+    title = `Você está quase no limite de ${label}`;
+    body =
+      `${hi} Você já usou <strong>${pct}%</strong> (${uso}) dos ${label} deste ciclo ${noNegocio}. ` +
+      `Falta pouco para o teto - ao estourar, as novas criações no painel pausam (seus clientes ` +
+      `seguem agendando). Vale fazer o upgrade agora para não interromper o ritmo.`;
+  } else if (data.level >= 90) {
+    subject = `Você está perto do limite de ${label} - Demandaê`;
+    title = `Perto do limite de ${label}`;
+    body =
+      `${hi} Você já usou <strong>${pct}%</strong> (${uso}) dos ${label} deste ciclo ${noNegocio}. ` +
+      `Já vale olhar um plano maior para não correr o risco de travar as criações no fim do ciclo.`;
+  } else {
+    subject = `Você já usou ${pct}% dos ${label} - Demandaê`;
+    title = `${pct}% dos ${label} do seu plano`;
+    body =
+      `${hi} Você já usou <strong>${pct}%</strong> (${uso}) dos ${label} deste ciclo ${noNegocio}. ` +
+      `Está crescendo bem! Se o ritmo continuar, um plano maior evita surpresa no fim do ciclo - ` +
+      `dá uma olhada nos planos quando puder, sem pressa.`;
+  }
+
+  await sendEmail(o.email, subject, shell(title, body, 'Ver planos', `${appUrl()}/assinatura`));
+}
+
+/**
+ * Alerta INTERNO pro OPERADOR (env ALERT_EMAIL_TO): um cliente Multi (NEGOCIO) com addon
+ * Bot Multi passou do teto de agendamentos ou conversas. Pela política de fair use ele
+ * NÃO é bloqueado - o excedente vira conversa de upgrade p/ Enterprise. Disparado uma
+ * vez por ciclo (dedup no caller). Best-effort.
+ */
+export async function emailFairUseExceeded(data: {
+  tenantId: string;
+  tenantName: string;
+  metric: 'appointments' | 'conversations';
+  used: number;
+  limit: number;
+}): Promise<void> {
+  const to = env.ALERT_EMAIL_TO;
+  if (!to) return;
+
+  const label = USAGE_LABEL[data.metric];
+  const detalhes =
+    `<br/><br/><strong>Tenant:</strong> ${data.tenantName} (<code>${data.tenantId}</code>)` +
+    `<br/><strong>Métrica:</strong> ${label}` +
+    `<br/><strong>Uso no ciclo:</strong> ${data.used}/${data.limit} (fair use - sem bloqueio)`;
+
+  await sendEmail(
+    to,
+    `📈 Fair use estourado - ${data.tenantName} (Demandaê)`,
+    shell(
+      'Cliente Multi + Bot Multi passou do teto',
+      `<strong>${data.tenantName}</strong> (plano Multi com addon Bot Multi) passou do teto de ` +
+        `${label} neste ciclo. Pela política de fair use ele NÃO foi bloqueado - é hora de abrir a ` +
+        `conversa de upgrade para Enterprise.${detalhes}`,
+      'Abrir Demandaê',
+      appUrl(),
+    ),
+  );
+}

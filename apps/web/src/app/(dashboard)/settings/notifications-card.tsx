@@ -15,6 +15,7 @@ interface NotificationsCardProps {
   reminderHoursBefore: number;
   handoffEmailEnabled: boolean;
   ownerAppointmentEmailsEnabled: boolean;
+  ownerWhatsappAlertsEnabled: boolean;
   reminderTemplateName: string | null;
   reminderTemplateLanguage: string | null;
   cancelTemplateName: string | null;
@@ -161,6 +162,28 @@ export function NotificationsCard(props: NotificationsCardProps) {
                 <span className="block text-sm font-medium">Aviso por e-mail de agendamentos</span>
                 <span className="text-muted-foreground block text-xs">
                   Recebe um e-mail a cada novo agendamento e quando um cliente cancelar ou remarcar.
+                </span>
+              </span>
+            </label>
+          </div>
+
+          <div className="space-y-2 rounded-lg border border-dashed p-4">
+            <label htmlFor="ownerWhatsappAlertsEnabled" className="flex items-start gap-3">
+              <input
+                id="ownerWhatsappAlertsEnabled"
+                name="ownerWhatsappAlertsEnabled"
+                type="checkbox"
+                defaultChecked={props.ownerWhatsappAlertsEnabled}
+                className="border-input mt-0.5 size-4 shrink-0 rounded"
+              />
+              <span className="space-y-1">
+                <span className="block text-sm font-medium">
+                  Alertas de uso e cobrança por WhatsApp
+                </span>
+                <span className="text-muted-foreground block text-xs">
+                  Recebe no WhatsApp do responsável os avisos de uso perto do limite (90% e 95%) e de
+                  cobrança que falhou - só o essencial, sem spam. Requer o telefone do responsável
+                  cadastrado. O e-mail continua chegando de qualquer forma.
                 </span>
               </span>
             </label>

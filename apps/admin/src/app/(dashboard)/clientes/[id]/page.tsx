@@ -4,10 +4,11 @@ import { ArrowLeft } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { TIER_LABEL } from '@/lib/billing-lite';
+import { ADDON_TIER_LABEL, TIER_LABEL } from '@/lib/billing-lite';
 import { STATUS_LABEL, STATUS_VARIANT } from '@/lib/labels';
 import { getTenantDetail, listPlans } from '@/lib/tenant-queries';
 
+import { AddonSection } from './sections/addon-section';
 import { LimitsForm } from './sections/limits-form';
 import { OperationForm } from './sections/operation-form';
 import { PaymentsForm } from './sections/payments-form';
@@ -124,6 +125,19 @@ export default async function TenantDetailPage({ params }: { params: Promise<{ i
                 }
               : null
           }
+        />
+      </Section>
+
+      <Section
+        title="Atendente IA (addon)"
+        description="Ativação do bot no número próprio (2º passo): ative depois de concluir a WABA na Meta."
+      >
+        <AddonSection
+          tenantId={tenant.id}
+          addonTierLabel={sub?.addonTier ? ADDON_TIER_LABEL[sub.addonTier] : null}
+          channel={sub?.addonChannel ?? null}
+          setupCharged={sub?.addonSetupChargedAt != null}
+          activated={sub?.addonActivatedAt != null}
         />
       </Section>
 

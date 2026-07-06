@@ -131,9 +131,29 @@ const FREQUENCY_LABELS: Record<FrequencyChoice, string> = {
 
 const FREQUENCY_ORDER: FrequencyChoice[] = ['NONE', 'WEEKLY', 'BIWEEKLY', 'MONTHLY'];
 
+// Input "paper" do passo de contato - espelha o app mobile (e os campos de auth do web).
+const FIELD_INPUT =
+  'border-edge bg-paper text-ink placeholder:text-[#9aa8a0] focus:border-green-deep w-full rounded-[14px] border px-4 py-[15px] text-base outline-none focus:border-[1.5px]';
+
 /** "15:30" -> "15h30"; "14:00" -> "14h" (formato do app mobile). */
 function fmtTime(hhmm: string): string {
   return hhmm.replace(':', 'h').replace(/h00$/, 'h');
+}
+
+/** "Qui, 02/07 · 09h30" a partir de um ISO, no fuso do tenant (linha em serif do card
+ *  de sucesso). Espelha buildConfirmWhen do app mobile. */
+function buildConfirmWhen(iso: string, timezone: string): string {
+  const d = new Date(iso);
+  const wdRaw = new Intl.DateTimeFormat('pt-BR', { timeZone: timezone, weekday: 'short' })
+    .format(d)
+    .replace('.', '');
+  const wd = wdRaw.charAt(0).toUpperCase() + wdRaw.slice(1);
+  const dm = new Intl.DateTimeFormat('pt-BR', {
+    timeZone: timezone,
+    day: '2-digit',
+    month: '2-digit',
+  }).format(d);
+  return `${wd}, ${dm} · ${fmtOccurrenceTime(iso, timezone)}`;
 }
 
 /** "Sáb, 05/07" a partir de um ISO, no fuso do tenant (linha da prévia de recorrência). */
@@ -143,9 +163,11 @@ function fmtOccurrenceDate(iso: string, tz: string): string {
     .format(d)
     .replace('.', '');
   const wd = wdRaw.charAt(0).toUpperCase() + wdRaw.slice(1);
-  const dm = new Intl.DateTimeFormat('pt-BR', { timeZone: tz, day: '2-digit', month: '2-digit' }).format(
-    d,
-  );
+  const dm = new Intl.DateTimeFormat('pt-BR', {
+    timeZone: tz,
+    day: '2-digit',
+    month: '2-digit',
+  }).format(d);
   return `${wd}, ${dm}`;
 }
 
@@ -221,7 +243,7 @@ function PeopleIcon({ size = 28 }: { size?: number }) {
 /** Capa do negócio no topo do passo vitrine (fundo esmeralda + nome em Fraunces). */
 function Hero({ tenantName, logoUrl }: { tenantName: string; logoUrl: string | null }) {
   return (
-    <div className="bg-green-deep relative flex min-h-40 flex-col justify-end overflow-hidden rounded-2xl px-5 pb-5 pt-6">
+    <div className="bg-green-deep relative flex min-h-[240px] flex-col justify-end overflow-hidden rounded-[20px] px-5 pb-6 pt-7">
       {logoUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
@@ -230,7 +252,7 @@ function Hero({ tenantName, logoUrl }: { tenantName: string; logoUrl: string | n
           className="mb-3 h-12 w-12 rounded-2xl object-cover ring-1 ring-white/15"
         />
       ) : null}
-      <h1 className="text-paper font-serif text-3xl leading-tight tracking-[-0.01em]">
+      <h1 className="text-paper font-serif text-[26px] font-semibold leading-tight">
         {tenantName}
       </h1>
     </div>
@@ -259,7 +281,7 @@ function StepChrome({
           type="button"
           onClick={onBack}
           aria-label="Voltar"
-          className="bg-card focus-visible:ring-ring flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border transition-transform focus-visible:outline-none focus-visible:ring-2 active:scale-95"
+          className="bg-card focus-visible:ring-ring flex h-10 w-10 shrink-0 items-center justify-center rounded-[13px] border-line border transition-transform focus-visible:outline-none focus-visible:ring-2 active:scale-95"
         >
           <ChevronLeft className="text-green-deep h-5 w-5" />
         </button>
@@ -271,7 +293,7 @@ function StepChrome({
           >
             {tenantName}
           </h2>
-          <p className="text-muted-foreground text-[11.5px]">{subtitle}</p>
+          <p className="text-sub text-[11.5px]">{subtitle}</p>
         </div>
       </div>
       {progress != null ? (
@@ -289,7 +311,7 @@ function StepChrome({
 /** Barra de ação fixada na base (resumo corrente + CTA), como no app mobile. */
 function StickyFooter({ children }: { children: React.ReactNode }) {
   return (
-    <div className="bg-background sticky bottom-0 z-10 mt-5 flex items-center gap-3.5 border-t pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 shadow-[0_-10px_28px_-18px_rgba(10,51,36,0.45)]">
+    <div className="bg-background border-line sticky bottom-0 z-10 mt-5 flex items-center gap-3.5 border-t pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 shadow-[0_-10px_28px_-18px_rgba(10,51,36,0.45)]">
       {children}
     </div>
   );
@@ -320,32 +342,32 @@ function StepVitrine({
         <Hero tenantName={tenantName} logoUrl={logoUrl} />
 
         {services.length === 0 ? (
-          <p className="bg-muted text-muted-foreground rounded-xl border p-4 text-sm">
+          <p className="bg-muted text-sub rounded-xl border p-4 text-sm">
             Nenhum serviço disponível no momento.
           </p>
         ) : (
           <div className="space-y-2.5">
-            <p className="text-foreground font-serif text-lg">Serviços</p>
+            <p className="text-foreground font-serif text-lg font-semibold">Serviços</p>
             <ul className="space-y-2.5" aria-label="Serviços disponíveis">
               {services.map((service) => (
                 <li key={service.id}>
                   <button
                     type="button"
                     onClick={() => onSelectService(service)}
-                    className="bg-card focus-visible:ring-ring hover:border-coral/40 flex w-full items-center justify-between gap-3 rounded-2xl border p-4 text-left transition-[transform,border-color] focus-visible:outline-none focus-visible:ring-2 active:scale-[0.99]"
+                    className="bg-card focus-visible:ring-ring border-line hover:border-coral/40 flex w-full items-center justify-between gap-3 rounded-[15px] border p-4 text-left transition-[transform,border-color] focus-visible:outline-none focus-visible:ring-2 active:scale-[0.99]"
                   >
                     <div className="min-w-0">
                       <p className="text-foreground text-[15px] font-semibold">{service.name}</p>
-                      <p className="text-muted-foreground mt-0.5 text-xs">
+                      <p className="text-sub mt-0.5 text-xs">
                         {formatDuration(service.durationMinutes)}
                       </p>
                       {service.description ? (
-                        <p className="text-muted-foreground mt-1 text-sm leading-5">
+                        <p className="text-sub mt-1 text-sm leading-5">
                           {service.description}
                         </p>
                       ) : null}
                     </div>
-                    <span className="text-green-deep shrink-0 font-serif text-lg">
+                    <span className="text-green-deep shrink-0 font-serif text-lg font-semibold">
                       {formatBRL(service.priceCents)}
                     </span>
                   </button>
@@ -359,14 +381,14 @@ function StepVitrine({
       {services.length > 0 && lowestPrice != null ? (
         <StickyFooter>
           <div>
-            <p className="text-muted-foreground text-[11.5px]">a partir de</p>
-            <p className="text-foreground font-serif text-2xl">{formatBRL(lowestPrice)}</p>
+            <p className="text-sub text-[11.5px]">a partir de</p>
+            <p className="text-foreground font-serif text-2xl font-semibold">{formatBRL(lowestPrice)}</p>
           </div>
           <Button
             type="button"
             variant="coral"
             size="pill"
-            className="flex-1 active:scale-[0.98]"
+            className="flex-1 rounded-[16px] text-[15px] font-bold active:scale-[0.98]"
             onClick={onQuickBook}
           >
             Agendar
@@ -401,7 +423,7 @@ function ProAvatar({
     >
       <span
         className={cn(
-          'bg-green-deep flex h-[60px] w-[60px] items-center justify-center overflow-hidden rounded-[18px] border-2',
+          'bg-green-deep flex h-[60px] w-[60px] items-center justify-center overflow-hidden rounded-[18px] border-[2.5px]',
           selected ? 'border-coral' : 'border-transparent',
         )}
       >
@@ -410,7 +432,7 @@ function ProAvatar({
       <span
         className={cn(
           'max-w-[64px] truncate text-xs',
-          selected ? 'text-foreground font-semibold' : 'text-muted-foreground',
+          selected ? 'text-foreground font-semibold' : 'text-sub',
         )}
       >
         {label}
@@ -487,7 +509,7 @@ function StepSelect({
                       className="h-full w-full object-cover"
                     />
                   ) : (
-                    <span className="text-green-bright font-serif text-2xl">
+                    <span className="text-green-bright font-serif text-2xl font-semibold">
                       {(p.name ?? '?').trim().charAt(0).toUpperCase()}
                     </span>
                   )}
@@ -501,7 +523,7 @@ function StepSelect({
           <div className="flex items-baseline justify-between">
             <p className="text-foreground text-[13px] font-semibold">Serviço</p>
             {serviceProfs.length > 1 ? (
-              <p className="text-muted-foreground text-[11.5px]">de todos os profissionais</p>
+              <p className="text-sub text-[11.5px]">de todos os profissionais</p>
             ) : null}
           </div>
           <div className="space-y-2.5">
@@ -514,19 +536,19 @@ function StepSelect({
                   onClick={() => onPickService(s)}
                   aria-pressed={sel}
                   className={cn(
-                    'bg-card flex w-full items-center gap-3 rounded-2xl px-4 py-3.5 text-left transition-[transform,border-color,box-shadow] active:scale-[0.99]',
+                    'bg-card flex w-full items-center gap-3 rounded-[16px] px-4 py-3.5 text-left transition-[transform,border-color,box-shadow] active:scale-[0.99]',
                     sel
                       ? 'border-green-deep border-[1.5px] shadow-[0_8px_18px_-10px_rgba(10,51,36,0.55)]'
-                      : 'border',
+                      : 'border-edge border',
                   )}
                 >
                   <div className="min-w-0 flex-1">
                     <p className="text-foreground text-[15px] font-semibold">{s.name}</p>
-                    <p className="text-muted-foreground mt-0.5 text-xs">
+                    <p className="text-sub mt-0.5 text-xs">
                       {serviceMeta(s, professionals)}
                     </p>
                   </div>
-                  <span className="text-green-deep shrink-0 font-serif text-lg">
+                  <span className="text-green-deep shrink-0 font-serif text-lg font-semibold">
                     {formatBRL(s.priceCents)}
                   </span>
                   {sel ? (
@@ -545,10 +567,10 @@ function StepSelect({
 
       <StickyFooter>
         <div className="min-w-0 flex-1">
-          <p className="text-muted-foreground truncate text-[11.5px]">
+          <p className="text-sub truncate text-[11.5px]">
             {service?.name} · {professionalLabel}
           </p>
-          <p className="text-foreground font-serif text-xl">
+          <p className="text-foreground font-serif text-xl font-semibold">
             {service ? formatBRL(service.priceCents) : ''}
           </p>
         </div>
@@ -556,7 +578,7 @@ function StepSelect({
           type="button"
           variant="coral"
           size="pill"
-          className="px-8 active:scale-[0.98]"
+          className="rounded-[16px] px-8 text-[15px] font-bold active:scale-[0.98]"
           onClick={onContinue}
         >
           Continuar
@@ -712,7 +734,7 @@ function MonthCalendar({
 
         <div className="grid grid-cols-7 gap-1 text-center">
           {WEEKDAY_INITIALS.map((w, i) => (
-            <span key={i} className="text-muted-foreground py-1 text-xs font-medium">
+            <span key={i} className="text-sub py-1 text-xs font-medium">
               {w}
             </span>
           ))}
@@ -738,7 +760,7 @@ function MonthCalendar({
                   (isSelected
                     ? 'bg-coral font-semibold text-white'
                     : disabled
-                      ? 'text-muted-foreground/40 cursor-not-allowed'
+                      ? 'text-sub/40 cursor-not-allowed'
                       : 'hover:bg-coral/10 text-foreground')
                 }
               >
@@ -845,14 +867,14 @@ function StepDiaHora({
         <button
           type="button"
           onClick={onEditService}
-          className="bg-card flex w-full items-center gap-3 rounded-2xl border p-3 text-left transition-transform active:scale-[0.99]"
+          className="bg-card border-line flex w-full items-center gap-3 rounded-[15px] border p-3 text-left transition-transform active:scale-[0.99]"
         >
-          <span className="bg-green-deep flex h-10 w-10 shrink-0 items-center justify-center rounded-xl">
+          <span className="bg-green-deep flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px]">
             <PeopleIcon size={22} />
           </span>
           <div className="min-w-0 flex-1">
             <p className="text-foreground truncate text-[14.5px] font-semibold">{service.name}</p>
-            <p className="text-muted-foreground mt-0.5 text-xs">
+            <p className="text-sub mt-0.5 text-xs">
               {formatDuration(service.durationMinutes)} · {formatBRL(service.priceCents)}
             </p>
           </div>
@@ -888,7 +910,7 @@ function StepDiaHora({
             aria-label="Escolha o dia"
           >
             {railDays.length === 0 ? (
-              <p className="text-muted-foreground px-1 text-sm">Nenhuma data disponível.</p>
+              <p className="text-sub px-1 text-sm">Nenhuma data disponível.</p>
             ) : (
               railDays.map((day) => {
                 const { weekday, date } = splitDayLabel(day.label);
@@ -913,7 +935,7 @@ function StepDiaHora({
                         ? 'bg-green-deep'
                         : isClosed
                           ? 'cursor-not-allowed border border-[#e6dcc6] bg-[#f2ebda]'
-                          : 'bg-card hover:border-coral/50 border',
+                          : 'bg-card border-edge hover:border-coral/50 border',
                     )}
                   >
                     <span
@@ -923,14 +945,14 @@ function StepDiaHora({
                           ? 'text-[#8fbfa4]'
                           : isClosed
                             ? 'text-[#b9ad93]'
-                            : 'text-muted-foreground',
+                            : 'text-sub',
                       )}
                     >
                       {wd}
                     </span>
                     <span
                       className={cn(
-                        'font-serif text-lg',
+                        'font-serif text-lg font-semibold',
                         isSelected ? 'text-cream' : isClosed ? 'text-[#b9ad93]' : 'text-foreground',
                       )}
                     >
@@ -950,17 +972,17 @@ function StepDiaHora({
         <div className="space-y-2.5">
           <p className="text-foreground text-[13px] font-semibold">Horário</p>
           {!selectedDate ? (
-            <p className="bg-muted text-muted-foreground rounded-lg border p-4 text-sm">
+            <p className="bg-muted text-sub rounded-lg border p-4 text-sm">
               Selecione um dia para ver os horários.
             </p>
           ) : loadingSlots ? (
             <div className="flex flex-wrap gap-[9px]" aria-hidden="true">
-              {Array.from({ length: 8 }).map((_, i) => (
-                <Skeleton key={i} className="h-[42px] w-[76px] rounded-xl" />
+              {Array.from({ length: 6 }).map((_, i) => (
+                <Skeleton key={i} className="h-[42px] w-[76px] rounded-[12px]" />
               ))}
             </div>
           ) : slots.length === 0 ? (
-            <p className="bg-muted text-muted-foreground rounded-lg border p-4 text-sm">
+            <p className="bg-muted text-sub rounded-lg border p-4 text-sm">
               Nenhum horário livre nesse dia.
             </p>
           ) : (
@@ -980,12 +1002,12 @@ function StepDiaHora({
                     aria-pressed={isSelected}
                     onClick={() => onSelectSlot(slot)}
                     className={cn(
-                      'w-[76px] rounded-xl py-[11px] text-center text-sm transition-[transform,background-color,border-color]',
+                      'w-[76px] rounded-[12px] py-[11px] text-center text-sm transition-[transform,background-color,border-color]',
                       busy
                         ? 'cursor-not-allowed bg-[#f2ebda] font-semibold text-[#b9ad93] line-through'
                         : isSelected
                           ? 'bg-coral font-bold text-white'
-                          : 'bg-card text-foreground hover:border-coral border font-semibold active:scale-95',
+                          : 'bg-card text-foreground border-edge hover:border-coral border font-semibold active:scale-95',
                     )}
                   >
                     {fmtTime(slot.label)}
@@ -1005,18 +1027,18 @@ function StepDiaHora({
               <button
                 type="button"
                 onClick={onOpenOptions}
-                className="text-muted-foreground hover:text-foreground mx-auto flex items-center gap-1.5 text-xs underline-offset-2 transition-colors hover:underline"
+                className="text-sub hover:text-foreground mx-auto flex items-center gap-1.5 text-xs underline-offset-2 transition-colors hover:underline"
               >
                 <Repeat className="h-3.5 w-3.5" aria-hidden="true" />
-                Repetir esse horário? Ver opções
+                Repetir toda semana? Ver opções
               </button>
             ) : null}
             <div className="flex items-center gap-3.5">
               <div className="min-w-0 flex-1">
-                <p className="text-muted-foreground truncate text-[11.5px]">
+                <p className="text-sub truncate text-[11.5px]">
                   {buildSlotSummary(selectedSlot, professionals, timezone)}
                 </p>
-                <p className="text-foreground font-serif text-xl">
+                <p className="text-foreground font-serif text-xl font-semibold">
                   {formatBRL(service.priceCents)}
                 </p>
               </div>
@@ -1024,7 +1046,7 @@ function StepDiaHora({
                 type="button"
                 variant="coral"
                 size="pill"
-                className="px-8 active:scale-[0.98]"
+                className="rounded-[16px] px-8 text-[15px] font-bold active:scale-[0.98]"
                 onClick={onContinue}
                 disabled={continueDisabled}
                 aria-busy={continueDisabled}
@@ -1043,20 +1065,23 @@ function StepDiaHora({
 // Passo contact - contato + resumo / recorrência / conta / confirmação
 // ---------------------------------------------------------------------------
 
-/** Botão de submit final - usa useFormStatus para o estado "pending". */
+/** Botão de submit final - usa useFormStatus para o estado "pending". Visual do app
+ *  mobile: coral cheio, rounded-2xl, esmaecido (coral/50) quando desabilitado. */
 function ConfirmButton({ disabled, label }: { disabled?: boolean; label?: string }) {
   const { pending } = useFormStatus();
+  const off = pending || disabled;
   return (
-    <Button
+    <button
       type="submit"
-      variant="coral"
-      size="pill"
-      className="w-full active:scale-[0.99]"
-      disabled={pending || disabled}
+      disabled={off}
       aria-busy={pending}
+      className={cn(
+        'w-full rounded-[16px] py-4 text-[15px] font-bold text-white transition-transform',
+        off ? 'bg-coral/50' : 'bg-coral active:scale-[0.99]',
+      )}
     >
       {pending ? 'Confirmando…' : (label ?? 'Confirmar agendamento')}
-    </Button>
+    </button>
   );
 }
 
@@ -1150,7 +1175,7 @@ function OccurrenceRow({
   return (
     <li
       className={cn(
-        'rounded-xl border p-3 text-sm transition-colors',
+        'rounded-[16px] border-edge border p-3 text-sm transition-colors',
         removed || dropped ? 'bg-muted/40 border-dashed' : 'bg-card',
         conflict ? 'border-amber-300/70 bg-amber-50/40' : '',
       )}
@@ -1160,11 +1185,11 @@ function OccurrenceRow({
           <p
             className={cn(
               'font-medium capitalize',
-              removed || dropped ? 'text-muted-foreground line-through' : 'text-foreground',
+              removed || dropped ? 'text-sub line-through' : 'text-foreground',
             )}
           >
             {fmtOccurrenceDate(shownIso, timezone)}
-            <span className="text-muted-foreground ml-1.5 font-normal normal-case">
+            <span className="text-sub ml-1.5 font-normal normal-case">
               · {fmtOccurrenceTime(shownIso, timezone)}
             </span>
           </p>
@@ -1184,7 +1209,7 @@ function OccurrenceRow({
             Desfazer
           </button>
         ) : dropped ? (
-          <span className="text-muted-foreground shrink-0 text-xs">{meta.tag}</span>
+          <span className="text-sub shrink-0 text-xs">{meta.tag}</span>
         ) : swappedIso ? (
           <span className="text-green flex shrink-0 items-center gap-1 text-xs font-medium">
             <Check className="h-3.5 w-3.5" /> trocado
@@ -1213,7 +1238,7 @@ function OccurrenceRow({
           <button
             type="button"
             onClick={onRemove}
-            className="text-muted-foreground hover:text-destructive text-xs underline-offset-2 hover:underline"
+            className="text-sub hover:text-destructive text-xs underline-offset-2 hover:underline"
           >
             Remover
           </button>
@@ -1224,7 +1249,7 @@ function OccurrenceRow({
       {open && !removed ? (
         <div className="mt-3 space-y-2 border-t pt-3">
           <div className="flex items-center justify-between gap-2">
-            <p className="text-muted-foreground text-xs capitalize">
+            <p className="text-sub text-xs capitalize">
               {labelFromIso(viewDate, timezone)}
             </p>
             <MonthCalendar
@@ -1266,7 +1291,7 @@ function OccurrenceRow({
               })}
             </div>
           ) : (
-            <p className="text-muted-foreground text-xs">
+            <p className="text-sub text-xs">
               Sem horário livre nesse dia. Toque em &quot;Outras datas&quot; pra escolher outro, ou
               remova.
             </p>
@@ -1360,7 +1385,7 @@ function SeriesPreviewList({
         ))}
       </ul>
 
-      <p className="text-muted-foreground text-xs">
+      <p className="text-sub text-xs">
         {chosenCount} {chosenCount === 1 ? 'horário será marcado' : 'horários serão marcados'}.
         {preview.some((o) => o.status === 'beyond') ? ' Datas além de 90 dias não entram.' : ''}
       </p>
@@ -1527,13 +1552,13 @@ function StepConfirmar({
       />
 
       {/* Resumo do que já foi escolhido (serviço + dia/hora), só leitura. */}
-      <dl className="bg-card space-y-3 rounded-xl border p-4 text-sm">
+      <dl className="border-edge bg-paper space-y-3 rounded-[16px] border p-4 text-sm">
         <div className="flex items-start gap-3">
           <CalendarCheck className="text-coral mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
           <div className="flex-1">
-            <dt className="text-muted-foreground">Serviço</dt>
+            <dt className="text-sub">Serviço</dt>
             <dd className="text-foreground font-medium">{service.name}</dd>
-            <dd className="text-muted-foreground">
+            <dd className="text-sub">
               {formatDuration(service.durationMinutes)} · {formatBRL(service.priceCents)}
             </dd>
           </div>
@@ -1542,7 +1567,7 @@ function StepConfirmar({
         <div className="flex items-start gap-3">
           <Clock className="text-coral mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
           <div className="flex-1">
-            <dt className="text-muted-foreground">Dia e horário</dt>
+            <dt className="text-sub">Dia e horário</dt>
             <dd className="text-foreground font-medium capitalize">
               {dayLabel} às {slot.label}
             </dd>
@@ -1550,51 +1575,55 @@ function StepConfirmar({
         </div>
       </dl>
 
-      {/* Recorrência é propriedade do próprio agendamento - fica junto do resumo. */}
-      <div className="space-y-3">
-        <p className="text-foreground flex items-center gap-1.5 text-sm font-medium">
-          <Repeat className="h-4 w-4" aria-hidden="true" />
-          Repetir agendamento?
-        </p>
+      {/* Recorrência é propriedade do próprio agendamento - fica junto do resumo.
+          Pills rounded-full coral/paper espelhando o app mobile. */}
+      <div className="space-y-2.5">
+        <p className="text-ink-soft text-[12.5px] font-semibold">Repetir agendamento?</p>
         <div className="flex flex-wrap gap-2" role="group" aria-label="Repetição">
-          {FREQUENCY_ORDER.map((f) => (
-            <Button
-              key={f}
-              type="button"
-              variant={frequency === f ? 'coral' : 'outline'}
-              size="sm"
-              aria-pressed={frequency === f}
-              onClick={() => onChangeFrequency(f)}
-            >
-              {FREQUENCY_LABELS[f]}
-            </Button>
-          ))}
+          {FREQUENCY_ORDER.map((f) => {
+            const sel = frequency === f;
+            return (
+              <button
+                key={f}
+                type="button"
+                aria-pressed={sel}
+                onClick={() => onChangeFrequency(f)}
+                className={cn(
+                  'rounded-full px-3.5 py-2 text-[13px] font-semibold transition-colors',
+                  sel ? 'bg-coral text-white' : 'border-edge bg-paper text-ink border',
+                )}
+              >
+                {FREQUENCY_LABELS[f]}
+              </button>
+            );
+          })}
         </div>
         {isSeries ? (
-          <div className="space-y-3">
+          <div className="space-y-3 pt-0.5">
             <div className="space-y-2">
-              <p className="text-muted-foreground text-sm">Quantas vezes no total?</p>
-              <div
-                className="flex flex-wrap gap-2"
-                role="group"
-                aria-label="Número de ocorrências"
-              >
-                {RECURRENCE_OCCURRENCE_OPTIONS.map((n) => (
-                  <Button
-                    key={n}
-                    type="button"
-                    variant={occurrences === n ? 'coral' : 'outline'}
-                    size="sm"
-                    aria-pressed={occurrences === n}
-                    onClick={() => onChangeOccurrences(n)}
-                  >
-                    {n}×
-                  </Button>
-                ))}
+              <p className="text-sub text-xs">Quantas vezes no total?</p>
+              <div className="flex flex-wrap gap-2" role="group" aria-label="Número de ocorrências">
+                {RECURRENCE_OCCURRENCE_OPTIONS.map((n) => {
+                  const sel = occurrences === n;
+                  return (
+                    <button
+                      key={n}
+                      type="button"
+                      aria-pressed={sel}
+                      onClick={() => onChangeOccurrences(n)}
+                      className={cn(
+                        'rounded-full px-4 py-2 text-[13px] font-semibold transition-colors',
+                        sel ? 'bg-coral text-white' : 'border-edge bg-paper text-ink border',
+                      )}
+                    >
+                      {n}×
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
-            <p className="text-muted-foreground text-xs">
+            <p className="text-sub text-[11.5px]">
               Mantemos o mesmo dia da semana e horário. Onde não há vaga, você troca ou remove.
             </p>
 
@@ -1626,12 +1655,37 @@ function StepConfirmar({
       </div>
 
       {/* Contato. Logado com dados completos não vê nada (a conta já tem). Convidado
-          (ou logado sem telefone) preenche os campos. */}
+          (ou logado sem telefone) preenche os campos. Ordem (Nome, WhatsApp) e visual
+          "paper" espelham o app mobile. */}
       {hideContact ? null : (
         <div className="space-y-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="booking-phone">WhatsApp</Label>
-            <Input
+          <div>
+            <label
+              htmlFor="booking-name"
+              className="text-ink-soft mb-1.5 block text-[12.5px] font-semibold"
+            >
+              Nome
+            </label>
+            <input
+              id="booking-name"
+              name="display-name"
+              autoComplete="name"
+              placeholder="Seu nome"
+              value={name}
+              onChange={(e) => onChangeName(e.target.value)}
+              aria-invalid={name.length > 0 && !nameOk}
+              className={FIELD_INPUT}
+            />
+          </div>
+
+          <div>
+            <label
+              htmlFor="booking-phone"
+              className="text-ink-soft mb-1.5 block text-[12.5px] font-semibold"
+            >
+              WhatsApp
+            </label>
+            <input
               id="booking-phone"
               name="display-phone"
               type="tel"
@@ -1642,46 +1696,34 @@ function StepConfirmar({
               onChange={(e) => onChangePhone(e.target.value.replace(/\D/g, '').slice(0, 13))}
               aria-invalid={phone.length > 0 && !phoneOk}
               aria-describedby="booking-phone-hint"
+              className={FIELD_INPUT}
             />
-            <p id="booking-phone-hint" className="text-muted-foreground text-xs">
-              Pra confirmar o agendamento pelo WhatsApp. Inclua o DDD.
+            <p id="booking-phone-hint" className="text-sub mt-1.5 text-[11.5px]">
+              Pra confirmar pelo WhatsApp. Inclua o DDD.
             </p>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="booking-name">Nome</Label>
-            <Input
-              id="booking-name"
-              name="display-name"
-              autoComplete="name"
-              placeholder="Como podemos te chamar?"
-              value={name}
-              onChange={(e) => onChangeName(e.target.value)}
-              aria-invalid={name.length > 0 && !nameOk}
-            />
           </div>
         </div>
       )}
 
       {/* Estado da conta (boas-vindas / logado / convite). */}
       {accountCreated ? (
-        <div className="border-green/30 bg-green/5 space-y-1 rounded-xl border p-4">
+        <div className="border-green/30 bg-green/5 space-y-1 rounded-2xl border p-4">
           <p className="text-foreground flex items-center gap-1.5 text-sm font-medium">
             <PartyPopper className="text-green h-4 w-4 shrink-0" aria-hidden="true" />
             Boas-vindas{firstName ? `, ${firstName}` : ''}! Sua conta está pronta.
           </p>
-          <p className="text-muted-foreground text-sm">
+          <p className="text-sub text-sm">
             É só confirmar o agendamento abaixo. Pra ele entrar no seu histórico, valide seu
             WhatsApp na sua conta.
           </p>
         </div>
       ) : loggedIn ? null : (
-        <div className="border-green/20 bg-accent space-y-3 rounded-xl border p-4">
+        <div className="border-green/20 bg-accent space-y-3 rounded-2xl border p-4">
           <p className="text-foreground flex items-center gap-1.5 text-sm font-medium">
             <Sparkles className="text-green h-4 w-4 shrink-0" aria-hidden="true" />
             Quer agilizar da próxima vez?
           </p>
-          <ul className="text-muted-foreground space-y-1 text-xs">
+          <ul className="text-sub space-y-1 text-xs">
             <li className="flex items-start gap-1.5">
               <CheckCircle2 className="text-green mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
               Não precisa digitar nome e WhatsApp toda vez
@@ -1697,16 +1739,16 @@ function StepConfirmar({
           </ul>
           <Dialog open={signupOpen} onOpenChange={setSignupOpen}>
             <DialogTrigger asChild>
-              <Button type="button" size="sm" className="w-full">
+              <Button type="button" size="sm" className="w-full rounded-xl">
                 <UserIcon className="h-4 w-4" />
                 Criar minha conta
               </Button>
             </DialogTrigger>
             <DialogContent dismissable={false} className="max-w-sm">
               <DialogHeader>
-                <DialogTitle className="font-serif text-2xl">Criar minha conta</DialogTitle>
+                <DialogTitle className="font-serif text-2xl font-semibold">Criar minha conta</DialogTitle>
               </DialogHeader>
-              <p className="text-muted-foreground -mt-2 text-sm">
+              <p className="text-sub -mt-2 text-sm">
                 Acompanhe, remarque e repita seus horários em um só lugar. Você continua aqui no
                 agendamento.
               </p>
@@ -1721,7 +1763,7 @@ function StepConfirmar({
               />
             </DialogContent>
           </Dialog>
-          <p className="text-muted-foreground text-center text-[11px]">
+          <p className="text-sub text-center text-[11px]">
             É opcional - dá pra agendar sem conta.
           </p>
         </div>
@@ -1736,9 +1778,7 @@ function StepConfirmar({
         <input type="hidden" name="phone" value={phone} />
         <input type="hidden" name="frequency" value={frequency} />
         {isSeries
-          ? chosenIsos.map((iso) => (
-              <input key={iso} type="hidden" name="slotIsos" value={iso} />
-            ))
+          ? chosenIsos.map((iso) => <input key={iso} type="hidden" name="slotIsos" value={iso} />)
           : null}
 
         {error ? (
@@ -1772,6 +1812,12 @@ function StepConfirmar({
 // Tela de sucesso (hero animado + blocos web-only abaixo)
 // ---------------------------------------------------------------------------
 
+// A confirmação de agendamento hoje sai por e-mail + área logada (app/web) - NÃO por WhatsApp:
+// o plano base não dispara confirmação por WhatsApp (não há template 'created' na plataforma).
+// Deixar false até A6 (saída transacional de confirmação pelo número da plataforma). Quando
+// existir, virar por-tenant (canal ativo) em vez de constante. Ver issue A6.
+const WHATSAPP_CONFIRMATION_ACTIVE = false;
+
 /**
  * Painel de sucesso animado (espelha o overlay do app mobile): o card verde-escuro
  * sobe da base, o selo entra com "mola" + anel pulsando, e título/card escalonam.
@@ -1780,69 +1826,106 @@ function SuccessShell({
   confirmed,
   tenantName,
   logoUrl,
-  summary,
+  serviceLine,
+  whenLine,
   priceLabel,
+  title,
+  message,
 }: {
   confirmed: boolean;
   tenantName: string;
   logoUrl: string | null;
-  summary: string;
+  /** Subtítulo do card (nome do serviço), sob o nome do negócio - como no app. */
+  serviceLine: string | null;
+  /** Data/hora em serif de destaque ("Sáb, 05/07 · 15h30") - como no app. */
+  whenLine: string | null;
   priceLabel: string | null;
+  /** Override do título (a série usa "Tudo marcado!"). Default = confirmado/pendente. */
+  title?: { plain: string; accent: string };
+  /** Override da mensagem (a série tem copy própria). Default = confirmado/pendente. */
+  message?: string;
 }) {
+  const heading =
+    title ??
+    (confirmed ? { plain: 'Tá', accent: 'marcado!' } : { plain: 'Horário', accent: 'reservado!' });
+  const body =
+    message ??
+    (confirmed
+      ? WHATSAPP_CONFIRMATION_ACTIVE
+        ? 'Enviamos a confirmação pro seu WhatsApp e e-mail. A gente te lembra antes, relaxa.'
+        : 'Enviamos a confirmação pro seu e-mail e ela está na sua conta. A gente te lembra antes, relaxa.'
+      : WHATSAPP_CONFIRMATION_ACTIVE
+        ? 'O estabelecimento vai confirmar - você não precisa fazer mais nada. Avisamos pelo WhatsApp e e-mail.'
+        : 'O estabelecimento vai confirmar - você não precisa fazer mais nada. Avisamos por e-mail e na sua conta.');
   return (
-    <div className="animate-sheet-up bg-green-deep overflow-hidden rounded-2xl px-6 pb-7 pt-9 text-center">
+    <div className="animate-sheet-up bg-green-deep overflow-hidden rounded-[20px] px-6 pb-7 pt-9 text-center">
       <div className="flex justify-center">
         <span
           className={cn(
-            'animate-seal-pop flex h-20 w-20 items-center justify-center rounded-[26px]',
+            'animate-seal-pop flex h-[84px] w-[84px] items-center justify-center rounded-[28px]',
             confirmed ? 'bg-green-bright animate-pulse-ring' : 'bg-coral animate-pulse-ring-coral',
           )}
         >
           <Check
-            className={cn('h-9 w-9', confirmed ? 'text-green-deep' : 'text-white')}
+            className={cn('h-11 w-11', confirmed ? 'text-green-deep' : 'text-white')}
             strokeWidth={3}
           />
         </span>
       </div>
 
       <h2
-        className="animate-rise text-cream mt-6 font-serif text-3xl"
+        className="animate-rise text-cream mt-6 font-serif text-[32px] font-medium"
         style={{ animationDelay: '0.12s' }}
       >
-        {confirmed ? 'Tá ' : 'Horário '}
+        {heading.plain}{' '}
         <span className={cn('italic', confirmed ? 'text-green-bright' : 'text-coral-soft')}>
-          {confirmed ? 'marcado!' : 'reservado!'}
+          {heading.accent}
         </span>
       </h2>
       <p
         className="animate-rise mx-auto mt-2.5 max-w-[16rem] text-sm leading-6 text-[#8fbfa4]"
         style={{ animationDelay: '0.18s' }}
       >
-        {confirmed
-          ? 'Enviamos os detalhes no seu WhatsApp e te esperamos no horário.'
-          : 'O estabelecimento confirma pelo WhatsApp - você não precisa fazer mais nada.'}
+        {body}
       </p>
 
       <div className="animate-rise mt-6" style={{ animationDelay: '0.24s' }}>
-        <div className="rounded-2xl border border-[rgba(47,211,122,0.28)] bg-[rgba(255,253,248,0.06)] p-4 text-left">
+        <div className="rounded-[20px] border border-[rgba(47,211,122,0.28)] bg-[rgba(255,253,248,0.06)] p-4 text-left">
           <div className="flex items-center gap-3">
             {logoUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={logoUrl} alt="" className="h-11 w-11 rounded-xl object-cover" />
+              <img src={logoUrl} alt="" className="h-11 w-11 shrink-0 rounded-[14px] object-cover" />
             ) : (
-              <span className="bg-coral/20 text-coral flex h-11 w-11 items-center justify-center rounded-xl font-serif text-lg">
+              <span className="bg-coral/20 text-coral flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] font-serif text-lg font-semibold">
                 {tenantName.charAt(0)}
               </span>
             )}
-            <p className="text-paper truncate font-serif text-base">{tenantName}</p>
+            <div className="min-w-0 flex-1">
+              <p className="text-paper truncate font-serif text-base font-semibold">{tenantName}</p>
+              {serviceLine ? (
+                <p className="mt-0.5 truncate text-xs font-medium text-[#8fbfa4]">{serviceLine}</p>
+              ) : null}
+            </div>
           </div>
-          <div className="my-3 border-t border-dashed border-[rgba(143,191,164,0.4)]" />
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-cream flex-1 text-sm">{summary}</p>
-            {priceLabel ? (
-              <p className="text-coral shrink-0 font-serif text-base">{priceLabel}</p>
-            ) : null}
-          </div>
+          {whenLine || priceLabel ? (
+            <>
+              <div className="my-3 border-t border-dashed border-[rgba(143,191,164,0.4)]" />
+              <div className="flex items-center justify-between gap-3">
+                {whenLine ? (
+                  <p className="text-cream flex-1 font-serif text-xl font-semibold capitalize">
+                    {whenLine}
+                  </p>
+                ) : (
+                  <span className="flex-1" />
+                )}
+                {priceLabel ? (
+                  <p className="text-coral shrink-0 font-serif text-base font-semibold">
+                    {priceLabel}
+                  </p>
+                ) : null}
+              </div>
+            </>
+          ) : null}
         </div>
       </div>
     </div>
@@ -1856,7 +1939,7 @@ function CreateAccountCta({ phone }: { phone: string }) {
   const href = phone ? `/conta/criar?phone=${encodeURIComponent(phone)}` : '/conta/criar';
   return (
     <div className="space-y-2 border-t pt-4 text-center">
-      <p className="text-muted-foreground text-sm">
+      <p className="text-sub text-sm">
         Crie sua conta e não digite nome e WhatsApp toda vez - receba lembretes e acompanhe,
         remarque ou cancele quando quiser.
       </p>
@@ -1874,7 +1957,7 @@ function CreateAccountCta({ phone }: { phone: string }) {
 function AccountLinkedCta() {
   return (
     <div className="space-y-2 border-t pt-4 text-center">
-      <p className="text-muted-foreground text-sm">
+      <p className="text-sub text-sm">
         Acompanhe, remarque ou cancele este agendamento na sua conta quando quiser.
       </p>
       <Button asChild variant="outline" size="pill">
@@ -1891,7 +1974,8 @@ function SuccessScreen({
   confirmed,
   tenantName,
   logoUrl,
-  summary,
+  serviceLine,
+  whenLine,
   priceLabel,
   slug,
   appointmentId,
@@ -1902,7 +1986,8 @@ function SuccessScreen({
   confirmed: boolean;
   tenantName: string;
   logoUrl: string | null;
-  summary: string;
+  serviceLine: string | null;
+  whenLine: string | null;
   priceLabel: string | null;
   slug: string;
   appointmentId: string;
@@ -1917,7 +2002,8 @@ function SuccessScreen({
         confirmed={confirmed}
         tenantName={tenantName}
         logoUrl={logoUrl}
-        summary={summary}
+        serviceLine={serviceLine}
+        whenLine={whenLine}
         priceLabel={priceLabel}
       />
 
@@ -1936,7 +2022,9 @@ function SeriesSuccessScreen({
   confirmed,
   tenantName,
   logoUrl,
-  summary,
+  serviceLine,
+  whenLine,
+  priceLabel,
   createdCount,
   skipped,
   beyondHorizon,
@@ -1947,7 +2035,9 @@ function SeriesSuccessScreen({
   confirmed: boolean;
   tenantName: string;
   logoUrl: string | null;
-  summary: string;
+  serviceLine: string | null;
+  whenLine: string | null;
+  priceLabel: string | null;
   createdCount: number;
   skipped: string[];
   beyondHorizon: number;
@@ -1971,12 +2061,19 @@ function SeriesSuccessScreen({
         confirmed={confirmed}
         tenantName={tenantName}
         logoUrl={logoUrl}
-        summary={`${createdCount} ${createdCount === 1 ? 'horário' : 'horários'} · a partir de ${summary}`}
-        priceLabel={null}
+        serviceLine={serviceLine}
+        whenLine={whenLine}
+        priceLabel={priceLabel}
+        title={{ plain: 'Tudo', accent: 'marcado!' }}
+        message={`Criamos ${createdCount} ${createdCount === 1 ? 'horário recorrente' : 'horários recorrentes'}. ${
+          WHATSAPP_CONFIRMATION_ACTIVE
+            ? 'Enviamos a confirmação pro seu WhatsApp e e-mail.'
+            : 'Você acompanha tudo na sua conta e a gente te lembra antes de cada horário.'
+        }`}
       />
 
       {skippedFmt.length > 0 ? (
-        <div className="bg-muted text-muted-foreground rounded-xl border p-4 text-left text-sm">
+        <div className="bg-muted text-sub rounded-xl border p-4 text-left text-sm">
           <p className="text-foreground font-medium">
             Pulamos {skippedFmt.length}{' '}
             {skippedFmt.length === 1 ? 'data sem horário livre' : 'datas sem horário livre'}:
@@ -1989,7 +2086,7 @@ function SeriesSuccessScreen({
         </div>
       ) : null}
       {beyondHorizon > 0 ? (
-        <p className="text-muted-foreground text-center text-xs">
+        <p className="text-sub text-center text-xs">
           {beyondHorizon} {beyondHorizon === 1 ? 'data ficou' : 'datas ficaram'} além do limite de
           90 dias.
         </p>
@@ -2051,7 +2148,7 @@ function PaymentBlock({ slug, appointmentId }: { slug: string; appointmentId: st
     <div className="bg-card space-y-4 rounded-xl border p-4 text-left">
       <div>
         <p className="text-foreground text-sm font-medium">Pagamento</p>
-        <p className="text-muted-foreground text-xs">
+        <p className="text-sub text-xs">
           Opcional - você pode pagar agora ou no dia do atendimento.
         </p>
       </div>
@@ -2071,7 +2168,7 @@ function PaymentBlock({ slug, appointmentId }: { slug: string; appointmentId: st
             aria-invalid={document.length > 0 && !isValidCpfCnpj(document)}
             aria-describedby="payment-document-hint"
           />
-          <p id="payment-document-hint" className="text-muted-foreground text-xs">
+          <p id="payment-document-hint" className="text-sub text-xs">
             Necessário para gerar o pagamento.
           </p>
         </div>
@@ -2089,7 +2186,7 @@ function PaymentBlock({ slug, appointmentId }: { slug: string; appointmentId: st
           ) : null}
           {pix.copyPaste ? (
             <div className="space-y-1">
-              <Label className="text-muted-foreground text-xs">Pix copia e cola</Label>
+              <Label className="text-sub text-xs">Pix copia e cola</Label>
               <div className="flex items-center gap-2">
                 <code className="bg-muted flex-1 break-all rounded px-2 py-1 text-xs">
                   {pix.copyPaste}
@@ -2113,7 +2210,7 @@ function PaymentBlock({ slug, appointmentId }: { slug: string; appointmentId: st
               </div>
             </div>
           ) : null}
-          <p className="text-muted-foreground text-xs">
+          <p className="text-sub text-xs">
             Após o pagamento, a confirmação chega automaticamente. Você já pode fechar esta tela.
           </p>
         </div>
@@ -2234,10 +2331,7 @@ export function PublicBooking({
   // de agendamento avulso (maxDate). Vai só pro calendário do StepConfirmar.
   const seriesMaxDate = useMemo(
     () =>
-      isoDateInTz(
-        new Date(Date.now() + (RECURRENCE_MAX_HORIZON_DAYS - 1) * 86_400_000),
-        timezone,
-      ),
+      isoDateInTz(new Date(Date.now() + (RECURRENCE_MAX_HORIZON_DAYS - 1) * 86_400_000), timezone),
     [timezone],
   );
 
@@ -2438,6 +2532,10 @@ export function PublicBooking({
   // Voltar do passo slot: pro select (se existe) ou pra vitrine.
   const slotBackStep: Step = hasProfessionals ? 'select' : 'vitrine';
   const donePrice = selectedService ? formatBRL(selectedService.priceCents) : null;
+  // Card de sucesso: serviço (subtítulo) + data/hora do slot (linha em serif), separados
+  // como no app - em vez do `summary` concatenado do servidor.
+  const doneServiceLine = selectedService?.name ?? null;
+  const doneWhen = selectedSlot ? buildConfirmWhen(selectedSlot.startsAtIso, timezone) : null;
 
   // --- Render -----------------------------------------------------------------
 
@@ -2543,7 +2641,9 @@ export function PublicBooking({
             confirmed={state.status === 'CONFIRMED'}
             tenantName={tenantName}
             logoUrl={logoUrl}
-            summary={state.summary}
+            serviceLine={doneServiceLine}
+            whenLine={doneWhen}
+            priceLabel={donePrice}
             createdCount={state.createdCount}
             skipped={state.skipped}
             beyondHorizon={state.beyondHorizon}
@@ -2556,7 +2656,8 @@ export function PublicBooking({
             confirmed={state.status === 'CONFIRMED'}
             tenantName={tenantName}
             logoUrl={logoUrl}
-            summary={state.summary}
+            serviceLine={doneServiceLine}
+            whenLine={doneWhen}
             priceLabel={donePrice}
             slug={slug}
             appointmentId={state.appointmentId}

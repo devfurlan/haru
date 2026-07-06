@@ -503,5 +503,39 @@ export async function updateUserRole(
   return done(tenantId);
 }
 
+// --- Addon "Atendente IA" (número próprio): ativação pelo operador ------------
+
+/**
+ * Ativa o addon "número próprio" depois que o operador conclui a config da WABA na Meta.
+ * A lógica de billing (somar à recorrência, cobrar o proporcional, avisar o tenant) vive
+ * no web - só ele tem a chave Asaas da plataforma. Aqui apenas disparamos o endpoint
+ * interno do web (autenticado por ADMIN_INTERNAL_TOKEN), no espírito do BOT_INTERNAL_*.
+ */
+export async function activateOwnAddon(tenantId: string): Promise<FormResult> {
+  await requireAdmin();
+  const baseUrl = (process.env.WEB_INTERNAL_URL ?? process.env.APP_URL)?.replace(/\/$/, '');
+  const token = process.env.ADMIN_INTERNAL_TOKEN;
+  if (!baseUrl || !token) {
+    return {
+      error: 'Ativação indisponível: configure WEB_INTERNAL_URL e ADMIN_INTERNAL_TOKEN.',
+    };
+  }
+  try {
+    const res = await fetch(`${baseUrl}/api/internal/addon/activate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-internal-token': token },
+      body: JSON.stringify({ tenantId }),
+    });
+    if (!res.ok) {
+      const detail = (await res.json().catch(() => ({}))) as { error?: string };
+      return { error: detail.error ?? `Falha ao ativar (HTTP ${res.status})` };
+    }
+  } catch (err) {
+    console.error('[admin] activateOwnAddon falhou', err);
+    return { error: 'Não foi possível ativar agora. Tente novamente.' };
+  }
+  return done(tenantId);
+}
+
 // Reexport para o status (suspender/ativar a partir do detalhe, se necessário).
 export type { SubscriptionStatus };

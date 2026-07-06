@@ -1,5 +1,5 @@
 import { Image } from 'expo-image';
-import { Link, router, useLocalSearchParams } from 'expo-router';
+import { Link, router, useLocalSearchParams, type Href } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -55,6 +55,11 @@ const FREQUENCY_LABELS: Record<FrequencyChoice, string> = {
   MONTHLY: 'Todo mês',
 };
 const OCCURRENCE_OPTIONS = [2, 3, 4, 6, 8, 12];
+
+// A confirmação de agendamento hoje sai por e-mail + área logada - NÃO por WhatsApp (o plano
+// base não dispara confirmação por WhatsApp). Deixar false até A6 (saída transacional pela
+// plataforma); quando existir, virar por-tenant (canal ativo) em vez de constante. Ver issue A6.
+const WHATSAPP_CONFIRMATION_ACTIVE = false;
 
 const fraunces = { fontFamily: 'Fraunces_600SemiBold' };
 
@@ -349,7 +354,7 @@ export default function BookScreen() {
   // Profissional resolvido da série (vem da prévia); usado ao trocar o dia de uma ocorrência.
   const [previewProfessionalId, setPreviewProfessionalId] = useState('');
   const [booked, setBooked] = useState<
-    | { kind: 'single'; appointmentId: string; paymentAvailable: boolean }
+    | { kind: 'single'; appointmentId: string; paymentAvailable: boolean; status: string }
     | { kind: 'series'; createdCount: number; skipped: string[]; beyondHorizon: number }
     | null
   >(null);
@@ -377,6 +382,15 @@ export default function BookScreen() {
       .me()
       .then((me) => {
         if (!active) return;
+        // Logado sem telefone nenhum (entrou com Google, que não pede número): captura o
+        // WhatsApp uma vez numa tela dedicada e volta pra cá - o agendamento nunca pede
+        // "Seus dados" de quem já está logado. Rede de segurança + onboarding pós-Google.
+        if (!me.phone && !me.pendingPhone) {
+          // ponytail: cast do href até o typegen do expo-router pegar a rota nova /whatsapp.
+          const next = encodeURIComponent(`/book/${slug}`);
+          router.replace(`/whatsapp?next=${next}` as Href);
+          return;
+        }
         if (me.name) setName(me.name);
         // Telefone do cadastro vive em pendingPhone até a verificação por OTP; usa ele no
         // fallback (igual ao web) senão o logado cai no form "Seus dados" sem necessidade.
@@ -387,7 +401,7 @@ export default function BookScreen() {
     return () => {
       active = false;
     };
-  }, [session]);
+  }, [session, slug]);
 
   const loadSlots = useCallback(
     (dateStr: string) =>
@@ -426,7 +440,7 @@ export default function BookScreen() {
       .catch((err) => {
         if (active)
           setPreviewError(
-            err instanceof ApiError ? err.message : 'Não foi possível carregar as datas.',
+            err instanceof ApiError ? err.message : 'Não foi possível carregar as datas. Tente de novo.',
           );
       })
       .finally(() => {
@@ -480,6 +494,7 @@ export default function BookScreen() {
           kind: 'single',
           appointmentId: result.appointmentId,
           paymentAvailable: result.paymentAvailable,
+          status: result.status,
         });
       }
     } catch (err) {
@@ -527,6 +542,11 @@ export default function BookScreen() {
   const canConfirm = hasContact && !submitting && seriesReady;
 
   const canBook = tenant.publicBookingEnabled && tenant.services.length > 0;
+  // Só os profissionais que atendem o serviço escolhido (espelha o web serviceProfs);
+  // sem serviço ainda, mostra todos.
+  const serviceProfs = service
+    ? tenant.professionals.filter((p) => service.professionalIds.includes(p.id))
+    : tenant.professionals;
   const lowestPrice = tenant.services.length
     ? Math.min(...tenant.services.map((s) => s.priceCents))
     : null;
@@ -715,7 +735,7 @@ export default function BookScreen() {
                 <>
                   {/* Profissional (design 09): "Qualquer" + avatares dos profissionais.
                       Estabelecimento com um único profissional não mostra a seleção. */}
-                  {tenant.professionals.length > 1 ? (
+                  {serviceProfs.length > 1 ? (
                     <>
                       <Text className="text-ink text-[13px] font-semibold">Profissional</Text>
                       <ScrollView
@@ -733,7 +753,7 @@ export default function BookScreen() {
                           </View>
                           <Text className="text-ink mt-1.5 text-xs font-semibold">Qualquer</Text>
                         </Pressable>
-                        {tenant.professionals.map((p) => {
+                        {serviceProfs.map((p) => {
                           const sel = professionalId === p.id;
                           return (
                             <Pressable
@@ -772,7 +792,7 @@ export default function BookScreen() {
                   {/* Serviço (radio): escolhe qual serviço agendar. */}
                   <View className="mt-5 flex-row items-baseline justify-between">
                     <Text className="text-ink text-[13px] font-semibold">Serviço</Text>
-                    {tenant.professionals.length > 1 ? (
+                    {serviceProfs.length > 1 ? (
                       <Text className="text-sub text-[11.5px]">de todos os profissionais</Text>
                     ) : null}
                   </View>
@@ -915,7 +935,8 @@ export default function BookScreen() {
                         })}
                       </View>
                       <Text className="text-sub mb-3 text-[11.5px]">
-                        Mantemos o mesmo dia e horário. Onde não há vaga, você troca ou remove.
+                        Mantemos o mesmo dia da semana e horário. Onde não há vaga, você troca ou
+                        remove.
                       </Text>
 
                       {/* Prévia editável das datas geradas. */}
@@ -967,6 +988,9 @@ export default function BookScreen() {
                               ? 'horário será marcado'
                               : 'horários serão marcados'}
                             .
+                            {preview.some((o) => o.status === 'beyond')
+                              ? ' Datas além de 90 dias não entram.'
+                              : ''}
                           </Text>
                         </View>
                       ) : null}
@@ -987,7 +1011,7 @@ export default function BookScreen() {
                         WhatsApp
                       </Text>
                       <TextInput
-                        className="border-edge bg-paper text-ink mb-6 rounded-[14px] border px-4 py-[15px] text-base"
+                        className="border-edge bg-paper text-ink mb-1.5 rounded-[14px] border px-4 py-[15px] text-base"
                         value={phone}
                         onChangeText={(t) => setPhone(maskPhoneBRInput(t))}
                         placeholder="(11) 91234-5678"
@@ -995,6 +1019,9 @@ export default function BookScreen() {
                         keyboardType="phone-pad"
                         inputMode="tel"
                       />
+                      <Text className="text-sub mb-6 text-[11.5px]">
+                        Pra confirmar pelo WhatsApp. Inclua o DDD.
+                      </Text>
                     </>
                   )}
                   {error ? <Text className="text-destructive mb-4 text-sm">{error}</Text> : null}
@@ -1053,6 +1080,10 @@ export default function BookScreen() {
                 className="bg-cream border-line border-t px-6 pt-3"
                 style={{ paddingBottom: insets.bottom + 12 }}
               >
+                {/* Falha do confirmar-direto (logado) aparece aqui - senão some silenciosa. */}
+                {error ? (
+                  <Text className="text-destructive mb-2.5 text-center text-sm">{error}</Text>
+                ) : null}
                 {/* Logado confirma direto; quem quiser repetir abre as opções (recorrência). */}
                 {session && hasContact ? (
                   <Pressable
@@ -1099,7 +1130,11 @@ export default function BookScreen() {
         <BookingSuccess
           titlePlain="Tudo"
           titleAccent="marcado!"
-          message={`Criamos ${booked.createdCount} ${booked.createdCount === 1 ? 'horário recorrente' : 'horários recorrentes'}. Enviamos a confirmação pro seu WhatsApp e e-mail.`}
+          message={`Criamos ${booked.createdCount} ${booked.createdCount === 1 ? 'horário recorrente' : 'horários recorrentes'}. ${
+            WHATSAPP_CONFIRMATION_ACTIVE
+              ? 'Enviamos a confirmação pro seu WhatsApp e e-mail.'
+              : 'Você acompanha tudo na sua conta e a gente te lembra antes de cada horário.'
+          }`}
           tenant={{ name: tenant.name, logoUrl: tenant.logoUrl }}
           line={service?.name ?? null}
           when={slotIso ? buildConfirmWhen(slotIso, tenant.timezone) : null}
@@ -1119,9 +1154,18 @@ export default function BookScreen() {
         </BookingSuccess>
       ) : booked ? (
         <BookingSuccess
-          titlePlain="Tá"
-          titleAccent="marcado!"
-          message="Enviamos a confirmação pro seu WhatsApp e e-mail. A gente te lembra antes, relaxa."
+          titlePlain={booked.status === 'CONFIRMED' ? 'Tá' : 'Horário'}
+          titleAccent={booked.status === 'CONFIRMED' ? 'marcado!' : 'reservado!'}
+          message={
+            booked.status === 'CONFIRMED'
+              ? WHATSAPP_CONFIRMATION_ACTIVE
+                ? 'Enviamos a confirmação pro seu WhatsApp e e-mail. A gente te lembra antes, relaxa.'
+                : 'Enviamos a confirmação pro seu e-mail e ela está na sua conta. A gente te lembra antes, relaxa.'
+              : WHATSAPP_CONFIRMATION_ACTIVE
+                ? 'O estabelecimento vai confirmar - você não precisa fazer mais nada. Avisamos pelo WhatsApp e e-mail.'
+                : 'O estabelecimento vai confirmar - você não precisa fazer mais nada. Avisamos por e-mail e na sua conta.'
+          }
+          pending={booked.status !== 'CONFIRMED'}
           tenant={{ name: tenant.name, logoUrl: tenant.logoUrl }}
           line={service?.name ?? null}
           when={slotIso ? buildConfirmWhen(slotIso, tenant.timezone) : null}

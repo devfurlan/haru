@@ -1,4 +1,5 @@
 import { prisma } from '@haru/database';
+import { canConnectOwnWhatsapp } from '@haru/billing';
 
 import { requireUserAndTenant } from '@/lib/auth';
 import { getBaseUrl } from '@/lib/base-url';
@@ -30,6 +31,19 @@ interface Payload {
  */
 export async function POST(req: Request) {
   const { tenant } = await requireUserAndTenant();
+
+  // Mesmo gate do formulário manual (connectWhatsapp): conectar uma WABA é a variante "número
+  // próprio" do addon Atendente IA com setup pago. O Embedded Signup é chamado no fluxo do addon
+  // (assinatura/atendente-ia); barrar aqui fecha o bypass de conectar número sem o addon.
+  if (!canConnectOwnWhatsapp(tenant.subscription)) {
+    return Response.json(
+      {
+        error:
+          'Conectar um número de WhatsApp faz parte do addon Atendente IA (número próprio). Ative o addon em Assinatura → Atendente IA.',
+      },
+      { status: 403 },
+    );
+  }
 
   let body: Payload;
   try {

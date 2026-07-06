@@ -36,5 +36,13 @@ export async function GET(request: NextRequest) {
     redirect('/login?error=email-existente');
   }
 
+  // Google não informa telefone. Conta sem número (nem pendente) completa o WhatsApp
+  // uma vez antes de seguir - assim o agendamento nunca pede nome/WhatsApp de quem já
+  // está logado. Depois de salvar, a tela devolve pro `next`.
+  const account = result.ok;
+  if (!account.phone && !account.pendingPhone) {
+    redirect(`/conta/whatsapp?next=${encodeURIComponent(next)}`);
+  }
+
   redirect(next);
 }

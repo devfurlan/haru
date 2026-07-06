@@ -11,6 +11,7 @@ function FeatureCard({
   style,
   kickerClass = 'text-green-bright',
   checkClass = 'text-green-bright',
+  badge,
   children,
 }: {
   kicker: string;
@@ -20,6 +21,7 @@ function FeatureCard({
   style?: React.CSSProperties;
   kickerClass?: string;
   checkClass?: string;
+  badge?: string;
   children?: React.ReactNode;
 }) {
   return (
@@ -30,6 +32,11 @@ function FeatureCard({
         className,
       )}
     >
+      {badge && (
+        <span className="bg-coral/15 text-coral-soft absolute right-5 top-6 rounded-full px-2.5 py-1 text-[0.66rem] font-bold uppercase tracking-[0.1em]">
+          {badge}
+        </span>
+      )}
       <span
         className={cn(
           'mb-3.5 block text-[0.74rem] font-bold uppercase tracking-[0.12em]',
@@ -58,40 +65,47 @@ export function Features() {
       <Container>
         <SectionHeading
           dark
-          eyebrow="Tudo que já funciona"
-          title="Um atendente no WhatsApp e um painel pra você comandar."
+          eyebrow="A plataforma"
+          title="Muito mais que um chatbot: a sua agenda inteira, de ponta a ponta."
         >
-          Recursos disponíveis hoje - sem promessa pra depois.
+          App, web e painel trabalhando junto - tudo que já está no ar, sem promessa pra depois.
         </SectionHeading>
 
         <div className="grid gap-4 lg:grid-cols-12">
           <FeatureCard
             className="lg:col-span-7"
             style={{ backgroundImage: 'linear-gradient(160deg,#163a29,#0e2a1d)' }}
-            kicker="Atendente de IA no WhatsApp"
-            title="Conversa, agenda e resolve sozinho"
+            kicker="App do cliente + área logada"
+            title="Seu negócio no bolso do cliente"
             items={[
-              'Agendamento 100% conversacional, conduzido por IA que entende linguagem natural',
-              'Mostra o menu de serviços no chat, com preço e duração, pra escolher mais rápido',
-              'Cobra na própria conversa: Pix copia-e-cola ou link de cartão logo após agendar',
-              'Confirma o pagamento sozinho no chat assim que o valor cai',
-              'O cliente cancela e remarca sozinho pelo chat, a qualquer hora',
-              'Tira dúvidas de serviços, preços e horários automaticamente',
-              'Entende áudios: transcreve a mensagem de voz e responde',
-              'Agrupa mensagens em rajada ("oi" · "tudo bem?" · "queria agendar") num só atendimento',
-              'Valida a disponibilidade: respeita o expediente e nunca marca em cima',
-              'Tom cordial e brasileiro, sem parecer robô',
+              'App grátis onde o cliente agenda, remarca e cancela sozinho, a qualquer hora',
+              'Área logada com todo o histórico de atendimentos e os próximos horários',
+              'Lembrete no push e um toque pra salvar o horário na agenda do celular',
+              'Busca por proximidade (GPS): quem está perto encontra seu negócio',
+              'Favoritos e "volte pra": o cliente reagenda com você em dois toques',
             ]}
           />
 
           <FeatureCard
             className="lg:col-span-5"
-            kicker="Lembretes automáticos"
-            title="Cadeira vazia dói no bolso"
+            kicker="Página pública"
+            title="Um link /seunegocio pra divulgar"
             items={[
-              'Lembrete via WhatsApp X horas antes do horário - você define quantas',
-              'Quer desligar? É só colocar 0. Simples assim',
-              'Reduz faltas sem você precisar mandar mensagem na mão',
+              'Página própria de agendamento, no ar em minutos, sem você programar nada',
+              'Cola na bio do Instagram e no story: quem clica agenda sem baixar app',
+              'Mostra serviços, preços e horários livres, com a cara do seu negócio',
+            ]}
+          />
+
+          <FeatureCard
+            className="lg:col-span-5"
+            kicker="Agenda inteligente"
+            title="Nunca marca em cima"
+            items={[
+              'Respeita seu expediente, inclusive partido (08–12h e 14–18h)',
+              'Valida a disponibilidade em tempo real: dois clientes nunca pegam o mesmo horário',
+              'Agenda recorrente: semanal, quinzenal ou mensal marcada de uma vez',
+              'Cada profissional com a própria agenda, serviços e horários',
             ]}
           />
 
@@ -101,25 +115,49 @@ export function Features() {
             title="A visão completa do seu dia"
             items={[
               'Dashboard com os agendamentos de hoje, os próximos 7 dias e os serviços ativos',
-              'Cadastro de serviços com nome, descrição, duração e preço',
-              'Horários por dia da semana, inclusive expediente partido (08–12h e 14–18h)',
-              'Agenda completa: crie e remarque agendamentos manualmente',
               'Controle de presença: marque "atendido" ou "não compareceu" e acompanhe as faltas',
+              'Cadastro de serviços com nome, descrição, duração e preço',
+              'Equipe: cada profissional com sua agenda; crie e remarque manualmente',
               'Caixa de conversas com o histórico de cada cliente, estilo WhatsApp',
-              'Atendimento humano: quando o cliente pede uma pessoa, o bot transfere a conversa pra você e avisa por e-mail',
-              'Página pública /seunegocio com serviços, horários e botão "Agendar pelo WhatsApp"',
             ]}
           />
 
           <FeatureCard
-            className="lg:col-span-5"
+            className="lg:col-span-4"
+            kicker="Lembretes automáticos"
+            title="Cadeira vazia dói no bolso"
+            items={[
+              'Lembrete X horas antes - por WhatsApp, e-mail e push no app',
+              'Você define quantas horas antes; pra desligar, é só colocar 0',
+              'Reduz falta sem você mandar nada na mão',
+            ]}
+          />
+
+          <FeatureCard
+            className="lg:col-span-4"
             style={{ backgroundImage: 'linear-gradient(160deg,#2a1b12,#1c130c)' }}
             kickerClass="text-coral-soft"
             checkClass="text-coral-soft"
+            badge="Time+"
+            kicker="Pagamentos online"
+            title="Receba na hora de marcar"
+            items={[
+              'Pix copia-e-cola ou link de cartão na conversa e no app',
+              'Confirma o pagamento sozinho assim que o valor cai',
+              'Menos furo de horário: quem paga, aparece',
+            ]}
+          />
+
+          <FeatureCard
+            className="lg:col-span-4"
+            style={{ backgroundImage: 'linear-gradient(160deg,#2a1b12,#1c130c)' }}
+            kickerClass="text-coral-soft"
+            checkClass="text-coral-soft"
+            badge="Time+"
             kicker="Integrações"
             title="Conecta no seu fluxo"
             items={[
-              'Onboarding do WhatsApp oficial (Meta) com o número próprio do seu negócio',
+              'WhatsApp oficial (Meta) com o número próprio do seu negócio',
               'Webhooks: todo agendamento criado, cancelado ou remarcado dispara um aviso',
             ]}
           >

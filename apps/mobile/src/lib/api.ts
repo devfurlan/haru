@@ -195,6 +195,13 @@ export const api = {
     }),
   changePhone: (phone: string, code: string) =>
     request<{ ok: true }>('/me/phone', { method: 'POST', body: JSON.stringify({ phone, code }) }),
+  // Salva o WhatsApp como PENDENTE (sem SMS) no onboarding de quem entrou com Google e
+  // ainda não tem número - a partir daí o agendamento pré-preenche e não pede "Seus dados".
+  setPendingPhone: (phone: string) =>
+    request<{ ok: true }>('/me/phone/pending', {
+      method: 'POST',
+      body: JSON.stringify({ phone }),
+    }),
   // Foto de perfil: a imagem já vem reduzida (128px jpeg) em base64. Trocar apaga a antiga.
   uploadAvatar: (dataBase64: string) =>
     request<{ ok: true; avatarUrl: string }>('/me/avatar', {

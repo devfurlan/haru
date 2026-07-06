@@ -1,34 +1,50 @@
 import Link from 'next/link';
 
-import { alertLevel, getUsageStatus, type TenantWithSubscription, type UsageMetric } from '@haru/billing';
+import {
+  alertLevel,
+  getAddonUsageStatus,
+  getUsageStatus,
+  isFairUse,
+  isOverLimit,
+  isSubscriptionActive,
+  type TenantWithSubscription,
+  type UsageMetric,
+} from '@haru/billing';
 
 /** Frase de alerta para uma métrica, ou null se abaixo de 85% / ilimitada. */
 function alertLine(label: string, m: UsageMetric): string | null {
   const level = alertLevel(m.pct);
   if (level < 85 || m.limit === null) return null;
-  if (level >= 100) {
-    return `Você ultrapassou o limite de ${label} do seu plano (${m.used}/${m.limit} neste mês).`;
+  // "Atingiu" só no over-limit REAL (used >= limit), não no pct arredondado
+  // (249/250 arredonda p/ 100% mas ainda não estourou).
+  if (m.used >= m.limit) {
+    return `Você atingiu o limite de ${label} do seu plano (${m.used}/${m.limit} neste ciclo).`;
   }
-  return `Você já usou ${m.pct}% dos ${label} do seu plano (${m.used}/${m.limit} neste mês).`;
+  return `Você já usou ${m.pct}% dos ${label} do seu plano (${m.used}/${m.limit} neste ciclo).`;
 }
 
 /**
- * Banner de uso no topo do dashboard. Aparece só quando agendamentos ou mensagens
- * de IA passam de 85% do limite do plano (e quando excedido). Soft cap: o serviço
- * continua funcionando - o banner só pressiona o upgrade.
+ * Banner de uso no topo do dashboard. Aparece só quando agendamentos (plano base) ou
+ * conversas do bot (addon) passam de 85% do teto do ciclo. Soft cap: o cliente final
+ * continua agendando normalmente - ao estourar o teto de agendamentos só as CRIAÇÕES
+ * do dono ficam pausadas (ver guards owner-side). Fair use nunca é bloqueado.
  */
 export async function UsageBanner({ tenant }: { tenant: TenantWithSubscription }) {
-  const usage = await getUsageStatus(tenant);
+  const [usage, addon] = await Promise.all([getUsageStatus(tenant), getAddonUsageStatus(tenant)]);
 
   const lines = [
     alertLine('agendamentos', usage.appointments),
-    alertLine('mensagens de IA', usage.aiMessages),
+    alertLine('conversas do bot', addon),
   ].filter((l): l is string => l !== null);
 
   if (lines.length === 0) return null;
 
-  const exceeded =
-    alertLevel(usage.appointments.pct) >= 100 || alertLevel(usage.aiMessages.pct) >= 100;
+  const apptExceeded = isOverLimit(usage.appointments);
+  const exceeded = apptExceeded || isOverLimit(addon);
+  // Espelha exatamente isAppointmentLimitReached (assinatura ativa + over + não fair use):
+  // não afirma "criações pausadas" quando o guard owner-side de fato não bloqueia.
+  const creationsBlocked =
+    apptExceeded && isSubscriptionActive(tenant.subscription) && !isFairUse(tenant.subscription);
 
   return (
     <div
@@ -44,6 +60,12 @@ export async function UsageBanner({ tenant }: { tenant: TenantWithSubscription }
           {lines.map((l) => (
             <p key={l}>{l}</p>
           ))}
+          {creationsBlocked && (
+            <p className="font-medium">
+              A criação de novos serviços, profissionais e agendamentos manuais ficou pausada até o
+              upgrade - seus clientes continuam agendando normalmente.
+            </p>
+          )}
         </div>
         <Link
           href="/assinatura"

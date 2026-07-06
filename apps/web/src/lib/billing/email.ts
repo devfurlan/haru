@@ -1,6 +1,10 @@
 import 'server-only';
 
 import { prisma } from '@haru/database';
+import type { BillingCycle } from '@haru/database';
+
+import { canceledEmail, renewalUpcomingEmail, welcomeBody } from '@/lib/comms/copy';
+import { brandedShell } from '@/lib/email';
 
 /**
  * E-mails transacionais de billing via Resend (REST, sem SDK). Avisos pro DONO do
@@ -55,17 +59,9 @@ async function ownerOf(
   return { email: owner.email, name: owner.name, tenantName: tenant.name };
 }
 
-function shell(title: string, body: string, cta: string): string {
-  const link = `${appUrl()}/assinatura`;
-  return `
-    <div style="font-family:system-ui,sans-serif;max-width:520px;margin:0 auto;color:#1a1a1a">
-      <h2 style="font-size:18px">${title}</h2>
-      <p style="font-size:14px;line-height:1.6">${body}</p>
-      <p style="margin:24px 0">
-        <a href="${link}" style="background:#1a1a1a;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;font-size:14px">${cta}</a>
-      </p>
-      <p style="font-size:12px;color:#888">Demandaê - agendamento e atendimento por IA no WhatsApp.</p>
-    </div>`;
+/** Casca branded (identidade única dos e-mails do produto). `path` = destino do CTA no app. */
+function shell(title: string, body: string, cta: string, path = '/assinatura'): string {
+  return brandedShell(title, body, cta, `${appUrl()}${path}`);
 }
 
 /** Pagamento da assinatura falhou - acesso pausado (sem carência). */
@@ -85,19 +81,14 @@ export async function emailPaymentFailed(tenantId: string): Promise<void> {
   );
 }
 
-/** Assinatura ativada/reativada após confirmação do pagamento. */
+/** Boas-vindas na 1ª ativação: confirma o pagamento + onboarding básico (3 passos). */
 export async function emailSubscriptionActivated(tenantId: string): Promise<void> {
   const o = await ownerOf(tenantId);
   if (!o) return;
-  const hi = o.name ? `Olá, ${o.name}!` : 'Olá!';
   await sendEmail(
     o.email,
-    'Assinatura ativada 🎉 - Demandaê',
-    shell(
-      'Tudo certo, sua assinatura está ativa!',
-      `${hi} O pagamento de <strong>${o.tenantName}</strong> foi confirmado. Já pode usar tudo do seu plano.`,
-      'Ir para o painel',
-    ),
+    'Bem-vindo ao Demandaê! Sua assinatura está ativa 🎉',
+    shell('Bem-vindo ao Demandaê!', welcomeBody(o.name, o.tenantName), 'Começar agora', '/dashboard'),
   );
 }
 
@@ -122,6 +113,32 @@ export async function emailPaymentReceipt(tenantId: string, amountCents: number 
   );
 }
 
+/**
+ * Nota fiscal autorizada: manda o link do PDF pro dono do tenant. Disparado no webhook
+ * INVOICE_AUTHORIZED (só quando a nota é emitida de fato pela prefeitura). Usa `brandedShell`
+ * direto porque o CTA aponta pra URL absoluta hospedada do Asaas (não uma rota do app).
+ */
+export async function emailInvoiceIssued(
+  tenantId: string,
+  data: { nfUrl: string | null; nfNumber: string | null },
+): Promise<void> {
+  const o = await ownerOf(tenantId);
+  if (!o || !data.nfUrl) return;
+  const hi = o.name ? `Olá, ${o.name}!` : 'Olá!';
+  const num = data.nfNumber ? ` nº ${data.nfNumber}` : '';
+  await sendEmail(
+    o.email,
+    'Sua nota fiscal está disponível - Demandaê',
+    brandedShell(
+      'Nota fiscal disponível',
+      `${hi} A nota fiscal${num} da assinatura de <strong>${o.tenantName}</strong> já está disponível. ` +
+        `É só baixar o PDF no botão abaixo.`,
+      'Baixar nota fiscal',
+      data.nfUrl,
+    ),
+  );
+}
+
 /** Assinatura suspensa (cancelamento/estorno/chargeback). */
 export async function emailSubscriptionSuspended(tenantId: string): Promise<void> {
   const o = await ownerOf(tenantId);
@@ -135,6 +152,128 @@ export async function emailSubscriptionSuspended(tenantId: string): Promise<void
       `${hi} A assinatura de <strong>${o.tenantName}</strong> foi suspensa e o acesso está bloqueado. ` +
         `Você pode reativar a qualquer momento.`,
       'Reativar assinatura',
+    ),
+  );
+}
+
+/**
+ * Lembrete de que a assinatura renova em breve (disparado pelo cron 7 dias antes).
+ * Mostra data + valor exatos. Ênfase no anual (é o ciclo com maior atrito de renovação).
+ */
+export async function emailRenewalUpcoming(
+  tenantId: string,
+  data: { renewsAt: Date; amountCents: number | null; cycle: BillingCycle },
+): Promise<void> {
+  const o = await ownerOf(tenantId);
+  if (!o) return;
+  const { subject, body } = renewalUpcomingEmail(
+    o.name,
+    o.tenantName,
+    data.renewsAt,
+    data.amountCents,
+    data.cycle,
+  );
+  await sendEmail(o.email, subject, shell('Sua assinatura renova em breve', body, 'Ver assinatura'));
+}
+
+/**
+ * Assinatura cancelada. `reason` decide o texto: `refund` (cancelou na garantia de 30d,
+ * reembolso integral, acesso encerrado agora) ou `end_of_cycle` (acesso até `accessUntil`).
+ * Disparado pela ação self-service `cancelSubscription`, que já conhece o cenário.
+ */
+export async function emailSubscriptionCanceled(
+  tenantId: string,
+  reason: 'refund' | 'end_of_cycle',
+  opts: { accessUntil?: Date | null; amountCents?: number | null } = {},
+): Promise<void> {
+  const o = await ownerOf(tenantId);
+  if (!o) return;
+  const { subject, body } = canceledEmail(o.name, o.tenantName, reason, opts);
+  const title = reason === 'refund' ? 'Reembolso processado' : 'Assinatura cancelada';
+  const cta = reason === 'refund' ? 'Voltar pro Demandaê' : 'Reativar assinatura';
+  await sendEmail(o.email, subject, shell(title, body, cta));
+}
+
+// --- Addon "Atendente IA no WhatsApp" ----------------------------------------
+
+/**
+ * Setup do addon (número próprio) foi PAGO - alerta OPERACIONAL pro operador (env
+ * OPERATOR_EMAIL) fazer a config da WABA na Meta e depois ativar no painel admin. Não é
+ * pro dono do tenant. Sem OPERATOR_EMAIL vira no-op logado (igual aos outros e-mails).
+ */
+export async function emailOperatorAddonSetupPaid(tenantId: string): Promise<void> {
+  const to = process.env.OPERATOR_EMAIL;
+  if (!to) {
+    console.warn('[billing-email] OPERATOR_EMAIL ausente - alerta de setup do addon não enviado');
+    return;
+  }
+  const tenant = await prisma.tenant.findUnique({
+    where: { id: tenantId },
+    select: { name: true, slug: true },
+  });
+  if (!tenant) return;
+  await sendEmail(
+    to,
+    `Setup do Atendente IA pago - configurar WABA (${tenant.name})`,
+    `<div style="font-family:system-ui,sans-serif;max-width:520px;margin:0 auto;color:#1a1a1a">
+      <h2 style="font-size:18px">Setup do Atendente IA pago</h2>
+      <p style="font-size:14px;line-height:1.6"><strong>${tenant.name}</strong> (/${tenant.slug}) pagou o setup do
+      Atendente IA no <strong>número próprio</strong>. Faça a configuração da WABA na Meta (verificação de negócio,
+      templates) e, ao concluir, ative o addon no painel admin (Clientes → ${tenant.name} → Ativar Atendente IA) -
+      isso inicia a mensalidade e avisa o cliente.</p>
+      <p style="font-size:12px;color:#888">Demandaê - alerta operacional.</p>
+    </div>`,
+  );
+}
+
+/** Número próprio: setup pago, avisa o tenant que a config está em andamento (sem cobrança ainda). */
+export async function emailAddonAwaitingSetup(tenantId: string): Promise<void> {
+  const o = await ownerOf(tenantId);
+  if (!o) return;
+  const hi = o.name ? `Olá, ${o.name}!` : 'Olá!';
+  await sendEmail(
+    o.email,
+    'Recebemos seu pagamento - configurando o Atendente IA',
+    shell(
+      'Estamos preparando seu Atendente IA',
+      `${hi} Recebemos o pagamento do setup do Atendente IA de <strong>${o.tenantName}</strong>. Nossa equipe já está ` +
+        `configurando a sua conta oficial no WhatsApp (Meta) - costuma levar alguns dias úteis. Assim que estiver no ar, ` +
+        `a gente te avisa e só então a mensalidade começa a contar. Você não precisa fazer nada agora.`,
+      'Ver assinatura',
+    ),
+  );
+}
+
+/**
+ * Atendente IA ativado - instruções de uso conforme o canal. Número Demandaê traz o link
+ * wa.me pra compartilhar com os clientes; número próprio confirma que o número do
+ * estabelecimento está no ar. Ambos apontam pro painel de Conversas pra monitorar.
+ */
+export async function emailAddonActivated(
+  tenantId: string,
+  opts: { channel: 'DEMANDAE' | 'OWN'; waLink?: string | null },
+): Promise<void> {
+  const o = await ownerOf(tenantId);
+  if (!o) return;
+  const hi = o.name ? `Olá, ${o.name}!` : 'Olá!';
+  const comoUsar =
+    opts.channel === 'DEMANDAE'
+      ? `Seu atendente já está no ar no número do Demandaê. Compartilhe este link com seus clientes para eles ` +
+        `conversarem e agendarem:` +
+        (opts.waLink
+          ? `<br><a href="${opts.waLink}" style="color:#1a1a1a">${opts.waLink}</a>`
+          : '')
+      : `Seu atendente já está no ar no <strong>seu próprio número</strong> de WhatsApp. Divulgue seu número ` +
+        `normalmente - quem chamar vai ser atendido pelo bot.`;
+  await sendEmail(
+    o.email,
+    'Seu Atendente IA está no ar 🎉 - Demandaê',
+    shell(
+      'Atendente IA ativado!',
+      `${hi} O Atendente IA de <strong>${o.tenantName}</strong> está ativo. ${comoUsar}<br><br>` +
+        `Acompanhe e assuma as conversas quando quiser em <strong>Conversas</strong> no painel.`,
+      'Abrir conversas',
+      '/conversations',
     ),
   );
 }

@@ -118,11 +118,6 @@ interface CreateSubscriptionInput {
   description: string;
   /** Nosso Subscription.id - volta no webhook (externalReference) pra reconciliar. */
   externalReference: string;
-  /**
-   * Setup único (centavos) a somar SÓ na 1ª cobrança - os ciclos seguintes continuam
-   * no `amountCents`. 0/undefined = sem setup (ex.: anual). Ver SETUP_FEE_CENTS.
-   */
-  setupFeeCents?: number;
 }
 
 export interface SubscriptionResult {
@@ -166,27 +161,7 @@ export async function createSubscription(
   const fp = payments.data[0];
   let firstPayment: SubscriptionResult['firstPayment'] = null;
   if (fp) {
-    let invoiceUrl = fp.invoiceUrl ?? null;
-
-    // Setup único: engorda SÓ a 1ª cobrança (a assinatura segue cobrando `amountCents`
-    // nos ciclos seguintes). Feito antes de gerar o QR do Pix pra refletir o total.
-    if (input.setupFeeCents && input.setupFeeCents > 0) {
-      try {
-        const updated = await asaas<{ invoiceUrl?: string | null }>(`/payments/${fp.id}`, {
-          method: 'PUT',
-          body: JSON.stringify({
-            value: (input.amountCents + input.setupFeeCents) / 100,
-            description: `${input.description} + configuração assistida (setup único)`,
-          }),
-        });
-        invoiceUrl = updated.invoiceUrl ?? invoiceUrl;
-      } catch (err) {
-        // A assinatura já foi criada: NÃO aborta o checkout por causa do setup (senão a
-        // assinatura Asaas fica órfã e o retry cria outra). Sem o acréscimo, a 1ª fatura
-        // sai só com o plano - o setup pode ser contratado depois, na ativação.
-        console.error('[billing] falha ao somar setup na 1ª fatura', err);
-      }
-    }
+    const invoiceUrl = fp.invoiceUrl ?? null;
 
     let pix: { qrCode: string; copyPaste: string } | null = null;
     if (input.method === 'PIX') {
@@ -202,9 +177,9 @@ export async function createSubscription(
 }
 
 /**
- * Cobrança avulsa (one-time) para o customer - usada no setup OPCIONAL do WhatsApp
- * contratado depois do checkout (na ativação). billingType UNDEFINED: o cliente escolhe
- * Pix/cartão/boleto na fatura hospedada. Não é assinatura, não mexe na recorrência.
+ * Cobrança avulsa (one-time) para o customer. billingType UNDEFINED: o cliente escolhe
+ * Pix/cartão/boleto na fatura hospedada. Não é assinatura, não mexe na recorrência. Usada
+ * no setup do addon (`addon-setup:`) e no proporcional da ativação (`addon-prorata:`).
  */
 export async function createOneTimeCharge(input: {
   customerId: string;
@@ -229,6 +204,36 @@ export async function createOneTimeCharge(input: {
 }
 
 /**
+ * Anual 12x no cartão: NÃO é assinatura recorrente e sim UMA venda parcelada (installment)
+ * no cartão. `installmentValue` já traz as taxas de parcelamento embutidas (repassadas ao
+ * cliente). O cartão é digitado na fatura hospedada (invoiceUrl) e o Asaas fixa as 12x; não
+ * auto-renova ao fim das parcelas (renovar = re-contratar). externalReference =
+ * Subscription.id puro - o webhook reconcilia por ele (installment não tem `subscription`).
+ */
+export async function createInstallmentCharge(input: {
+  customerId: string;
+  installmentCount: number;
+  /** Valor de CADA parcela em centavos (com taxas de parcelamento já embutidas). */
+  installmentCents: number;
+  description: string;
+  externalReference: string;
+}): Promise<{ paymentId: string; invoiceUrl: string | null }> {
+  const payment = await asaas<{ id: string; invoiceUrl?: string | null }>('/payments', {
+    method: 'POST',
+    body: JSON.stringify({
+      customer: input.customerId,
+      billingType: 'CREDIT_CARD',
+      installmentCount: input.installmentCount,
+      installmentValue: input.installmentCents / 100,
+      dueDate: todayISO(),
+      description: input.description,
+      externalReference: input.externalReference,
+    }),
+  });
+  return { paymentId: payment.id, invoiceUrl: payment.invoiceUrl ?? null };
+}
+
+/**
  * Cobrança avulsa PENDENTE já existente para uma referência - usada para NÃO duplicar
  * o setup quando o cliente clica de novo antes de pagar (idempotência no lado do Asaas).
  */
@@ -242,11 +247,31 @@ export async function findPendingChargeByReference(
   return p ? { paymentId: p.id, invoiceUrl: p.invoiceUrl ?? null } : null;
 }
 
-/** Atualiza valor/ciclo da assinatura (troca de plano). Sem proração - o novo valor
- *  vale a partir do próximo ciclo; `updatePendingPayments` ajusta cobranças em aberto. */
+/**
+ * Cancela (deleta) a cobrança avulsa PENDENTE de uma referência, se houver - usada quando o
+ * cliente troca de canal do addon deixando um setup ainda não pago pra trás, pra ele não
+ * pagar por engano uma cobrança que não vale mais. Só cancela PENDING (paga não se deleta).
+ */
+export async function cancelPendingChargeByReference(externalReference: string): Promise<void> {
+  const pending = await findPendingChargeByReference(externalReference);
+  if (pending) {
+    await asaas(`/payments/${pending.paymentId}`, { method: 'DELETE' });
+  }
+}
+
+/**
+ * Atualiza valor/ciclo da assinatura (troca de plano). Sem proração. `updatePendingPayments`:
+ * true (upgrade) reescreve também a cobrança já emitida deste ciclo; false (downgrade) deixa
+ * a cobrança atual intacta e o novo valor só vale da próxima em diante - o "próximo ciclo".
+ */
 export async function updateAsaasSubscription(
   asaasSubscriptionId: string,
-  input: { amountCents: number; cycle: BillingCycle; description: string },
+  input: {
+    amountCents: number;
+    cycle: BillingCycle;
+    description: string;
+    updatePendingPayments?: boolean;
+  },
 ): Promise<void> {
   await asaas(`/subscriptions/${asaasSubscriptionId}`, {
     method: 'PUT',
@@ -254,7 +279,7 @@ export async function updateAsaasSubscription(
       value: input.amountCents / 100,
       cycle: toAsaasCycle(input.cycle),
       description: input.description,
-      updatePendingPayments: true,
+      updatePendingPayments: input.updatePendingPayments ?? true,
     }),
   });
 }
@@ -262,6 +287,15 @@ export async function updateAsaasSubscription(
 /** Cancela a assinatura no Asaas (para as cobranças futuras). */
 export async function cancelAsaasSubscription(asaasSubscriptionId: string): Promise<void> {
   await asaas(`/subscriptions/${asaasSubscriptionId}`, { method: 'DELETE' });
+}
+
+/**
+ * Estorno integral de uma cobrança PAGA - usado no cancelamento dentro da garantia de
+ * 30 dias ("reembolso integral automático"). O Asaas recusa estornar 2x a mesma cobrança;
+ * o chamador tolera erro (o cancelamento nunca pode travar por causa do estorno).
+ */
+export async function refundAsaasPayment(paymentId: string): Promise<void> {
+  await asaas(`/payments/${paymentId}/refund`, { method: 'POST' });
 }
 
 /** URL da fatura hospedada da cobrança PENDENTE (onde o cliente troca o cartão). */
@@ -312,19 +346,147 @@ export async function listSubscriptionPayments(
   }));
 }
 
+/** Status do Asaas que contam como "cobrança paga" (elegível a estorno). */
+const PAID_STATUSES = ['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH'];
+
+/**
+ * id da última cobrança efetivamente PAGA da assinatura (a lista vem em ordem desc),
+ * para estornar no cancelamento dentro da garantia. null se nada foi pago ainda.
+ */
+export async function findLastPaidCharge(asaasSubscriptionId: string): Promise<string | null> {
+  const charges = await listSubscriptionPayments(asaasSubscriptionId);
+  return charges.find((c) => PAID_STATUSES.includes(c.status))?.id ?? null;
+}
+
+// --- Notas Fiscais (NFS-e) --------------------------------------------------
+
+/**
+ * Config fiscal lida de env. null quando não configurada (Configurações Fiscais só existem
+ * na conta Asaas depois de inscrição municipal + certificado + serviço - trabalho de painel,
+ * não de código). Sem isto o gancho de NF fica em modo-marcador (não chama o Asaas). Envie
+ * `ASAAS_NF_MUNICIPAL_SERVICE_ID` (quando há lista de serviços) OU `_CODE`; um dos dois.
+ * Impostos default = 0 e ISS não retido (caso comum de emissor no Simples Nacional).
+ */
+export interface NfConfig {
+  serviceDescription: string;
+  municipalServiceId: string | null;
+  municipalServiceCode: string | null;
+  municipalServiceName: string | null;
+  observations: string | null;
+  taxes: { retainIss: boolean; iss: number; cofins: number; csll: number; inss: number; ir: number; pis: number };
+}
+
+function envNum(name: string): number {
+  const n = Number(process.env[name]);
+  return Number.isFinite(n) ? n : 0;
+}
+
+export function nfConfig(): NfConfig | null {
+  const serviceDescription = process.env.ASAAS_NF_SERVICE_DESCRIPTION?.trim();
+  const municipalServiceId = process.env.ASAAS_NF_MUNICIPAL_SERVICE_ID?.trim() || null;
+  const municipalServiceCode = process.env.ASAAS_NF_MUNICIPAL_SERVICE_CODE?.trim() || null;
+  // Gate: sem descrição do serviço OU sem identificação do serviço municipal, não emite.
+  if (!serviceDescription || (!municipalServiceId && !municipalServiceCode)) {
+    return null;
+  }
+  return {
+    serviceDescription,
+    municipalServiceId,
+    municipalServiceCode,
+    municipalServiceName: process.env.ASAAS_NF_MUNICIPAL_SERVICE_NAME?.trim() || null,
+    observations: process.env.ASAAS_NF_OBSERVATIONS?.trim() || null,
+    taxes: {
+      retainIss: process.env.ASAAS_NF_RETAIN_ISS === 'true',
+      iss: envNum('ASAAS_NF_TAX_ISS'),
+      cofins: envNum('ASAAS_NF_TAX_COFINS'),
+      csll: envNum('ASAAS_NF_TAX_CSLL'),
+      inss: envNum('ASAAS_NF_TAX_INSS'),
+      ir: envNum('ASAAS_NF_TAX_IR'),
+      pis: envNum('ASAAS_NF_TAX_PIS'),
+    },
+  };
+}
+
+/**
+ * Agenda a NFS-e de uma cobrança paga. `payment` = id do pagamento no Asaas: o tomador (o
+ * tenant) é preenchido automaticamente pelo cliente do pagamento, não precisamos repassar
+ * documento/endereço. `effectiveDate = hoje` + authorize() a seguir emite na hora. Retorna
+ * o id da nota (status inicial SCHEDULED) - a autorização volta assíncrona por webhook.
+ */
+export async function scheduleInvoice(input: {
+  asaasPaymentId: string;
+  valueCents: number;
+  externalReference: string;
+}): Promise<{ id: string; status: string }> {
+  const cfg = nfConfig();
+  if (!cfg) throw new BillingConfigError('Config fiscal (ASAAS_NF_*) ausente');
+  const invoice = await asaas<{ id: string; status: string }>('/invoices', {
+    method: 'POST',
+    body: JSON.stringify({
+      payment: input.asaasPaymentId,
+      serviceDescription: cfg.serviceDescription,
+      observations: cfg.observations ?? undefined,
+      value: input.valueCents / 100,
+      deductions: 0,
+      effectiveDate: todayISO(),
+      externalReference: input.externalReference,
+      municipalServiceId: cfg.municipalServiceId ?? undefined,
+      municipalServiceCode: cfg.municipalServiceCode ?? undefined,
+      municipalServiceName: cfg.municipalServiceName ?? undefined,
+      // Não deixar o Asaas reescrever a cobrança (só emitir a nota sobre ela).
+      updatePayment: false,
+      taxes: cfg.taxes,
+    }),
+  });
+  return { id: invoice.id, status: invoice.status };
+}
+
+/** Dispara a emissão imediata da nota agendada (senão o Asaas emitiria só na effectiveDate). */
+export async function authorizeInvoice(invoiceId: string): Promise<void> {
+  await asaas(`/invoices/${invoiceId}/authorize`, { method: 'POST' });
+}
+
 // --- Webhook ----------------------------------------------------------------
+
+/** Dados de nota fiscal num evento INVOICE_* do webhook. */
+export interface ParsedInvoiceEvent {
+  /** invoice.id no Asaas (reconcilia com Charge.asaasInvoiceId). */
+  asaasInvoiceId: string;
+  /** id do pagamento vinculado (fallback de reconciliação). */
+  asaasPaymentId: string | null;
+  status: string | null;
+  /** Link do PDF da nota autorizada. */
+  pdfUrl: string | null;
+  /** Número fiscal da nota autorizada. */
+  number: string | null;
+  /** Mensagem de erro (INVOICE_ERROR). */
+  error: string | null;
+}
 
 /** Resultado simplificado de um evento de webhook de billing. */
 export interface ParsedBillingEvent {
-  /** id da subscription no Asaas (payment.subscription). null se o evento não for de assinatura. */
+  /** Nome bruto do evento Asaas (PAYMENT_CREATED, SUBSCRIPTION_DELETED, ...) pro ledger. */
+  event: string | null;
+  /**
+   * id da assinatura Asaas: `payment.subscription` (cobrança recorrente) OU `subscription.id`
+   * (eventos SUBSCRIPTION_*). null em cobrança avulsa/installment.
+   */
   asaasSubscriptionId: string | null;
   /** id da cobrança no Asaas (payment.id) - usado pra deduplicar CONFIRMED/RECEIVED. */
   asaasPaymentId: string | null;
-  /** Valor da cobrança em centavos (payment.value × 100), pro recibo. */
+  /** Referência que enviamos ao criar cobranças avulsas (ex.: `addon-setup:<subId>`). */
+  externalReference: string | null;
+  /** Valor da cobrança em centavos (payment.value × 100), pro recibo/ledger. */
   amountCents: number | null;
+  /** Forma de pagamento da cobrança (CREDIT_CARD, PIX, ...). null em eventos sem payment. */
+  billingType: string | null;
+  /** Vencimento da cobrança (payment.dueDate). null em eventos sem payment. */
+  dueDate: Date | null;
   /** Efeito no nosso Subscription.status, ou null pra eventos ignorados. */
   effect: 'ACTIVE' | 'PAST_DUE' | 'SUSPENDED' | null;
   paidAt: Date | null;
+  /** Dados da nota fiscal nos eventos INVOICE_* (null nos demais). */
+  invoice: ParsedInvoiceEvent | null;
 }
 
 /**
@@ -351,8 +513,25 @@ export function parseBillingWebhook(rawBody: Buffer, headers: Headers): ParsedBi
     payment?: {
       id?: string | null;
       subscription?: string | null;
+      externalReference?: string | null;
+      billingType?: string | null;
+      dueDate?: string | null;
       paymentDate?: string | null;
       value?: number | null;
+    };
+    /** Eventos SUBSCRIPTION_* trazem a assinatura aqui (não em `payment`). */
+    subscription?: { id?: string | null };
+    /** Eventos INVOICE_* trazem a nota fiscal aqui. */
+    invoice?: {
+      id?: string | null;
+      payment?: string | null;
+      status?: string | null;
+      pdfUrl?: string | null;
+      number?: string | null;
+      // O Asaas expõe o motivo do erro em campos que variam por prefeitura; captura best-effort.
+      error?: string | null;
+      errorMessage?: string | null;
+      rejectionReason?: string | null;
     };
   };
   try {
@@ -361,8 +540,12 @@ export function parseBillingWebhook(rawBody: Buffer, headers: Headers): ParsedBi
     throw new BillingConfigError('Corpo do webhook de billing não é JSON válido');
   }
 
-  const asaasSubscriptionId = body.payment?.subscription ?? null;
+  const event = body.event ?? null;
+  const asaasSubscriptionId = body.payment?.subscription ?? body.subscription?.id ?? null;
   const asaasPaymentId = body.payment?.id ?? null;
+  const externalReference = body.payment?.externalReference ?? null;
+  const billingType = body.payment?.billingType ?? null;
+  const dueDate = body.payment?.dueDate ? new Date(body.payment.dueDate) : null;
   const amountCents =
     typeof body.payment?.value === 'number' ? Math.round(body.payment.value * 100) : null;
 
@@ -391,5 +574,28 @@ export function parseBillingWebhook(rawBody: Buffer, headers: Headers): ParsedBi
         : new Date()
       : null;
 
-  return { asaasSubscriptionId, asaasPaymentId, amountCents, effect, paidAt };
+  const invoice: ParsedInvoiceEvent | null = body.invoice?.id
+    ? {
+        asaasInvoiceId: body.invoice.id,
+        asaasPaymentId: body.invoice.payment ?? null,
+        status: body.invoice.status ?? null,
+        pdfUrl: body.invoice.pdfUrl ?? null,
+        number: body.invoice.number ?? null,
+        error:
+          body.invoice.error ?? body.invoice.errorMessage ?? body.invoice.rejectionReason ?? null,
+      }
+    : null;
+
+  return {
+    event,
+    asaasSubscriptionId,
+    asaasPaymentId,
+    externalReference,
+    amountCents,
+    billingType,
+    dueDate,
+    effect,
+    paidAt,
+    invoice,
+  };
 }

@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
 import { Fraunces, Hanken_Grotesk } from 'next/font/google';
 
+import { CookieConsent } from '@/components/cookie-consent';
+
 import './globals.css';
 
 const fraunces = Fraunces({
@@ -42,7 +44,10 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="pt-BR" className={`${fraunces.variable} ${hanken.variable}`}>
-      <body>{children}</body>
+      <body>
+        {children}
+        <CookieConsent />
+      </body>
     </html>
   );
 }
