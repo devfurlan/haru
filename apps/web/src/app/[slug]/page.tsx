@@ -1,7 +1,7 @@
 import { MessageCircle, UserRound } from 'lucide-react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { notFound, redirect } from 'next/navigation';
+import { notFound } from 'next/navigation';
 
 import { formatBRL, formatDuration, minutesToHHMM } from '@haru/shared';
 
@@ -79,13 +79,6 @@ export default async function TenantPublicPage({ params }: { params: Promise<{ s
   const showBooking = tenant.publicBookingEnabled && tenant.services.length > 0 && hasBookableDay;
 
   const customerAccount = await getCustomerAccount();
-
-  // Cliente logado sem WhatsApp (entrou com Google, que não pede telefone) captura o
-  // número uma vez antes de agendar - assim o passo "Seus dados" nunca aparece pra quem
-  // já tem conta. Rede de segurança pra contas-Google criadas antes do gate no callback.
-  if (showBooking && customerAccount && !customerAccount.phone && !customerAccount.pendingPhone) {
-    redirect(`/conta/whatsapp?next=/${slug}`);
-  }
 
   return (
     <main className="bg-muted/20 flex min-h-screen flex-col">

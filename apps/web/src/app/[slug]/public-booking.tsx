@@ -2472,6 +2472,13 @@ export function PublicBooking({
   // --- Transições explícitas --------------------------------------------------
 
   function handleSelectService(service: ServiceOption) {
+    // Conta-Google sem WhatsApp: captura o número uma vez ANTES de agendar, mas só ao
+    // iniciar o fluxo - a página do estabelecimento continua livre pra navegar. Volta pra
+    // cá pelo `next`. Espelha o gate do callback de login (contas antigas caem aqui).
+    if (loggedIn && !customerPhone) {
+      router.push(`/conta/whatsapp?next=/${slug}`);
+      return;
+    }
     setServiceId(service.id);
     // Troca de serviço pode mudar quem atende: volta pra "sem preferência".
     setProfessionalId('');
