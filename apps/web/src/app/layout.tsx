@@ -36,7 +36,7 @@ export const metadata: Metadata = {
   },
   verification: {
     other: {
-      'facebook-domain-verification': 'op849girq5zyk0mvxtekcxjvndaz5z',
+      'facebook-domain-verification': 'rkqs51hez0t038j7lytnp60z35xjqi',
     },
   },
 };
