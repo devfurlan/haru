@@ -129,12 +129,12 @@ const operationSchema = z
       .refine((v) => v === null || /^https:\/\//i.test(v), {
         message: 'URL deve começar com https://',
       }),
-    reminderHoursBefore: z
+    reminderMinutesBefore: z
       .string()
-      .min(1, 'Informe quantas horas antes (0 desativa)')
+      .min(1, 'Informe quantos minutos antes (0 desativa)')
       .transform((v) => Number(v))
-      .refine((n) => Number.isInteger(n) && n >= 0 && n <= 168, {
-        message: 'Use um valor entre 0 e 168 (uma semana)',
+      .refine((n) => Number.isInteger(n) && n >= 0 && n <= 10080, {
+        message: 'Use um valor entre 0 e 10080 (uma semana em minutos)',
       }),
     reminderTemplateName: templateName,
     reminderTemplateLanguage: templateLang,
@@ -172,7 +172,7 @@ export async function updateOperation(
     publicBookingEnabled: formData.get('publicBookingEnabled'),
     publicBookingConfirmation: formData.get('publicBookingConfirmation'),
     notificationWebhookUrl: formData.get('notificationWebhookUrl'),
-    reminderHoursBefore: formData.get('reminderHoursBefore'),
+    reminderMinutesBefore: formData.get('reminderMinutesBefore'),
     reminderTemplateName: formData.get('reminderTemplateName'),
     reminderTemplateLanguage: formData.get('reminderTemplateLanguage'),
     cancelTemplateName: formData.get('cancelTemplateName'),

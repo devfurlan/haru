@@ -12,7 +12,7 @@ import { updateNotifications, type NotificationsActionResult } from './actions';
 
 interface NotificationsCardProps {
   notificationWebhookUrl: string | null;
-  reminderHoursBefore: number;
+  reminderMinutesBefore: number;
   handoffEmailEnabled: boolean;
   ownerAppointmentEmailsEnabled: boolean;
   ownerWhatsappAlertsEnabled: boolean;
@@ -112,19 +112,19 @@ export function NotificationsCard(props: NotificationsCardProps) {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="reminderHoursBefore">Lembrete para o cliente (horas antes)</Label>
+            <Label htmlFor="reminderMinutesBefore">Lembrete para o cliente (minutos antes)</Label>
             <Input
-              id="reminderHoursBefore"
-              name="reminderHoursBefore"
+              id="reminderMinutesBefore"
+              name="reminderMinutesBefore"
               type="number"
               min={0}
-              max={168}
-              step={1}
-              defaultValue={props.reminderHoursBefore}
+              max={10080}
+              step={5}
+              defaultValue={props.reminderMinutesBefore}
               required
             />
             <p className="text-muted-foreground text-xs">
-              <strong>0 desativa</strong> os lembretes. Padrão: 24h.
+              <strong>0 desativa</strong> os lembretes. Padrão: 30 min.
             </p>
           </div>
 
@@ -200,7 +200,7 @@ export function NotificationsCard(props: NotificationsCardProps) {
 
             <TemplateInputs
               title="Lembrete"
-              description="Disparado N horas antes do agendamento."
+              description="Disparado N minutos antes do agendamento."
               fieldPrefix="reminder"
               placeholder="haru_appointment_reminder"
               defaultName={props.reminderTemplateName}

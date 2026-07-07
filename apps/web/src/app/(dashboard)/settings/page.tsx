@@ -62,7 +62,7 @@ export default async function SettingsPage() {
 
       <NotificationsCard
         notificationWebhookUrl={tenant.notificationWebhookUrl}
-        reminderHoursBefore={tenant.reminderHoursBefore}
+        reminderMinutesBefore={tenant.reminderMinutesBefore}
         handoffEmailEnabled={tenant.handoffEmailEnabled}
         ownerAppointmentEmailsEnabled={tenant.ownerAppointmentEmailsEnabled}
         ownerWhatsappAlertsEnabled={tenant.ownerWhatsappAlertsEnabled}

@@ -6,12 +6,10 @@ import prisma from './prisma.js';
 import { getPhoneNumberStatus, sendTemplateMessage } from './whatsapp/client.js';
 import { sendTextSafely } from './whatsapp/safeSend.js';
 
-const TICK_INTERVAL_MS = 5 * 60 * 1000;
-// Quanto de atraso ainda vale a pena recuperar. Se o bot ficou fora do ar (deploy,
-// restart, plano dormindo) exatamente na hora-alvo de um lembrete, ele volta e
-// dispara assim que subir - desde que o atraso seja menor que isto. Acima disso o
-// lembrete chegaria perto/depois do horário e não faz mais sentido, então pulamos.
-const MAX_LATE_MS = 6 * 60 * 60 * 1000;
+// Tick curto (1 min) pra o lembrete cair perto da hora-alvo. Como o disparo é
+// numa grade, o atraso máximo em relação ao alvo é ~1 tick: com 30 min de
+// antecedência, o lembrete chega entre 30 e 29 min antes.
+const TICK_INTERVAL_MS = 1 * 60 * 1000;
 
 function formatWhen(date: Date, timezone: string): string {
   return new Intl.DateTimeFormat('pt-BR', {
@@ -70,7 +68,7 @@ async function processReminders() {
 
   const tenants = await prisma.tenant.findMany({
     where: {
-      reminderHoursBefore: { gt: 0 },
+      reminderMinutesBefore: { gt: 0 },
       // Sem filtro por whatsappPhoneNumberId: tenants SEM WhatsApp ainda mandam
       // lembrete por e-mail. A checagem do número é feita por agendamento, abaixo.
       // Número banido pela Meta recusa todo envio WhatsApp (#135000); o e-mail segue.
@@ -79,14 +77,15 @@ async function processReminders() {
   });
 
   for (const tenant of tenants) {
-    const offsetMs = tenant.reminderHoursBefore * 3_600_000;
-    // Hora-alvo do lembrete = startsAt - offset. Buscamos por startsAt:
-    //   alvo <= agora            ⇔  startsAt <= agora + offset   (já deu a hora, dispara)
-    //   alvo >= agora - MAX_LATE ⇔  startsAt >= agora - MAX_LATE + offset (não atrasado demais)
-    // Assim um lembrete cuja hora-alvo passou enquanto o bot estava fora do ar é
-    // recuperado no próximo tick em vez de perdido pra sempre. O reminderSentAt
-    // continua garantindo envio único - sem risco de duplicar a cada tick.
-    const earliestStart = new Date(now.getTime() - MAX_LATE_MS + offsetMs);
+    const offsetMs = tenant.reminderMinutesBefore * 60_000;
+    // Hora-alvo do lembrete = startsAt - offset. Janela de startsAt = [agora, agora + offset]:
+    //   startsAt <= agora + offset  ⇔  alvo <= agora        (já deu a hora, dispara)
+    //   startsAt >= agora           ⇔  agendamento ainda não começou
+    // O limite inferior `agora` recupera lembretes cuja hora-alvo passou enquanto o
+    // bot estava fora do ar (o agendamento ainda está no futuro) e, ao mesmo tempo,
+    // evita disparar lembrete de agendamento que já começou. reminderSentAt garante
+    // envio único - sem risco de duplicar a cada tick.
+    const earliestStart = now;
     const latestStart = new Date(now.getTime() + offsetMs);
 
     const appts = await prisma.appointment.findMany({

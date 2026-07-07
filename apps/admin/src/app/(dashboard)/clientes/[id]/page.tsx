@@ -71,7 +71,7 @@ export default async function TenantDetailPage({ params }: { params: Promise<{ i
             publicBookingEnabled: tenant.publicBookingEnabled,
             publicBookingConfirmation: tenant.publicBookingConfirmation,
             notificationWebhookUrl: tenant.notificationWebhookUrl,
-            reminderHoursBefore: tenant.reminderHoursBefore,
+            reminderMinutesBefore: tenant.reminderMinutesBefore,
             reminderTemplateName: tenant.reminderTemplateName,
             reminderTemplateLanguage: tenant.reminderTemplateLanguage,
             cancelTemplateName: tenant.cancelTemplateName,

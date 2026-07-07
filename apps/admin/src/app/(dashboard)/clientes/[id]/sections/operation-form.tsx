@@ -33,7 +33,7 @@ export function OperationForm({
     publicBookingEnabled: boolean;
     publicBookingConfirmation: 'PENDING' | 'CONFIRMED';
     notificationWebhookUrl: string | null;
-    reminderHoursBefore: number;
+    reminderMinutesBefore: number;
     reminderTemplateName: string | null;
     reminderTemplateLanguage: string | null;
     cancelTemplateName: string | null;
@@ -58,14 +58,14 @@ export function OperationForm({
             ))}
           </Select>
         </Field>
-        <Field label="Lembrete (horas antes)" htmlFor="reminderHoursBefore" hint="0 desativa.">
+        <Field label="Lembrete (minutos antes)" htmlFor="reminderMinutesBefore" hint="0 desativa.">
           <Input
-            id="reminderHoursBefore"
-            name="reminderHoursBefore"
+            id="reminderMinutesBefore"
+            name="reminderMinutesBefore"
             type="number"
             min={0}
-            max={168}
-            defaultValue={values.reminderHoursBefore}
+            max={10080}
+            defaultValue={values.reminderMinutesBefore}
           />
         </Field>
       </div>

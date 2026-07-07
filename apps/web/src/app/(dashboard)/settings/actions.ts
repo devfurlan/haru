@@ -697,12 +697,12 @@ const notificationsSchema = z
       .refine((v) => v === null || /^https:\/\//i.test(v), {
         message: 'URL deve começar com https://',
       }),
-    reminderHoursBefore: z
+    reminderMinutesBefore: z
       .string()
-      .min(1, 'Informe quantas horas antes (0 desativa)')
+      .min(1, 'Informe quantos minutos antes (0 desativa)')
       .transform((v) => Number(v))
-      .refine((n) => Number.isInteger(n) && n >= 0 && n <= 168, {
-        message: 'Use um valor entre 0 e 168 (uma semana)',
+      .refine((n) => Number.isInteger(n) && n >= 0 && n <= 10080, {
+        message: 'Use um valor entre 0 e 10080 (uma semana em minutos)',
       }),
     // Checkbox: presente ("on") = ligado; ausente = desligado.
     handoffEmailEnabled: z.preprocess((v) => v === 'on' || v === 'true', z.boolean()),
@@ -742,7 +742,7 @@ export async function updateNotifications(
 
   const parsed = notificationsSchema.safeParse({
     notificationWebhookUrl: formData.get('notificationWebhookUrl'),
-    reminderHoursBefore: formData.get('reminderHoursBefore'),
+    reminderMinutesBefore: formData.get('reminderMinutesBefore'),
     handoffEmailEnabled: formData.get('handoffEmailEnabled'),
     ownerAppointmentEmailsEnabled: formData.get('ownerAppointmentEmailsEnabled'),
     ownerWhatsappAlertsEnabled: formData.get('ownerWhatsappAlertsEnabled'),
@@ -781,7 +781,7 @@ export async function updateNotifications(
     where: { id: tenant.id },
     data: {
       notificationWebhookUrl: parsed.data.notificationWebhookUrl,
-      reminderHoursBefore: parsed.data.reminderHoursBefore,
+      reminderMinutesBefore: parsed.data.reminderMinutesBefore,
       handoffEmailEnabled: parsed.data.handoffEmailEnabled,
       ownerAppointmentEmailsEnabled: parsed.data.ownerAppointmentEmailsEnabled,
       ownerWhatsappAlertsEnabled: parsed.data.ownerWhatsappAlertsEnabled,
