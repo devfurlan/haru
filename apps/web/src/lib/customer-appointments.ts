@@ -43,7 +43,8 @@ export async function getOwnedAppointment(customerAccountId: string, appointment
 export type CustomerOpResult = { ok: true } | { error: string };
 
 /** Remarca um agendamento do cliente (gate + core). O cliente remarcou ele mesmo:
- * avisa o dono por e-mail, não o próprio cliente. */
+ * avisa o dono e também confirma pro cliente por e-mail (novo horário + .ics atualizado;
+ * o template de WhatsApp de remarcação já sai pelo core independente disto). */
 export async function rescheduleOwnedAppointment(
   account: CustomerAccount,
   appointmentId: string,
@@ -55,13 +56,14 @@ export async function rescheduleOwnedAppointment(
     appointmentId: appt.id,
     tenantId: appt.tenantId,
     newStartsAt,
-    notifyCustomer: false,
+    notifyCustomer: true,
     notifyOwner: true,
   });
 }
 
-/** Cancela um agendamento do cliente (gate + core). Não dispara template pro próprio
- * cliente (ele acabou de cancelar); avisa o dono. */
+/** Cancela um agendamento do cliente (gate + core). Confirma pro próprio cliente
+ * (e-mail + template de cancelamento) e avisa o dono - mesmo comportamento de quando
+ * o dono cancela. */
 export async function cancelOwnedAppointment(
   account: CustomerAccount,
   appointmentId: string,
@@ -71,7 +73,7 @@ export async function cancelOwnedAppointment(
   const changed = await cancelAppointmentCore({
     appointmentId: appt.id,
     tenantId: appt.tenantId,
-    notifyClient: false,
+    notifyClient: true,
     notifyOwner: true,
   });
   if (!changed) return { error: 'Não foi possível cancelar este agendamento' };
