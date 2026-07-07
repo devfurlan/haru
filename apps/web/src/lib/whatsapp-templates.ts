@@ -20,6 +20,8 @@ export async function sendAppointmentTemplate(
       include: { service: true, contact: true, tenant: true },
     });
     if (!appt) return false;
+    // Cliente sem WhatsApp (agendou logado, sem número): nada pra enviar.
+    if (!appt.contact.phone) return false;
     const tenant = appt.tenant;
 
     const token = decryptNullable(tenant.whatsappAccessToken);

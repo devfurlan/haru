@@ -8,11 +8,11 @@ import { AuthField, AuthPassword, AuthSubmit } from '@/components/auth-ui';
 import { maskPhoneBRInput } from '@haru/shared';
 
 /**
- * Cadastro do cliente em um passo só: nome, e-mail, senha, celular e termos. O celular
- * NÃO é verificado aqui (sem SMS no cadastro) - entra como pendente e a confirmação por
- * código é pedida depois do login. Usada na página /conta/criar (redireciona pra /conta)
- * e como modal dentro do agendamento (`inline` + `onSuccess`), com nome/celular já
- * pré-preenchidos do booking.
+ * Cadastro do cliente em um passo só: nome, e-mail, senha, celular (OPCIONAL) e termos. O
+ * celular é opcional (WhatsApp é acessório) e, se informado, NÃO é verificado aqui (sem SMS
+ * no cadastro) - entra como pendente e a confirmação por código é pedida depois do login.
+ * Usada na página /conta/criar (redireciona pra /conta) e como modal dentro do agendamento
+ * (`inline` + `onSuccess`), com nome/celular já pré-preenchidos do booking.
  */
 export function CustomerSignupForm({
   inline = false,
@@ -63,7 +63,7 @@ export function CustomerSignupForm({
         placeholder="seu@email.com"
       />
       <AuthField
-        label="WhatsApp"
+        label="WhatsApp (opcional)"
         id="phone"
         name="phone"
         type="tel"
@@ -72,7 +72,6 @@ export function CustomerSignupForm({
         placeholder="(11) 91234-5678"
         value={phone}
         onChange={(e) => setPhone(maskPhoneBRInput(e.target.value))}
-        required
       />
       <AuthPassword
         label="Senha"

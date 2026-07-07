@@ -1,5 +1,5 @@
 import { Image } from 'expo-image';
-import { Link, router, useLocalSearchParams, type Href } from 'expo-router';
+import { Link, router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -382,18 +382,12 @@ export default function BookScreen() {
       .me()
       .then((me) => {
         if (!active) return;
-        // Logado sem telefone nenhum (entrou com Google, que não pede número): captura o
-        // WhatsApp uma vez numa tela dedicada e volta pra cá - o agendamento nunca pede
-        // "Seus dados" de quem já está logado. Rede de segurança + onboarding pós-Google.
-        if (!me.phone && !me.pendingPhone) {
-          // ponytail: cast do href até o typegen do expo-router pegar a rota nova /whatsapp.
-          const next = encodeURIComponent(`/book/${slug}`);
-          router.replace(`/whatsapp?next=${next}` as Href);
-          return;
-        }
+        // WhatsApp é opcional: logado sem número (entrou com Google) agenda normalmente - a
+        // identidade é a conta e a confirmação sai por e-mail/app. Não redireciona pra lugar
+        // nenhum; só pré-preenche o que a conta tiver.
         if (me.name) setName(me.name);
         // Telefone do cadastro vive em pendingPhone até a verificação por OTP; usa ele no
-        // fallback (igual ao web) senão o logado cai no form "Seus dados" sem necessidade.
+        // fallback pra pré-preencher (se houver).
         const phone = me.phone ?? me.pendingPhone;
         if (phone) setPhone(maskPhoneBRInput(phone));
       })
@@ -514,7 +508,7 @@ export default function BookScreen() {
   // Rodapé do passo "dia+horário": usuário LOGADO com nome+telefone já pula o formulário
   // e agenda direto (design 10); visitante segue pro passo de contato.
   function handleSlotConfirm() {
-    if (session && hasContact) handleConfirm();
+    if (session && contactOk) handleConfirm();
     else setStep('contact');
   }
 
@@ -534,12 +528,16 @@ export default function BookScreen() {
     );
   }
 
-  const hasContact = name.trim().length >= 2 && phone.replace(/\D/g, '').length >= 10;
+  const hasName = name.trim().length >= 2;
+  // WhatsApp é opcional: logado (session) agenda só com o nome da conta - a confirmação sai
+  // por e-mail/app. Sem sessão (sem conta) ainda precisa do número, senão o cliente fica sem
+  // canal de contato e o backend recusa.
+  const contactOk = hasName && (!!session || phone.replace(/\D/g, '').length >= 10);
   const isSeries = frequency !== 'NONE';
-  // Logado com contato completo não precisa dos campos nome+WhatsApp - a conta já tem.
-  const hideContact = !!session && hasContact;
+  // Logado não precisa dos campos nome+WhatsApp - a identidade é a conta (número opcional).
+  const hideContact = !!session && hasName;
   const seriesReady = !isSeries || (!previewLoading && chosenIsos.length >= 2);
-  const canConfirm = hasContact && !submitting && seriesReady;
+  const canConfirm = contactOk && !submitting && seriesReady;
 
   const canBook = tenant.publicBookingEnabled && tenant.services.length > 0;
   // Só os profissionais que atendem o serviço escolhido (espelha o web serviceProfs);
@@ -1085,7 +1083,7 @@ export default function BookScreen() {
                   <Text className="text-destructive mb-2.5 text-center text-sm">{error}</Text>
                 ) : null}
                 {/* Logado confirma direto; quem quiser repetir abre as opções (recorrência). */}
-                {session && hasContact ? (
+                {session && contactOk ? (
                   <Pressable
                     onPress={() => setStep('contact')}
                     hitSlop={6}
@@ -1114,7 +1112,7 @@ export default function BookScreen() {
                       <ActivityIndicator color="#ffffff" size="small" />
                     ) : (
                       <Text className="text-[15px] font-bold text-white">
-                        {session && hasContact ? 'Confirmar' : 'Continuar'}
+                        {session && contactOk ? 'Confirmar' : 'Continuar'}
                       </Text>
                     )}
                   </PressScale>

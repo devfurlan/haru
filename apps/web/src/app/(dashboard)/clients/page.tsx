@@ -30,7 +30,9 @@ export default async function ClientsPage({ searchParams }: PageProps) {
         })
       )
         .filter(
-          (c) => matchesSearch(query, c.name) || (digits.length > 0 && c.phone.includes(digits)),
+          (c) =>
+            matchesSearch(query, c.name) ||
+            (digits.length > 0 && (c.phone?.includes(digits) ?? false)),
         )
         .slice(0, 200)
     : await prisma.contact.findMany({

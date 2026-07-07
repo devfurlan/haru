@@ -74,7 +74,8 @@ export async function getConversationList(): Promise<ConversationListItem[]> {
     return {
       id: c.id,
       contactName: c.contact.name,
-      contactPhone: c.contact.phone,
+      // Conversa só existe pra contato de WhatsApp (inbound), então sempre tem número.
+      contactPhone: c.contact.phone ?? '',
       lastMessageBody: last?.body ?? null,
       lastMessageAt: last ? last.createdAt.toISOString() : null,
       lastMessageDirection: last?.direction ?? null,

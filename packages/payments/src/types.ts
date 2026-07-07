@@ -17,7 +17,13 @@ export interface CreateChargeInput {
   /** Nosso `Payment.id` - volta no webhook como externalReference pra reconciliar. */
   externalReference: string;
   /** `cpfCnpj`: só dígitos. O Asaas exige documento do pagador pra emitir Pix. */
-  customer: { name: string; phoneE164: string; email?: string | null; cpfCnpj?: string | null };
+  customer: {
+    name: string;
+    /** Opcional: cliente logado pode não ter WhatsApp cadastrado. */
+    phoneE164?: string | null;
+    email?: string | null;
+    cpfCnpj?: string | null;
+  };
   /** Vencimento da cobrança. Default do adapter: hoje + 1 dia. */
   dueDate?: Date;
 }

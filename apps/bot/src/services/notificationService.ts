@@ -11,7 +11,7 @@ interface AppointmentEventData {
     endsAt: string;
     status: string;
   };
-  contact: { name: string | null; phone: string };
+  contact: { name: string | null; phone: string | null };
   service: { name: string; durationMinutes: number; priceCents: number };
 }
 

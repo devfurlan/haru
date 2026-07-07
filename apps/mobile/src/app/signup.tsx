@@ -61,10 +61,11 @@ export default function SignupScreen() {
     }
   }
 
+  // WhatsApp é opcional (acessório): não bloqueia o cadastro. Se informado, é validado no
+  // envio (o backend rejeita número inválido; vazio entra como null).
   const canSubmit =
     email.trim().length > 3 &&
     name.trim().length >= 2 &&
-    phone.replace(/\D/g, '').length >= 10 &&
     password.length >= 8 &&
     accepted &&
     !submitting;
@@ -143,7 +144,7 @@ export default function SignupScreen() {
               />
             </Field>
 
-            <Field label="WhatsApp">
+            <Field label="WhatsApp (opcional)">
               <TextInput
                 className="border-edge bg-paper text-ink rounded-[13px] border px-4 py-[13px] text-[15px]"
                 value={phone}

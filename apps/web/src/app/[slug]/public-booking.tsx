@@ -1461,8 +1461,10 @@ function StepConfirmar({
 
   // Já tem conta? (logado ao chegar OU criou agora.)
   const hasAccount = loggedIn || accountCreated;
-  // Logado com contato completo não precisa ver/editar nome+WhatsApp - a conta já tem.
-  const hideContact = hasAccount && phoneOk && nameOk;
+  // Logado (com nome da conta) não precisa ver/editar contato - a identidade é a conta e o
+  // WhatsApp é opcional. Sem conta, mostra os campos (nome + WhatsApp opcional) que também
+  // pré-preenchem a criação de conta abaixo.
+  const hideContact = hasAccount && nameOk;
 
   // Primeiro nome pra saudar (da conta logada ou do que ele digitou).
   const firstName = (customerName || name).trim().split(/\s+/)[0] ?? '';
@@ -1683,7 +1685,7 @@ function StepConfirmar({
               htmlFor="booking-phone"
               className="text-ink-soft mb-1.5 block text-[12.5px] font-semibold"
             >
-              WhatsApp
+              WhatsApp <span className="text-sub font-normal">(opcional)</span>
             </label>
             <input
               id="booking-phone"
@@ -1699,7 +1701,7 @@ function StepConfirmar({
               className={FIELD_INPUT}
             />
             <p id="booking-phone-hint" className="text-sub mt-1.5 text-[11.5px]">
-              Pra confirmar pelo WhatsApp. Inclua o DDD.
+              Se quiser receber lembretes por lá. Inclua o DDD.
             </p>
           </div>
         </div>
@@ -1721,20 +1723,20 @@ function StepConfirmar({
         <div className="border-green/20 bg-accent space-y-3 rounded-2xl border p-4">
           <p className="text-foreground flex items-center gap-1.5 text-sm font-medium">
             <Sparkles className="text-green h-4 w-4 shrink-0" aria-hidden="true" />
-            Quer agilizar da próxima vez?
+            Crie sua conta pra confirmar
           </p>
           <ul className="text-sub space-y-1 text-xs">
             <li className="flex items-start gap-1.5">
               <CheckCircle2 className="text-green mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-              Não precisa digitar nome e WhatsApp toda vez
+              Recebe a confirmação por e-mail e na sua conta
             </li>
             <li className="flex items-start gap-1.5">
               <CheckCircle2 className="text-green mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-              Receba lembretes e confirmações no WhatsApp
+              Acompanha, remarca ou cancela quando quiser
             </li>
             <li className="flex items-start gap-1.5">
               <CheckCircle2 className="text-green mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-              Acompanhe, remarque ou cancele quando quiser
+              WhatsApp é opcional - só se quiser lembretes por lá
             </li>
           </ul>
           <Dialog open={signupOpen} onOpenChange={setSignupOpen}>
@@ -1764,7 +1766,13 @@ function StepConfirmar({
             </DialogContent>
           </Dialog>
           <p className="text-sub text-center text-[11px]">
-            É opcional - dá pra agendar sem conta.
+            Já tem conta?{' '}
+            <Link
+              href={`/login?next=/${slug}`}
+              className="text-coral font-semibold underline underline-offset-2"
+            >
+              Entrar
+            </Link>
           </p>
         </div>
       )}
@@ -1792,7 +1800,7 @@ function StepConfirmar({
 
         <ConfirmButton
           disabled={
-            !phoneOk ||
+            !hasAccount ||
             !nameOk ||
             lookingUp ||
             (isSeries && (previewLoading || chosenIsos.length < 2))
@@ -2472,13 +2480,6 @@ export function PublicBooking({
   // --- Transições explícitas --------------------------------------------------
 
   function handleSelectService(service: ServiceOption) {
-    // Conta-Google sem WhatsApp: captura o número uma vez ANTES de agendar, mas só ao
-    // iniciar o fluxo - a página do estabelecimento continua livre pra navegar. Volta pra
-    // cá pelo `next`. Espelha o gate do callback de login (contas antigas caem aqui).
-    if (loggedIn && !customerPhone) {
-      router.push(`/conta/whatsapp?next=/${slug}`);
-      return;
-    }
     setServiceId(service.id);
     // Troca de serviço pode mudar quem atende: volta pra "sem preferência".
     setProfessionalId('');
@@ -2514,10 +2515,10 @@ export function PublicBooking({
     setSelectedSlotIso(slot.startsAtIso);
   }
 
-  // Cliente logado com nome+telefone da conta já agenda direto pelo rodapé do
-  // horário (igual ao app mobile): não faz sentido pedir "Seus dados" de quem já
-  // tem conta. Visitante (ou logado sem contato completo) segue pro passo de dados.
-  const contactReady = name.trim().length >= 2 && phone.length >= 10;
+  // Cliente logado já agenda direto pelo rodapé do horário (igual ao app mobile): não faz
+  // sentido pedir "Seus dados" de quem já tem conta. O WhatsApp é opcional, então basta ter
+  // um nome (que vem da conta). Sem conta, segue pro passo de confirmar (entrar/criar conta).
+  const contactReady = name.trim().length >= 2;
   const canDirectConfirm = loggedIn && contactReady;
 
   /** Submete o agendamento direto (sem passar pelo passo "Seus dados"). */

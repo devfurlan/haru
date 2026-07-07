@@ -84,7 +84,9 @@ export class AsaasGateway implements PaymentGateway {
       body: JSON.stringify({
         name: input.customer.name,
         cpfCnpj: input.customer.cpfCnpj ?? undefined,
-        mobilePhone: toNationalPhone(input.customer.phoneE164),
+        mobilePhone: input.customer.phoneE164
+          ? toNationalPhone(input.customer.phoneE164)
+          : undefined,
         email: input.customer.email ?? undefined,
         externalReference: input.externalReference,
       }),

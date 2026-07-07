@@ -36,11 +36,12 @@ export async function GET(request: NextRequest) {
     redirect('/login?error=email-existente');
   }
 
-  // Google não informa telefone. Conta sem número (nem pendente) completa o WhatsApp
-  // uma vez antes de seguir - assim o agendamento nunca pede nome/WhatsApp de quem já
-  // está logado. Depois de salvar, a tela devolve pro `next`.
+  // Google não informa telefone. LOGO APÓS O CADASTRO (conta nova sem número), oferece
+  // uma vez o mini-onboarding pra adicionar o WhatsApp - é opcional e pulável (a própria
+  // tela tem "Pular por agora"). Nunca barra: quem pula segue normal, agenda sem WhatsApp
+  // (é confirmado por e-mail/app). Em logins recorrentes (created=false) não reempurra.
   const account = result.ok;
-  if (!account.phone && !account.pendingPhone) {
+  if (result.created && !account.phone && !account.pendingPhone) {
     redirect(`/conta/whatsapp?next=${encodeURIComponent(next)}`);
   }
 

@@ -21,7 +21,7 @@ export interface CalendarAppointment {
   durationMinutes: number;
   priceCents: number;
   contactName: string | null;
-  contactPhone: string;
+  contactPhone: string | null;
   seriesId: string | null;
 }
 

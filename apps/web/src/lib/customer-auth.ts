@@ -53,9 +53,11 @@ type OAuthUser = {
  */
 export async function ensureCustomerAccount(
   authUser: OAuthUser,
-): Promise<{ ok: CustomerAccount } | { error: 'email-taken' }> {
+): Promise<{ ok: CustomerAccount; created: boolean } | { error: 'email-taken' }> {
   const existing = await prisma.customerAccount.findUnique({ where: { authId: authUser.id } });
-  if (existing) return { ok: existing };
+  // `created` distingue cadastro (conta nova) de login recorrente: o onboarding de
+  // WhatsApp só é oferecido na criação, nunca a cada login.
+  if (existing) return { ok: existing, created: false };
 
   try {
     const account = await prisma.customerAccount.create({
@@ -67,7 +69,7 @@ export async function ensureCustomerAccount(
         termsVersion: TERMS_VERSION,
       },
     });
-    return { ok: account };
+    return { ok: account, created: true };
   } catch (err) {
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
       return { error: 'email-taken' };

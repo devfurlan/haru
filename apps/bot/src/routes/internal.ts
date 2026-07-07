@@ -104,6 +104,8 @@ async function sendManualMessage(conversationId: string, text: string): Promise<
 
   const phoneNumberId = conversation.tenant.whatsappPhoneNumberId;
   if (!phoneNumberId) return { delivered: false, reason: 'not_configured' };
+  // Contato sem WhatsApp (agendou logado, sem número): não há pra onde enviar.
+  if (!conversation.contact.phone) return { delivered: false, reason: 'not_configured' };
 
   try {
     await sendTextMessage(phoneNumberId, conversation.contact.phone, text);
@@ -142,6 +144,9 @@ async function notifyCustomerPaid(paymentId: string): Promise<void> {
   const { tenant, appointment } = payment;
   const phoneNumberId = tenant.whatsappPhoneNumberId;
   if (!phoneNumberId) return;
+  // Cliente sem WhatsApp: a confirmação de pagamento por WhatsApp não se aplica (ele
+  // acompanha pela web/app). Nada a enviar.
+  if (!appointment.contact.phone) return;
 
   // Conversation é única por contactId - resolve (ou cria) pra registrar o OUTBOUND
   // no histórico, igual aos outros fluxos do bot.

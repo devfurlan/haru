@@ -114,9 +114,11 @@ async function processReminders() {
       const when = formatWhen(appt.startsAt, tenant.timezone);
       const name = appt.contact.name ?? 'cliente';
 
-      // --- Lembrete por WhatsApp (só se o tenant tem número, o cliente não pediu
-      // pra sair e ainda não enviou) ---
+      // --- Lembrete por WhatsApp (só se o cliente tem número, o tenant tem número, o
+      // cliente não pediu pra sair e ainda não enviou). Cliente sem WhatsApp (agendou
+      // logado, sem número) recebe só por e-mail/push. ---
       if (
+        appt.contact.phone != null &&
         tenant.whatsappPhoneNumberId &&
         !whatsappBlocked &&
         appt.reminderSentAt == null &&

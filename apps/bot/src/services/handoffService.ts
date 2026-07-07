@@ -97,7 +97,8 @@ export async function initiateHandoff(params: {
   if (!alreadyActive) {
     await emailHandoffRequested(tenantId, {
       contactName: conv.contact.name,
-      contactPhone: conv.contact.phone,
+      // Handoff só existe em conversa de WhatsApp, então o contato sempre tem número.
+      contactPhone: conv.contact.phone ?? '',
       reason,
     }).catch((err) => console.error('[handoff] e-mail falhou', err));
   }

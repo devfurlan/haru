@@ -32,14 +32,16 @@ export async function POST(req: Request) {
   const email = typeof body?.email === 'string' ? body.email.trim() : '';
   const password = typeof body?.password === 'string' ? body.password : '';
   const name = typeof body?.name === 'string' ? body.name.trim() : '';
-  const phone = normalizePhoneBR(typeof body?.phone === 'string' ? body.phone : '');
+  // WhatsApp OPCIONAL (acessório): vazio entra como null; se informado, valida E.164.
+  const rawPhone = typeof body?.phone === 'string' ? body.phone.trim() : '';
+  const phone = rawPhone ? normalizePhoneBR(rawPhone) : '';
 
   if (!EMAIL_RE.test(email)) return Response.json({ error: 'Email inválido' }, { status: 400 });
   if (password.length < 8) {
     return Response.json({ error: 'Senha deve ter ao menos 8 caracteres' }, { status: 400 });
   }
   if (name.length < 2) return Response.json({ error: 'Informe seu nome' }, { status: 400 });
-  if (!PHONE_RE.test(phone)) {
+  if (phone && !PHONE_RE.test(phone)) {
     return Response.json({ error: 'Celular inválido - confira o DDD' }, { status: 400 });
   }
   if (body?.acceptTerms !== true) {
@@ -72,7 +74,7 @@ export async function POST(req: Request) {
         authId: data.user.id,
         email,
         name,
-        pendingPhone: phone,
+        pendingPhone: phone || null,
         termsAcceptedAt: new Date(),
         termsVersion: TERMS_VERSION,
       },

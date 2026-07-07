@@ -51,8 +51,12 @@ const customerSignUpSchema = z.object({
   email: z.string().email('Email inválido'),
   password: z.string().min(8, 'Senha deve ter ao menos 8 caracteres'),
   name: z.string().trim().min(2, 'Informe seu nome').max(80),
-  // Celular informado no cadastro - guardado como PENDENTE (sem verificação aqui).
-  phone: phoneE164Schema,
+  // Celular OPCIONAL no cadastro (WhatsApp é acessório). Vazio -> undefined; se informado,
+  // valida E.164 e é guardado como PENDENTE (sem verificação aqui).
+  phone: z.preprocess(
+    (v) => (typeof v === 'string' && v.trim() ? v : undefined),
+    phoneE164Schema.optional(),
+  ),
   acceptTerms: z.literal('on', {
     errorMap: () => ({ message: 'É preciso aceitar os Termos e a Política de Privacidade.' }),
   }),
@@ -90,7 +94,7 @@ export async function customerSignUp(
         authId: data.user.id,
         email,
         name,
-        pendingPhone: phone,
+        pendingPhone: phone ?? null,
         termsAcceptedAt: new Date(),
         termsVersion: TERMS_VERSION,
       },

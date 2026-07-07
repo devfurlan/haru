@@ -12,7 +12,7 @@ type AppointmentEventName =
 interface AppointmentEventData {
   tenant: { id: string; name: string; slug: string };
   appointment: { id: string; startsAt: string; endsAt: string; status: string };
-  contact: { name: string | null; phone: string };
+  contact: { name: string | null; phone: string | null };
   service: { name: string; durationMinutes: number; priceCents: number };
 }
 

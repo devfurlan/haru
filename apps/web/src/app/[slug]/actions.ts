@@ -182,13 +182,16 @@ const bookingSchema = z.object({
     .min(2, 'Informe seu nome')
     .max(80, 'Nome muito longo')
     .transform((v) => v.trim()),
+  // WhatsApp OPCIONAL: cliente logado agenda sem número (identidade vem da conta). Quando
+  // informado, normaliza pra E.164 (mesmo formato do banco/bot) pra casar com o que o bot
+  // grava e não duplicar o contato. '' = sem telefone.
   phone: z
     .string()
-    .min(8, 'Informe seu WhatsApp')
-    // Normaliza pra E.164 (mesmo formato do banco/bot) - o contato criado pelo site
-    // precisa casar com o que o bot grava, senão vira um cadastro duplicado.
-    .transform(normalizePhoneBR)
-    .refine((v) => /^55\d{10,11}$/.test(v), { message: 'WhatsApp inválido - confira o DDD' }),
+    .trim()
+    .transform((v) => (v ? normalizePhoneBR(v) : ''))
+    .refine((v) => v === '' || /^55\d{10,11}$/.test(v), {
+      message: 'WhatsApp inválido - confira o DDD',
+    }),
   // Recorrência (opcional). 'NONE'/ausente = agendamento avulso.
   frequency: z.enum(['NONE', 'WEEKLY', 'BIWEEKLY', 'MONTHLY']).default('NONE'),
   // Ocorrências escolhidas na prévia editável (ISO UTC, incluindo a 1ª). Vazio = avulso.
@@ -279,14 +282,21 @@ export async function createPublicBooking(
   }
   const professionalId = resolved.professionalId;
 
-  // Além do rate-limit por IP (acima), um mesmo telefone não acumula vários pedidos ativos
-  // no mesmo dia.
+  // Identidade do cliente: o WhatsApp é opcional, mas quem agenda SEM número precisa estar
+  // logado - o Contact passa a ser resolvido pela conta. A UI já garante isso; rede de segurança.
+  const account = await getCustomerAccount();
+  if (!phone && !account) {
+    return { error: 'Entre na sua conta pra agendar.' };
+  }
+
+  // Além do rate-limit por IP (acima), um mesmo cliente não acumula vários pedidos ativos
+  // no mesmo dia. Ancorado no telefone quando há; senão na conta logada.
   const sameDayStart = localWallTimeToUtc(dateStr, 0, tenant.timezone);
   const sameDayEnd = localWallTimeToUtc(dateStr, 24 * 60, tenant.timezone);
   const existingSameDay = await prisma.appointment.findFirst({
     where: {
       tenantId: tenant.id,
-      contact: { phone },
+      contact: phone ? { phone } : { customerAccountId: account!.id },
       status: { in: ['PENDING', 'CONFIRMED'] },
       startsAt: { gte: sameDayStart, lt: sameDayEnd },
     },
@@ -295,30 +305,62 @@ export async function createPublicBooking(
     return { error: 'Você já tem um agendamento ativo nesse dia. Fale conosco pra ajustar.' };
   }
 
-  // Upsert do contato preservando profileCompletedAt já existente (gate do bot).
-  const existing = await prisma.contact.findUnique({
-    where: { tenantId_phone: { tenantId: tenant.id, phone } },
-    select: { profileCompletedAt: true },
-  });
-  const contact = await prisma.contact.upsert({
-    where: { tenantId_phone: { tenantId: tenant.id, phone } },
-    update: { name, profileCompletedAt: existing?.profileCompletedAt ?? new Date() },
-    create: { tenantId: tenant.id, phone, name, profileCompletedAt: new Date() },
-  });
+  // Resolve o Contact (todo Appointment aponta pra um).
+  let contactId: string;
+  if (phone) {
+    // Com telefone: upsert por tenantId_phone (chave de dedup) preservando profileCompletedAt
+    // já existente (gate do bot).
+    const existing = await prisma.contact.findUnique({
+      where: { tenantId_phone: { tenantId: tenant.id, phone } },
+      select: { profileCompletedAt: true },
+    });
+    const contact = await prisma.contact.upsert({
+      where: { tenantId_phone: { tenantId: tenant.id, phone } },
+      update: { name, profileCompletedAt: existing?.profileCompletedAt ?? new Date() },
+      create: { tenantId: tenant.id, phone, name, profileCompletedAt: new Date() },
+    });
+    contactId = contact.id;
 
-  // Cliente logado agendando com o PRÓPRIO número: vincula este contato à conta pra ele ver
-  // o agendamento. Com o número já verificado (account.phone), reivindica até contato
-  // pré-existente (posse provada). Sem verificação (só pendingPhone, comum logo após o
-  // cadastro), só vincula se o contato nasceu neste booking (!existing) - aí não há
-  // histórico de terceiro sob esse número pra vazar, só o próprio agendamento.
-  const account = await getCustomerAccount();
-  if (account) {
-    const ownNumber = account.phone === phone || (!existing && account.pendingPhone === phone);
-    if (ownNumber) {
-      await prisma.contact.updateMany({
-        where: { id: contact.id, customerAccountId: null },
-        data: { customerAccountId: account.id },
+    // Cliente logado agendando com o PRÓPRIO número: vincula este contato à conta pra ele ver
+    // o agendamento. Com o número já verificado (account.phone), reivindica até contato
+    // pré-existente (posse provada). Sem verificação (só pendingPhone, comum logo após o
+    // cadastro), só vincula se o contato nasceu neste booking (!existing) - aí não há
+    // histórico de terceiro sob esse número pra vazar, só o próprio agendamento.
+    if (account) {
+      const ownNumber = account.phone === phone || (!existing && account.pendingPhone === phone);
+      if (ownNumber) {
+        await prisma.contact.updateMany({
+          where: { id: contact.id, customerAccountId: null },
+          data: { customerAccountId: account.id },
+        });
+      }
+    }
+  } else {
+    // Sem telefone: identidade é a conta. Reusa o Contact já ligado à conta neste tenant,
+    // senão cria um phoneless já vinculado.
+    // ponytail: find-or-create em app (não há unique (tenantId, customerAccountId)); corrida
+    // sob bookings concorrentes é coberta pelo same-day guard acima + rate-limit por IP.
+    const linked = await prisma.contact.findFirst({
+      where: { tenantId: tenant.id, customerAccountId: account!.id },
+      select: { id: true, profileCompletedAt: true },
+    });
+    if (linked) {
+      await prisma.contact.update({
+        where: { id: linked.id },
+        data: { name, profileCompletedAt: linked.profileCompletedAt ?? new Date() },
       });
+      contactId = linked.id;
+    } else {
+      const created = await prisma.contact.create({
+        data: {
+          tenantId: tenant.id,
+          phone: null,
+          name,
+          customerAccountId: account!.id,
+          profileCompletedAt: new Date(),
+        },
+      });
+      contactId = created.id;
     }
   }
 
@@ -354,7 +396,7 @@ export async function createPublicBooking(
     );
     const result = await createAppointmentSeries({
       tenantId: tenant.id,
-      contactId: contact.id,
+      contactId,
       serviceId: service.id,
       durationMinutes: service.durationMinutes,
       tz: tenant.timezone,
@@ -394,7 +436,7 @@ export async function createPublicBooking(
   // o webhook de criação).
   const created = await createBookingCore({
     tenantId: tenant.id,
-    contactId: contact.id,
+    contactId,
     serviceId: service.id,
     professionalId,
     startsAt,

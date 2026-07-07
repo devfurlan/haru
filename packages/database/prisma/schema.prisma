@@ -351,7 +351,10 @@ model Contact {
   id                 String           @id @default(cuid())
   tenantId           String
   tenant             Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  phone              String
+  /// Telefone E.164 (ex.: "5511912345678"). Opcional: cliente logado pode agendar sem
+  /// WhatsApp (identidade vem da CustomerAccount). Com telefone, é a chave de dedup do
+  /// contato por tenant (@@unique abaixo; múltiplos NULL são distintos no Postgres).
+  phone              String?
   name               String?
   email              String?
   /// CPF/CNPJ do cliente, só dígitos (ex.: "12345678909"). Coletado no pagamento
