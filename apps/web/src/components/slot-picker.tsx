@@ -403,6 +403,7 @@ export function SlotPicker({
             aria-label="Horários disponíveis"
           >
             {slots.map((slot) => {
+              const busy = slot.available === false;
               const isSelected = slot.startsAtIso === value;
               return (
                 <Button
@@ -410,7 +411,9 @@ export function SlotPicker({
                   type="button"
                   variant={isSelected ? 'default' : 'outline'}
                   size="sm"
+                  disabled={busy}
                   aria-pressed={isSelected}
+                  className={busy ? 'text-muted-foreground/60 line-through' : undefined}
                   onClick={() => onChange(slot.startsAtIso)}
                 >
                   {slot.label}
