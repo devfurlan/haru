@@ -12,7 +12,17 @@ import { prisma } from '@haru/database';
 const RESEND_URL = 'https://api.resend.com/emails';
 
 export function appUrl(): string {
-  return (process.env.APP_URL ?? 'https://demandae.app').replace(/\/$/, '');
+  return (process.env.APP_URL ?? 'https://www.demandae.com').replace(/\/$/, '');
+}
+
+/**
+ * Logo Demandaê (PNG transparente hospedado em /public) para o cabeçalho dos e-mails.
+ * SVG inline não renderiza em Gmail/Outlook - por isso PNG por <img> com URL absoluta.
+ * Depende de APP_URL apontar pro domínio publicado (mesmo requisito dos links de CTA).
+ */
+export function emailLogo(width = 168): string {
+  const height = Math.round((width * 327) / 2271); // proporção do PNG (2271x327)
+  return `<img src="${appUrl()}/logo-email.png" width="${width}" height="${height}" alt="Demandaê" style="display:block;border:0;outline:none;text-decoration:none;-ms-interpolation-mode:bicubic;" />`;
 }
 
 /** Anexo Resend: `content` em base64. Ex.: convite .ics de "adicionar à agenda". */
@@ -75,6 +85,7 @@ export async function ownerOf(
 export function emailShell(title: string, body: string, cta: string, link: string): string {
   return `
     <div style="font-family:system-ui,sans-serif;max-width:520px;margin:0 auto;color:#1a1a1a">
+      <div style="margin:0 0 20px">${emailLogo(150)}</div>
       <h2 style="font-size:18px">${title}</h2>
       <p style="font-size:14px;line-height:1.6">${body}</p>
       <p style="margin:24px 0">
@@ -104,7 +115,7 @@ export function brandedShell(title: string, body: string, cta: string, link: str
       <tr><td align="center" style="padding:32px 16px;">
         <table role="presentation" width="520" cellpadding="0" cellspacing="0" style="width:520px;max-width:100%;background:#ffffff;border:1px solid #ece3d3;border-top:3px solid #ff5a36;border-radius:16px;">
           <tr><td style="padding:28px 36px 0;">
-            <span style="font-family:${BRAND_SERIF};font-weight:900;font-size:22px;letter-spacing:-0.02em;color:#0f1f18;">Demanda<span style="color:#ff5a36;">ê</span></span><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#ff5a36;margin-left:5px;"></span>
+            ${emailLogo()}
           </td></tr>
           <tr><td style="padding:22px 36px 0;">
             <h1 style="margin:0;font-family:${BRAND_SERIF};font-weight:800;font-size:21px;line-height:1.3;color:#0f1f18;">${title}</h1>

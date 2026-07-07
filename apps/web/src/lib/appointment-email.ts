@@ -2,7 +2,7 @@ import 'server-only';
 
 import { prisma } from '@haru/database';
 
-import { appUrl, emailShell, ownerOf, sendEmail } from '@/lib/email';
+import { appUrl, emailLogo, emailShell, ownerOf, sendEmail } from '@/lib/email';
 import { buildIcs, formatPhoneBR, googleCalendarUrl, type CalendarEvent } from '@haru/shared';
 
 /**
@@ -149,7 +149,7 @@ function brandedOwnerEmail(args: {
       <tr><td align="center" style="padding:32px 16px;">
         <table role="presentation" width="520" cellpadding="0" cellspacing="0" style="width:520px;max-width:100%;background:#ffffff;border:1px solid #ece3d3;border-top:3px solid #ff5a36;border-radius:16px;">
           <tr><td style="padding:28px 36px 0;">
-            <span style="font-family:${SERIF};font-weight:900;font-size:22px;letter-spacing:-0.02em;color:#0f1f18;">Demanda<span style="color:#ff5a36;">ê</span></span><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#ff5a36;margin-left:5px;"></span>
+            ${emailLogo()}
           </td></tr>
           <tr><td style="padding:22px 36px 0;">
             <h1 style="margin:0;font-family:${SERIF};font-weight:800;font-size:21px;line-height:1.3;color:#0f1f18;">${args.title}</h1>
