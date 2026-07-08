@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/dialog';
 
 interface RouteModalProps {
-  title: string;
+  title: React.ReactNode;
   description?: React.ReactNode;
   children: React.ReactNode;
 }

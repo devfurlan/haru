@@ -49,7 +49,9 @@ export default async function NewAppointmentPage() {
         >
           ← Agendamentos
         </Link>
-        <h1 className="mt-2 font-serif text-2xl font-semibold tracking-tight">Novo agendamento</h1>
+        <h1 className="mt-2 font-serif text-2xl font-semibold tracking-tight">
+          Novo <em className="text-green-emph">agendamento</em>
+        </h1>
         <p className="text-muted-foreground text-sm">
           Encaixe ou walk-in. Aparece no histórico do cliente quando ele mandar mensagem depois.
         </p>

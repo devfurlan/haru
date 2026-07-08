@@ -9,9 +9,9 @@ export const STATUS_LABEL: Record<AppointmentStatus, string> = {
 };
 
 export const STATUS_STYLE: Record<AppointmentStatus, string> = {
-  PENDING: 'bg-amber-100 text-amber-900',
-  CONFIRMED: 'bg-blue-100 text-blue-900',
-  CANCELED: 'bg-zinc-100 text-zinc-600 line-through',
-  COMPLETED: 'bg-green-100 text-green-900',
-  NO_SHOW: 'bg-rose-100 text-rose-900',
+  PENDING: 'bg-coral-tint text-coral-deep',
+  CONFIRMED: 'bg-chip text-green-emph',
+  CANCELED: 'bg-cream-2 text-ink-30 line-through',
+  COMPLETED: 'bg-cream-2 text-ink-70',
+  NO_SHOW: 'bg-coral-tint text-coral-deep',
 };

@@ -6,9 +6,13 @@ import { useFormStatus } from 'react-dom';
 
 import { SlotPicker } from '@/components/slot-picker';
 import { Button } from '@/components/ui/button';
+import { Chip } from '@/components/ui/chip';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RECURRENCE_OCCURRENCE_OPTIONS, type RecurrenceFrequency } from '@/lib/recurrence';
+
+const SELECT_CLS =
+  'flex h-11 w-full rounded-xl border border-edge bg-cream px-3.5 text-sm text-ink outline-none focus:border-green-deep';
 
 import {
   createManualAppointment,
@@ -63,8 +67,8 @@ function formatDuration(minutes: number): string {
 function SubmitButton({ disabled }: { disabled: boolean }) {
   const { pending } = useFormStatus();
   return (
-    <Button type="submit" disabled={pending || disabled}>
-      {pending ? 'Criando…' : 'Criar agendamento'}
+    <Button type="submit" variant="coral" className="w-full" disabled={pending || disabled}>
+      {pending ? 'Criando…' : 'Confirmar agendamento'}
     </Button>
   );
 }
@@ -117,13 +121,13 @@ export function NewAppointmentForm({
     );
     return (
       <div className="space-y-4">
-        <div className="rounded-lg border border-green-200 bg-green-50 p-4 text-sm dark:border-green-900 dark:bg-green-950">
-          <p className="font-medium text-green-800 dark:text-green-300">
+        <div className="rounded-2xl border border-green-bright/40 bg-chip p-4 text-sm text-ink">
+          <p className="font-semibold text-green-emph">
             Série criada: {state.createdCount}{' '}
             {state.createdCount === 1 ? 'agendamento' : 'agendamentos'}.
           </p>
           {skippedFmt.length > 0 && (
-            <div className="mt-2 text-green-800/80 dark:text-green-300/80">
+            <div className="mt-2 text-ink-70">
               <p>Pulamos {skippedFmt.length} por horário ocupado ou fora do expediente:</p>
               <ul className="mt-1 list-inside list-disc">
                 {skippedFmt.map((d, i) => (
@@ -133,7 +137,7 @@ export function NewAppointmentForm({
             </div>
           )}
           {state.beyondHorizon > 0 && (
-            <p className="mt-2 text-green-800/80 dark:text-green-300/80">
+            <p className="mt-2 text-ink-70">
               {state.beyondHorizon}{' '}
               {state.beyondHorizon === 1 ? 'ocorrência ficou' : 'ocorrências ficaram'} além do
               limite de 90 dias e não {state.beyondHorizon === 1 ? 'foi' : 'foram'} criada
@@ -141,7 +145,7 @@ export function NewAppointmentForm({
             </p>
           )}
         </div>
-        <Button asChild>
+        <Button asChild variant="coral">
           <Link href="/appointments">Ver agenda</Link>
         </Button>
       </div>
@@ -176,7 +180,7 @@ export function NewAppointmentForm({
           id="serviceId"
           name="serviceId"
           required
-          className="border-input focus-visible:ring-ring flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1"
+          className={SELECT_CLS}
           value={serviceId}
           onChange={(e) => {
             setServiceId(e.target.value);
@@ -201,7 +205,7 @@ export function NewAppointmentForm({
           <select
             id="professionalId"
             name="professionalId"
-            className="border-input focus-visible:ring-ring flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1"
+            className={SELECT_CLS}
             value={professionalId}
             onChange={(e) => setProfessionalId(e.target.value)}
           >
@@ -286,16 +290,14 @@ export function NewAppointmentForm({
           <Label>Repetição</Label>
           <div className="flex flex-wrap gap-2" role="group" aria-label="Repetição">
             {FREQUENCY_ORDER.map((f) => (
-              <Button
+              <Chip
                 key={f}
                 type="button"
-                variant={frequency === f ? 'default' : 'outline'}
-                size="sm"
-                aria-pressed={frequency === f}
+                selected={frequency === f}
                 onClick={() => setFrequency(f)}
               >
                 {FREQUENCY_LABELS[f]}
-              </Button>
+              </Chip>
             ))}
           </div>
           <input type="hidden" name="frequency" value={frequency} />
@@ -305,16 +307,14 @@ export function NewAppointmentForm({
               <Label>Quantas vezes</Label>
               <div className="flex flex-wrap gap-2" role="group" aria-label="Número de ocorrências">
                 {RECURRENCE_OCCURRENCE_OPTIONS.map((n) => (
-                  <Button
+                  <Chip
                     key={n}
                     type="button"
-                    variant={occurrences === n ? 'default' : 'outline'}
-                    size="sm"
-                    aria-pressed={occurrences === n}
+                    selected={occurrences === n}
                     onClick={() => setOccurrences(n)}
                   >
                     {n}×
-                  </Button>
+                  </Chip>
                 ))}
               </div>
               <input type="hidden" name="occurrences" value={occurrences} />

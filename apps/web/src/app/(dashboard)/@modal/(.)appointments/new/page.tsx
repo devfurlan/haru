@@ -84,7 +84,14 @@ async function NewAppointmentBody() {
 
 export default function NewAppointmentModal() {
   return (
-    <RouteModal title="Novo agendamento" description="Encaixe ou walk-in.">
+    <RouteModal
+      title={
+        <>
+          Novo <em className="text-green-emph">agendamento</em>
+        </>
+      }
+      description="Encaixe ou walk-in."
+    >
       <Suspense fallback={<FormSkeleton />}>
         <NewAppointmentBody />
       </Suspense>

@@ -4,11 +4,14 @@ import { useActionState, useEffect, useState } from 'react';
 import { useFormStatus } from 'react-dom';
 
 import { Button } from '@/components/ui/button';
+import { Chip } from '@/components/ui/chip';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
 import { createScheduleException, type CreateScheduleExceptionResult } from './actions';
+
+const REASON_SUGGESTIONS = ['Almoço', 'Médico', 'Compromisso', 'Folga', 'Férias'];
 
 interface BlockTimeDialogProps {
   open: boolean;
@@ -22,8 +25,8 @@ interface BlockTimeDialogProps {
 function SubmitButton() {
   const { pending } = useFormStatus();
   return (
-    <Button type="submit" disabled={pending}>
-      {pending ? 'Bloqueando…' : 'Bloquear'}
+    <Button type="submit" variant="coral" disabled={pending}>
+      {pending ? 'Bloqueando…' : 'Bloquear horário'}
     </Button>
   );
 }
@@ -36,6 +39,7 @@ export function BlockTimeDialog({ open, defaultDate, onClose, onCreated }: Block
 
   const [allDay, setAllDay] = useState(false);
   const [multiDay, setMultiDay] = useState(false);
+  const [reason, setReason] = useState('');
 
   // Fecha quando a ação retorna sucesso.
   useEffect(() => {
@@ -53,9 +57,11 @@ export function BlockTimeDialog({ open, defaultDate, onClose, onCreated }: Block
     >
       <DialogContent dismissable={false}>
         <DialogHeader>
-          <DialogTitle className="text-xl">Bloquear horário</DialogTitle>
+          <DialogTitle className="text-xl">
+            Bloquear um <em className="text-green-emph">horário</em>
+          </DialogTitle>
           <p className="text-muted-foreground text-sm">
-            Reserve um período da sua agenda. Os clientes não conseguem agendar nesses horários.
+            Almoço, compromisso, folga - o horário some das opções do cliente na hora.
           </p>
         </DialogHeader>
 
@@ -118,9 +124,30 @@ export function BlockTimeDialog({ open, defaultDate, onClose, onCreated }: Block
             </div>
           )}
 
-          <div className="space-y-1.5">
-            <Label htmlFor="reason">Motivo (opcional)</Label>
-            <Input id="reason" name="reason" maxLength={120} placeholder="Ex.: Médico, Férias" />
+          <div className="space-y-2">
+            <Label htmlFor="reason">
+              Motivo <span className="font-medium text-ink-30">· opcional, só você vê</span>
+            </Label>
+            <div className="flex flex-wrap gap-2">
+              {REASON_SUGGESTIONS.map((r) => (
+                <Chip
+                  key={r}
+                  type="button"
+                  selected={reason === r}
+                  onClick={() => setReason((cur) => (cur === r ? '' : r))}
+                >
+                  {r}
+                </Chip>
+              ))}
+            </div>
+            <Input
+              id="reason"
+              name="reason"
+              maxLength={120}
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="Ou escreva um motivo"
+            />
           </div>
 
           {state && 'error' in state && state.error && (
