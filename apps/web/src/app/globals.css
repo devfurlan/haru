@@ -25,6 +25,40 @@
   --brand-sub: #7c8a80;
   --brand-line: #f0e8d4;
   --brand-edge: #e2d9c4;
+  /* Neutros/tons do protótipo Claude Design (Painel do Dono) que faltavam:
+     texto secundário forte, placeholder, verde de ênfase itálica, coral escuro
+     (texto de "pendente"), poços tonais e foregrounds sobre esmeralda. */
+  --brand-ink-70: #42544a;
+  --brand-ink-30: #9aa89e;
+  --brand-green-emph: #1b7a4b;
+  --brand-coral-deep: #c2401f;
+  --brand-coral-tint: #ffeee9;
+  --brand-on-emerald-mut: #8fbfa4;
+  --brand-on-emerald-faint: #6f9a83;
+
+  /* Aliases com os nomes curtos do design system Demandaê (protótipo). Permitem
+     colar markup do protótipo quase 1:1. NÃO aliasamos `--border`: no DS ele é a
+     hairline creme (#e2d9c4 = --brand-edge), mas aqui `--border` já é o token
+     shadcn (rgba ink 12%). Para a hairline creme use --brand-edge / `border-edge`. */
+  --cream: var(--brand-cream);
+  --paper: var(--brand-paper);
+  --ink: var(--brand-ink);
+  --ink-70: var(--brand-ink-70);
+  --ink-50: var(--brand-sub);
+  --ink-30: var(--brand-ink-30);
+  --emerald: var(--brand-green-deep);
+  --green: var(--brand-green-bright);
+  --green-tint: var(--brand-chip);
+  --green-emph: var(--brand-green-emph);
+  --coral: var(--brand-coral);
+  --coral-tint: var(--brand-coral-tint);
+  --coral-deep: var(--brand-coral-deep);
+  --border-soft: var(--brand-line);
+  --border-strong: var(--brand-green-deep);
+  --on-emerald: var(--brand-cream);
+  --on-emerald-mut: var(--brand-on-emerald-mut);
+  --on-emerald-faint: var(--brand-on-emerald-faint);
+  --surface-emerald-card: var(--brand-green-card);
 
   /* Tokens semânticos (shadcn) mapeados na marca */
   --background: var(--brand-cream);
@@ -91,6 +125,14 @@
   --color-sub: var(--brand-sub);
   --color-line: var(--brand-line);
   --color-edge: var(--brand-edge);
+  /* Novos tokens do redesenho (Painel do Dono) expostos como utilities. */
+  --color-ink-70: var(--brand-ink-70);
+  --color-ink-30: var(--brand-ink-30);
+  --color-green-emph: var(--brand-green-emph);
+  --color-coral-deep: var(--brand-coral-deep);
+  --color-coral-tint: var(--brand-coral-tint);
+  --color-on-emerald-mut: var(--brand-on-emerald-mut);
+  --color-on-emerald-faint: var(--brand-on-emerald-faint);
 
   --font-sans: var(--font-hanken), ui-sans-serif, system-ui, sans-serif;
   --font-serif: var(--font-fraunces), ui-serif, Georgia, 'Times New Roman', serif;
