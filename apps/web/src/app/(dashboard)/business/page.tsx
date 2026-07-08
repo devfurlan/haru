@@ -1,28 +1,7 @@
-import { requireUserAndTenant } from '@/lib/auth';
+import { redirect } from 'next/navigation';
 
-import { TenantCard } from './tenant-card';
-
-export default async function BusinessPage() {
-  const { tenant } = await requireUserAndTenant();
-
-  return (
-    <div className="mx-auto max-w-2xl space-y-6">
-      <div>
-        <h1 className="font-serif text-2xl font-semibold tracking-tight">Estabelecimento</h1>
-        <p className="text-muted-foreground text-sm">
-          Logo, nome, endereço e a URL pública que seus clientes acessam.
-        </p>
-      </div>
-
-      <TenantCard
-        name={tenant.name}
-        slug={tenant.slug}
-        address={tenant.address}
-        description={tenant.description}
-        whatsappAbout={tenant.whatsappAbout}
-        email={tenant.email}
-        logoUrl={tenant.logoUrl}
-      />
-    </div>
-  );
+// O editor do estabelecimento foi absorvido pela Página pública (/page) no redesign.
+// Mantido como redirect para não quebrar links/bookmarks antigos de /business.
+export default function BusinessPage() {
+  redirect('/page');
 }

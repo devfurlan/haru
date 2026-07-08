@@ -43,6 +43,8 @@ const RESERVED_SLUGS = new Set([
   'settings',
   'account',
   'business',
+  'page',
+  'team',
   'blog',
   'api',
   'admin',
@@ -87,7 +89,38 @@ const tenantSchema = z.object({
     .or(z.literal(''))
     .optional()
     .transform((v) => (v && v.trim() ? v.trim() : null)),
+  // Vitrine (Página pública). segment/about/instagram são opcionais; amenities é
+  // tratado à parte (multi-valor) em updateTenant.
+  segment: z
+    .string()
+    .max(40, 'Segmento muito longo')
+    .optional()
+    .transform((v) => (v && v.trim() ? v.trim() : null)),
+  about: z
+    .string()
+    .max(1200, 'Texto muito longo')
+    .optional()
+    .transform((v) => (v && v.trim() ? v.trim() : null)),
+  instagram: z
+    .string()
+    .max(60, 'Handle muito longo')
+    .optional()
+    .transform((v) => {
+      const s = (v ?? '').trim().replace(/^@+/, '');
+      return s ? s : null;
+    }),
 });
+
+// Chaves de comodidade aceitas na vitrine (espelham os chips do editor de /page).
+const ALLOWED_AMENITIES = new Set([
+  'estacionamento',
+  'wifi',
+  'acessivel',
+  'pix_cartao',
+  'ar',
+  'cafe',
+  'kids',
+]);
 
 // lat/lng chegam de inputs hidden (client, forjáveis): só aceita números finitos e
 // dentro do território brasileiro. Fora disso -> null, cai no fallback de geocode.
@@ -110,39 +143,64 @@ export async function updateTenant(
 ): Promise<TenantActionResult> {
   const { tenant } = await requireUserAndTenant();
 
+  // null -> undefined nos opcionais: formData.get devolve null p/ campo ausente, e
+  // `.optional()` do zod só aceita undefined (não null). Guardamos a ESCRITA por
+  // formData.has abaixo (uma tela que não renderiza um campo não deve zerá-lo).
   const parsed = tenantSchema.safeParse({
     name: formData.get('name'),
     slug: formData.get('slug'),
-    address: formData.get('address'),
-    description: formData.get('description'),
-    whatsappAbout: formData.get('whatsappAbout'),
-    email: formData.get('email'),
+    address: formData.get('address') ?? undefined,
+    description: formData.get('description') ?? undefined,
+    whatsappAbout: formData.get('whatsappAbout') ?? undefined,
+    email: formData.get('email') ?? undefined,
+    segment: formData.get('segment') ?? undefined,
+    about: formData.get('about') ?? undefined,
+    instagram: formData.get('instagram') ?? undefined,
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? 'Dados inválidos' };
   }
 
-  // Coords p/ alimentar a busca por proximidade no app. Quando o dono escolhe uma
-  // sugestão do autocomplete (Photon), lat/lng vêm no form e são usados direto. Se ele
-  // digita à mão (sem coords no form) e o texto mudou, geocodifica via Nominatim como
-  // fallback. Endereço vazio zera; inalterado sem coords novas mantém as atuais.
-  const picked = validCoords(formData.get('latitude'), formData.get('longitude'));
-  let geo: { latitude: number | null; longitude: number | null } | undefined;
-  if (parsed.data.address == null) {
-    geo = { latitude: null, longitude: null };
-  } else if (picked) {
-    geo = { latitude: picked.lat, longitude: picked.lng };
-  } else if (parsed.data.address !== tenant.address) {
-    const g = await geocodeAddress(parsed.data.address);
-    geo = { latitude: g?.lat ?? null, longitude: g?.lng ?? null };
+  const data: Prisma.TenantUpdateInput = {
+    name: parsed.data.name,
+    slug: parsed.data.slug,
+  };
+
+  // Endereço + coords p/ a busca por proximidade no app. Só mexe se o form trouxe
+  // o campo. Sugestão do autocomplete (Photon) traz lat/lng prontos; digitação à
+  // mão que mudou o texto cai no fallback Nominatim; endereço vazio zera as coords.
+  if (formData.has('address')) {
+    data.address = parsed.data.address;
+    const picked = validCoords(formData.get('latitude'), formData.get('longitude'));
+    if (parsed.data.address == null) {
+      data.latitude = null;
+      data.longitude = null;
+    } else if (picked) {
+      data.latitude = picked.lat;
+      data.longitude = picked.lng;
+    } else if (parsed.data.address !== tenant.address) {
+      const g = await geocodeAddress(parsed.data.address);
+      data.latitude = g?.lat ?? null;
+      data.longitude = g?.lng ?? null;
+    }
+  }
+  if (formData.has('description')) data.description = parsed.data.description;
+  if (formData.has('email')) data.email = parsed.data.email;
+  if (formData.has('whatsappAbout')) data.whatsappAbout = parsed.data.whatsappAbout;
+  if (formData.has('segment')) data.segment = parsed.data.segment;
+  if (formData.has('about')) data.about = parsed.data.about;
+  if (formData.has('instagram')) data.instagram = parsed.data.instagram;
+  // Marcador dedicado: com nenhuma comodidade marcada, getAll é vazio e não dá pra
+  // distinguir "form sem o campo" de "nada selecionado". O editor envia amenitiesPresent=1.
+  if (formData.has('amenitiesPresent')) {
+    data.amenities = [
+      ...new Set(formData.getAll('amenities').map(String).filter((a) => ALLOWED_AMENITIES.has(a))),
+    ];
   }
 
   let updated;
   try {
-    updated = await prisma.tenant.update({
-      where: { id: tenant.id },
-      data: { ...parsed.data, ...geo },
-    });
+    updated = await prisma.tenant.update({ where: { id: tenant.id }, data });
   } catch (err) {
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
       return { error: 'Esse slug já está em uso por outro estabelecimento' };
@@ -156,9 +214,9 @@ export async function updateTenant(
   // antes da request encerrar (serverless corta promises soltas).
   await syncWhatsappProfile(updated, `${await getBaseUrl()}/${updated.slug}`);
 
-  // Slug mudou? Revalida a página pública também. O nome aparece na sidebar
-  // (layout do dashboard), então revalida o layout inteiro.
-  revalidatePath('/business');
+  // O nome aparece na sidebar (layout do dashboard); revalida o layout inteiro e a
+  // página pública (slug pode ter mudado).
+  revalidatePath('/page');
   revalidatePath('/', 'layout');
   revalidatePath(`/${parsed.data.slug}`);
   return { ok: true };
@@ -247,7 +305,7 @@ export async function uploadTenantLogo(formData: FormData): Promise<LogoUploadRe
   }
 
   // A logo aparece na sidebar (layout do dashboard) e na página pública.
-  revalidatePath('/business');
+  revalidatePath('/page');
   revalidatePath('/', 'layout');
   revalidatePath(`/${tenant.slug}`);
   return { ok: true, logoUrl };
@@ -275,7 +333,7 @@ export async function removeTenantLogo(): Promise<TenantActionResult> {
   });
 
   // A logo aparece na sidebar (layout do dashboard) e na página pública.
-  revalidatePath('/business');
+  revalidatePath('/page');
   revalidatePath('/', 'layout');
   revalidatePath(`/${tenant.slug}`);
   return { ok: true };
@@ -831,6 +889,8 @@ export async function updatePublicBooking(
   });
 
   revalidatePath('/settings');
+  revalidatePath('/page');
+  revalidatePath('/', 'layout'); // status "No ar" na sidebar depende disto
   revalidatePath(`/${tenant.slug}`);
   return { ok: true };
 }
