@@ -135,7 +135,7 @@ export function NotificationsCard(props: NotificationsCardProps) {
                 name="handoffEmailEnabled"
                 type="checkbox"
                 defaultChecked={props.handoffEmailEnabled}
-                className="border-input mt-0.5 size-4 shrink-0 rounded"
+                className="border-input mt-0.5 size-4 shrink-0 rounded accent-green-deep"
               />
               <span className="space-y-1">
                 <span className="block text-sm font-medium">
@@ -156,7 +156,7 @@ export function NotificationsCard(props: NotificationsCardProps) {
                 name="ownerAppointmentEmailsEnabled"
                 type="checkbox"
                 defaultChecked={props.ownerAppointmentEmailsEnabled}
-                className="border-input mt-0.5 size-4 shrink-0 rounded"
+                className="border-input mt-0.5 size-4 shrink-0 rounded accent-green-deep"
               />
               <span className="space-y-1">
                 <span className="block text-sm font-medium">Aviso por e-mail de agendamentos</span>
@@ -174,7 +174,7 @@ export function NotificationsCard(props: NotificationsCardProps) {
                 name="ownerWhatsappAlertsEnabled"
                 type="checkbox"
                 defaultChecked={props.ownerWhatsappAlertsEnabled}
-                className="border-input mt-0.5 size-4 shrink-0 rounded"
+                className="border-input mt-0.5 size-4 shrink-0 rounded accent-green-deep"
               />
               <span className="space-y-1">
                 <span className="block text-sm font-medium">

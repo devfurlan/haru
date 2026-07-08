@@ -1,64 +1,25 @@
-import { prisma } from '@haru/database';
-
 import { requireAdmin } from '@/lib/auth';
 import { getBaseUrl } from '@/lib/base-url';
 
 import { NotificationsCard } from './notifications-card';
 import { PaymentsCard } from './payments-card';
 import { PlanCard } from './plan-card';
-import { PublicBookingCard } from './public-booking-card';
 import { TimezoneCard } from './timezone-card';
-import { UsersCard, type UserRow } from './users-card';
 
 export default async function SettingsPage() {
-  const { id: currentUserId, tenant } = await requireAdmin();
+  const { tenant } = await requireAdmin();
   const webhookBaseUrl = await getBaseUrl();
 
-  const users = await prisma.user.findMany({
-    where: { tenantId: tenant.id },
-    orderBy: [{ role: 'asc' }, { createdAt: 'asc' }],
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      phone: true,
-      role: true,
-      status: true,
-      isProfessional: true,
-      avatarUrl: true,
-    },
-  });
-
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className="mx-auto flex w-full max-w-[720px] flex-col gap-4">
       <div>
-        <h1 className="font-serif text-2xl font-semibold tracking-tight">Configurações</h1>
-        <p className="text-muted-foreground text-sm">Usuários, integrações e notificações.</p>
+        <h1 className="font-serif text-[28px] tracking-tight text-ink">Configurações</h1>
+        <p className="mt-1 text-sm text-ink-50">
+          Plano, avisos e integrações. Equipe e página pública agora têm telas próprias.
+        </p>
       </div>
 
       <PlanCard tenant={tenant} />
-
-      <UsersCard users={users as UserRow[]} currentUserId={currentUserId} />
-
-      <PublicBookingCard
-        slug={tenant.slug}
-        publicBookingEnabled={tenant.publicBookingEnabled}
-        publicBookingConfirmation={tenant.publicBookingConfirmation}
-      />
-
-      <TimezoneCard timezone={tenant.timezone} />
-
-      <PaymentsCard
-        provider={tenant.paymentProvider}
-        sandbox={tenant.paymentSandbox}
-        hasCredential={Boolean(
-          tenant.paymentAsaasApiKeyEnc ||
-          tenant.paymentMercadoPagoTokenEnc ||
-          tenant.paymentPagBankTokenEnc ||
-          tenant.paymentPagarmeApiKeyEnc,
-        )}
-        webhookBaseUrl={webhookBaseUrl}
-      />
 
       <NotificationsCard
         notificationWebhookUrl={tenant.notificationWebhookUrl}
@@ -73,6 +34,38 @@ export default async function SettingsPage() {
         rescheduleTemplateName={tenant.rescheduleTemplateName}
         rescheduleTemplateLanguage={tenant.rescheduleTemplateLanguage}
       />
+
+      <PaymentsCard
+        provider={tenant.paymentProvider}
+        sandbox={tenant.paymentSandbox}
+        hasCredential={Boolean(
+          tenant.paymentAsaasApiKeyEnc ||
+            tenant.paymentMercadoPagoTokenEnc ||
+            tenant.paymentPagBankTokenEnc ||
+            tenant.paymentPagarmeApiKeyEnc,
+        )}
+        webhookBaseUrl={webhookBaseUrl}
+      />
+
+      <div
+        className="flex flex-wrap items-center gap-3.5 rounded-2xl p-[18px] text-on-emerald"
+        style={{
+          background:
+            'radial-gradient(420px 220px at 15% -20%, rgba(47,211,122,.14), transparent 60%), var(--emerald)',
+        }}
+      >
+        <div className="min-w-[220px] flex-1">
+          <div className="font-serif text-[17px]">
+            Precisa de uma <em className="text-green-bright">mão</em>?
+          </div>
+          <p className="mt-1 text-[12.5px] leading-relaxed text-on-emerald-mut">
+            Suporte de gente de verdade, em português - quem responde é o fundador. Use o balão de
+            suporte no canto da tela, sem robô e sem fila.
+          </p>
+        </div>
+      </div>
+
+      <TimezoneCard timezone={tenant.timezone} />
     </div>
   );
 }
