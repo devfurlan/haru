@@ -181,7 +181,7 @@ export function ScheduleEditor({ professionals }: ScheduleEditorProps) {
                           value={range.start}
                           step={300}
                           onChange={(e) => updateRange(day.value, index, 'start', e.target.value)}
-                          className="w-[78px] bg-transparent text-center outline-none"
+                          className="w-[62px] bg-transparent text-center outline-none [&::-webkit-calendar-picker-indicator]:hidden"
                         />
                         <span className="text-ink-30">–</span>
                         <input
@@ -189,7 +189,7 @@ export function ScheduleEditor({ professionals }: ScheduleEditorProps) {
                           value={range.end}
                           step={300}
                           onChange={(e) => updateRange(day.value, index, 'end', e.target.value)}
-                          className="w-[78px] bg-transparent text-center outline-none"
+                          className="w-[62px] bg-transparent text-center outline-none [&::-webkit-calendar-picker-indicator]:hidden"
                         />
                         <button
                           type="button"

@@ -11,14 +11,14 @@ const badgeVariants = cva(
       // dark:, senão a variante segue prefers-color-scheme do SO e quebra o
       // contraste sobre o card creme claro.
       variant: {
-        // Papel "Administrador" (OWNER)
-        admin: 'bg-violet-200 text-violet-900 ring-violet-300',
-        // Papel "Equipe" (STAFF) - neutro de propósito
-        neutral: 'bg-slate-200 text-slate-800 ring-slate-300',
+        // Papel "Administrador" (OWNER) - esmeralda preenchido (como no protótipo)
+        admin: 'bg-green-deep text-cream ring-green-deep',
+        // Papel "Equipe" (STAFF) - creme neutro
+        neutral: 'bg-cream-2 text-ink-70 ring-edge',
         // Status "Ativo"
-        success: 'bg-emerald-200 text-emerald-900 ring-emerald-300',
-        // Status "Convite pendente"
-        pending: 'bg-amber-200 text-amber-900 ring-amber-400',
+        success: 'bg-chip text-green-emph ring-green-bright/30',
+        // Status "Convite pendente" - âmbar quente
+        pending: 'bg-[#fdf0d5] text-[#8a6116] ring-[#f0dca8]',
       },
     },
     defaultVariants: { variant: 'neutral' },
