@@ -120,7 +120,9 @@ function NextAppointmentCard({ item }: { item: CustomerAppointmentItem }) {
   );
 }
 
-// Bloco de capa reusável (imagem ou fallback com a logo/inicial).
+// Bloco de capa reusável: usa a capa da vitrine; sem ela, a logo preenche a caixa
+// (object-cover); sem imagem nenhuma, bloco esmeralda com a inicial. Evita a logo
+// minúscula boiando numa caixa vazia.
 function CoverBox({
   name,
   coverUrl,
@@ -132,15 +134,18 @@ function CoverBox({
   logoUrl: string | null;
   className?: string;
 }) {
-  if (coverUrl) {
+  const src = coverUrl ?? logoUrl;
+  if (src) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
-      <img src={coverUrl} alt={name} className={`object-cover ${className ?? ''}`} />
+      <img src={src} alt={name} className={`object-cover ${className ?? ''}`} />
     );
   }
   return (
-    <div className={`bg-chip flex items-center justify-center ${className ?? ''}`}>
-      <TenantAvatar name={name} logoUrl={logoUrl} size={56} radius={16} />
+    <div className={`bg-green-deep flex items-center justify-center ${className ?? ''}`}>
+      <span className="text-green-bright font-serif text-2xl">
+        {(name || '?').trim().charAt(0).toUpperCase()}
+      </span>
     </div>
   );
 }

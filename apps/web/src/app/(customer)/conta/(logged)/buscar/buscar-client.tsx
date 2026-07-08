@@ -13,7 +13,6 @@ import {
 } from '@/app/(customer)/actions';
 import { FavoriteHeart } from '@/components/customer/favorite-heart';
 import { RatingBadge } from '@/components/customer/rating-badge';
-import { TenantAvatar } from '@/components/customer/tenant-avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { DirectoryTenant } from '@/lib/tenant-directory';
 
@@ -219,16 +218,18 @@ export function BuscarClient({ initialFavorites }: { initialFavorites: FavoriteI
       className="border-line bg-paper block overflow-hidden rounded-[20px] border p-[11px] transition-all hover:-translate-y-0.5 hover:shadow-[0_22px_40px_-24px_rgba(10,51,36,0.42)]"
     >
       <div className="relative">
-        {t.coverUrl ? (
+        {(t.coverUrl ?? t.logoUrl) ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={t.coverUrl}
+            src={t.coverUrl ?? t.logoUrl ?? undefined}
             alt={t.name}
             className="h-[150px] w-full rounded-[15px] object-cover"
           />
         ) : (
-          <div className="bg-chip flex h-[150px] w-full items-center justify-center rounded-[15px]">
-            <TenantAvatar name={t.name} logoUrl={t.logoUrl} size={64} radius={16} />
+          <div className="bg-green-deep flex h-[150px] w-full items-center justify-center rounded-[15px]">
+            <span className="text-green-bright font-serif text-3xl">
+              {t.name.charAt(0).toUpperCase()}
+            </span>
           </div>
         )}
         <RatingBadge avg={t.ratingAvg} count={t.ratingCount} className="absolute left-2 top-2" />
