@@ -24,15 +24,13 @@ export default async function SchedulePage() {
   const multi = professionals.length > 1;
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
+    <div className="mx-auto flex w-full max-w-[820px] flex-col gap-4">
       <div>
-        <h1 className="font-serif text-2xl font-semibold tracking-tight">
-          Horários de atendimento
-        </h1>
-        <p className="text-sm text-muted-foreground">
+        <h1 className="font-serif text-[28px] tracking-tight text-ink">Horários de atendimento</h1>
+        <p className="mt-1 text-sm text-ink-50">
           {multi
-            ? 'Defina os dias e horários de cada profissional. Dias sem nenhum intervalo são considerados fechados.'
-            : 'Defina os dias e horários que o bot pode oferecer ao cliente. Dias sem nenhum intervalo são considerados fechados.'}
+            ? 'Defina quando cada profissional atende. Fora disso, nem aparece pro cliente.'
+            : 'Defina quando dá pra marcar. Fora disso, nem aparece pro cliente.'}
         </p>
       </div>
 

@@ -21,21 +21,12 @@ export default async function ServicesPage() {
   ]);
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
-      <div>
-        <h1 className="font-serif text-2xl font-semibold tracking-tight">Serviços</h1>
-        <p className="text-sm text-muted-foreground">
-          Cadastre os serviços que você oferece. O bot usa essa lista pra conversar com o cliente.
-        </p>
-      </div>
-
-      <ServicesPanel
-        services={services.map(({ professionals: links, ...rest }) => ({
-          ...rest,
-          professionalIds: links.map((l) => l.professionalId),
-        }))}
-        professionals={professionals}
-      />
-    </div>
+    <ServicesPanel
+      services={services.map(({ professionals: links, ...rest }) => ({
+        ...rest,
+        professionalIds: links.map((l) => l.professionalId),
+      }))}
+      professionals={professionals}
+    />
   );
 }

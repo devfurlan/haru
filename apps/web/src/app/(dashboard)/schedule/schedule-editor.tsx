@@ -1,11 +1,11 @@
 'use client';
 
-import { Plus, Trash2 } from 'lucide-react';
+import { X } from 'lucide-react';
 import { useState, useTransition } from 'react';
 
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
+import { Chip } from '@/components/ui/chip';
+import { Switch } from '@/components/ui/switch';
 import { hhmmToMinutes, minutesToHHMM } from '@haru/shared';
 
 import { saveSchedule } from './actions';
@@ -54,7 +54,6 @@ function blocksToState(blocks: ScheduleBlockInput[]): Record<number, RangeRow[]>
   return state;
 }
 
-/** Estado inicial: um mapa de byDay por profissional. */
 function initialByProf(
   professionals: ProfessionalSchedule[],
 ): Record<string, Record<number, RangeRow[]>> {
@@ -65,7 +64,6 @@ function initialByProf(
 
 export function ScheduleEditor({ professionals }: ScheduleEditorProps) {
   const [selectedId, setSelectedId] = useState<string>(professionals[0]?.id ?? '');
-  // Guarda o estado editado de cada profissional para não perder ao trocar de aba.
   const [byProf, setByProf] = useState<Record<string, Record<number, RangeRow[]>>>(() =>
     initialByProf(professionals),
   );
@@ -76,9 +74,9 @@ export function ScheduleEditor({ professionals }: ScheduleEditorProps) {
 
   if (professionals.length === 0) {
     return (
-      <p className="text-sm text-muted-foreground">
-        Nenhum profissional com agenda. Marque um membro da equipe como profissional em
-        Configurações para definir os horários dele.
+      <p className="text-sm text-ink-50">
+        Nenhum profissional com agenda. Marque um membro da equipe como profissional em Equipe para
+        definir os horários dele.
       </p>
     );
   }
@@ -86,30 +84,32 @@ export function ScheduleEditor({ professionals }: ScheduleEditorProps) {
   const multi = professionals.length > 1;
   const byDay = byProf[selectedId] ?? {};
 
-  function updateRange(weekday: number, index: number, key: 'start' | 'end', value: string) {
+  function mutate(weekday: number, fn: (ranges: RangeRow[]) => RangeRow[]) {
     setByProf((prev) => {
       const cur = prev[selectedId] ?? {};
-      const ranges = [...(cur[weekday] ?? [])];
-      ranges[index] = { ...ranges[index], [key]: value };
-      return { ...prev, [selectedId]: { ...cur, [weekday]: ranges } };
+      return { ...prev, [selectedId]: { ...cur, [weekday]: fn(cur[weekday] ?? []) } };
     });
   }
 
+  function updateRange(weekday: number, index: number, key: 'start' | 'end', value: string) {
+    mutate(weekday, (ranges) => ranges.map((r, i) => (i === index ? { ...r, [key]: value } : r)));
+  }
+
   function addRange(weekday: number) {
-    setByProf((prev) => {
-      const cur = prev[selectedId] ?? {};
-      const last = (cur[weekday] ?? []).at(-1);
-      const fallback = last ? { start: last.end, end: last.end } : { start: '09:00', end: '18:00' };
-      return { ...prev, [selectedId]: { ...cur, [weekday]: [...(cur[weekday] ?? []), fallback] } };
+    mutate(weekday, (ranges) => {
+      const last = ranges.at(-1);
+      const next = last ? { start: last.end, end: last.end } : { start: '09:00', end: '19:00' };
+      return [...ranges, next];
     });
   }
 
   function removeRange(weekday: number, index: number) {
-    setByProf((prev) => {
-      const cur = prev[selectedId] ?? {};
-      const next = { ...cur, [weekday]: (cur[weekday] ?? []).filter((_, i) => i !== index) };
-      return { ...prev, [selectedId]: next };
-    });
+    mutate(weekday, (ranges) => ranges.filter((_, i) => i !== index));
+  }
+
+  function setOpen(weekday: number, open: boolean) {
+    if (open) addRange(weekday);
+    else mutate(weekday, () => []);
   }
 
   function handleSave() {
@@ -126,99 +126,106 @@ export function ScheduleEditor({ professionals }: ScheduleEditorProps) {
         blocks.push({ weekday: day.value, startMinute, endMinute });
       }
     }
-
     startTransition(async () => {
       const result = await saveSchedule(selectedId, blocks);
-      if (result && 'error' in result) {
-        setFeedback({ kind: 'error', message: result.error });
-      } else {
-        setFeedback({ kind: 'success', message: 'Horários salvos.' });
-      }
+      if (result && 'error' in result) setFeedback({ kind: 'error', message: result.error });
+      else setFeedback({ kind: 'success', message: 'Horários salvos.' });
     });
   }
 
   return (
-    <div className="space-y-3">
+    <div className="flex flex-col gap-4">
       {multi && (
         <div className="flex flex-wrap gap-2">
           {professionals.map((p) => (
-            <Button
+            <Chip
               key={p.id}
-              size="sm"
-              variant={p.id === selectedId ? 'default' : 'outline'}
+              dot
+              selected={p.id === selectedId}
               onClick={() => {
                 setFeedback(null);
                 setSelectedId(p.id);
               }}
             >
               {p.name ?? 'Sem nome'}
-            </Button>
+            </Chip>
           ))}
         </div>
       )}
 
-      {WEEKDAYS.map((day) => {
-        const ranges = byDay[day.value] ?? [];
-        return (
-          <Card key={day.value}>
-            <CardContent className="flex flex-col gap-2 p-4 sm:flex-row sm:items-start">
-              <div className="w-24 shrink-0 pt-2 text-sm font-medium">{day.label}</div>
-
-              <div className="flex-1 space-y-2">
-                {ranges.length === 0 ? (
-                  <div className="text-sm text-muted-foreground">Fechado</div>
-                ) : (
-                  ranges.map((range, index) => (
-                    <div key={index} className="flex items-center gap-2">
-                      <Input
-                        type="time"
-                        value={range.start}
-                        onChange={(e) => updateRange(day.value, index, 'start', e.target.value)}
-                        className="w-32"
-                        step={300}
-                      />
-                      <span className="text-muted-foreground">até</span>
-                      <Input
-                        type="time"
-                        value={range.end}
-                        onChange={(e) => updateRange(day.value, index, 'end', e.target.value)}
-                        className="w-32"
-                        step={300}
-                      />
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={() => removeRange(day.value, index)}
-                        title="Remover intervalo"
+      <div className="overflow-hidden rounded-[18px] border border-line bg-paper shadow-soft">
+        {WEEKDAYS.map((day) => {
+          const ranges = byDay[day.value] ?? [];
+          const open = ranges.length > 0;
+          return (
+            <div
+              key={day.value}
+              className="flex min-h-[56px] items-center gap-4 border-t border-dotted border-edge px-[18px] py-3 first:border-0"
+            >
+              <div
+                className={`w-[86px] flex-none font-serif text-[14.5px] ${open ? 'text-ink' : 'text-ink-30'}`}
+              >
+                {day.label}
+              </div>
+              <Switch checked={open} onCheckedChange={(next) => setOpen(day.value, next)} />
+              <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+                {open ? (
+                  <>
+                    {ranges.map((range, index) => (
+                      <span
+                        key={index}
+                        className="inline-flex items-center gap-1 rounded-full bg-chip px-2.5 py-1.5 font-serif text-[13px] text-green-emph"
                       >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ))
+                        <input
+                          type="time"
+                          value={range.start}
+                          step={300}
+                          onChange={(e) => updateRange(day.value, index, 'start', e.target.value)}
+                          className="w-[78px] bg-transparent text-center outline-none"
+                        />
+                        <span className="text-ink-30">–</span>
+                        <input
+                          type="time"
+                          value={range.end}
+                          step={300}
+                          onChange={(e) => updateRange(day.value, index, 'end', e.target.value)}
+                          className="w-[78px] bg-transparent text-center outline-none"
+                        />
+                        <button
+                          type="button"
+                          aria-label="Remover intervalo"
+                          onClick={() => removeRange(day.value, index)}
+                          className="ml-0.5 text-green-emph/60 hover:text-green-emph"
+                        >
+                          <X className="size-3.5" />
+                        </button>
+                      </span>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => addRange(day.value)}
+                      className="px-1.5 text-xs font-semibold text-green-emph hover:underline"
+                    >
+                      + intervalo
+                    </button>
+                  </>
+                ) : (
+                  <span className="font-serif text-[13px] italic text-ink-30">Fechado</span>
                 )}
               </div>
+            </div>
+          );
+        })}
+      </div>
 
-              <Button variant="outline" size="sm" onClick={() => addRange(day.value)}>
-                <Plus className="h-4 w-4" />
-                {ranges.length === 0 ? 'Abrir' : 'Adicionar'}
-              </Button>
-            </CardContent>
-          </Card>
-        );
-      })}
-
-      {feedback && (
-        <p
-          className={
-            feedback.kind === 'error' ? 'text-sm text-destructive' : 'text-sm text-emerald-600'
-          }
-        >
-          {feedback.message}
-        </p>
-      )}
-
-      <div className="flex justify-end">
-        <Button onClick={handleSave} disabled={pending}>
+      <div className="flex items-center justify-end gap-3.5">
+        {feedback && (
+          <p className={feedback.kind === 'error' ? 'text-sm text-coral-deep' : 'text-sm text-green-emph'}>
+            {feedback.message}
+          </p>
+        )}
+        <p className="text-xs text-ink-50">Os novos horários valem na hora, no app e na página.</p>
+        <Button variant="coral" onClick={handleSave} disabled={pending}>
           {pending ? 'Salvando…' : 'Salvar horários'}
         </Button>
       </div>

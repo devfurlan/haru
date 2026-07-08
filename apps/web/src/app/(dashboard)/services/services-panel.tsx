@@ -1,15 +1,16 @@
 'use client';
 
 import type { Service } from '@haru/database';
-import { Pencil, Plus, Power, Trash2 } from 'lucide-react';
+import { Pencil, Scissors } from 'lucide-react';
 import { useState, useTransition } from 'react';
 
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Switch } from '@/components/ui/switch';
 import { formatBRL, formatDuration } from '@haru/shared';
 import { cn } from '@/lib/utils';
 
-import { deleteService, toggleServiceActive } from './actions';
+import { toggleServiceActive } from './actions';
 import { ServiceForm, type ProfessionalOption } from './service-form';
 
 export interface ServiceWithProfessionals extends Service {
@@ -22,128 +23,105 @@ interface ServicesPanelProps {
 }
 
 export function ServicesPanel({ services, professionals }: ServicesPanelProps) {
-  const [creating, setCreating] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
+  // null = fechado; 'new' = criar; senão = serviço em edição.
+  const [modal, setModal] = useState<'new' | ServiceWithProfessionals | null>(null);
+  const editing = modal && modal !== 'new' ? modal : null;
 
   return (
-    <div className="space-y-4">
-      {creating ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>Novo serviço</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ServiceForm
-              professionals={professionals}
-              onSuccess={() => setCreating(false)}
-              onCancel={() => setCreating(false)}
-            />
-          </CardContent>
-        </Card>
-      ) : (
-        <Button onClick={() => setCreating(true)}>
-          <Plus className="h-4 w-4" />
+    <div className="mx-auto flex w-full max-w-[920px] flex-col gap-4">
+      <div className="flex flex-wrap items-end gap-4">
+        <div className="min-w-[220px] flex-1">
+          <h1 className="font-serif text-[28px] tracking-tight text-ink">Serviços</h1>
+          <p className="mt-1 text-sm text-ink-50">O cardápio que seus clientes veem no app e na página.</p>
+        </div>
+        <Button variant="coral" onClick={() => setModal('new')}>
           Adicionar serviço
         </Button>
-      )}
+      </div>
 
-      {services.length === 0 && !creating ? (
-        <Card>
-          <CardContent className="py-10 text-center text-sm text-muted-foreground">
-            Você ainda não cadastrou nenhum serviço.
-          </CardContent>
-        </Card>
+      {services.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-edge bg-paper px-6 py-12 text-center text-sm text-ink-50">
+          Você ainda não cadastrou nenhum serviço.
+        </div>
       ) : (
-        <div className="space-y-2">
-          {services.map((service) =>
-            editingId === service.id ? (
-              <Card key={service.id}>
-                <CardHeader>
-                  <CardTitle>Editar serviço</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ServiceForm
-                    defaults={{
-                      id: service.id,
-                      name: service.name,
-                      description: service.description,
-                      durationMinutes: service.durationMinutes,
-                      priceCents: service.priceCents,
-                    }}
-                    professionals={professionals}
-                    selectedProfessionalIds={service.professionalIds}
-                    onSuccess={() => setEditingId(null)}
-                    onCancel={() => setEditingId(null)}
-                  />
-                </CardContent>
-              </Card>
-            ) : (
-              <ServiceRow
-                key={service.id}
-                service={service}
-                onEdit={() => setEditingId(service.id)}
-              />
-            ),
-          )}
+        <div className="overflow-hidden rounded-[18px] border border-line bg-paper shadow-soft">
+          {services.map((service) => (
+            <ServiceRow key={service.id} service={service} onEdit={() => setModal(service)} />
+          ))}
         </div>
       )}
+
+      <p className="text-xs text-ink-50">
+        Desligou, sumiu: o serviço some do app e da página na hora - sem apagar nada.
+      </p>
+
+      <Dialog open={modal !== null} onOpenChange={(o) => !o && setModal(null)}>
+        <DialogContent dismissable={false}>
+          <DialogHeader>
+            <DialogTitle className="text-2xl">
+              {editing ? 'Editar' : 'Novo'} <em className="text-green-emph">serviço</em>
+            </DialogTitle>
+          </DialogHeader>
+          {modal !== null && (
+            <ServiceForm
+              key={editing?.id ?? 'new'}
+              defaults={
+                editing
+                  ? {
+                      id: editing.id,
+                      name: editing.name,
+                      description: editing.description,
+                      durationMinutes: editing.durationMinutes,
+                      priceCents: editing.priceCents,
+                    }
+                  : undefined
+              }
+              professionals={professionals}
+              selectedProfessionalIds={editing?.professionalIds}
+              onSuccess={() => setModal(null)}
+              onCancel={() => setModal(null)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
 
-function ServiceRow({ service, onEdit }: { service: Service; onEdit: () => void }) {
+function ServiceRow({ service, onEdit }: { service: ServiceWithProfessionals; onEdit: () => void }) {
   const [pending, startTransition] = useTransition();
 
   return (
     <div
       className={cn(
-        'flex items-center gap-4 rounded-lg border bg-card p-4 shadow-sm',
-        !service.active && 'opacity-60',
+        'flex items-center gap-3.5 border-t border-dotted border-edge px-[18px] py-3 first:border-0',
+        !service.active && 'opacity-55',
       )}
     >
-      <div className="flex-1">
-        <div className="flex items-center gap-2">
-          <span className="font-medium">{service.name}</span>
-          {!service.active && (
-            <span className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
-              inativo
-            </span>
-          )}
-        </div>
-        {service.description && (
-          <div className="text-sm text-muted-foreground">{service.description}</div>
-        )}
-        <div className="mt-1 text-sm">
-          {formatDuration(service.durationMinutes)} · {formatBRL(service.priceCents)}
+      <div className="flex size-10 flex-none items-center justify-center rounded-xl bg-chip text-green-emph">
+        <Scissors className="size-[19px]" strokeWidth={2.1} />
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="text-sm font-semibold text-ink">{service.name}</div>
+        <div className="mt-0.5 truncate text-xs text-ink-50">
+          {formatDuration(service.durationMinutes)}
+          {service.description ? ` · ${service.description}` : ''}
         </div>
       </div>
-
-      <div className="flex gap-1">
-        <Button
-          size="icon"
-          variant="ghost"
-          disabled={pending}
-          onClick={() => startTransition(() => toggleServiceActive(service.id, !service.active))}
-          title={service.active ? 'Desativar' : 'Ativar'}
-        >
-          <Power className="h-4 w-4" />
-        </Button>
-        <Button size="icon" variant="ghost" onClick={onEdit} title="Editar">
-          <Pencil className="h-4 w-4" />
-        </Button>
-        <Button
-          size="icon"
-          variant="ghost"
-          disabled={pending}
-          onClick={() => {
-            if (!window.confirm(`Excluir "${service.name}"?`)) return;
-            startTransition(() => deleteService(service.id));
-          }}
-          title="Excluir"
-        >
-          <Trash2 className="h-4 w-4" />
-        </Button>
-      </div>
+      <div className="flex-none font-serif text-[17px] text-ink">{formatBRL(service.priceCents)}</div>
+      <button
+        type="button"
+        onClick={onEdit}
+        title="Editar"
+        className="flex-none rounded-[10px] p-1.5 text-ink-30 hover:bg-cream-2 hover:text-ink-70"
+      >
+        <Pencil className="size-4" />
+      </button>
+      <Switch
+        checked={service.active}
+        disabled={pending}
+        onCheckedChange={(next) => startTransition(() => toggleServiceActive(service.id, next))}
+      />
     </div>
   );
 }
