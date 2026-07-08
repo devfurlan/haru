@@ -20,11 +20,11 @@ const HOUR_PX = 64;
 const MIN_BLOCK_PX = 28;
 
 const STATUS_BLOCK: Record<AppointmentStatus, string> = {
-  PENDING: 'border-amber-400 bg-amber-50 text-amber-900 hover:bg-amber-100',
-  CONFIRMED: 'border-emerald-400 bg-emerald-50 text-emerald-900 hover:bg-emerald-100',
-  COMPLETED: 'border-green-500 bg-green-50 text-green-900 hover:bg-green-100',
-  CANCELED: 'border-zinc-300 bg-zinc-50 text-zinc-500 line-through hover:bg-zinc-100',
-  NO_SHOW: 'border-rose-400 bg-rose-50 text-rose-900 hover:bg-rose-100',
+  PENDING: 'border-coral bg-coral-tint text-ink hover:brightness-[.98]',
+  CONFIRMED: 'border-green-bright bg-chip text-ink hover:brightness-[.98]',
+  COMPLETED: 'border-edge bg-cream-2 text-ink-70 hover:brightness-[.98]',
+  CANCELED: 'border-edge bg-cream-2 text-ink-30 line-through',
+  NO_SHOW: 'border-coral-soft bg-coral-tint text-ink-70 hover:brightness-[.98]',
 };
 
 /** Minutos desde a meia-noite, no fuso do tenant, a partir de um ISO UTC. */
@@ -299,8 +299,8 @@ export function DayTimeline({
             className="pointer-events-none absolute inset-x-0 z-10 flex items-center"
             style={{ top: (nowMin - startHour * 60) * pxPerMin }}
           >
-            <span className="bg-primary -ml-1 h-2 w-2 flex-none rounded-full" />
-            <span className="bg-primary h-px flex-1" />
+            <span className="bg-coral -ml-1 h-2 w-2 flex-none rounded-full" />
+            <span className="bg-coral h-px flex-1" />
           </div>
         )}
       </div>
