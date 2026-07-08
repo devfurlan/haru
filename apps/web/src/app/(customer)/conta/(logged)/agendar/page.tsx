@@ -21,7 +21,7 @@ export default async function RebookPage({ searchParams }: PageProps) {
 
   if (!source) {
     return (
-      <div className="space-y-4">
+      <div className="mx-auto max-w-xl space-y-4 px-5 py-8">
         <h1 className="font-serif text-2xl font-semibold tracking-tight">Agendar de novo</h1>
         <p className="text-muted-foreground text-sm">
           Não foi possível repetir este agendamento. O serviço pode não estar mais disponível ou o
@@ -35,7 +35,7 @@ export default async function RebookPage({ searchParams }: PageProps) {
   }
 
   return (
-    <div className="mx-auto max-w-xl space-y-6">
+    <div className="mx-auto max-w-xl space-y-6 px-5 py-8">
       <div>
         <Link
           href="/conta/agendamentos"

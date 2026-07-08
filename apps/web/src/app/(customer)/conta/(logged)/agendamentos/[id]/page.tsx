@@ -6,10 +6,12 @@ import { ScreenHeader } from '@/components/customer/screen-header';
 import { TenantAvatar } from '@/components/customer/tenant-avatar';
 import { requireCustomerAccount } from '@/lib/customer-auth';
 import { getCustomerAppointments, type CustomerAppointmentItem } from '@/lib/customer';
+import { getCustomerReview } from '@/lib/reviews';
 import { formatBRL, formatDuration } from '@haru/shared';
 
 import { CancelDialog } from '../cancel-dialog';
 import { RescheduleDialog } from '../reschedule-dialog';
+import { ReviewDialog } from '../review-dialog';
 
 export const dynamic = 'force-dynamic';
 
@@ -38,7 +40,7 @@ function MapMarker() {
   return (
     <span
       aria-hidden
-      className="bg-coral absolute left-1/2 top-1/2 h-[26px] w-[26px] rounded-tl-[13px] rounded-tr-[13px] rounded-br-[13px] shadow-[0_4px_8px_rgba(255,90,54,0.6)]"
+      className="bg-coral absolute left-1/2 top-1/2 h-[26px] w-[26px] rounded-br-[13px] rounded-tl-[13px] rounded-tr-[13px] shadow-[0_4px_8px_rgba(255,90,54,0.6)]"
       style={{ marginLeft: -13, marginTop: -17, transform: 'rotate(-45deg)' }}
     />
   );
@@ -104,16 +106,28 @@ export default async function AppointmentDetailPage({
   const item = [...upcoming, ...past].find((a) => a.id === id);
   if (!item) notFound();
 
+  // Só atendimento concluído pode ser avaliado; pré-carrega a nota atual pra editar.
+  const review =
+    item.status === 'COMPLETED' ? await getCustomerReview(account, item.tenant.id) : null;
+
   return (
-    <div>
+    <div className="mx-auto max-w-[720px]">
       <ScreenHeader title="Agendamento" backHref="/conta/agendamentos" />
 
       <div className="space-y-3.5 px-5 pb-32 pt-[18px]">
         {/* HERO escuro */}
         <div className="bg-green-deep relative overflow-hidden rounded-[22px] px-[18px] pb-4 pt-[18px]">
-          <div className="bg-green-bright/10 absolute -right-6 -top-10 h-32 w-40 rounded-full" aria-hidden />
+          <div
+            className="bg-green-bright/10 absolute -right-6 -top-10 h-32 w-40 rounded-full"
+            aria-hidden
+          />
           <div className="relative flex items-center gap-3">
-            <TenantAvatar name={item.tenant.name} logoUrl={item.tenant.logoUrl} size={50} radius={15} />
+            <TenantAvatar
+              name={item.tenant.name}
+              logoUrl={item.tenant.logoUrl}
+              size={50}
+              radius={15}
+            />
             <div className="min-w-0 flex-1">
               <p className="text-paper truncate font-serif text-[17px]">{item.tenant.name}</p>
               <p className="mt-0.5 truncate text-xs text-[#8fbfa4]">
@@ -185,11 +199,41 @@ export default async function AppointmentDetailPage({
             </div>
           ) : null}
         </div>
+
+        {/* Avaliação: só em atendimento concluído (o gate real está no server). */}
+        {item.status === 'COMPLETED' ? (
+          <div className="border-line bg-paper rounded-[18px] border p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-ink font-serif text-[16px]">
+                  {review ? 'Sua avaliação' : 'Como foi o atendimento?'}
+                </p>
+                {review ? (
+                  <p
+                    className="text-coral mt-0.5 text-sm font-bold"
+                    aria-label={`${review.rating} de 5`}
+                  >
+                    {'★'.repeat(review.rating)}
+                    <span className="text-[#d6cbb2]">{'★'.repeat(5 - review.rating)}</span>
+                  </p>
+                ) : (
+                  <p className="text-sub mt-0.5 text-[13px]">Sua nota ajuda outras pessoas.</p>
+                )}
+              </div>
+              <ReviewDialog
+                tenantId={item.tenant.id}
+                tenantName={item.tenant.name}
+                initialRating={review?.rating ?? 0}
+                initialComment={review?.comment ?? ''}
+              />
+            </div>
+          </div>
+        ) : null}
       </div>
 
       {/* Rodapé fixo de ação. Reusa os dialogs de remarcar/cancelar (com SlotPicker). */}
       <div className="border-line bg-cream fixed inset-x-0 bottom-0 z-10 md:sticky md:bottom-auto">
-        <div className="mx-auto flex max-w-md items-center gap-3 px-5 pb-[calc(env(safe-area-inset-bottom)+72px)] pt-3.5 md:max-w-2xl md:pb-4">
+        <div className="mx-auto flex max-w-[720px] items-center gap-3 px-5 pb-[calc(env(safe-area-inset-bottom)+72px)] pt-3.5 md:pb-4">
           {item.isActive ? (
             <>
               <RescheduleDialog item={item} />

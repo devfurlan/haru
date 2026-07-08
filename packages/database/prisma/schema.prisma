@@ -53,6 +53,11 @@ model Tenant {
   /// Fotos de capa da vitrine (URLs no bucket tenant-assets), até 5. O índice 0 é a
   /// principal (★) e define a ordem do carrossel na página e no app.
   coverImageUrls String[] @default([])
+  /// Avaliação média (1-5) e nº de avaliações - DENORMALIZADOS de Review, recomputados
+  /// na mesma transação da escrita (ver lib/reviews.ts). Deixam os cards do diretório
+  /// baratos (sem agregar por tenant). null/0 = ainda sem avaliação.
+  ratingAvg      Float?
+  ratingCount    Int      @default(0)
 
   /// Marca a conclusão do onboarding do dono (wizard de 4 passos). null = ainda não
   /// concluiu → o painel redireciona pra /onboarding. Tenants criados antes desta
@@ -156,6 +161,7 @@ model Tenant {
   payments           Payment[]
   aiUsageLogs        AiUsageLog[]
   favorites          Favorite[]
+  reviews            Review[]
   subscription       Subscription?
   usageAlerts        UsageAlert[]
   notifications      Notification[]
@@ -260,6 +266,7 @@ model CustomerAccount {
   contacts    Contact[]
   pushDevices PushDevice[]
   favorites   Favorite[]
+  reviews     Review[]
 
   @@index([phone])
 }
@@ -276,6 +283,27 @@ model Favorite {
 
   @@unique([customerAccountId, tenantId])
   @@index([customerAccountId])
+  @@index([tenantId])
+}
+
+/// Avaliação (1-5 estrelas + comentário opcional) de um cliente a um estabelecimento.
+/// Cross-tenant, um par (cliente, tenant) é único - reavaliar EDITA a nota (upsert). Só
+/// avalia quem teve um Appointment COMPLETED no tenant (gate em lib/reviews.ts:canReview).
+/// A média/contagem ficam denormalizadas em Tenant.ratingAvg/ratingCount, recomputadas na
+/// mesma transação da escrita.
+model Review {
+  id                String          @id @default(cuid())
+  customerAccountId String
+  customerAccount   CustomerAccount @relation(fields: [customerAccountId], references: [id], onDelete: Cascade)
+  tenantId          String
+  tenant            Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  /// Nota de 1 a 5 (validada na escrita).
+  rating            Int
+  comment           String?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  @@unique([customerAccountId, tenantId])
   @@index([tenantId])
 }
 

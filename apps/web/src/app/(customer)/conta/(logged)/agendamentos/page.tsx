@@ -13,8 +13,8 @@ export default async function CustomerAppointmentsPage() {
   // Vazio com telefone pendente = falta confirmar o WhatsApp, não "não tem nada".
   if (upcoming.length === 0 && past.length === 0 && !account.phone) {
     return (
-      <div className="px-5 pt-6">
-        <h1 className="text-ink font-serif text-[28px] tracking-tight">Sua agenda</h1>
+      <div className="mx-auto max-w-[980px] px-5 py-7 md:px-8 md:py-9">
+        <h1 className="text-ink font-serif text-[28px] tracking-tight md:text-[34px]">Sua agenda</h1>
         <div className="pt-6">
           <PendingPhoneNotice pendingPhone={account.pendingPhone} />
         </div>

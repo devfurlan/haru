@@ -26,6 +26,7 @@ import {
   updateCustomerProfileCore,
 } from '@/lib/customer';
 import { requireCustomerAccount } from '@/lib/customer-auth';
+import { upsertReview } from '@/lib/reviews';
 import { withinRateLimitFor } from '@/lib/ratelimit';
 import { normalizePhoneBR } from '@haru/shared';
 import { safeInternalPath } from '@/lib/safe-redirect';
@@ -452,6 +453,10 @@ export type FavoriteItem = {
   slug: string;
   logoUrl: string | null;
   address: string | null;
+  coverUrl: string | null;
+  segment: string | null;
+  ratingAvg: number | null;
+  ratingCount: number;
 };
 
 export async function getFavorites(): Promise<FavoriteItem[]> {
@@ -459,7 +464,19 @@ export async function getFavorites(): Promise<FavoriteItem[]> {
   const rows = await prisma.favorite.findMany({
     where: { customerAccountId: account.id },
     include: {
-      tenant: { select: { id: true, name: true, slug: true, logoUrl: true, address: true } },
+      tenant: {
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          logoUrl: true,
+          address: true,
+          segment: true,
+          coverImageUrls: true,
+          ratingAvg: true,
+          ratingCount: true,
+        },
+      },
     },
     orderBy: { createdAt: 'desc' },
   });
@@ -469,6 +486,10 @@ export async function getFavorites(): Promise<FavoriteItem[]> {
     slug: f.tenant.slug,
     logoUrl: f.tenant.logoUrl,
     address: f.tenant.address,
+    coverUrl: f.tenant.coverImageUrls[0] ?? null,
+    segment: f.tenant.segment,
+    ratingAvg: f.tenant.ratingAvg,
+    ratingCount: f.tenant.ratingCount,
   }));
 }
 
@@ -490,6 +511,20 @@ export async function addFavorite(tenantId: string): Promise<CustomerActionResul
 export async function removeFavorite(tenantId: string): Promise<CustomerActionResult> {
   const account = await requireCustomerAccount();
   await prisma.favorite.deleteMany({ where: { customerAccountId: account.id, tenantId } });
+  return { ok: true };
+}
+
+/** Cria/edita a avaliação do cliente a um estabelecimento (gate: atendimento concluído). */
+export async function customerSubmitReview(input: {
+  tenantId: string;
+  rating: number;
+  comment?: string;
+}): Promise<CustomerActionResult> {
+  const account = await requireCustomerAccount();
+  if (!input.tenantId) return { error: 'Estabelecimento inválido' };
+  const res = await upsertReview(account, input.tenantId, input.rating, input.comment ?? null);
+  if ('error' in res) return res;
+  revalidatePath('/conta/agendamentos');
   return { ok: true };
 }
 

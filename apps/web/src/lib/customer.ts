@@ -154,6 +154,74 @@ export async function getCustomerAppointments(
   return { upcoming, past };
 }
 
+export interface RecentTenant {
+  id: string;
+  name: string;
+  slug: string;
+  logoUrl: string | null;
+  coverUrl: string | null;
+  segment: string | null;
+  ratingAvg: number | null;
+  ratingCount: number;
+}
+
+/**
+ * Estabelecimentos VISITADOS recentemente pelo cliente (distintos, mais recente
+ * primeiro), a partir dos agendamentos. Alimenta a seção "Volte pra…" do Início.
+ * Traz capa/segmento pros cards ricos do painel v2.
+ */
+export async function getRecentTenants(
+  account: CustomerAccount,
+  limit = 6,
+): Promise<RecentTenant[]> {
+  const contacts = await prisma.contact.findMany({
+    where: { customerAccountId: account.id },
+    select: { id: true },
+  });
+  const contactIds = contacts.map((c) => c.id);
+  if (contactIds.length === 0) return [];
+
+  // Últimos agendamentos (qualquer status) desc; dedup por tenant em JS.
+  const appts = await prisma.appointment.findMany({
+    where: { contactId: { in: contactIds } },
+    orderBy: { startsAt: 'desc' },
+    take: 60,
+    select: {
+      tenant: {
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          logoUrl: true,
+          coverImageUrls: true,
+          segment: true,
+          ratingAvg: true,
+          ratingCount: true,
+        },
+      },
+    },
+  });
+
+  const seen = new Set<string>();
+  const out: RecentTenant[] = [];
+  for (const a of appts) {
+    if (seen.has(a.tenant.id)) continue;
+    seen.add(a.tenant.id);
+    out.push({
+      id: a.tenant.id,
+      name: a.tenant.name,
+      slug: a.tenant.slug,
+      logoUrl: a.tenant.logoUrl,
+      coverUrl: a.tenant.coverImageUrls[0] ?? null,
+      segment: a.tenant.segment,
+      ratingAvg: a.tenant.ratingAvg,
+      ratingCount: a.tenant.ratingCount,
+    });
+    if (out.length >= limit) break;
+  }
+  return out;
+}
+
 export interface RebookSource {
   appointmentId: string;
   serviceId: string;

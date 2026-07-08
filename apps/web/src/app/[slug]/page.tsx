@@ -8,6 +8,7 @@ import { formatBRL, formatDuration, minutesToHHMM } from '@haru/shared';
 import { Button } from '@/components/ui/button';
 
 import { BOOKING_HORIZON_DAYS, buildBookingDays } from '@haru/shared';
+import { openStatus } from '@/lib/business-hours';
 import { getCustomerAccount } from '@/lib/customer-auth';
 import { isWhatsappConnected } from '@/lib/whatsapp-status';
 
@@ -79,9 +80,10 @@ export default async function TenantPublicPage({ params }: { params: Promise<{ s
   const showBooking = tenant.publicBookingEnabled && tenant.services.length > 0 && hasBookableDay;
 
   const customerAccount = await getCustomerAccount();
+  const openUntilLabel = openStatus(tenant.scheduleBlocks, tenant.timezone).untilLabel;
 
   return (
-    <main className="bg-muted/20 flex min-h-screen flex-col">
+    <main className="bg-cream flex min-h-screen flex-col">
       <div className="mx-auto w-full max-w-2xl flex-1 space-y-8 px-4 py-12">
         <div className="flex items-center justify-between gap-2">
           <BusinessHoursDialog hours={businessHours} />
@@ -121,6 +123,11 @@ export default async function TenantPublicPage({ params }: { params: Promise<{ s
             slug={tenant.slug}
             tenantName={tenant.name}
             logoUrl={tenant.logoUrl}
+            coverUrl={tenant.coverImageUrls[0] ?? null}
+            segment={tenant.segment}
+            openUntilLabel={openUntilLabel}
+            ratingAvg={tenant.ratingAvg ?? null}
+            ratingCount={tenant.ratingCount ?? 0}
             services={tenant.services.map((s) => ({
               id: s.id,
               name: s.name,

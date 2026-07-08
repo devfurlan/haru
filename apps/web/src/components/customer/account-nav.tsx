@@ -8,8 +8,8 @@ import { cn } from '@/lib/utils';
 
 // Nav da área logada do cliente, um componente em dois modos:
 // - variant="bottom": bottom tab bar fixa (mobile), espelha o BottomTabBar do app.
-// - variant="top": barra horizontal no topo (desktop).
-// A pílula desliza pra aba ativa só com CSS (transform + transition), sem lib de motion.
+//   A pílula desliza pra aba ativa só com CSS (transform + transition), sem lib de motion.
+// - variant="top": pílulas compactas centradas no header largo do desktop (painel v2).
 const ITEMS: { href: string; label: string; icon: LucideIcon }[] = [
   { href: '/conta', label: 'Início', icon: House },
   { href: '/conta/buscar', label: 'Buscar', icon: Search },
@@ -28,23 +28,46 @@ function activeIndex(pathname: string): number {
 export function AccountNav({ variant }: { variant: 'bottom' | 'top' }) {
   const pathname = usePathname();
   const idx = activeIndex(pathname);
-  const bottom = variant === 'bottom';
 
+  // Desktop: pílulas soltas (a ativa preenchida), sem barra deslizante.
+  if (variant === 'top') {
+    return (
+      <nav className="flex items-center gap-1.5">
+        {ITEMS.map((it, i) => {
+          const Icon = it.icon;
+          const active = i === idx;
+          return (
+            <Link
+              key={it.href}
+              href={it.href}
+              aria-current={active ? 'page' : undefined}
+              className={cn(
+                'flex items-center gap-2 rounded-full px-5 py-2.5 text-sm transition-colors',
+                active
+                  ? 'bg-chip text-green-deep font-semibold'
+                  : 'text-sub hover:bg-cream-2 hover:text-foreground',
+              )}
+            >
+              <Icon style={{ width: 17, height: 17 }} strokeWidth={active ? 2.4 : 2.1} />
+              {it.label}
+            </Link>
+          );
+        })}
+      </nav>
+    );
+  }
+
+  // Mobile: bottom tab bar com pílula deslizante.
   return (
-    <nav
-      className={cn(
-        'relative flex',
-        bottom && 'border-line bg-paper border-t pt-2.5 pb-[calc(env(safe-area-inset-bottom)+8px)]',
-      )}
-    >
+    <nav className="border-line bg-paper relative flex border-t pb-[calc(env(safe-area-inset-bottom)+8px)] pt-2.5">
       {/* pílula que desliza pra aba ativa */}
       <span
         aria-hidden
         className="bg-chip absolute rounded-2xl transition-transform duration-[380ms] ease-[cubic-bezier(0.22,1,0.36,1)]"
         style={{
           width: `${100 / ITEMS.length}%`,
-          top: bottom ? 8 : 0,
-          height: bottom ? 'calc(100% - 16px)' : '100%',
+          top: 8,
+          height: 'calc(100% - 16px)',
           transform: `translateX(${idx * 100}%)`,
         }}
       />
@@ -57,19 +80,16 @@ export function AccountNav({ variant }: { variant: 'bottom' | 'top' }) {
             href={it.href}
             aria-current={active ? 'page' : undefined}
             className={cn(
-              'relative z-10 flex flex-1 items-center justify-center transition-colors',
-              bottom ? 'flex-col gap-[5px] py-1' : 'gap-2 rounded-2xl px-4 py-2.5',
+              'relative z-10 flex flex-1 flex-col items-center justify-center gap-[5px] py-1 transition-colors',
               active ? 'text-green-deep' : 'text-muted-foreground hover:text-foreground',
             )}
           >
             <Icon
               className={cn('transition-transform', active && 'scale-110')}
-              style={{ width: bottom ? 24 : 18, height: bottom ? 24 : 18 }}
+              style={{ width: 24, height: 24 }}
               strokeWidth={active ? 2.4 : 2}
             />
-            <span className={cn(bottom ? 'text-[10.5px]' : 'text-sm', active && 'font-bold')}>
-              {it.label}
-            </span>
+            <span className={cn('text-[10.5px]', active && 'font-bold')}>{it.label}</span>
           </Link>
         );
       })}

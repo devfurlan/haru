@@ -6,12 +6,22 @@ import 'server-only';
 import { prisma } from '@haru/database';
 import { matchesSearch } from '@haru/shared';
 
+import { openStatus } from '@/lib/business-hours';
+
 export type DirectoryTenant = {
   id: string;
   name: string;
   slug: string;
   logoUrl: string | null;
   address: string | null;
+  // Vitrine: capa principal (coverImageUrls[0]) e segmento (barbearia/salão/clínica).
+  coverUrl: string | null;
+  segment: string | null;
+  // "20h"/"20h30" quando aberto agora; null quando fechado (calculado no server).
+  openUntilLabel: string | null;
+  // Avaliação: média (1-5, null sem avaliação) e contagem.
+  ratingAvg: number | null;
+  ratingCount: number;
   // km até o usuário quando a busca envia lat/lng e o estabelecimento tem coords; senão null.
   distanceKm?: number | null;
 };
@@ -22,8 +32,7 @@ function haversineKm(aLat: number, aLng: number, bLat: number, bLng: number): nu
   const dLng = ((bLng - aLng) * Math.PI) / 180;
   const lat1 = (aLat * Math.PI) / 180;
   const lat2 = (bLat * Math.PI) / 180;
-  const h =
-    Math.sin(dLat / 2) ** 2 + Math.sin(dLng / 2) ** 2 * Math.cos(lat1) * Math.cos(lat2);
+  const h = Math.sin(dLat / 2) ** 2 + Math.sin(dLng / 2) ** 2 * Math.cos(lat1) * Math.cos(lat2);
   return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
 }
 
@@ -56,17 +65,29 @@ export async function searchDirectory(opts: {
       address: true,
       latitude: true,
       longitude: true,
+      timezone: true,
+      segment: true,
+      coverImageUrls: true,
+      ratingAvg: true,
+      ratingCount: true,
+      scheduleBlocks: { select: { weekday: true, startMinute: true, endMinute: true } },
     },
   });
 
   const matched = hasName ? rows.filter((t) => matchesSearch(q, t.name, t.slug)) : rows;
 
+  const now = new Date();
   const withDist = matched.map((t) => ({
     id: t.id,
     name: t.name,
     slug: t.slug,
     logoUrl: t.logoUrl,
     address: t.address,
+    coverUrl: t.coverImageUrls[0] ?? null,
+    segment: t.segment,
+    openUntilLabel: openStatus(t.scheduleBlocks, t.timezone, now).untilLabel,
+    ratingAvg: t.ratingAvg,
+    ratingCount: t.ratingCount,
     distanceKm:
       hasGeo && t.latitude != null && t.longitude != null
         ? haversineKm(opts.lat!, opts.lng!, t.latitude, t.longitude)

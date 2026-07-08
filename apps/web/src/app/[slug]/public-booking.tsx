@@ -92,6 +92,16 @@ interface PublicBookingProps {
   tenantName: string;
   /** Logo do negócio (opcional) - hero + card de sucesso. */
   logoUrl: string | null;
+  /** Capa da vitrine (coverImageUrls[0]) - fundo do hero do passo vitrine. */
+  coverUrl: string | null;
+  /** Segmento (barbearia/salão/clínica) - meta do hero. */
+  segment: string | null;
+  /** "20h"/"20h30" quando aberto agora; null quando fechado - selo do hero. */
+  openUntilLabel: string | null;
+  /** Média das avaliações (1-5); null quando ainda não há avaliação. */
+  ratingAvg: number | null;
+  /** Quantidade de avaliações. */
+  ratingCount: number;
   services: ServiceOption[];
   /** Profissionais com agenda - usados no passo "profissional e serviço". */
   professionals: ProfessionalOption[];
@@ -240,21 +250,69 @@ function PeopleIcon({ size = 28 }: { size?: number }) {
 // Chrome dos passos (hero, cabeçalho compacto, rodapé sticky)
 // ---------------------------------------------------------------------------
 
-/** Capa do negócio no topo do passo vitrine (fundo esmeralda + nome em Fraunces). */
-function Hero({ tenantName, logoUrl }: { tenantName: string; logoUrl: string | null }) {
+/** Capa do negócio no topo do passo vitrine (capa/esmeralda + nome + meta em Fraunces). */
+function Hero({
+  tenantName,
+  logoUrl,
+  coverUrl,
+  segment,
+  openUntilLabel,
+  ratingAvg,
+  ratingCount,
+}: {
+  tenantName: string;
+  logoUrl: string | null;
+  coverUrl: string | null;
+  segment: string | null;
+  openUntilLabel: string | null;
+  ratingAvg: number | null;
+  ratingCount: number;
+}) {
+  const seg = segment ? segment.charAt(0).toUpperCase() + segment.slice(1) : null;
+  const meta = [
+    ratingAvg != null && ratingCount > 0
+      ? `★ ${ratingAvg.toFixed(1).replace('.', ',')} (${ratingCount})`
+      : null,
+    seg,
+  ].filter(Boolean);
   return (
-    <div className="bg-green-deep relative flex min-h-[240px] flex-col justify-end overflow-hidden rounded-[20px] px-5 pb-6 pt-7">
-      {logoUrl ? (
+    <div className="bg-green-deep relative min-h-[240px] overflow-hidden rounded-[20px]">
+      {coverUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={logoUrl}
-          alt=""
-          className="mb-3 h-12 w-12 rounded-2xl object-cover ring-1 ring-white/15"
-        />
+        <img src={coverUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />
       ) : null}
-      <h1 className="text-paper font-serif text-[26px] font-semibold leading-tight">
-        {tenantName}
-      </h1>
+      <div
+        className="absolute inset-0"
+        style={{
+          background:
+            'radial-gradient(340px 200px at 78% 18%, rgba(255,253,248,0.14), transparent), linear-gradient(180deg, rgba(10,51,36,0.15) 30%, rgba(10,51,36,0.72))',
+        }}
+        aria-hidden
+      />
+      <div className="relative flex min-h-[240px] flex-col justify-end px-5 pb-6 pt-7">
+        {logoUrl && !coverUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={logoUrl}
+            alt=""
+            className="mb-3 h-12 w-12 rounded-2xl object-cover ring-1 ring-white/15"
+          />
+        ) : null}
+        <h1 className="text-paper font-serif text-[26px] font-semibold leading-tight">
+          {tenantName}
+        </h1>
+        {meta.length > 0 || openUntilLabel ? (
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-[13px] font-semibold text-[#f0e6d4]">
+            {meta.length > 0 ? <span>{meta.join(' · ')}</span> : null}
+            {openUntilLabel ? (
+              <span className="text-green-deep inline-flex items-center gap-1.5 rounded-full bg-[rgba(255,253,248,0.92)] px-2.5 py-1 text-[11.5px]">
+                <span className="bg-green-bright h-1.5 w-1.5 rounded-full" aria-hidden />
+                aberto até {openUntilLabel}
+              </span>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -281,7 +339,7 @@ function StepChrome({
           type="button"
           onClick={onBack}
           aria-label="Voltar"
-          className="bg-card focus-visible:ring-ring flex h-10 w-10 shrink-0 items-center justify-center rounded-[13px] border-line border transition-transform focus-visible:outline-none focus-visible:ring-2 active:scale-95"
+          className="bg-card focus-visible:ring-ring border-line flex h-10 w-10 shrink-0 items-center justify-center rounded-[13px] border transition-transform focus-visible:outline-none focus-visible:ring-2 active:scale-95"
         >
           <ChevronLeft className="text-green-deep h-5 w-5" />
         </button>
@@ -324,6 +382,11 @@ function StickyFooter({ children }: { children: React.ReactNode }) {
 function StepVitrine({
   tenantName,
   logoUrl,
+  coverUrl,
+  segment,
+  openUntilLabel,
+  ratingAvg,
+  ratingCount,
   services,
   lowestPrice,
   onSelectService,
@@ -331,6 +394,11 @@ function StepVitrine({
 }: {
   tenantName: string;
   logoUrl: string | null;
+  coverUrl: string | null;
+  segment: string | null;
+  openUntilLabel: string | null;
+  ratingAvg: number | null;
+  ratingCount: number;
   services: ServiceOption[];
   lowestPrice: number | null;
   onSelectService: (service: ServiceOption) => void;
@@ -339,7 +407,15 @@ function StepVitrine({
   return (
     <>
       <div className="space-y-5">
-        <Hero tenantName={tenantName} logoUrl={logoUrl} />
+        <Hero
+          tenantName={tenantName}
+          logoUrl={logoUrl}
+          coverUrl={coverUrl}
+          segment={segment}
+          openUntilLabel={openUntilLabel}
+          ratingAvg={ratingAvg}
+          ratingCount={ratingCount}
+        />
 
         {services.length === 0 ? (
           <p className="bg-muted text-sub rounded-xl border p-4 text-sm">
@@ -362,9 +438,7 @@ function StepVitrine({
                         {formatDuration(service.durationMinutes)}
                       </p>
                       {service.description ? (
-                        <p className="text-sub mt-1 text-sm leading-5">
-                          {service.description}
-                        </p>
+                        <p className="text-sub mt-1 text-sm leading-5">{service.description}</p>
                       ) : null}
                     </div>
                     <span className="text-green-deep shrink-0 font-serif text-lg font-semibold">
@@ -382,7 +456,9 @@ function StepVitrine({
         <StickyFooter>
           <div>
             <p className="text-sub text-[11.5px]">a partir de</p>
-            <p className="text-foreground font-serif text-2xl font-semibold">{formatBRL(lowestPrice)}</p>
+            <p className="text-foreground font-serif text-2xl font-semibold">
+              {formatBRL(lowestPrice)}
+            </p>
           </div>
           <Button
             type="button"
@@ -544,9 +620,7 @@ function StepSelect({
                 >
                   <div className="min-w-0 flex-1">
                     <p className="text-foreground text-[15px] font-semibold">{s.name}</p>
-                    <p className="text-sub mt-0.5 text-xs">
-                      {serviceMeta(s, professionals)}
-                    </p>
+                    <p className="text-sub mt-0.5 text-xs">{serviceMeta(s, professionals)}</p>
                   </div>
                   <span className="text-green-deep shrink-0 font-serif text-lg font-semibold">
                     {formatBRL(s.priceCents)}
@@ -941,11 +1015,7 @@ function StepDiaHora({
                     <span
                       className={cn(
                         'text-[11px] font-medium',
-                        isSelected
-                          ? 'text-[#8fbfa4]'
-                          : isClosed
-                            ? 'text-[#b9ad93]'
-                            : 'text-sub',
+                        isSelected ? 'text-[#8fbfa4]' : isClosed ? 'text-[#b9ad93]' : 'text-sub',
                       )}
                     >
                       {wd}
@@ -1175,7 +1245,7 @@ function OccurrenceRow({
   return (
     <li
       className={cn(
-        'rounded-[16px] border-edge border p-3 text-sm transition-colors',
+        'border-edge rounded-[16px] border p-3 text-sm transition-colors',
         removed || dropped ? 'bg-muted/40 border-dashed' : 'bg-card',
         conflict ? 'border-amber-300/70 bg-amber-50/40' : '',
       )}
@@ -1249,9 +1319,7 @@ function OccurrenceRow({
       {open && !removed ? (
         <div className="mt-3 space-y-2 border-t pt-3">
           <div className="flex items-center justify-between gap-2">
-            <p className="text-sub text-xs capitalize">
-              {labelFromIso(viewDate, timezone)}
-            </p>
+            <p className="text-sub text-xs capitalize">{labelFromIso(viewDate, timezone)}</p>
             <MonthCalendar
               minDate={minDate}
               maxDate={maxDate}
@@ -1748,7 +1816,9 @@ function StepConfirmar({
             </DialogTrigger>
             <DialogContent dismissable={false} className="max-w-sm">
               <DialogHeader>
-                <DialogTitle className="font-serif text-2xl font-semibold">Criar minha conta</DialogTitle>
+                <DialogTitle className="font-serif text-2xl font-semibold">
+                  Criar minha conta
+                </DialogTitle>
               </DialogHeader>
               <p className="text-sub -mt-2 text-sm">
                 Acompanhe, remarque e repita seus horários em um só lugar. Você continua aqui no
@@ -1902,7 +1972,11 @@ function SuccessShell({
           <div className="flex items-center gap-3">
             {logoUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={logoUrl} alt="" className="h-11 w-11 shrink-0 rounded-[14px] object-cover" />
+              <img
+                src={logoUrl}
+                alt=""
+                className="h-11 w-11 shrink-0 rounded-[14px] object-cover"
+              />
             ) : (
               <span className="bg-coral/20 text-coral flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] font-serif text-lg font-semibold">
                 {tenantName.charAt(0)}
@@ -2301,6 +2375,11 @@ export function PublicBooking({
   slug,
   tenantName,
   logoUrl,
+  coverUrl,
+  segment,
+  openUntilLabel,
+  ratingAvg,
+  ratingCount,
   services,
   professionals,
   timezone,
@@ -2553,6 +2632,11 @@ export function PublicBooking({
         <StepVitrine
           tenantName={tenantName}
           logoUrl={logoUrl}
+          coverUrl={coverUrl}
+          segment={segment}
+          openUntilLabel={openUntilLabel}
+          ratingAvg={ratingAvg}
+          ratingCount={ratingCount}
           services={services}
           lowestPrice={lowestPrice}
           onSelectService={handleSelectService}

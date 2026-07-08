@@ -9,7 +9,7 @@ export default async function SenhaPage() {
   await requireCustomerAccount();
 
   return (
-    <div>
+    <div className="mx-auto max-w-[640px]">
       <ScreenHeader title="Alterar senha" eyebrow="Conta" backHref="/conta/perfil" />
       <div className="px-5 pb-8 pt-2">
         <CustomerPasswordCard />

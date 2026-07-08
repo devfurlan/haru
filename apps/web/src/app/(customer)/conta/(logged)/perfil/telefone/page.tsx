@@ -12,7 +12,7 @@ export default async function TelefonePage() {
   const profile = await getCustomerProfile(account);
 
   return (
-    <div>
+    <div className="mx-auto max-w-[640px]">
       <ScreenHeader title="Telefone" eyebrow="Conta" backHref="/conta/perfil" />
       <div className="px-5 pb-8 pt-2">
         <ChangePhoneCard

@@ -4,48 +4,9 @@ import { CalendarDays } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
 
-import { TenantAvatar } from '@/components/customer/tenant-avatar';
 import type { CustomerAppointmentItem } from '@/lib/customer';
 
 import { AppointmentCard } from '../appointment-card';
-
-// "21 jun" no fuso do tenant (linha compacta dos concluídos).
-function shortDate(startsAt: Date, tz: string): string {
-  return new Intl.DateTimeFormat('pt-BR', { timeZone: tz, day: 'numeric', month: 'short' })
-    .format(startsAt)
-    .replace('.', '');
-}
-
-function ConcluidosPreview({ items }: { items: CustomerAppointmentItem[] }) {
-  return (
-    <section className="mt-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-ink font-serif text-[15px]">Concluídos</h2>
-        <span className="border-edge bg-paper text-sub rounded-full border px-[11px] py-1.5 text-xs font-semibold">
-          Últimos 30 dias
-        </span>
-      </div>
-      <div className="mt-3 space-y-3">
-        {items.slice(0, 3).map((p) => (
-          <Link
-            key={p.id}
-            href={`/conta/agendamentos/${p.id}`}
-            className="flex items-center gap-3 opacity-[0.85] transition-opacity active:opacity-60"
-          >
-            <TenantAvatar name={p.tenant.name} logoUrl={p.tenant.logoUrl} size={44} radius={13} />
-            <div className="min-w-0 flex-1">
-              <p className="text-ink truncate text-sm font-semibold">{p.tenant.name}</p>
-              <p className="text-sub truncate text-[11.5px] font-medium">
-                {p.serviceName} · {shortDate(p.startsAt, p.tenant.timezone)}
-              </p>
-            </div>
-            <span className="text-green-deep text-[12px] font-bold">Reagendar</span>
-          </Link>
-        ))}
-      </div>
-    </section>
-  );
-}
 
 export function AgendaClient({
   upcoming,
@@ -58,10 +19,10 @@ export function AgendaClient({
   const list = tab === 'upcoming' ? upcoming : past;
 
   return (
-    <div className="px-5 pt-6">
-      <h1 className="text-ink font-serif text-[28px] tracking-tight">Sua agenda</h1>
+    <div className="mx-auto max-w-[980px] px-5 py-7 md:px-8 md:py-9">
+      <h1 className="text-ink font-serif text-[28px] tracking-tight md:text-[34px]">Sua agenda</h1>
 
-      <div className="mt-4 flex gap-2">
+      <div className="mt-5 flex gap-2">
         {(
           [
             ['upcoming', 'Próximos'],
@@ -72,10 +33,10 @@ export function AgendaClient({
             key={key}
             type="button"
             onClick={() => setTab(key)}
-            className={`flex-1 rounded-xl py-2.5 text-[13.5px] transition-colors ${
+            className={`rounded-full border px-6 py-2.5 text-[13.5px] font-bold transition-colors ${
               tab === key
-                ? 'bg-green-deep text-cream font-bold'
-                : 'border-edge bg-paper text-ink border font-semibold'
+                ? 'bg-green-deep text-cream border-green-deep'
+                : 'border-edge bg-paper text-ink hover:bg-cream-2'
             }`}
           >
             {label}
@@ -83,16 +44,16 @@ export function AgendaClient({
         ))}
       </div>
 
-      <div className="pt-[18px]">
+      <div className="mt-6">
         {list.length === 0 ? (
-          <div className="mt-12 flex flex-col items-center px-6 text-center">
-            <div className="bg-coral/10 mb-4 flex h-20 w-20 items-center justify-center rounded-full">
-              <CalendarDays className="text-coral h-[34px] w-[34px]" />
+          <div className="border-edge bg-paper rounded-[22px] border border-dashed p-12 text-center">
+            <div className="bg-coral-tint mx-auto flex h-14 w-14 items-center justify-center rounded-full">
+              <CalendarDays className="text-coral h-6 w-6" />
             </div>
-            <p className="text-ink font-serif text-xl">
+            <p className="text-ink mt-4 font-serif text-[24px]">
               Tá tudo <em className="text-green-deep italic">livre</em>
             </p>
-            <p className="text-muted-foreground mt-2 text-base leading-6">
+            <p className="text-sub mx-auto mt-1.5 max-w-md text-[14px] leading-6">
               {tab === 'upcoming'
                 ? 'Encontre um estabelecimento e agende - vai aparecer tudo por aqui.'
                 : 'Seus agendamentos anteriores vão aparecer por aqui.'}
@@ -100,7 +61,7 @@ export function AgendaClient({
             {tab === 'upcoming' ? (
               <Link
                 href="/conta/buscar"
-                className="bg-coral mt-6 rounded-2xl px-6 py-4 text-[15px] font-bold text-white transition-transform active:scale-[0.97]"
+                className="bg-coral mt-5 inline-block rounded-2xl px-6 py-3.5 text-[14px] font-bold text-white transition-transform active:scale-[0.97]"
               >
                 Buscar estabelecimento
               </Link>
@@ -108,12 +69,16 @@ export function AgendaClient({
           </div>
         ) : (
           <>
-            <div className="space-y-3">
-              {list.map((item, i) => (
-                <AppointmentCard key={item.id} item={item} first={i === 0} />
+            <div className="space-y-3.5">
+              {list.map((item) => (
+                <AppointmentCard key={item.id} item={item} variant={tab} />
               ))}
             </div>
-            {tab === 'upcoming' && past.length > 0 ? <ConcluidosPreview items={past} /> : null}
+            {tab === 'upcoming' ? (
+              <p className="text-ink-30 mt-3.5 text-[12.5px]">
+                Cancelamento grátis até 2h antes. A gente te lembra antes, relaxa.
+              </p>
+            ) : null}
           </>
         )}
       </div>
