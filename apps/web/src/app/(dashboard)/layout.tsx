@@ -1,3 +1,5 @@
+import { redirect } from 'next/navigation';
+
 import { BillingBanner } from '@/components/billing-banner';
 import { DashboardShell } from '@/components/dashboard/dashboard-shell';
 import { NotificationBell } from '@/components/notification-bell';
@@ -14,6 +16,11 @@ export default async function DashboardLayout({
 }) {
   const user = await requireUserAndTenant();
   const { tenant, email, name, avatarUrl } = user;
+
+  // Onboarding não concluído → wizard de primeira execução. /onboarding é rota
+  // top-level (fora deste grupo), então não há loop. Tenants antigos já vêm com
+  // onboardingCompletedAt preenchido (backfill da migration).
+  if (!tenant.onboardingCompletedAt) redirect('/onboarding');
 
   return (
     <>

@@ -73,10 +73,10 @@ export async function signUp(_prev: ActionResult, formData: FormData): Promise<A
   }
 
   revalidatePath('/', 'layout');
-  // Veio de um card de plano na home? Leva ao checkout com o plano já marcado;
-  // senão, cai no dashboard. parsePlanParam descarta valores inválidos.
+  // Conta nova cai no onboarding (wizard de 4 passos). O plano escolhido na home é
+  // preservado: ao concluir/pular o onboarding, segue pro checkout com ele marcado.
   const plano = parsePlanParam(formData.get('plano') as string | null);
-  redirect(plano ? `/assinatura?plano=${plano.toLowerCase()}` : '/dashboard');
+  redirect(plano ? `/onboarding?plano=${plano.toLowerCase()}` : '/onboarding');
 }
 
 const signInSchema = z.object({

@@ -127,10 +127,12 @@
   --color-edge: var(--brand-edge);
   /* Novos tokens do redesenho (Painel do Dono) expostos como utilities. */
   --color-ink-70: var(--brand-ink-70);
+  --color-ink-50: var(--brand-sub);
   --color-ink-30: var(--brand-ink-30);
   --color-green-emph: var(--brand-green-emph);
   --color-coral-deep: var(--brand-coral-deep);
   --color-coral-tint: var(--brand-coral-tint);
+  --color-on-emerald: var(--brand-cream);
   --color-on-emerald-mut: var(--brand-on-emerald-mut);
   --color-on-emerald-faint: var(--brand-on-emerald-faint);
 
