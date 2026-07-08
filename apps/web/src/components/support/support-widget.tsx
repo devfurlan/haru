@@ -62,7 +62,7 @@ export function SupportWidget() {
   return (
     <>
       {open && (
-        <div className="bg-background fixed bottom-24 right-4 z-40 flex h-[30rem] w-[22rem] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-2xl border shadow-2xl">
+        <div className="bg-background fixed bottom-[148px] right-4 z-40 flex h-[30rem] w-[22rem] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-2xl border shadow-2xl md:bottom-24">
           <header className="flex items-center justify-between border-b px-4 py-3">
             <div>
               <p className="text-sm font-semibold">Suporte</p>
@@ -127,7 +127,7 @@ export function SupportWidget() {
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-label="Suporte"
-        className="bg-primary text-primary-foreground fixed bottom-4 right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full shadow-lg transition hover:brightness-105"
+        className="bg-primary text-primary-foreground fixed bottom-[84px] right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full shadow-lg transition hover:brightness-105 md:bottom-4"
       >
         {open ? <X className="h-6 w-6" /> : <MessageCircle className="h-6 w-6" />}
       </button>
