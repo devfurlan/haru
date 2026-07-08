@@ -38,6 +38,27 @@ model Tenant {
   /// o dono confirmar no painel; CONFIRMED já reserva o horário na hora.
   publicBookingConfirmation PublicBookingConfirmation @default(PENDING)
 
+  // --- Vitrine / página pública -----------------------------------------------
+  /// Segmento/tipo de negócio (ex.: "barbearia", "salão", "clínica"). Coletado no
+  /// onboarding via chips; usado na vitrine e como meta da página. Texto livre.
+  segment        String?
+  /// "Sobre nós" da vitrine - texto mais longo/editorial que `description` (que é a
+  /// bio de 256 do perfil WhatsApp). Exibido na página pública e no app.
+  about          String?
+  /// Comodidades do estabelecimento (chaves: estacionamento, wifi, acessivel,
+  /// pix_cartao, ar, cafe, kids). Renderizadas como selos na vitrine.
+  amenities      String[] @default([])
+  /// Handle do Instagram (sem @) exibido nos contatos da página pública. Texto livre.
+  instagram      String?
+  /// Fotos de capa da vitrine (URLs no bucket tenant-assets), até 5. O índice 0 é a
+  /// principal (★) e define a ordem do carrossel na página e no app.
+  coverImageUrls String[] @default([])
+
+  /// Marca a conclusão do onboarding do dono (wizard de 4 passos). null = ainda não
+  /// concluiu → o painel redireciona pra /onboarding. Tenants criados antes desta
+  /// coluna recebem now() no backfill da migration (não veem o wizard).
+  onboardingCompletedAt DateTime?
+
   // WhatsApp Cloud API - credenciais por tenant (onboard via Embedded Signup).
   // O bot resolve qual tenant atende um webhook por whatsappPhoneNumberId.
   whatsappPhoneNumberId     String?   @unique
