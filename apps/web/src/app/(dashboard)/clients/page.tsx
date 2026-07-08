@@ -1,99 +1,63 @@
 import { prisma } from '@haru/database';
-import { Search } from 'lucide-react';
-import Link from 'next/link';
+import { formatBRL } from '@haru/shared';
 
-import { Card, CardContent } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { requireUserAndTenant } from '@/lib/auth';
-import { formatPhoneBR, matchesSearch } from '@haru/shared';
 
-interface PageProps {
-  searchParams: Promise<{ q?: string }>;
-}
+import { ClientsList, type ClientRow } from './clients-list';
 
-export default async function ClientsPage({ searchParams }: PageProps) {
+export default async function ClientsPage() {
   const { tenant } = await requireUserAndTenant();
-  const { q } = await searchParams;
-  const query = q?.trim() ?? '';
-  const digits = query.replace(/\D/g, '');
+  const now = Date.now();
 
-  // ponytail: com termo, carrega os contatos do tenant e filtra em JS - o Postgres aqui não
-  // tem unaccent, então "Joao" precisar casar "João" tem que ser fora do banco. Sem termo,
-  // mantém o take no banco (carregamento padrão não regride). Migrar pra unaccent(name)/
-  // coluna normalizada + índice se um tenant passar de alguns milhares de contatos.
-  const clients = query
-    ? (
-        await prisma.contact.findMany({
-          where: { tenantId: tenant.id },
-          orderBy: [{ name: 'asc' }, { createdAt: 'desc' }],
-          include: { _count: { select: { appointments: true } } },
-        })
-      )
-        .filter(
-          (c) =>
-            matchesSearch(query, c.name) ||
-            (digits.length > 0 && (c.phone?.includes(digits) ?? false)),
-        )
-        .slice(0, 200)
-    : await prisma.contact.findMany({
-        where: { tenantId: tenant.id },
-        orderBy: [{ name: 'asc' }, { createdAt: 'desc' }],
-        take: 200,
-        include: { _count: { select: { appointments: true } } },
-      });
+  const contacts = await prisma.contact.findMany({
+    where: { tenantId: tenant.id },
+    orderBy: [{ name: 'asc' }, { createdAt: 'desc' }],
+    take: 300,
+    include: {
+      appointments: {
+        select: { startsAt: true, status: true, service: { select: { name: true, priceCents: true } } },
+        orderBy: { startsAt: 'desc' },
+      },
+    },
+  });
 
-  return (
-    <div className="mx-auto max-w-4xl space-y-6">
-      <div>
-        <h1 className="font-serif text-2xl font-semibold tracking-tight">Clientes</h1>
-        <p className="text-sm text-muted-foreground">
-          Quem já entrou em contato com o estabelecimento pelo WhatsApp.
-        </p>
-      </div>
+  const dateFmt = new Intl.DateTimeFormat('pt-BR', {
+    timeZone: tenant.timezone,
+    day: '2-digit',
+    month: '2-digit',
+  });
 
-      <form method="get" className="relative">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          name="q"
-          defaultValue={query}
-          placeholder="Buscar por nome ou telefone"
-          className="pl-9"
-        />
-      </form>
+  const rows: ClientRow[] = contacts.map((c) => {
+    const active = c.appointments.filter((a) => a.status !== 'CANCELED');
+    const count = active.length;
+    const completed = c.appointments.filter((a) => a.status === 'COMPLETED');
+    const totalCents = completed.reduce((s, a) => s + a.service.priceCents, 0);
 
-      {clients.length === 0 ? (
-        <Card>
-          <CardContent className="py-10 text-center text-sm text-muted-foreground">
-            {query
-              ? 'Nenhum cliente encontrado para essa busca.'
-              : 'Nenhum cliente cadastrado ainda. Eles aparecem aqui quando agendam pelo WhatsApp.'}
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="space-y-2">
-          {clients.map((client) => (
-            <Link
-              key={client.id}
-              href={`/clients/${client.id}`}
-              className="flex items-center justify-between gap-3 rounded-lg border bg-card p-4 shadow-sm transition-colors hover:bg-accent"
-            >
-              <div className="min-w-0">
-                <div className="truncate font-medium">
-                  {client.name ?? formatPhoneBR(client.phone)}
-                </div>
-                <div className="text-sm text-muted-foreground">
-                  {formatPhoneBR(client.phone)}
-                  {client.email ? ` · ${client.email}` : ''}
-                </div>
-              </div>
-              <div className="shrink-0 text-sm text-muted-foreground">
-                {client._count.appointments}{' '}
-                {client._count.appointments === 1 ? 'agendamento' : 'agendamentos'}
-              </div>
-            </Link>
-          ))}
-        </div>
-      )}
-    </div>
-  );
+    // Última visita: agendamento passado mais recente (lista já vem desc por startsAt).
+    const lastPast = c.appointments.find((a) => a.startsAt.getTime() < now && a.status !== 'CANCELED');
+
+    // Serviço de sempre: mais frequente entre os não-cancelados.
+    const freq = new Map<string, number>();
+    for (const a of active) freq.set(a.service.name, (freq.get(a.service.name) ?? 0) + 1);
+    let fav: string | null = null;
+    let favN = 0;
+    for (const [name, n] of freq) if (n > favN) ((fav = name), (favN = n));
+
+    const tag = count >= 5 ? 'Recorrente' : count <= 1 ? 'Novo' : null;
+
+    return {
+      id: c.id,
+      name: c.name,
+      phone: c.phone,
+      count,
+      lastVisitLabel: lastPast ? dateFmt.format(lastPast.startsAt) : null,
+      lastVisitTs: lastPast ? lastPast.startsAt.getTime() : 0,
+      totalLabel: formatBRL(totalCents),
+      totalCents,
+      fav,
+      tag,
+    };
+  });
+
+  return <ClientsList clients={rows} />;
 }

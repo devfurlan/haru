@@ -60,10 +60,10 @@ export default async function ClientDetailPage({ params }: PageProps) {
         </div>
         <span
           className={cn(
-            'shrink-0 rounded px-2 py-1 text-xs font-medium',
+            'shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold',
             client.profileCompletedAt
-              ? 'bg-emerald-100 text-emerald-900'
-              : 'bg-amber-100 text-amber-900',
+              ? 'bg-chip text-green-emph'
+              : 'bg-[#fdf0d5] text-[#8a6116]',
           )}
         >
           {client.profileCompletedAt ? 'Cadastro confirmado' : 'Cadastro pendente'}
