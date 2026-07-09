@@ -55,3 +55,32 @@ export function openStatus(blocks: OpenBlock[], tz: string, now: Date = new Date
     ? { open: true, untilLabel: hourLabel(until) }
     : { open: false, untilLabel: null };
 }
+
+// getDay() → abreviação BR (0 = domingo). Usada só no rótulo "abre {quando}".
+const WEEKDAY_SHORT_BR = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
+
+/**
+ * Quando o estabelecimento abre de novo, a partir de `now`. Varre até 7 dias à frente
+ * e devolve o rótulo relativo do próximo início de expediente ("hoje às 14h",
+ * "amanhã às 10h30", "sex às 8h"). null quando não há nenhum bloco na semana.
+ * Status de vitrine (igual openStatus): ignora ScheduleException.
+ */
+export function nextOpening(blocks: OpenBlock[], tz: string, now: Date = new Date()): string | null {
+  const wd = weekdayOf(now, tz);
+  const mins = minutesOfDayInTz(now, tz);
+  for (let i = 0; i <= 7; i++) {
+    const day = (wd + i) % 7;
+    let earliest = Infinity;
+    for (const b of blocks) {
+      // Hoje (i=0): só blocos que ainda não começaram. Dias futuros: qualquer bloco.
+      if (b.weekday === day && (i > 0 || b.startMinute > mins) && b.startMinute < earliest) {
+        earliest = b.startMinute;
+      }
+    }
+    if (earliest !== Infinity) {
+      const rel = i === 0 ? 'hoje' : i === 1 ? 'amanhã' : WEEKDAY_SHORT_BR[day];
+      return `${rel} às ${hourLabel(earliest)}`;
+    }
+  }
+  return null;
+}

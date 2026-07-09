@@ -12,6 +12,37 @@ export interface CustomerReview {
   comment: string | null;
 }
 
+export interface PublicReview {
+  name: string | null;
+  rating: number;
+  comment: string;
+  createdAt: Date;
+}
+
+/**
+ * Avaliações com comentário pra vitrine pública (mais recentes primeiro). Só as que têm
+ * texto - a média/contagem agregadas já vivem em Tenant.ratingAvg/ratingCount.
+ */
+export async function getPublicReviews(tenantId: string, limit = 6): Promise<PublicReview[]> {
+  const rows = await prisma.review.findMany({
+    where: { tenantId, comment: { not: null } },
+    orderBy: { createdAt: 'desc' },
+    take: limit,
+    select: {
+      rating: true,
+      comment: true,
+      createdAt: true,
+      customerAccount: { select: { name: true } },
+    },
+  });
+  return rows.map((r) => ({
+    name: r.customerAccount.name,
+    rating: r.rating,
+    comment: r.comment as string,
+    createdAt: r.createdAt,
+  }));
+}
+
 /** O cliente pode avaliar este tenant? Só depois de um atendimento concluído nele. */
 export async function canReview(account: CustomerAccount, tenantId: string): Promise<boolean> {
   const appt = await prisma.appointment.findFirst({
@@ -19,6 +50,20 @@ export async function canReview(account: CustomerAccount, tenantId: string): Pro
     select: { id: true },
   });
   return appt != null;
+}
+
+/**
+ * Notas do cliente por tenant (tenantId -> rating), numa consulta só. Alimenta o
+ * histórico da agenda: cada linha concluída mostra "★ X · sua nota" ou o botão "Avaliar".
+ */
+export async function getCustomerReviewsMap(
+  account: CustomerAccount,
+): Promise<Map<string, number>> {
+  const rows = await prisma.review.findMany({
+    where: { customerAccountId: account.id },
+    select: { tenantId: true, rating: true },
+  });
+  return new Map(rows.map((r) => [r.tenantId, r.rating]));
 }
 
 /** Avaliação atual do cliente pra este tenant (pré-preenche o form de edição); null se ainda não avaliou. */

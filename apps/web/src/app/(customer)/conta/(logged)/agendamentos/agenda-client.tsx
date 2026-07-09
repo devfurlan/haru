@@ -11,9 +11,12 @@ import { AppointmentCard } from '../appointment-card';
 export function AgendaClient({
   upcoming,
   past,
+  reviews = {},
 }: {
   upcoming: CustomerAppointmentItem[];
   past: CustomerAppointmentItem[];
+  /** tenantId -> nota do cliente, pra marcar "sua nota" nas linhas concluídas do histórico. */
+  reviews?: Record<string, number>;
 }) {
   const [tab, setTab] = useState<'upcoming' | 'past'>('upcoming');
   const list = tab === 'upcoming' ? upcoming : past;
@@ -71,7 +74,12 @@ export function AgendaClient({
           <>
             <div className="space-y-3.5">
               {list.map((item) => (
-                <AppointmentCard key={item.id} item={item} variant={tab} />
+                <AppointmentCard
+                  key={item.id}
+                  item={item}
+                  variant={tab}
+                  reviewRating={reviews[item.tenant.id] ?? null}
+                />
               ))}
             </div>
             {tab === 'upcoming' ? (

@@ -1,26 +1,12 @@
 'use client';
 
-import {
-  Accessibility,
-  Baby,
-  Car,
-  Check,
-  Coffee,
-  Copy,
-  CreditCard,
-  ExternalLink,
-  Instagram,
-  Mail,
-  Phone,
-  Wifi,
-  Wind,
-  type LucideIcon,
-} from 'lucide-react';
+import { Check, Copy, ExternalLink, Instagram, Mail, Phone } from 'lucide-react';
 import { useActionState, useState } from 'react';
 import { useFormStatus } from 'react-dom';
 
 import { formatPhoneBR } from '@haru/shared';
 
+import { AMENITIES } from '@/lib/amenities';
 import { Button } from '@/components/ui/button';
 import { Chip } from '@/components/ui/chip';
 import { Switch } from '@/components/ui/switch';
@@ -29,16 +15,6 @@ import { updatePublicBooking, updateTenant } from '../settings/actions';
 import { AddressAutocomplete } from './address-autocomplete';
 import { CoverUploader } from './cover-uploader';
 import { LogoUploader } from './logo-uploader';
-
-const AMENITIES: { key: string; label: string; Icon: LucideIcon }[] = [
-  { key: 'estacionamento', label: 'Estacionamento', Icon: Car },
-  { key: 'wifi', label: 'Wi-Fi', Icon: Wifi },
-  { key: 'acessivel', label: 'Acessível', Icon: Accessibility },
-  { key: 'pix_cartao', label: 'Pix e cartão', Icon: CreditCard },
-  { key: 'ar', label: 'Ar-condicionado', Icon: Wind },
-  { key: 'cafe', label: 'Café na espera', Icon: Coffee },
-  { key: 'kids', label: 'Espaço kids', Icon: Baby },
-];
 
 const BRL = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 0 });
 const money = (cents: number) => BRL.format(Math.round(cents / 100));

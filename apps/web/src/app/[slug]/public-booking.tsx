@@ -86,7 +86,7 @@ interface ProfessionalOption {
   avatarUrl: string | null;
 }
 
-interface PublicBookingProps {
+export interface PublicBookingProps {
   slug: string;
   /** Nome do negócio - mostrado no hero (passo vitrine) e no cabeçalho compacto. */
   tenantName: string;
@@ -117,6 +117,13 @@ interface PublicBookingProps {
   customerName: string | null;
   /** Telefone da conta (confirmado ou pendente), pra pré-preencher - null se convidado. */
   customerPhone: string | null;
+  /** Renderizado dentro do modal da página pública: pula a vitrine (a página já é a
+   *  vitrine) e começa direto no serviço escolhido. */
+  asModal?: boolean;
+  /** Serviço com que o modal abre (o "Agendar" da linha / CTA). Ignorado fora do modal. */
+  initialServiceId?: string | null;
+  /** Fechar o modal - usado no "voltar" do primeiro passo. */
+  onRequestClose?: () => void;
 }
 
 /**
@@ -2388,12 +2395,21 @@ export function PublicBooking({
   loggedIn,
   customerName,
   customerPhone,
+  asModal = false,
+  initialServiceId = null,
+  onRequestClose,
 }: PublicBookingProps) {
   const router = useRouter();
-  const [step, setStep] = useState<Step>('vitrine');
 
   // Há profissionais pra escolher? Define se o passo "select" existe.
   const hasProfessionals = professionals.length > 0;
+
+  // No modal da página pública a vitrine é a própria página: entra direto no serviço
+  // escolhido (select se há profissionais, senão dia/horário). Fora do modal, começa
+  // na vitrine como sempre.
+  const [step, setStep] = useState<Step>(
+    asModal && initialServiceId ? (hasProfessionals ? 'select' : 'slot') : 'vitrine',
+  );
 
   // Conta criada agora, pelo modal inline do passo de confirmação.
   const [accountCreated, setAccountCreated] = useState(false);
@@ -2422,8 +2438,8 @@ export function PublicBooking({
     [timezone],
   );
 
-  // Serviço escolhido (passo vitrine).
-  const [serviceId, setServiceId] = useState('');
+  // Serviço escolhido (passo vitrine, ou pré-selecionado pelo modal da página).
+  const [serviceId, setServiceId] = useState(asModal ? (initialServiceId ?? '') : '');
   // Profissional escolhido no passo select. '' = sem preferência (sistema atribui).
   const [professionalId, setProfessionalId] = useState('');
 
@@ -2616,8 +2632,16 @@ export function PublicBooking({
     startTransition(() => formAction(fd));
   }
 
-  // Voltar do passo slot: pro select (se existe) ou pra vitrine.
-  const slotBackStep: Step = hasProfessionals ? 'select' : 'vitrine';
+  // Voltar do primeiro passo: no modal fecha (a vitrine é a página); fora, vai pra vitrine.
+  const backToStart = () => {
+    if (asModal) onRequestClose?.();
+    else setStep('vitrine');
+  };
+  // Voltar do passo slot: pro select (se existe), senão como o primeiro passo.
+  const backFromSlot = () => {
+    if (hasProfessionals) setStep('select');
+    else backToStart();
+  };
   const donePrice = selectedService ? formatBRL(selectedService.priceCents) : null;
   // Card de sucesso: serviço (subtítulo) + data/hora do slot (linha em serif), separados
   // como no app - em vez do `summary` concatenado do servidor.
@@ -2654,7 +2678,7 @@ export function PublicBooking({
           professionalLabel={professionalLabel}
           onPickProfessional={setProfessionalId}
           onPickService={handlePickServiceInSelect}
-          onBack={() => setStep('vitrine')}
+          onBack={backToStart}
           onContinue={() => setStep('slot')}
           headingRef={headingRef}
           professionals={professionals}
@@ -2681,8 +2705,8 @@ export function PublicBooking({
           notice={expiryNotice}
           error={submitError}
           twoStep={hasProfessionals}
-          onBack={() => setStep(slotBackStep)}
-          onEditService={() => setStep(slotBackStep)}
+          onBack={backFromSlot}
+          onEditService={backFromSlot}
           // Logado com contato: confirma direto (pula "Seus dados"). Visitante avança.
           onContinue={canDirectConfirm ? submitDirect : () => setStep('contact')}
           continueLabel={

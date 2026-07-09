@@ -11,7 +11,6 @@ import { formatBRL, formatDuration } from '@haru/shared';
 
 import { CancelDialog } from '../cancel-dialog';
 import { RescheduleDialog } from '../reschedule-dialog';
-import { ReviewDialog } from '../review-dialog';
 
 export const dynamic = 'force-dynamic';
 
@@ -220,12 +219,16 @@ export default async function AppointmentDetailPage({
                   <p className="text-sub mt-0.5 text-[13px]">Sua nota ajuda outras pessoas.</p>
                 )}
               </div>
-              <ReviewDialog
-                tenantId={item.tenant.id}
-                tenantName={item.tenant.name}
-                initialRating={review?.rating ?? 0}
-                initialComment={review?.comment ?? ''}
-              />
+              <Link
+                href={`/conta/agendamentos/${item.id}/avaliar`}
+                className={
+                  review
+                    ? 'border-edge bg-paper text-ink shrink-0 rounded-2xl border px-4 py-2.5 text-[13.5px] font-bold transition-transform active:scale-[0.97]'
+                    : 'bg-coral shrink-0 rounded-2xl px-4 py-2.5 text-[13.5px] font-bold text-white transition-transform active:scale-[0.97]'
+                }
+              >
+                {review ? 'Editar avaliação' : 'Avaliar atendimento'}
+              </Link>
             </div>
           </div>
         ) : null}

@@ -1,22 +1,71 @@
-import { MessageCircle, UserRound } from 'lucide-react';
 import type { Metadata } from 'next';
-import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
-import { formatBRL, formatDuration, minutesToHHMM } from '@haru/shared';
+import { BOOKING_HORIZON_DAYS, buildBookingDays, minutesToHHMM } from '@haru/shared';
 
-import { Button } from '@/components/ui/button';
-
-import { BOOKING_HORIZON_DAYS, buildBookingDays } from '@haru/shared';
-import { openStatus } from '@/lib/business-hours';
+import { nextOpening, openStatus } from '@/lib/business-hours';
 import { getCustomerAccount } from '@/lib/customer-auth';
+import { getPublicReviews } from '@/lib/reviews';
 import { isWhatsappConnected } from '@/lib/whatsapp-status';
 
+import type { PublicBookingProps } from './public-booking';
+import { PublicProfile, type PublicProfileHours } from './public-profile';
 import { loadPublicTenant } from './_tenant';
-import { BusinessHoursDialog } from './business-hours-dialog';
-import { PublicBooking } from './public-booking';
 
-const WEEKDAY_NAMES = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+// Índice getDay() → abreviação BR. WEEKDAY_ABBR[1] = "Seg".
+const WEEKDAY_ABBR = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+
+/** "10:30" -> "10h30"; "08:00" -> "8h" (padrão BR do produto). */
+function brTime(hhmm: string): string {
+  const [h, m] = hhmm.split(':');
+  const hh = String(Number(h));
+  return m === '00' ? `${hh}h` : `${hh}h${m}`;
+}
+
+/** ["Ter","Qui"] -> "Ter e Qui"; ["Seg","Qua","Dom"] -> "Seg, Qua e Dom". */
+function joinTokens(tokens: string[]): string {
+  if (tokens.length <= 1) return tokens[0] ?? '';
+  return `${tokens.slice(0, -1).join(', ')} e ${tokens[tokens.length - 1]}`;
+}
+
+/**
+ * Formata os dias de um grupo (posições consecutivas em Seg…Dom + abreviações), comprimindo
+ * corridas de 3+ dias seguidos em "X a Y". Ex.: Seg-Sex -> "Seg a Sex"; Ter,Qui -> "Ter e Qui".
+ */
+function formatDayGroup(positions: number[], abbrs: string[]): string {
+  const tokens: string[] = [];
+  let i = 0;
+  while (i < positions.length) {
+    let j = i;
+    while (j + 1 < positions.length && positions[j + 1] === positions[j] + 1) j++;
+    if (j - i >= 2) tokens.push(`${abbrs[i]} a ${abbrs[j]}`);
+    else for (let k = i; k <= j; k++) tokens.push(abbrs[k]);
+    i = j + 1;
+  }
+  return joinTokens(tokens);
+}
+
+/** "há 2 dias" / "há 1 semana" / "há 3 meses" a partir de uma data (relativo a agora). */
+function timeAgoBR(d: Date): string {
+  const secs = Math.max(0, Math.floor((Date.now() - d.getTime()) / 1000));
+  const days = Math.floor(secs / 86_400);
+  if (days >= 365) {
+    const y = Math.floor(days / 365);
+    return `há ${y} ${y === 1 ? 'ano' : 'anos'}`;
+  }
+  if (days >= 30) {
+    const mo = Math.floor(days / 30);
+    return `há ${mo} ${mo === 1 ? 'mês' : 'meses'}`;
+  }
+  if (days >= 7) {
+    const w = Math.floor(days / 7);
+    return `há ${w} ${w === 1 ? 'semana' : 'semanas'}`;
+  }
+  if (days >= 1) return `há ${days} ${days === 1 ? 'dia' : 'dias'}`;
+  const hrs = Math.floor(secs / 3600);
+  if (hrs >= 1) return `há ${hrs} ${hrs === 1 ? 'hora' : 'horas'}`;
+  return 'agora há pouco';
+}
 
 export async function generateMetadata({
   params,
@@ -28,7 +77,7 @@ export async function generateMetadata({
   if (!tenant) return { title: 'Não encontrado' };
   return {
     title: tenant.name,
-    description: `Agende online ou pelo WhatsApp em ${tenant.name}.`,
+    description: tenant.about ?? `Agende online ou pelo WhatsApp em ${tenant.name}.`,
   };
 }
 
@@ -37,7 +86,12 @@ export default async function TenantPublicPage({ params }: { params: Promise<{ s
   const tenant = await loadPublicTenant(slug);
   if (!tenant) notFound();
 
-  // Agrupa horários por weekday
+  const [customerAccount, reviewsRaw] = await Promise.all([
+    getCustomerAccount(),
+    getPublicReviews(tenant.id),
+  ]);
+
+  // Grade de expediente por weekday (0=dom … 6=sáb).
   const byDay = new Map<number, { startMinute: number; endMinute: number }[]>();
   for (let i = 0; i < 7; i++) byDay.set(i, []);
   for (const b of tenant.scheduleBlocks) {
@@ -45,168 +99,118 @@ export default async function TenantPublicPage({ params }: { params: Promise<{ s
   }
   const dayOrder = [1, 2, 3, 4, 5, 6, 0];
 
-  // Linhas prontas para o modal de horários (acionado pelo link no topo).
-  const businessHours = dayOrder.map((wd) => {
+  // Uma linha por dia (Seg…Dom), depois agrupadas por horário igual (dias com o mesmo
+  // expediente viram "Ter e Qui"); grupos fechados vão pro fim (cinza).
+  const dayRows = dayOrder.map((wd, pos) => {
     const blocks = byDay.get(wd) ?? [];
+    const closed = blocks.length === 0;
     return {
-      name: WEEKDAY_NAMES[wd],
-      value:
-        blocks.length === 0
-          ? 'Fechado'
-          : blocks
-              .map((b) => `${minutesToHHMM(b.startMinute)}–${minutesToHHMM(b.endMinute)}`)
-              .join(', '),
+      pos,
+      abbr: WEEKDAY_ABBR[wd],
+      closed,
+      value: closed
+        ? 'Fechado'
+        : blocks
+            .map((b) => `${brTime(minutesToHHMM(b.startMinute))} - ${brTime(minutesToHHMM(b.endMinute))}`)
+            .join(', '),
     };
   });
+  const groups: { pos: number[]; abbrs: string[]; value: string; closed: boolean }[] = [];
+  for (const r of dayRows) {
+    const g = groups.find((g) => g.value === r.value);
+    if (g) {
+      g.pos.push(r.pos);
+      g.abbrs.push(r.abbr);
+    } else groups.push({ pos: [r.pos], abbrs: [r.abbr], value: r.value, closed: r.closed });
+  }
+  groups.sort((a, b) => Number(a.closed) - Number(b.closed));
+  const hours: PublicProfileHours[] = groups.map((g) => ({
+    days: formatDayGroup(g.pos, g.abbrs),
+    value: g.value,
+    closed: g.closed,
+  }));
 
-  // Só oferece o botão de WhatsApp quando o número está de fato ativo: bot
-  // conectado (phone_number_id + access_token) E não banido pela Meta. Ter só o
-  // whatsappDisplayPhone não basta - sem bot ativo (ou com número banido) a
-  // mensagem cai num número que não atende/agenda.
+  // Status (aberto/fechado) - selo do topo e do trilho.
+  const st = openStatus(tenant.scheduleBlocks, tenant.timezone);
+  const shortLabel = st.open ? 'Aberto agora' : 'Fechado agora';
+  const longLabel = st.open
+    ? st.untilLabel
+      ? `Aberto agora · fecha às ${st.untilLabel}`
+      : 'Aberto agora'
+    : (() => {
+        const nx = nextOpening(tenant.scheduleBlocks, tenant.timezone);
+        return nx ? `Fechado · abre ${nx}` : 'Fechado agora';
+      })();
+
+  // WhatsApp só quando o número está de fato ativo (bot conectado e não banido).
   const whatsappActive = isWhatsappConnected(tenant) && !tenant.whatsappBannedAt;
   const waLink =
     whatsappActive && tenant.whatsappDisplayPhone
       ? `https://wa.me/${tenant.whatsappDisplayPhone}?text=${encodeURIComponent('Olá! Quero agendar um horário.')}`
       : null;
 
-  // Agendamento online: só mostra se ligado, com serviços e pelo menos um dia
-  // com expediente nos próximos dias. A lista de dias em si é gerada no client
-  // (carrossel + date-picker) a partir do fuso + dias-da-semana com expediente;
-  // aqui só precisamos saber se EXISTE algum dia atendível no horizonte.
+  // Agendamento online: ligado, com serviços e pelo menos um dia atendível no horizonte.
   const openWeekdays = [...new Set(tenant.scheduleBlocks.map((b) => b.weekday))];
-  const hasBookableDay = buildBookingDays(tenant.timezone, new Set(openWeekdays)).some(
-    (d) => d.open,
-  );
-  const showBooking = tenant.publicBookingEnabled && tenant.services.length > 0 && hasBookableDay;
+  const hasBookableDay = buildBookingDays(tenant.timezone, new Set(openWeekdays)).some((d) => d.open);
+  const canBook = tenant.publicBookingEnabled && tenant.services.length > 0 && hasBookableDay;
 
-  const customerAccount = await getCustomerAccount();
-  const openUntilLabel = openStatus(tenant.scheduleBlocks, tenant.timezone).untilLabel;
+  const mapHref =
+    tenant.latitude != null && tenant.longitude != null
+      ? `https://www.google.com/maps/search/?api=1&query=${tenant.latitude},${tenant.longitude}`
+      : tenant.address
+        ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(tenant.address)}`
+        : null;
+
+  const booking: PublicBookingProps = {
+    slug: tenant.slug,
+    tenantName: tenant.name,
+    logoUrl: tenant.logoUrl,
+    coverUrl: tenant.coverImageUrls[0] ?? null,
+    segment: tenant.segment,
+    openUntilLabel: st.untilLabel,
+    ratingAvg: tenant.ratingAvg ?? null,
+    ratingCount: tenant.ratingCount ?? 0,
+    services: tenant.services.map((s) => ({
+      id: s.id,
+      name: s.name,
+      description: s.description,
+      durationMinutes: s.durationMinutes,
+      priceCents: s.priceCents,
+      professionalIds: s.professionals.map((p) => p.professionalId),
+    })),
+    professionals: tenant.users.map((u) => ({ id: u.id, name: u.name, avatarUrl: u.avatarUrl })),
+    timezone: tenant.timezone,
+    openWeekdays,
+    horizonDays: BOOKING_HORIZON_DAYS,
+    loggedIn: !!customerAccount,
+    customerName: customerAccount?.name ?? null,
+    customerPhone: customerAccount?.phone ?? customerAccount?.pendingPhone ?? null,
+  };
 
   return (
-    <main className="bg-cream flex min-h-screen flex-col">
-      <div className="mx-auto w-full max-w-2xl flex-1 space-y-8 px-4 py-12">
-        <div className="flex items-center justify-between gap-2">
-          <BusinessHoursDialog hours={businessHours} />
-          <Button asChild variant="ghost" size="sm">
-            <Link href={customerAccount ? '/conta' : '/login'}>
-              <UserRound className="h-4 w-4" />
-              {customerAccount ? 'Minha conta' : 'Entrar na minha conta'}
-            </Link>
-          </Button>
-        </div>
-        {/* Com booking ativo, o hero do 1º passo do wizard já mostra nome/logo do
-            negócio (visual do app mobile) - o header centralizado só aparece quando
-            NÃO há agendamento online (vitrine estática). */}
-        {!showBooking && (
-          <header className="space-y-2 text-center">
-            <div className="flex items-center justify-center gap-3">
-              {tenant.logoUrl && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={tenant.logoUrl}
-                  alt={tenant.name}
-                  className="h-16 w-16 shrink-0 rounded-full object-cover"
-                />
-              )}
-              <h1 className="font-serif text-4xl font-semibold tracking-[-0.01em]">
-                {tenant.name}
-              </h1>
-            </div>
-            <p className="text-muted-foreground text-sm">
-              {waLink ? 'Agende pelo WhatsApp em segundos.' : 'Confira nossos serviços e horários.'}
-            </p>
-          </header>
-        )}
-
-        {showBooking && (
-          <PublicBooking
-            slug={tenant.slug}
-            tenantName={tenant.name}
-            logoUrl={tenant.logoUrl}
-            coverUrl={tenant.coverImageUrls[0] ?? null}
-            segment={tenant.segment}
-            openUntilLabel={openUntilLabel}
-            ratingAvg={tenant.ratingAvg ?? null}
-            ratingCount={tenant.ratingCount ?? 0}
-            services={tenant.services.map((s) => ({
-              id: s.id,
-              name: s.name,
-              description: s.description,
-              durationMinutes: s.durationMinutes,
-              priceCents: s.priceCents,
-              professionalIds: s.professionals.map((p) => p.professionalId),
-            }))}
-            professionals={tenant.users.map((u) => ({
-              id: u.id,
-              name: u.name,
-              avatarUrl: u.avatarUrl,
-            }))}
-            timezone={tenant.timezone}
-            openWeekdays={openWeekdays}
-            horizonDays={BOOKING_HORIZON_DAYS}
-            loggedIn={!!customerAccount}
-            customerName={customerAccount?.name ?? null}
-            customerPhone={customerAccount?.phone ?? customerAccount?.pendingPhone ?? null}
-          />
-        )}
-
-        {waLink && (
-          <div className="flex flex-col items-center gap-2">
-            {showBooking && <p className="text-muted-foreground text-xs">Prefere conversar?</p>}
-            <Button asChild variant={showBooking ? 'outline' : 'coral'} size="pill">
-              <a href={waLink} target="_blank" rel="noopener noreferrer">
-                <MessageCircle className="h-5 w-5" />
-                Agendar pelo WhatsApp
-              </a>
-            </Button>
-          </div>
-        )}
-
-        {/* Vitrine estática de serviços - só quando o agendamento online está
-            indisponível. Com booking ativo, a vitrine vive dentro do <PublicBooking>
-            (é o 1º passo: clicar num serviço inicia o agendamento), evitando listar
-            os serviços duas vezes. */}
-        {!showBooking && (
-          <section className="space-y-3">
-            <h2 className="font-serif text-xl font-semibold">Serviços</h2>
-            {tenant.services.length === 0 ? (
-              <p className="text-muted-foreground text-sm">Nenhum serviço cadastrado ainda.</p>
-            ) : (
-              <ul className="space-y-2">
-                {tenant.services.map((s) => (
-                  <li
-                    key={s.id}
-                    className="bg-card flex items-start justify-between gap-3 rounded-lg border p-4 shadow-sm"
-                  >
-                    <div>
-                      <div className="font-medium">{s.name}</div>
-                      {s.description && (
-                        <div className="text-muted-foreground text-sm">{s.description}</div>
-                      )}
-                      <div className="text-muted-foreground text-xs">
-                        {formatDuration(s.durationMinutes)}
-                      </div>
-                    </div>
-                    <div className="shrink-0 text-sm font-semibold">{formatBRL(s.priceCents)}</div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-        )}
-      </div>
-
-      <footer className="text-muted-foreground px-4 pb-6 text-center text-xs">
-        Powered by{' '}
-        <a
-          href={process.env.NEXT_PUBLIC_APP_URL || 'https://www.demandae.com'}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="hover:text-foreground font-medium underline-offset-4 hover:underline"
-        >
-          Demandaê
-        </a>
-      </footer>
-    </main>
+    <PublicProfile
+      booking={booking}
+      canBook={canBook}
+      waLink={waLink}
+      account={{
+        href: customerAccount ? '/conta' : `/login?next=/${slug}`,
+        label: customerAccount ? 'Minha conta' : 'Entrar',
+      }}
+      covers={tenant.coverImageUrls}
+      address={tenant.address}
+      instagram={tenant.instagram}
+      phone={tenant.whatsappDisplayPhone}
+      about={tenant.about}
+      amenities={tenant.amenities}
+      reviews={reviewsRaw.map((r) => ({
+        name: r.name,
+        rating: r.rating,
+        comment: r.comment,
+        ago: timeAgoBR(r.createdAt),
+      }))}
+      status={{ open: st.open, shortLabel, longLabel }}
+      hours={hours}
+      mapHref={mapHref}
+    />
   );
 }

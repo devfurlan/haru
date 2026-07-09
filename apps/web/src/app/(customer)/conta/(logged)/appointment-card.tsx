@@ -1,5 +1,6 @@
 'use client';
 
+import { Star } from 'lucide-react';
 import Link from 'next/link';
 
 import { TenantAvatar } from '@/components/customer/tenant-avatar';
@@ -40,12 +41,16 @@ function parts(startsAt: Date, tz: string) {
 export function AppointmentCard({
   item,
   variant,
+  reviewRating = null,
 }: {
   item: CustomerAppointmentItem;
   variant: 'upcoming' | 'past';
+  /** Nota do cliente pra este estabelecimento (null = ainda não avaliou). Só usada no histórico. */
+  reviewRating?: number | null;
 }) {
   const p = parts(item.startsAt, item.tenant.timezone);
   const status = STATUS[item.status];
+  const canReview = variant === 'past' && item.status === 'COMPLETED';
 
   if (variant === 'past') {
     return (
@@ -79,6 +84,24 @@ export function AppointmentCard({
         >
           {status.text}
         </span>
+        {canReview ? (
+          reviewRating != null ? (
+            <span className="bg-chip text-green-deep flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-2 text-[12px] font-semibold">
+              <span className="text-coral" aria-hidden>
+                ★
+              </span>
+              {reviewRating},0 · sua nota
+            </span>
+          ) : (
+            <Link
+              href={`/conta/agendamentos/${item.id}/avaliar`}
+              className="text-green-deep flex shrink-0 items-center gap-1.5 rounded-full border border-[#cfe3d6] px-4 py-2 text-[12.5px] font-bold transition-colors hover:bg-[#eaf6ee]"
+            >
+              <Star className="h-3.5 w-3.5" strokeWidth={2} />
+              Avaliar
+            </Link>
+          )
+        ) : null}
         {item.serviceActive ? (
           <Link
             href={`/conta/agendar?from=${item.id}`}
