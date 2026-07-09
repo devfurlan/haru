@@ -380,16 +380,19 @@ export function PublicProfile({
             </section>
           ) : null}
 
-          {/* avaliações */}
-          {ratingCount > 0 ? (
-            <section id="avaliacoes">
-              <div className="mb-3 flex items-baseline gap-3">
-                <h2 className="font-serif text-[22px] font-medium tracking-[-0.02em]">Avaliações</h2>
-                {ratingLabel ? <div className="font-serif text-[15px] font-semibold">★ {ratingLabel}</div> : null}
-                <div className="text-ink-50 text-[12.5px] font-medium">
-                  {ratingCount} {ratingCount === 1 ? 'avaliação' : 'avaliações'}
-                </div>
-              </div>
+          {/* avaliações - seção fixa (com estado vazio quando ainda não há avaliação) */}
+          <section id="avaliacoes">
+            <div className="mb-3 flex items-baseline gap-3">
+              <h2 className="font-serif text-[22px] font-medium tracking-[-0.02em]">Avaliações</h2>
+              {hasRating ? (
+                <>
+                  <div className="font-serif text-[15px] font-semibold">★ {ratingLabel}</div>
+                  <div className="text-ink-50 text-[12.5px] font-medium">
+                    {ratingCount} {ratingCount === 1 ? 'avaliação' : 'avaliações'}
+                  </div>
+                </>
+              ) : null}
+            </div>
               {reviews.length > 0 ? (
                 <div className="flex flex-col gap-3">
                   {reviews.map((r, i) => (
@@ -411,10 +414,13 @@ export function PublicProfile({
                   ))}
                 </div>
               ) : (
-                <p className="text-ink-50 text-sm">Ainda sem comentários por aqui.</p>
+                <div className="border-line bg-paper text-ink-50 rounded-2xl border px-4 py-8 text-center text-sm">
+                  {ratingCount > 0
+                    ? 'Ainda sem comentários por aqui.'
+                    : 'Ainda sem avaliações. Quem já foi atendido pode avaliar pela conta.'}
+                </div>
               )}
             </section>
-          ) : null}
         </div>
 
         {/* trilho */}
