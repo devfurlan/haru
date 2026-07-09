@@ -154,12 +154,15 @@ export default async function TenantPublicPage({ params }: { params: Promise<{ s
   const hasBookableDay = buildBookingDays(tenant.timezone, new Set(openWeekdays)).some((d) => d.open);
   const canBook = tenant.publicBookingEnabled && tenant.services.length > 0 && hasBookableDay;
 
-  const mapHref =
+  const coords =
     tenant.latitude != null && tenant.longitude != null
-      ? `https://www.google.com/maps/search/?api=1&query=${tenant.latitude},${tenant.longitude}`
-      : tenant.address
-        ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(tenant.address)}`
-        : null;
+      ? { lat: tenant.latitude, lng: tenant.longitude }
+      : null;
+  const mapHref = coords
+    ? `https://www.google.com/maps/search/?api=1&query=${coords.lat},${coords.lng}`
+    : tenant.address
+      ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(tenant.address)}`
+      : null;
 
   const booking: PublicBookingProps = {
     slug: tenant.slug,
@@ -211,6 +214,7 @@ export default async function TenantPublicPage({ params }: { params: Promise<{ s
       status={{ open: st.open, shortLabel, longLabel }}
       hours={hours}
       mapHref={mapHref}
+      coords={coords}
     />
   );
 }

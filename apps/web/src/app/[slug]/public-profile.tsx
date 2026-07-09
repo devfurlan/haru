@@ -7,6 +7,8 @@ import { useState } from 'react';
 import { formatBRL, formatDuration, formatPhoneBR } from '@haru/shared';
 
 import { Logo } from '@/components/logo';
+import { MapThumb } from '@/components/map-thumb';
+import { TenantAvatar } from '@/components/customer/tenant-avatar';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { AMENITIES } from '@/lib/amenities';
 import { cn } from '@/lib/utils';
@@ -46,8 +48,10 @@ export interface PublicProfileProps {
   reviews: PublicProfileReview[];
   status: { open: boolean; shortLabel: string; longLabel: string };
   hours: PublicProfileHours[];
-  /** Link pro mapa (Google Maps) - null quando não há endereço. */
+  /** Link pro mapa (Google Maps) - null quando não há endereço nem coordenadas. */
   mapHref: string | null;
+  /** Coordenadas geocodificadas - renderizam o mapa real (tiles OSM). null = sem mapa. */
+  coords: { lat: number; lng: number } | null;
 }
 
 function initialsOf(name: string | null | undefined): string {
@@ -119,6 +123,7 @@ export function PublicProfile({
   status,
   hours,
   mapHref,
+  coords,
 }: PublicProfileProps) {
   const { tenantName, logoUrl, segment, ratingAvg, ratingCount, services, professionals } = booking;
 
@@ -183,26 +188,12 @@ export function PublicProfile({
         <PrimaryCTA className="bg-coral shadow-coral inline-flex items-center rounded-full px-4 py-2.5 text-[12.5px] font-semibold text-white transition-transform active:scale-95" />
       </div>
 
-      {/* capa / carrossel */}
-      <div className="mx-auto mt-4 box-border w-full max-w-[1040px] px-4 sm:px-6">
-        <div className="relative h-[240px] w-full overflow-hidden rounded-[20px] bg-[#efe9d8] sm:h-[320px]">
-          {coverCount === 0 ? (
-            <div
-              className="flex h-full w-full items-center justify-center"
-              style={{
-                background:
-                  'radial-gradient(420px 220px at 20% -10%, rgba(47,211,122,.16), transparent 60%), var(--emerald)',
-              }}
-            >
-              {logoUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={logoUrl} alt="" className="h-20 w-20 rounded-2xl object-cover" />
-              ) : (
-                <span className="text-cream font-serif text-3xl">{tenantName}</span>
-              )}
-            </div>
-          ) : (
-            covers.map((url, i) => (
+      {/* capa / carrossel - só fotos reais do estabelecimento (a logo agora fica ao lado
+          do título; sem fotos, não mostramos uma capa vazia) */}
+      {coverCount > 0 && (
+        <div className="mx-auto mt-4 box-border w-full max-w-[1040px] px-4 sm:px-6">
+          <div className="relative h-[240px] w-full overflow-hidden rounded-[20px] bg-[#efe9d8] sm:h-[320px]">
+            {covers.map((url, i) => (
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 key={url}
@@ -211,10 +202,9 @@ export function PublicProfile({
                 className="absolute inset-0 h-full w-full object-cover transition-opacity duration-500"
                 style={{ opacity: cvIdx === i ? 1 : 0, pointerEvents: cvIdx === i ? 'auto' : 'none' }}
               />
-            ))
-          )}
+            ))}
 
-          {coverCount > 1 && (
+            {coverCount > 1 && (
             <>
               <button
                 type="button"
@@ -251,19 +241,28 @@ export function PublicProfile({
               </div>
             </>
           )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* corpo */}
       <div className="mx-auto box-border flex w-full max-w-[1040px] flex-col items-start gap-7 px-4 pb-16 pt-6 sm:px-6 lg:flex-row">
         {/* coluna principal */}
         <div className="flex min-w-0 flex-1 flex-col gap-7">
-          {/* título */}
-          <div>
-            <h1 className="font-serif text-[30px] font-medium leading-[1.08] tracking-[-0.02em] sm:text-[34px]">
-              {tenantName}
-            </h1>
-            <div className="text-ink-70 mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13.5px] font-medium">
+          {/* título - logo do estabelecimento + nome/avaliação/status */}
+          <div className="flex items-start gap-4">
+            <TenantAvatar
+              name={tenantName}
+              logoUrl={logoUrl}
+              size={72}
+              radius={18}
+              className="border-line border shadow-[0_4px_14px_rgba(10,51,36,0.14)]"
+            />
+            <div className="min-w-0 flex-1">
+              <h1 className="font-serif text-[30px] font-medium leading-[1.08] tracking-[-0.02em] sm:text-[34px]">
+                {tenantName}
+              </h1>
+              <div className="text-ink-70 mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13.5px] font-medium">
               {hasRating ? (
                 <>
                   <span className="font-serif text-[13.5px] font-semibold">★ {ratingLabel}</span>
@@ -283,14 +282,15 @@ export function PublicProfile({
                 </span>
               ))}
             </div>
-            <StatusPill
-              open={status.open}
-              label={status.longLabel}
-              className={cn(
-                'mt-2 text-[12.5px] font-semibold',
-                status.open ? 'text-green-emph' : 'text-ink-50',
-              )}
-            />
+              <StatusPill
+                open={status.open}
+                label={status.longLabel}
+                className={cn(
+                  'mt-2 text-[12.5px] font-semibold',
+                  status.open ? 'text-green-emph' : 'text-ink-50',
+                )}
+              />
+            </div>
           </div>
 
           {/* sobre */}
@@ -426,7 +426,17 @@ export function PublicProfile({
               className={cn('text-[13px] font-semibold', status.open ? 'text-green-emph' : 'text-ink-50')}
             />
 
-            {mapHref ? (
+            {coords ? (
+              <a
+                href={mapHref ?? '#'}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Ver no mapa"
+                className="border-line block overflow-hidden rounded-[14px] border transition-shadow hover:shadow-[0_4px_14px_rgba(10,51,36,0.15)]"
+              >
+                <MapThumb lat={coords.lat} lng={coords.lng} height={118} />
+              </a>
+            ) : mapHref ? (
               <a
                 href={mapHref}
                 target="_blank"
