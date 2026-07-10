@@ -1,11 +1,9 @@
 'use client';
 
-import { useActionState } from 'react';
+import { useActionState, useState } from 'react';
 import { useFormStatus } from 'react-dom';
 
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
 
 import { type TimezoneActionResult, updateTimezone } from './actions';
 
@@ -32,17 +30,23 @@ const TIMEZONE_OPTIONS = [
 function SubmitButton() {
   const { pending } = useFormStatus();
   return (
-    <Button type="submit" disabled={pending}>
+    <Button type="submit" size="sm" disabled={pending}>
       {pending ? 'Salvando…' : 'Salvar'}
     </Button>
   );
 }
 
 export function TimezoneCard({ timezone }: TimezoneCardProps) {
+  const [editing, setEditing] = useState(false);
   const [state, formAction] = useActionState<TimezoneActionResult | undefined, FormData>(
     updateTimezone,
     undefined,
   );
+
+  // Fecha o editor ao salvar (mesmo padrão do card de pagamentos).
+  if (state && 'ok' in state && editing) {
+    setEditing(false);
+  }
 
   // Garante que o timezone atual aparece como opção mesmo se não estiver na lista
   const tzOptions = TIMEZONE_OPTIONS.includes(timezone)
@@ -50,23 +54,20 @@ export function TimezoneCard({ timezone }: TimezoneCardProps) {
     : [timezone, ...TIMEZONE_OPTIONS];
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Fuso horário</CardTitle>
-        <CardDescription>
-          Usado pra formatar datas e horários pro cliente e pros lembretes.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form action={formAction} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="timezone">Fuso horário</Label>
+    <div className="border-line bg-paper shadow-soft flex items-center gap-3 rounded-[18px] border p-[18px]">
+      <div className="flex-1">
+        <div className="text-ink font-serif text-[16px] font-semibold">Fuso horário</div>
+        <div className="text-ink-50 mt-0.5 text-[12px] font-medium">
+          {timezone} - usado nas datas pro cliente e nos lembretes.
+        </div>
+
+        {editing && (
+          <form action={formAction} className="mt-3 flex flex-wrap items-center gap-2">
             <select
-              id="timezone"
               name="timezone"
               defaultValue={timezone}
               required
-              className="border-input focus-visible:ring-ring flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1"
+              className="border-input focus-visible:ring-ring h-9 flex-1 rounded-md border bg-transparent px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-1"
             >
               {tzOptions.map((tz) => (
                 <option key={tz} value={tz}>
@@ -74,14 +75,26 @@ export function TimezoneCard({ timezone }: TimezoneCardProps) {
                 </option>
               ))}
             </select>
-          </div>
+            <SubmitButton />
+            <Button type="button" variant="ghost" size="sm" onClick={() => setEditing(false)}>
+              Cancelar
+            </Button>
+            {state && 'error' in state && (
+              <p className="text-destructive w-full text-sm">{state.error}</p>
+            )}
+          </form>
+        )}
+      </div>
 
-          {state && 'error' in state && <p className="text-destructive text-sm">{state.error}</p>}
-          {state && 'ok' in state && <p className="text-sm text-emerald-600">Salvo.</p>}
-
-          <SubmitButton />
-        </form>
-      </CardContent>
-    </Card>
+      {!editing && (
+        <button
+          type="button"
+          onClick={() => setEditing(true)}
+          className="border-edge text-ink-70 hover:bg-cream-2 flex-none rounded-xl border px-3.5 py-2.5 text-xs font-semibold transition"
+        >
+          Alterar
+        </button>
+      )}
+    </div>
   );
 }

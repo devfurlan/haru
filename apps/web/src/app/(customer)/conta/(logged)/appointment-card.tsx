@@ -4,6 +4,7 @@ import { Star } from 'lucide-react';
 import Link from 'next/link';
 
 import { TenantAvatar } from '@/components/customer/tenant-avatar';
+import { isReviewable } from '@/lib/appointment-status';
 import type { CustomerAppointmentItem } from '@/lib/customer';
 import { cn } from '@/lib/utils';
 import { formatBRL } from '@haru/shared';
@@ -50,7 +51,7 @@ export function AppointmentCard({
 }) {
   const p = parts(item.startsAt, item.tenant.timezone);
   const status = STATUS[item.status];
-  const canReview = variant === 'past' && item.status === 'COMPLETED';
+  const canReview = variant === 'past' && isReviewable(item);
 
   if (variant === 'past') {
     return (

@@ -194,7 +194,12 @@ export async function updateTenant(
   // distinguir "form sem o campo" de "nada selecionado". O editor envia amenitiesPresent=1.
   if (formData.has('amenitiesPresent')) {
     data.amenities = [
-      ...new Set(formData.getAll('amenities').map(String).filter((a) => ALLOWED_AMENITIES.has(a))),
+      ...new Set(
+        formData
+          .getAll('amenities')
+          .map(String)
+          .filter((a) => ALLOWED_AMENITIES.has(a)),
+      ),
     ];
   }
 
@@ -762,10 +767,6 @@ const notificationsSchema = z
       .refine((n) => Number.isInteger(n) && n >= 0 && n <= 10080, {
         message: 'Use um valor entre 0 e 10080 (uma semana em minutos)',
       }),
-    // Checkbox: presente ("on") = ligado; ausente = desligado.
-    handoffEmailEnabled: z.preprocess((v) => v === 'on' || v === 'true', z.boolean()),
-    ownerAppointmentEmailsEnabled: z.preprocess((v) => v === 'on' || v === 'true', z.boolean()),
-    ownerWhatsappAlertsEnabled: z.preprocess((v) => v === 'on' || v === 'true', z.boolean()),
     reminderTemplateName: templateNameSchema,
     reminderTemplateLanguage: templateLanguageSchema,
     cancelTemplateName: templateNameSchema,
@@ -799,11 +800,10 @@ export async function updateNotifications(
   const { tenant } = await requireAdmin();
 
   const parsed = notificationsSchema.safeParse({
-    notificationWebhookUrl: formData.get('notificationWebhookUrl'),
+    // Campo é escondido em planos sem webhooks; ausente vira null, mas o schema é
+    // `.optional()` (aceita undefined, não null) - coage pra não quebrar o save.
+    notificationWebhookUrl: formData.get('notificationWebhookUrl') ?? undefined,
     reminderMinutesBefore: formData.get('reminderMinutesBefore'),
-    handoffEmailEnabled: formData.get('handoffEmailEnabled'),
-    ownerAppointmentEmailsEnabled: formData.get('ownerAppointmentEmailsEnabled'),
-    ownerWhatsappAlertsEnabled: formData.get('ownerWhatsappAlertsEnabled'),
     reminderTemplateName: formData.get('reminderTemplateName'),
     reminderTemplateLanguage: formData.get('reminderTemplateLanguage'),
     cancelTemplateName: formData.get('cancelTemplateName'),
@@ -840,9 +840,6 @@ export async function updateNotifications(
     data: {
       notificationWebhookUrl: parsed.data.notificationWebhookUrl,
       reminderMinutesBefore: parsed.data.reminderMinutesBefore,
-      handoffEmailEnabled: parsed.data.handoffEmailEnabled,
-      ownerAppointmentEmailsEnabled: parsed.data.ownerAppointmentEmailsEnabled,
-      ownerWhatsappAlertsEnabled: parsed.data.ownerWhatsappAlertsEnabled,
       reminderTemplateName: parsed.data.reminderTemplateName,
       reminderTemplateLanguage: parsed.data.reminderTemplateLanguage,
       cancelTemplateName: parsed.data.cancelTemplateName,
@@ -850,6 +847,33 @@ export async function updateNotifications(
       rescheduleTemplateName: parsed.data.rescheduleTemplateName,
       rescheduleTemplateLanguage: parsed.data.rescheduleTemplateLanguage,
     },
+  });
+
+  revalidatePath('/settings');
+  return { ok: true };
+}
+
+// Toggles de aviso pro dono (card "Avisos"): salvam na hora, sem botão. Allowlist
+// fecha a escrita a estes três campos - nunca um nome de coluna vindo do cliente.
+const OWNER_NOTIFICATION_FIELDS = [
+  'handoffEmailEnabled',
+  'ownerAppointmentEmailsEnabled',
+  'ownerWhatsappAlertsEnabled',
+] as const;
+export type OwnerNotificationField = (typeof OWNER_NOTIFICATION_FIELDS)[number];
+
+export async function toggleOwnerNotification(
+  field: OwnerNotificationField,
+  enabled: boolean,
+): Promise<NotificationsActionResult> {
+  const { tenant } = await requireAdmin();
+  if (!OWNER_NOTIFICATION_FIELDS.includes(field)) {
+    return { error: 'Campo inválido' };
+  }
+
+  await prisma.tenant.update({
+    where: { id: tenant.id },
+    data: { [field]: enabled },
   });
 
   revalidatePath('/settings');
@@ -1212,4 +1236,3 @@ export async function resendInvite(userId: string): Promise<ResendInviteActionRe
   revalidatePath('/settings');
   return { ok: true, sent, activationUrl };
 }
-

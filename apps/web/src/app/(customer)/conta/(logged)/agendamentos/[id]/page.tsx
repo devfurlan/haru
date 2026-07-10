@@ -6,6 +6,7 @@ import { MapMarker, MapThumb } from '@/components/map-thumb';
 import { ScreenHeader } from '@/components/customer/screen-header';
 import { TenantAvatar } from '@/components/customer/tenant-avatar';
 import { requireCustomerAccount } from '@/lib/customer-auth';
+import { isReviewable } from '@/lib/appointment-status';
 import { getCustomerAppointments, type CustomerAppointmentItem } from '@/lib/customer';
 import { getCustomerReview } from '@/lib/reviews';
 import { formatBRL, formatDuration } from '@haru/shared';
@@ -43,9 +44,8 @@ export default async function AppointmentDetailPage({
   const item = [...upcoming, ...past].find((a) => a.id === id);
   if (!item) notFound();
 
-  // Só atendimento concluído pode ser avaliado; pré-carrega a nota atual pra editar.
-  const review =
-    item.status === 'COMPLETED' ? await getCustomerReview(account, item.tenant.id) : null;
+  // Só atendimento já realizado pode ser avaliado; pré-carrega a nota atual pra editar.
+  const review = isReviewable(item) ? await getCustomerReview(account, item.tenant.id) : null;
 
   return (
     <div className="mx-auto max-w-[720px]">
@@ -137,8 +137,8 @@ export default async function AppointmentDetailPage({
           ) : null}
         </div>
 
-        {/* Avaliação: só em atendimento concluído (o gate real está no server). */}
-        {item.status === 'COMPLETED' ? (
+        {/* Avaliação: só em atendimento já realizado (o gate real está no server). */}
+        {isReviewable(item) ? (
           <div className="border-line bg-paper rounded-[18px] border p-4">
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">

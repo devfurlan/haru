@@ -27,6 +27,13 @@ export function SupportWidget() {
   const [loaded, setLoaded] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  // Abre o chat quando outra tela pede (ex.: botão "Chamar o suporte" em Configurações).
+  useEffect(() => {
+    const openChat = () => setOpen(true);
+    window.addEventListener('demanda:open-support', openChat);
+    return () => window.removeEventListener('demanda:open-support', openChat);
+  }, []);
+
   // Histórico só na primeira abertura.
   useEffect(() => {
     if (!open || loaded) return;
@@ -80,7 +87,10 @@ export function SupportWidget() {
 
           <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto px-4 py-3">
             {shown.map((m, i) => (
-              <div key={i} className={cn('flex', m.role === 'USER' ? 'justify-end' : 'justify-start')}>
+              <div
+                key={i}
+                className={cn('flex', m.role === 'USER' ? 'justify-end' : 'justify-start')}
+              >
                 <div
                   className={cn(
                     'max-w-[80%] whitespace-pre-wrap rounded-2xl px-3 py-2 text-sm',
@@ -116,7 +126,12 @@ export function SupportWidget() {
               disabled={sending}
               autoFocus
             />
-            <Button type="submit" size="icon" disabled={sending || !input.trim()} aria-label="Enviar">
+            <Button
+              type="submit"
+              size="icon"
+              disabled={sending || !input.trim()}
+              aria-label="Enviar"
+            >
               <Send className="h-4 w-4" />
             </Button>
           </form>

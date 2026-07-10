@@ -4,31 +4,9 @@ import { Camera } from 'lucide-react';
 import { useRef, useState, useTransition } from 'react';
 
 import { removeCustomerAvatar, updateAvatar } from '@/app/(customer)/actions';
+import { ImageCropDialog } from '@/components/image-crop-dialog';
 
-// Recorta em quadrado (centro), reduz para `size`px e gera JPEG - o server só persiste
-// os bytes (assume imagem já reduzida). Substitui o expo-image-manipulator do app.
-function resizeToJpeg(file: File, size: number): Promise<Blob> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    const objUrl = URL.createObjectURL(file);
-    img.onload = () => {
-      URL.revokeObjectURL(objUrl);
-      const canvas = document.createElement('canvas');
-      canvas.width = size;
-      canvas.height = size;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return reject(new Error('canvas'));
-      const min = Math.min(img.width, img.height);
-      ctx.drawImage(img, (img.width - min) / 2, (img.height - min) / 2, min, min, 0, 0, size, size);
-      canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('blob'))), 'image/jpeg', 0.8);
-    };
-    img.onerror = () => {
-      URL.revokeObjectURL(objUrl);
-      reject(new Error('img'));
-    };
-    img.src = objUrl;
-  });
-}
+const AVATAR_SIZE = 256; // px - saída quadrada; o server só persiste os bytes
 
 export function AvatarEditor({
   name,
@@ -40,22 +18,26 @@ export function AvatarEditor({
   avatarUrl: string | null;
 }) {
   const [url, setUrl] = useState(avatarUrl);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [, startRemove] = useTransition();
   const inputRef = useRef<HTMLInputElement>(null);
   const initial = (name || '?').trim().charAt(0).toUpperCase();
 
-  async function onPick(e: React.ChangeEvent<HTMLInputElement>) {
+  function onPick(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file) return;
     setError(null);
+    setPendingFile(file);
+  }
+
+  async function onCropped(blobs: Blob[]) {
     setBusy(true);
     try {
-      const blob = await resizeToJpeg(file, 256);
       const fd = new FormData();
-      fd.append('file', blob, 'avatar.jpg');
+      fd.append('file', blobs[0], 'avatar.jpg');
       const res = await updateAvatar(fd);
       if ('error' in res) setError(res.error);
       else setUrl(res.avatarUrl);
@@ -63,6 +45,7 @@ export function AvatarEditor({
       setError('Não foi possível processar a imagem.');
     } finally {
       setBusy(false);
+      setPendingFile(null);
     }
   }
 
@@ -75,6 +58,19 @@ export function AvatarEditor({
 
   return (
     <div className="flex items-center gap-[15px]">
+      {pendingFile && (
+        <ImageCropDialog
+          file={pendingFile}
+          aspect={1}
+          cropShape="round"
+          outputs={[
+            { format: 'image/jpeg', maxWidth: AVATAR_SIZE, quality: 0.8, background: '#ffffff' },
+          ]}
+          title="Ajustar foto de perfil"
+          onCancel={() => setPendingFile(null)}
+          onCropped={onCropped}
+        />
+      )}
       <button
         type="button"
         onClick={() => inputRef.current?.click()}
@@ -87,7 +83,9 @@ export function AvatarEditor({
             // eslint-disable-next-line @next/next/no-img-element
             <img src={url} alt="" className="h-full w-full object-cover" />
           ) : (
-            <span className="text-green-bright font-serif text-[28px] font-semibold">{initial}</span>
+            <span className="text-green-bright font-serif text-[28px] font-semibold">
+              {initial}
+            </span>
           )}
           {busy ? (
             <span className="absolute inset-0 flex items-center justify-center bg-black/35 text-xs text-white">
@@ -104,7 +102,11 @@ export function AvatarEditor({
         <p className="text-ink truncate font-serif text-xl">{name || 'Minha conta'}</p>
         {subtitle ? <p className="text-sub mt-0.5 truncate text-[13px]">{subtitle}</p> : null}
         {url ? (
-          <button type="button" onClick={onRemove} className="text-sub mt-0.5 text-[12px] underline">
+          <button
+            type="button"
+            onClick={onRemove}
+            className="text-sub mt-0.5 text-[12px] underline"
+          >
             Remover foto
           </button>
         ) : null}

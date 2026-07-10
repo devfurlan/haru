@@ -3,6 +3,7 @@
 import { Loader2, Upload, User as UserIcon } from 'lucide-react';
 import { useRef, useState, useTransition } from 'react';
 
+import { ImageCropDialog } from '@/components/image-crop-dialog';
 import { Button } from '@/components/ui/button';
 
 import type { LogoUploadResult, TenantActionResult } from '../settings/actions';
@@ -14,48 +15,19 @@ interface AvatarUploaderProps {
   remove: () => Promise<TenantActionResult>;
 }
 
-const AVATAR_SIZE = 128; // px - saída quadrada reduzida; cobre o maior uso (~80px) com folga de retina
+const AVATAR_SIZE = 256; // px - saída quadrada; cobre o maior uso (~80px) com folga de retina
 const MAX_INPUT_BYTES = 5 * 1024 * 1024;
 const ACCEPTED = ['image/jpeg', 'image/png', 'image/webp'];
-
-// Recorta no centro pra quadrado e devolve um webp reduzido (menor que o original).
-function toSquareWebp(file: File): Promise<Blob> {
-  return new Promise((resolve, reject) => {
-    const url = URL.createObjectURL(file);
-    const img = new window.Image();
-    img.onload = () => {
-      URL.revokeObjectURL(url);
-      const side = Math.min(img.width, img.height);
-      const sx = (img.width - side) / 2;
-      const sy = (img.height - side) / 2;
-      const canvas = document.createElement('canvas');
-      canvas.width = AVATAR_SIZE;
-      canvas.height = AVATAR_SIZE;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return reject(new Error('Não foi possível processar a imagem'));
-      ctx.drawImage(img, sx, sy, side, side, 0, 0, AVATAR_SIZE, AVATAR_SIZE);
-      canvas.toBlob(
-        (blob) => (blob ? resolve(blob) : reject(new Error('Falha ao gerar a imagem'))),
-        'image/webp',
-        0.85,
-      );
-    };
-    img.onerror = () => {
-      URL.revokeObjectURL(url);
-      reject(new Error('Imagem inválida'));
-    };
-    img.src = url;
-  });
-}
 
 export function AvatarUploader({ avatarUrl, upload, remove }: AvatarUploaderProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<string | null>(avatarUrl);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [removing, startRemove] = useTransition();
 
-  async function handleFile(file: File) {
+  function handleFile(file: File) {
     setError(null);
     if (!ACCEPTED.includes(file.type)) {
       setError('Use uma imagem JPG, PNG ou WebP.');
@@ -65,28 +37,38 @@ export function AvatarUploader({ avatarUrl, upload, remove }: AvatarUploaderProp
       setError('Imagem muito grande (máx. 5 MB).');
       return;
     }
+    setPendingFile(file);
+  }
 
+  async function handleCropped(blobs: Blob[]) {
     setUploading(true);
     try {
-      const webp = await toSquareWebp(file);
       const fd = new FormData();
-      fd.set('file', new File([webp], 'avatar.webp', { type: 'image/webp' }));
+      fd.set('file', new File([blobs[0]], 'avatar.webp', { type: 'image/webp' }));
       const result = await upload(fd);
-      if ('error' in result) {
-        setError(result.error);
-        return;
-      }
-      setPreview(`${result.logoUrl}?t=${Date.now()}`);
+      if ('error' in result) setError(result.error);
+      else setPreview(`${result.logoUrl}?t=${Date.now()}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Falha no upload');
     } finally {
       setUploading(false);
-      if (inputRef.current) inputRef.current.value = '';
+      setPendingFile(null);
     }
   }
 
   return (
     <div className="space-y-2">
+      {pendingFile && (
+        <ImageCropDialog
+          file={pendingFile}
+          aspect={1}
+          cropShape="round"
+          outputs={[{ format: 'image/webp', maxWidth: AVATAR_SIZE, quality: 0.85 }]}
+          title="Ajustar foto de perfil"
+          onCancel={() => setPendingFile(null)}
+          onCropped={handleCropped}
+        />
+      )}
       <span className="text-sm font-medium">Foto de perfil</span>
       <div className="flex items-center gap-4">
         <div className="bg-muted flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full border">
@@ -106,7 +88,8 @@ export function AvatarUploader({ avatarUrl, upload, remove }: AvatarUploaderProp
             className="hidden"
             onChange={(e) => {
               const file = e.target.files?.[0];
-              if (file) void handleFile(file);
+              e.target.value = '';
+              if (file) handleFile(file);
             }}
           />
           <div className="flex gap-2">
@@ -150,7 +133,7 @@ export function AvatarUploader({ avatarUrl, upload, remove }: AvatarUploaderProp
             )}
           </div>
           <p className="text-muted-foreground text-xs">
-            JPG, PNG ou WebP até 5 MB. Recortamos no centro pra ficar quadrada.
+            JPG, PNG ou WebP até 5 MB. Você recorta pra ficar quadrada.
           </p>
         </div>
       </div>

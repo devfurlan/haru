@@ -3,6 +3,7 @@
 import { ImageIcon, Loader2, Upload } from 'lucide-react';
 import { useRef, useState, useTransition } from 'react';
 
+import { ImageCropDialog } from '@/components/image-crop-dialog';
 import { Button } from '@/components/ui/button';
 
 import { removeTenantLogo, uploadTenantLogo } from '../settings/actions';
@@ -15,71 +16,16 @@ const LOGO_SIZE = 512; // px - saída quadrada padronizada
 const MAX_INPUT_BYTES = 5 * 1024 * 1024; // bucket aceita até 5MiB
 const ACCEPTED = ['image/jpeg', 'image/png', 'image/webp'];
 
-function canvasToBlob(canvas: HTMLCanvasElement, type: string): Promise<Blob> {
-  return new Promise((resolve, reject) =>
-    canvas.toBlob(
-      (blob) => (blob ? resolve(blob) : reject(new Error('Falha ao gerar a imagem'))),
-      type,
-      0.9,
-    ),
-  );
-}
-
-// Redimensiona pra quadrado (center-crop) e devolve dois formatos do mesmo
-// canvas: webp (vai pro storage/página pública, menor) e jpeg (foto do perfil
-// do WhatsApp - a Meta não aceita webp).
-function toSquareImages(file: File): Promise<{ webp: Blob; jpeg: Blob }> {
-  return new Promise((resolve, reject) => {
-    const url = URL.createObjectURL(file);
-    const img = new window.Image();
-    img.onload = async () => {
-      URL.revokeObjectURL(url);
-      const side = Math.min(img.width, img.height);
-      const sx = (img.width - side) / 2;
-      const sy = (img.height - side) / 2;
-
-      const canvas = document.createElement('canvas');
-      canvas.width = LOGO_SIZE;
-      canvas.height = LOGO_SIZE;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) {
-        reject(new Error('Não foi possível processar a imagem'));
-        return;
-      }
-      // Fundo branco: JPEG não tem alfa; sem isto, áreas transparentes do PNG/WebP
-      // virariam preto na foto do WhatsApp.
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, LOGO_SIZE, LOGO_SIZE);
-      ctx.drawImage(img, sx, sy, side, side, 0, 0, LOGO_SIZE, LOGO_SIZE);
-
-      try {
-        const [webp, jpeg] = await Promise.all([
-          canvasToBlob(canvas, 'image/webp'),
-          canvasToBlob(canvas, 'image/jpeg'),
-        ]);
-        resolve({ webp, jpeg });
-      } catch (err) {
-        reject(err instanceof Error ? err : new Error('Falha ao gerar a imagem'));
-      }
-    };
-    img.onerror = () => {
-      URL.revokeObjectURL(url);
-      reject(new Error('Imagem inválida'));
-    };
-    img.src = url;
-  });
-}
-
 export function LogoUploader({ logoUrl }: LogoUploaderProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<string | null>(logoUrl);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [removing, startRemove] = useTransition();
 
-  async function handleFile(file: File) {
+  function handleFile(file: File) {
     setError(null);
-
     if (!ACCEPTED.includes(file.type)) {
       setError('Use uma imagem JPG, PNG ou WebP.');
       return;
@@ -88,31 +34,44 @@ export function LogoUploader({ logoUrl }: LogoUploaderProps) {
       setError('Imagem muito grande (máx. 5 MB).');
       return;
     }
+    setPendingFile(file);
+  }
 
+  // Dois formatos do mesmo recorte: webp (storage/página pública, menor) e jpeg
+  // (foto do perfil do WhatsApp - a Meta não aceita webp; fundo branco no jpeg
+  // evita que transparência do PNG/WebP vire preto).
+  async function handleCropped(blobs: Blob[]) {
     setUploading(true);
     try {
-      const { webp, jpeg } = await toSquareImages(file);
-
       const fd = new FormData();
-      fd.set('file', new File([webp], 'logo.webp', { type: 'image/webp' }));
-      fd.set('jpeg', new File([jpeg], 'logo.jpg', { type: 'image/jpeg' }));
+      fd.set('file', new File([blobs[0]], 'logo.webp', { type: 'image/webp' }));
+      fd.set('jpeg', new File([blobs[1]], 'logo.jpg', { type: 'image/jpeg' }));
       const result = await uploadTenantLogo(fd);
-      if ('error' in result) {
-        setError(result.error);
-        return;
-      }
-
-      setPreview(`${result.logoUrl}?t=${Date.now()}`);
+      if ('error' in result) setError(result.error);
+      else setPreview(`${result.logoUrl}?t=${Date.now()}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Falha no upload');
     } finally {
       setUploading(false);
-      if (inputRef.current) inputRef.current.value = '';
+      setPendingFile(null);
     }
   }
 
   return (
     <div className="space-y-2">
+      {pendingFile && (
+        <ImageCropDialog
+          file={pendingFile}
+          aspect={1}
+          outputs={[
+            { format: 'image/webp', maxWidth: LOGO_SIZE, quality: 0.9 },
+            { format: 'image/jpeg', maxWidth: LOGO_SIZE, quality: 0.9, background: '#ffffff' },
+          ]}
+          title="Ajustar logo"
+          onCancel={() => setPendingFile(null)}
+          onCropped={handleCropped}
+        />
+      )}
       <span className="text-sm font-medium">Logo</span>
       <div className="flex items-center gap-4">
         <div className="bg-muted flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-lg border">
@@ -132,7 +91,8 @@ export function LogoUploader({ logoUrl }: LogoUploaderProps) {
             className="hidden"
             onChange={(e) => {
               const file = e.target.files?.[0];
-              if (file) void handleFile(file);
+              e.target.value = '';
+              if (file) handleFile(file);
             }}
           />
           <div className="flex gap-2">
@@ -176,7 +136,7 @@ export function LogoUploader({ logoUrl }: LogoUploaderProps) {
             )}
           </div>
           <p className="text-muted-foreground text-xs">
-            JPG, PNG ou WebP até 5 MB. Recortamos no centro pra ficar quadrada (512×512).
+            JPG, PNG ou WebP até 5 MB. Você recorta pra ficar quadrada (512×512).
           </p>
         </div>
       </div>

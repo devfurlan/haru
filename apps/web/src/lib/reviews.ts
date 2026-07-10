@@ -3,9 +3,10 @@ import 'server-only';
 import { prisma } from '@haru/database';
 import type { CustomerAccount } from '@haru/database';
 
-// Avaliações do cliente ao estabelecimento. Gate: só quem teve um agendamento COMPLETED
-// no tenant pode avaliar. A média/contagem ficam denormalizadas em Tenant.ratingAvg/
-// ratingCount, recomputadas na MESMA transação da escrita (cards do diretório baratos).
+// Avaliações do cliente ao estabelecimento. Gate: só quem já foi atendido no tenant
+// (horário passado, sem cancelamento/falta - ver isReviewable) pode avaliar; NÃO depende
+// de o dono marcar "Atendido" (COMPLETED). A média/contagem ficam denormalizadas em
+// Tenant.ratingAvg/ratingCount, recomputadas na MESMA transação da escrita.
 
 export interface CustomerReview {
   rating: number;
@@ -43,10 +44,17 @@ export async function getPublicReviews(tenantId: string, limit = 6): Promise<Pub
   }));
 }
 
-/** O cliente pode avaliar este tenant? Só depois de um atendimento concluído nele. */
+/** O cliente pode avaliar este tenant? Só depois de já ter sido atendido nele. */
 export async function canReview(account: CustomerAccount, tenantId: string): Promise<boolean> {
+  // Mesma regra do isReviewable (lib/appointment-status.ts), em SQL: horário passado e
+  // não cancelado/falta. Mantê-las em sincronia se a regra mudar.
   const appt = await prisma.appointment.findFirst({
-    where: { tenantId, status: 'COMPLETED', contact: { customerAccountId: account.id } },
+    where: {
+      tenantId,
+      startsAt: { lt: new Date() },
+      status: { notIn: ['CANCELED', 'NO_SHOW'] },
+      contact: { customerAccountId: account.id },
+    },
     select: { id: true },
   });
   return appt != null;
@@ -78,8 +86,9 @@ export async function getCustomerReview(
 }
 
 /**
- * Cria/edita a avaliação (gate COMPLETED) e recomputa ratingAvg/ratingCount do tenant na
- * MESMA transação. `rating` fora de 1..5 é rejeitado; comentário é opcional (máx 500).
+ * Cria/edita a avaliação (gate: já atendido, ver canReview) e recomputa ratingAvg/
+ * ratingCount do tenant na MESMA transação. `rating` fora de 1..5 é rejeitado; comentário
+ * é opcional (máx 500).
  */
 export async function upsertReview(
   account: CustomerAccount,
@@ -92,7 +101,7 @@ export async function upsertReview(
   const comment = (commentRaw ?? '').trim().slice(0, 500) || null;
 
   if (!(await canReview(account, tenantId))) {
-    return { error: 'Você só pode avaliar depois de um atendimento concluído.' };
+    return { error: 'Você só pode avaliar um estabelecimento onde já foi atendido.' };
   }
 
   await prisma.$transaction(async (tx) => {

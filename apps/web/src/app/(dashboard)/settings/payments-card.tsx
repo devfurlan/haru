@@ -1,6 +1,6 @@
 'use client';
 
-import { CheckCircle2, ChevronDown, Copy, XCircle } from 'lucide-react';
+import { ChevronDown, Copy } from 'lucide-react';
 import { useActionState, useState, useTransition } from 'react';
 import { useFormStatus } from 'react-dom';
 
@@ -8,7 +8,6 @@ import type { PaymentProvider } from '@haru/database';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
@@ -70,7 +69,7 @@ function CopyField({ value }: { value: string }) {
   const [copied, setCopied] = useState(false);
   return (
     <div className="flex items-center gap-2">
-      <code className="bg-muted flex-1 break-all rounded px-2 py-1 text-xs">{value}</code>
+      <code className="bg-cream-2 flex-1 break-all rounded px-2 py-1 text-xs">{value}</code>
       <Button
         type="button"
         variant="outline"
@@ -93,21 +92,21 @@ function CopyField({ value }: { value: string }) {
 function AsaasGuide({ webhookUrl }: { webhookUrl: string }) {
   const [open, setOpen] = useState(false);
   return (
-    <div className="bg-muted/30 rounded-lg border">
+    <div className="border-edge bg-cream-2/40 rounded-xl border">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between p-3 text-left text-sm font-medium"
+        className="text-ink flex w-full items-center justify-between p-3 text-left text-sm font-semibold"
       >
         Como conectar o Asaas (passo a passo)
         <ChevronDown className={`h-4 w-4 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
       {open && (
-        <div className="space-y-4 border-t p-4 text-sm">
+        <div className="border-edge space-y-4 border-t p-4 text-sm">
           <ol className="space-y-3">
             <li>
-              <p className="font-medium">1. Crie a conta e pegue a chave de API</p>
-              <p className="text-muted-foreground">
+              <p className="text-ink font-semibold">1. Crie a conta e pegue a chave de API</p>
+              <p className="text-ink-50">
                 No painel do{' '}
                 <a
                   href="https://www.asaas.com"
@@ -123,22 +122,22 @@ function AsaasGuide({ webhookUrl }: { webhookUrl: string }) {
               </p>
             </li>
             <li>
-              <p className="font-medium">2. Cadastre o webhook de pagamentos</p>
-              <p className="text-muted-foreground">
+              <p className="text-ink font-semibold">2. Cadastre o webhook de pagamentos</p>
+              <p className="text-ink-50">
                 Ainda em <strong>Integrações → Webhooks</strong>, adicione um webhook com esta URL:
               </p>
               <div className="mt-1.5">
                 <CopyField value={webhookUrl} />
               </div>
-              <p className="text-muted-foreground mt-1.5">
+              <p className="text-ink-50 mt-1.5">
                 Defina um <strong>Token de autenticação</strong> no Asaas e cole o mesmo valor no
                 campo &quot;Token do webhook&quot; abaixo - é o que garante que só o Asaas confirma
                 pagamentos.
               </p>
             </li>
             <li>
-              <p className="font-medium">3. Selecione os eventos de Cobranças</p>
-              <p className="text-muted-foreground">
+              <p className="text-ink font-semibold">3. Selecione os eventos de Cobranças</p>
+              <p className="text-ink-50">
                 Na seção <strong>Adicionar Eventos</strong> do mesmo webhook, abra{' '}
                 <strong>Cobranças</strong> e clique em <strong>Selecionar Todos</strong>. É essa
                 categoria que avisa quando uma cobrança é{' '}
@@ -146,7 +145,7 @@ function AsaasGuide({ webhookUrl }: { webhookUrl: string }) {
                 pagamento nunca é confirmado aqui. As outras categorias (Notas fiscais,
                 Transferências etc.) podem ficar desmarcadas.
               </p>
-              <p className="text-muted-foreground mt-1.5">
+              <p className="text-ink-50 mt-1.5">
                 Mantenha <strong>&quot;Este Webhook ficará ativo?&quot;</strong> ligado e clique em{' '}
                 <strong>Salvar</strong>.
               </p>
@@ -165,7 +164,8 @@ export function PaymentsCard({
   webhookBaseUrl,
 }: PaymentsCardProps) {
   const connected = Boolean(provider && hasCredential);
-  const [showForm, setShowForm] = useState(!connected);
+  // Recolhido por padrão (visão do protótipo): só badge + botão "Conectar Asaas".
+  const [showForm, setShowForm] = useState(false);
   const [selectedProvider, setSelectedProvider] = useState<PaymentProvider>(provider ?? 'ASAAS');
   const [state, formAction] = useActionState<PaymentsActionResult | undefined, FormData>(
     connectPaymentGateway,
@@ -173,7 +173,7 @@ export function PaymentsCard({
   );
   const [disconnectPending, startDisconnect] = useTransition();
 
-  if (state && 'ok' in state && showForm && connected) {
+  if (state && 'ok' in state && showForm) {
     setShowForm(false);
   }
 
@@ -181,140 +181,141 @@ export function PaymentsCard({
   const webhookUrl = `${webhookBaseUrl}/api/webhooks/payments/${selectedProvider.toLowerCase()}`;
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between gap-2">
-          <CardTitle>Pagamentos</CardTitle>
-          {connected ? (
-            <Badge variant="success" className="px-2.5">
-              <CheckCircle2 className="h-3.5 w-3.5" />
-              Conectado
-            </Badge>
-          ) : (
-            <Badge variant="pending" className="px-2.5">
-              <XCircle className="h-3.5 w-3.5" />
-              Não conectado
-            </Badge>
-          )}
-        </div>
-        <CardDescription>
-          Conecte um gateway para o cliente pagar logo após o agendamento (Pix ou cartão). O
-          pagamento é opcional e não bloqueia a agenda.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {connected && !showForm && provider && (
-          <div className="space-y-2 text-sm">
-            <div>
-              <span className="text-muted-foreground">Gateway: </span>
-              <span className="font-medium">{PROVIDERS[provider].label}</span>
-            </div>
-            <div>
-              <span className="text-muted-foreground">Modo: </span>
-              <span className="font-medium">{sandbox ? 'Testes (sandbox)' : 'Produção'}</span>
-            </div>
-            <div className="text-muted-foreground">credencial: ••••••••</div>
-            <div className="flex gap-2 pt-2">
-              <Button variant="outline" size="sm" onClick={() => setShowForm(true)}>
-                Editar
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                disabled={disconnectPending}
-                onClick={() => {
-                  if (!window.confirm('Desconectar o gateway de pagamento?')) return;
-                  startDisconnect(() => disconnectPaymentGateway().then(() => setShowForm(true)));
-                }}
-              >
-                {disconnectPending ? 'Desconectando…' : 'Desconectar'}
-              </Button>
-            </div>
+    <div className="border-line bg-paper shadow-soft rounded-[18px] border p-[18px]">
+      <div className="flex items-center gap-2.5">
+        <div className="flex-1">
+          <div className="text-ink font-serif text-[16px] font-semibold">Pagamentos</div>
+          <div className="text-ink-50 mt-0.5 text-[12px] font-medium">
+            Pix ou cartão logo após o agendamento. Opcional - não trava a agenda.
           </div>
+        </div>
+        {connected ? (
+          <Badge variant="success">
+            <span className="bg-green-bright size-1.5 rounded-full" />
+            Conectado
+          </Badge>
+        ) : (
+          <Badge variant="pending">Não conectado</Badge>
         )}
+      </div>
 
-        {showForm && (
-          <>
-            {selectedProvider === 'ASAAS' && <AsaasGuide webhookUrl={webhookUrl} />}
+      {/* Recolhido, não conectado: só o botão de conectar. */}
+      {!showForm && !connected && (
+        <Button variant="secondary" className="mt-3.5 h-11" onClick={() => setShowForm(true)}>
+          Conectar Asaas
+        </Button>
+      )}
 
-            <form action={formAction} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="provider">Gateway</Label>
-                <select
-                  id="provider"
-                  name="provider"
-                  value={selectedProvider}
-                  onChange={(e) => setSelectedProvider(e.target.value as PaymentProvider)}
-                  className="border-input bg-background ring-offset-background focus-visible:ring-ring flex h-9 w-full rounded-md border px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-2"
-                >
-                  {(Object.keys(PROVIDERS) as PaymentProvider[]).map((key) => (
-                    <option key={key} value={key}>
-                      {PROVIDERS[key].label}
-                      {PROVIDERS[key].ready ? '' : ' (em breve)'}
-                    </option>
-                  ))}
-                </select>
-                {!meta.ready && (
-                  <p className="text-xs text-amber-700">
-                    {meta.label} ainda não está disponível para cobranças - por enquanto, use o
-                    Asaas. Você pode salvar a credencial, mas o botão de pagar mostrará um aviso.
-                  </p>
-                )}
-              </div>
+      {/* Recolhido, conectado: resumo + editar/desconectar. */}
+      {!showForm && connected && provider && (
+        <div className="mt-3.5 space-y-2 text-sm">
+          <div>
+            <span className="text-ink-50">Gateway: </span>
+            <span className="text-ink font-semibold">{PROVIDERS[provider].label}</span>
+          </div>
+          <div>
+            <span className="text-ink-50">Modo: </span>
+            <span className="text-ink font-semibold">
+              {sandbox ? 'Testes (sandbox)' : 'Produção'}
+            </span>
+          </div>
+          <div className="text-ink-50">credencial: ••••••••</div>
+          <div className="flex gap-2 pt-2">
+            <Button variant="outline" size="sm" onClick={() => setShowForm(true)}>
+              Editar
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={disconnectPending}
+              onClick={() => {
+                if (!window.confirm('Desconectar o gateway de pagamento?')) return;
+                startDisconnect(() => disconnectPaymentGateway().then(() => setShowForm(false)));
+              }}
+            >
+              {disconnectPending ? 'Desconectando…' : 'Desconectar'}
+            </Button>
+          </div>
+        </div>
+      )}
 
-              <div className="space-y-2">
-                <Label htmlFor="credential">{meta.credentialLabel}</Label>
-                <Input
-                  id="credential"
-                  name="credential"
-                  type="password"
-                  placeholder={connected ? 'Deixe em branco para manter a atual' : meta.placeholder}
-                  // Na edição, em branco mantém a credencial salva; só é obrigatória ao conectar.
-                  required={!connected}
-                />
-              </div>
+      {showForm && (
+        <div className="mt-3.5 space-y-4">
+          {selectedProvider === 'ASAAS' && <AsaasGuide webhookUrl={webhookUrl} />}
 
-              <div className="space-y-2">
-                <Label htmlFor="webhookToken">Token do webhook - opcional, recomendado</Label>
-                <Input
-                  id="webhookToken"
-                  name="webhookToken"
-                  type="password"
-                  placeholder={connected ? 'Deixe em branco para manter o atual' : '••••••'}
-                />
-                <p className="text-muted-foreground text-xs">
-                  Mesmo valor configurado no painel do gateway. Validamos esse token no recebimento
-                  da confirmação de pagamento.
-                  {connected ? ' Em branco mantém o token já salvo.' : ''}
+          <form action={formAction} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="provider">Gateway</Label>
+              <select
+                id="provider"
+                name="provider"
+                value={selectedProvider}
+                onChange={(e) => setSelectedProvider(e.target.value as PaymentProvider)}
+                className="border-input ring-offset-background focus-visible:ring-ring flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-2"
+              >
+                {(Object.keys(PROVIDERS) as PaymentProvider[]).map((key) => (
+                  <option key={key} value={key}>
+                    {PROVIDERS[key].label}
+                    {PROVIDERS[key].ready ? '' : ' (em breve)'}
+                  </option>
+                ))}
+              </select>
+              {!meta.ready && (
+                <p className="text-xs text-amber-700">
+                  {meta.label} ainda não está disponível para cobranças - por enquanto, use o Asaas.
+                  Você pode salvar a credencial, mas o botão de pagar mostrará um aviso.
                 </p>
-              </div>
-
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  name="sandbox"
-                  defaultChecked={sandbox}
-                  className="border-input h-4 w-4 rounded border"
-                />
-                Modo de testes (sandbox)
-              </label>
-
-              {state && 'error' in state && (
-                <p className="text-destructive text-sm">{state.error}</p>
               )}
+            </div>
 
-              <div className="flex gap-2">
-                <SubmitButton editing={connected} />
-                {connected && (
-                  <Button type="button" variant="ghost" onClick={() => setShowForm(false)}>
-                    Cancelar
-                  </Button>
-                )}
-              </div>
-            </form>
-          </>
-        )}
-      </CardContent>
-    </Card>
+            <div className="space-y-2">
+              <Label htmlFor="credential">{meta.credentialLabel}</Label>
+              <Input
+                id="credential"
+                name="credential"
+                type="password"
+                placeholder={connected ? 'Deixe em branco para manter a atual' : meta.placeholder}
+                // Na edição, em branco mantém a credencial salva; só é obrigatória ao conectar.
+                required={!connected}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="webhookToken">Token do webhook - opcional, recomendado</Label>
+              <Input
+                id="webhookToken"
+                name="webhookToken"
+                type="password"
+                placeholder={connected ? 'Deixe em branco para manter o atual' : '••••••'}
+              />
+              <p className="text-ink-50 text-xs">
+                Mesmo valor configurado no painel do gateway. Validamos esse token no recebimento da
+                confirmação de pagamento.
+                {connected ? ' Em branco mantém o token já salvo.' : ''}
+              </p>
+            </div>
+
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                name="sandbox"
+                defaultChecked={sandbox}
+                className="border-input accent-green-deep h-4 w-4 rounded border"
+              />
+              Modo de testes (sandbox)
+            </label>
+
+            {state && 'error' in state && <p className="text-destructive text-sm">{state.error}</p>}
+
+            <div className="flex gap-2">
+              <SubmitButton editing={connected} />
+              <Button type="button" variant="ghost" onClick={() => setShowForm(false)}>
+                Cancelar
+              </Button>
+            </div>
+          </form>
+        </div>
+      )}
+    </div>
   );
 }
