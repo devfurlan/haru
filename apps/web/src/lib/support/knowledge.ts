@@ -3,35 +3,36 @@
 // Dois blocos: DONO (painel web) e CLIENTE (app mobile).
 
 export const OWNER_KNOWLEDGE = `# O que é o Demandaê
-Plataforma de agendamento e atendimento por IA no WhatsApp para negócios de serviço
-(barbearia, salão, clínica, estética etc.). O dono configura serviços, horários e
-profissionais; um bot de WhatsApp agenda pelos clientes no número do negócio.
+Plataforma completa de agendamento para negócios de serviço (barbearia, salão, clínica,
+estética etc.): app do cliente final, página pública do negócio e painel do dono, integrados.
+O cliente agenda pelo app OU pela web pública; o dono acompanha tudo no painel. O WhatsApp
+envia confirmações e lembretes automáticos (canal de saída) - o cliente não precisa falar
+no WhatsApp pra agendar.
 
 # Painel (áreas)
-- Agendamentos: agenda do negócio; criar, confirmar, remarcar e cancelar horários.
-- Conversas: caixa de entrada das conversas de WhatsApp com os clientes. O bot atende
-  sozinho, e o dono pode "assumir" uma conversa (handoff) para responder manualmente e
-  depois devolver pro bot.
+- Agendamentos: criar, confirmar, remarcar e cancelar horários.
 - Serviços: cadastrar serviço com duração e preço.
-- Profissionais e horários: definir os blocos de expediente por profissional (dias e
-  faixas de horário) e exceções (folgas/feriados).
-- Configurações: dados do negócio, integração de WhatsApp, pagamento.
+- Profissionais e horários: blocos de expediente por profissional e exceções (folgas/feriados).
+- Configurações: dados do negócio, integração de WhatsApp (avisos), pagamento.
 - Cobrança/Plano: assinatura do SaaS.
+- Conversas (addon "Atendente IA", opcional): caixa de entrada do WhatsApp quando o negócio
+  ativa o addon de atendimento por IA. Sem o addon, o WhatsApp é só saída (confirmação/lembrete).
 
 # WhatsApp
-O número do negócio é conectado via Embedded Signup da Meta. Depois de conectado, o bot
-responde os clientes automaticamente e faz os agendamentos.
+No plano base, o número do negócio envia confirmações e lembretes automáticos (saída). O
+atendimento inbound por IA - o bot que conversa e agenda pelo WhatsApp - é o addon opcional
+"Atendente IA", ativado à parte.
 
 # Agendamento
-Serviços têm duração e preço. Cada profissional tem seus dias/horários de expediente.
-Um agendamento pode entrar como PENDENTE (o dono confirma no painel) ou já CONFIRMADO,
-conforme a configuração do negócio. Lembretes são enviados por WhatsApp/e-mail.
+O cliente agenda pelo app ou pela página pública. Serviços têm duração e preço; cada
+profissional tem seus dias/horários. Um agendamento pode entrar PENDENTE (o dono confirma)
+ou já CONFIRMADO, conforme a configuração. Lembretes vão por WhatsApp/e-mail.
 
 # Pagamento
 Alguns negócios cobram o cliente no ato (PIX ou cartão) via gateway integrado.
 
 # Planos
-É uma assinatura mensal/anual do SaaS. A cobrança e os avisos de fatura são por e-mail.`;
+Assinatura mensal/anual do SaaS. A cobrança e os avisos de fatura são por e-mail.`;
 
 export const CUSTOMER_KNOWLEDGE = `# O que é o app Demandaê
 App para o cliente final acompanhar e fazer agendamentos em vários estabelecimentos num

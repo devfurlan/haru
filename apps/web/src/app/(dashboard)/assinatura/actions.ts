@@ -11,6 +11,7 @@ import {
   snapshotPlan,
 } from '@haru/billing';
 import { revalidatePath } from 'next/cache';
+import { headers } from 'next/headers';
 import { z } from 'zod';
 
 import { requireAdmin } from '@/lib/auth';
@@ -25,8 +26,10 @@ import {
   createSubscription,
   findLastPaidCharge,
   findPendingChargeByReference,
-  getPendingInvoiceUrl,
   refundAsaasPayment,
+  setSubscriptionCard,
+  setSubscriptionPix,
+  tokenizeCard,
   updateAsaasSubscription,
 } from '@/lib/billing/asaas';
 import { emailAddonActivated, emailSubscriptionCanceled } from '@/lib/billing/email';
@@ -562,25 +565,174 @@ export async function changePlan(
   }
 }
 
-export type UpdateCardResult = { error: string } | { ok: true; redirectUrl: string };
+// --- Trocar forma de pagamento ----------------------------------------------
+
+/** Cartão: só o mínimo pra tokenizar no Asaas. O PAN/CVV é repassado e NÃO persistido. */
+const cardInputSchema = z.object({
+  method: z.literal('CARD'),
+  cardNumber: z
+    .string()
+    .transform(onlyDigits)
+    .refine((v) => v.length >= 13 && v.length <= 19, 'Número do cartão inválido'),
+  cardExp: z
+    .string()
+    .trim()
+    .refine((v) => /^\d{2}\/\d{2}$/.test(v), 'Validade inválida (MM/AA)'),
+  cardCvv: z
+    .string()
+    .transform(onlyDigits)
+    .refine((v) => v.length >= 3 && v.length <= 4, 'CVV inválido'),
+  cardName: z.string().trim().min(2, 'Nome impresso no cartão obrigatório'),
+  cpfCnpj: z.string().transform(onlyDigits).refine(isValidCpfCnpj, 'CPF/CNPJ inválido'),
+  cep: z
+    .string()
+    .transform(onlyDigits)
+    .refine((v) => v.length === 8, 'CEP inválido'),
+  addressNumber: z.string().trim().min(1, 'Número do endereço obrigatório'),
+});
+const pixInputSchema = z.object({ method: z.literal('PIX') });
+const changePaymentSchema = z.discriminatedUnion('method', [cardInputSchema, pixInputSchema]);
+
+export type ChangePaymentInput = z.input<typeof changePaymentSchema>;
+export type ChangePaymentResult =
+  | { error: string }
+  | { ok: true; method: 'CARD'; last4: string; brand: string }
+  /** Pix por ciclo: QR da cobrança em aberto (null se o ciclo atual já está pago). */
+  | { ok: true; method: 'PIX'; pix: { qrCode: string; copyPaste: string } | null };
 
 /**
- * Atualizar cartão: leva o cliente à fatura hospedada da cobrança pendente, onde o
- * Asaas permite informar um novo cartão (o cartão não passa pelo nosso servidor).
+ * Troca a forma de pagamento da assinatura já existente.
+ * - CARD: tokeniza o cartão no Asaas (PAN/CVV repassados, NUNCA persistidos aqui) e aponta a
+ *   recorrência pro token; guarda só últimos-4 + bandeira + token.
+ * - PIX: troca o billingType da recorrência pra Pix e devolve o QR da cobrança em aberto.
+ * Requer assinatura ATIVA com recorrência no Asaas (12x/installment não tem o que trocar).
  */
-export async function updateCard(): Promise<UpdateCardResult> {
-  const { tenant } = await requireAdmin();
+export async function changePaymentMethod(input: ChangePaymentInput): Promise<ChangePaymentResult> {
+  const { tenant, email } = await requireAdmin();
   const sub = tenant.subscription;
-  if (!sub?.asaasSubscriptionId) return { error: 'Nenhuma assinatura ativa.' };
+  if (!sub?.asaasSubscriptionId || sub.status !== 'ACTIVE') {
+    return { error: 'Você precisa de uma assinatura ativa para trocar a forma de pagamento.' };
+  }
+  if (!sub.asaasCustomerId) {
+    return { error: 'Sua assinatura não tem cadastro de cobrança. Fale com o suporte.' };
+  }
+
+  const parsed = changePaymentSchema.safeParse(input);
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? 'Dados inválidos' };
 
   try {
-    const url = await getPendingInvoiceUrl(sub.asaasSubscriptionId);
-    if (!url) {
-      return { error: 'Não há cobrança pendente para atualizar o cartão agora.' };
+    if (parsed.data.method === 'PIX') {
+      const pix = await setSubscriptionPix(sub.asaasSubscriptionId);
+      await prisma.subscription.update({
+        where: { id: sub.id },
+        // Limpa vestígios do cartão pra a UI nunca mostrar "•••• 4242" com Pix ativo.
+        data: { paymentMethod: 'PIX', cardLast4: null, cardBrand: null, asaasCardToken: null },
+      });
+      revalidatePath('/assinatura');
+      revalidatePath('/settings');
+      return { ok: true, method: 'PIX', pix };
     }
-    return { ok: true, redirectUrl: url };
+
+    const d = parsed.data;
+    const [mm, yy] = d.cardExp.split('/');
+    const h = await headers();
+    const remoteIp =
+      h.get('x-real-ip') || h.get('x-forwarded-for')?.split(',')[0]?.trim() || '0.0.0.0';
+
+    const { token, last4, brand } = await tokenizeCard({
+      customerId: sub.asaasCustomerId,
+      remoteIp,
+      card: {
+        holderName: d.cardName,
+        number: d.cardNumber,
+        expiryMonth: mm,
+        expiryYear: `20${yy}`,
+        ccv: d.cardCvv,
+      },
+      holder: {
+        name: d.cardName,
+        email,
+        cpfCnpj: d.cpfCnpj,
+        postalCode: d.cep,
+        addressNumber: d.addressNumber,
+        phoneE164: tenant.whatsappDisplayPhone,
+      },
+    });
+    await setSubscriptionCard(sub.asaasSubscriptionId, token);
+    await prisma.subscription.update({
+      where: { id: sub.id },
+      data: { paymentMethod: 'CREDIT_CARD', cardLast4: last4, cardBrand: brand, asaasCardToken: token },
+    });
+    revalidatePath('/assinatura');
+    revalidatePath('/settings');
+    return { ok: true, method: 'CARD', last4, brand };
   } catch (err) {
-    console.error('[billing] updateCard falhou', err);
-    return { error: 'Não foi possível abrir a atualização do cartão. Tente novamente.' };
+    if (err instanceof BillingConfigError) {
+      console.error('[billing] changePaymentMethod config', err);
+      return { error: 'Cobrança indisponível no momento. Tente mais tarde.' };
+    }
+    // Não logar `input` (dados de cartão). O err do Asaas não traz o PAN.
+    console.error('[billing] changePaymentMethod falhou', err);
+    return { error: 'Não foi possível trocar a forma de pagamento. Confira os dados e tente de novo.' };
+  }
+}
+
+/**
+ * Reativa uma assinatura CANCELADA cujo período pago ainda não encerrou ("Reativar num
+ * toque"). Recria a recorrência no Asaas com a 1ª cobrança agendada pro FIM do período já
+ * pago (`nextDueDate = currentPeriodEnd`) - assim não cobra em dobro um ciclo já pago; a
+ * recorrência só volta a faturar na renovação. Cartão com token guardado renova sozinho;
+ * Pix gera a cobrança na renovação. 12x/installment não é recorrência → recontratar.
+ */
+export async function reactivateSubscription(): Promise<ManageResult> {
+  const { tenant } = await requireAdmin();
+  const sub = tenant.subscription;
+  if (!sub || sub.status !== 'CANCELED') {
+    return { error: 'Não há assinatura cancelada para reativar.' };
+  }
+  if (!sub.currentPeriodEnd || sub.currentPeriodEnd.getTime() <= Date.now()) {
+    return { error: 'O período de acesso já encerrou. Contrate novamente para voltar.' };
+  }
+  if (sub.billingCycle === 'ANNUAL_INSTALLMENTS') {
+    return { error: 'Reativação automática indisponível no anual 12x. Contrate novamente.' };
+  }
+  if (!sub.asaasCustomerId) {
+    return { error: 'Sua assinatura não tem cadastro de cobrança. Contrate novamente.' };
+  }
+
+  const method: 'PIX' | 'CREDIT_CARD' = sub.paymentMethod === 'PIX' ? 'PIX' : 'CREDIT_CARD';
+  try {
+    const result = await createSubscription({
+      customerId: sub.asaasCustomerId,
+      amountCents: recurringValueCents(sub),
+      cycle: sub.billingCycle,
+      method,
+      description:
+        `Demandaê ${TIER_LABEL[sub.planTier]} (${sub.billingCycle === 'ANNUAL' ? 'anual' : 'mensal'})` +
+        (isAddonActive(sub) ? ' + Atendente IA' : ''),
+      externalReference: sub.id,
+      nextDueDateISO: sub.currentPeriodEnd.toISOString().slice(0, 10),
+    });
+    // Cartão com token guardado: aponta a nova recorrência pro cartão salvo (renova sozinho).
+    if (method === 'CREDIT_CARD' && sub.asaasCardToken) {
+      await setSubscriptionCard(result.asaasSubscriptionId, sub.asaasCardToken).catch((err) =>
+        console.error('[billing] reativar: reaplicar cartão falhou', err),
+      );
+    }
+    await prisma.subscription.update({
+      where: { id: sub.id },
+      data: {
+        status: 'ACTIVE',
+        asaasSubscriptionId: result.asaasSubscriptionId,
+        canceledAt: null,
+        canceledReason: null,
+      },
+    });
+    revalidatePath('/assinatura');
+    revalidatePath('/settings');
+    return { ok: true };
+  } catch (err) {
+    console.error('[billing] reactivate falhou', err);
+    return { error: 'Não foi possível reativar agora. Tente novamente.' };
   }
 }

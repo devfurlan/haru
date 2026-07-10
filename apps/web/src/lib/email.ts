@@ -91,7 +91,7 @@ export function emailShell(title: string, body: string, cta: string, link: strin
       <p style="margin:24px 0">
         <a href="${link}" style="background:#1a1a1a;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;font-size:14px">${cta}</a>
       </p>
-      <p style="font-size:12px;color:#888">Demandaê - agendamento e atendimento por IA no WhatsApp.</p>
+      <p style="font-size:12px;color:#888">Demandaê · sua agenda, sem enrolação.</p>
     </div>`;
 }
 
@@ -128,7 +128,7 @@ export function brandedShell(title: string, body: string, cta: string, link: str
           </td></tr>
           <tr><td style="padding:26px 36px 28px;">
             <div style="border-top:1px solid #ece3d3;padding-top:18px;font-family:${BRAND_SANS};font-size:12px;line-height:1.5;color:#9aa39d;">
-              Demanda<span style="color:#ff5a36;">ê</span> · agendamento e atendimento por IA no WhatsApp.
+              Demanda<span style="color:#ff5a36;">ê</span> · sua agenda, sem enrolação.
             </div>
           </td></tr>
         </table>

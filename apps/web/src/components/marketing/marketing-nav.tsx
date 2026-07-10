@@ -10,7 +10,7 @@ const links = [
   { href: '/#como-cliente', label: 'Como funciona' },
   { href: '/#recursos', label: 'Recursos' },
   { href: '/#app', label: 'App' },
-  { href: '/#addon', label: 'Atendente IA' },
+  { href: '/#addon', label: 'Atendente IA (em breve)' },
   { href: '/precos', label: 'Preços' },
 ];
 

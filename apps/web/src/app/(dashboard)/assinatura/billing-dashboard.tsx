@@ -1,8 +1,18 @@
 'use client';
 
-import type { BillingCycle, PlanTier, SubscriptionStatus } from '@haru/database';
+import type { BillingCycle, PaymentMethod, PlanTier, SubscriptionStatus } from '@haru/database';
 import { formatBRL } from '@haru/shared';
-import { AlertTriangle, ArrowUpRight, Check, Clock, Sparkles, TrendingUp } from 'lucide-react';
+import {
+  AlertTriangle,
+  ArrowUpRight,
+  BellOff,
+  Check,
+  Clock,
+  CreditCard,
+  QrCode,
+  Sparkles,
+  TrendingUp,
+} from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useActionState, useEffect, useMemo, useState, useTransition } from 'react';
@@ -16,12 +26,21 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  cardLast4 as extractLast4,
+  isCardComplete,
+  maskCardNumber,
+  maskCep,
+  maskCvv,
+  maskExpiry,
+} from '@/lib/card-format';
 
 import {
   cancelSubscription,
+  changePaymentMethod,
   changePlan,
   deactivateAddon,
-  updateCard,
+  reactivateSubscription,
   type ManageResult,
 } from './actions';
 import type { PlanOption } from './subscribe-form';
@@ -47,6 +66,11 @@ interface BillingDashboardProps {
   currentPlanName: string;
   currentCycle: BillingCycle;
   status: SubscriptionStatus;
+  /** Forma de pagamento ativa da recorrência. null = ainda não definida/legado. */
+  paymentMethod: PaymentMethod | null;
+  /** Últimos 4 + bandeira do cartão (só exibição). null quando é Pix/legado. */
+  cardLast4: string | null;
+  cardBrand: string | null;
   /** Valor da próxima cobrança (snapshot do ciclo contratado), em centavos. */
   priceCents: number;
   nextChargeISO: string | null;
@@ -139,6 +163,9 @@ export function BillingDashboard(props: BillingDashboardProps) {
     currentPlanName,
     currentCycle,
     status,
+    paymentMethod,
+    cardLast4,
+    cardBrand,
     priceCents,
     nextChargeISO,
     guaranteeUntilISO,
@@ -166,11 +193,22 @@ export function BillingDashboard(props: BillingDashboardProps) {
   >(changePlan, undefined);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
+  const [payOpen, setPayOpen] = useState(false);
 
   const nextCharge = fmtDate(nextChargeISO);
   const withinGuarantee =
     guaranteeUntilISO != null && new Date(guaranteeUntilISO).getTime() > Date.now();
-  const statusPill = STATUS_PILL[status];
+  // Cancelada mas ainda com acesso até o fim do período pago: a pill vira âmbar
+  // "Cancelada · ativa até X" e a linha de cobrança avisa "sem novas cobranças".
+  const canceledWithAccess =
+    status === 'CANCELED' && nextChargeISO != null && new Date(nextChargeISO).getTime() > Date.now();
+  const isActive = status === 'ACTIVE';
+  const statusPill = canceledWithAccess
+    ? {
+        label: nextCharge ? `Cancelada · ativa até ${nextCharge}` : 'Cancelada',
+        className: 'bg-amber-100 text-amber-900 ring-amber-300',
+      }
+    : STATUS_PILL[status];
 
   const currentMonthly = plans.find((p) => p.tier === currentTier)?.priceMonthlyCents ?? 0;
   const selected = plans.find((p) => p.tier === tier);
@@ -254,10 +292,13 @@ export function BillingDashboard(props: BillingDashboardProps) {
 
         <div className="mt-4 border-t pt-4 text-sm">
           {status === 'CANCELED' ? (
-            <p className="text-muted-foreground">
-              Assinatura cancelada.{' '}
-              {nextCharge ? `Seu acesso vai até ${nextCharge}.` : 'O acesso foi encerrado.'}
-            </p>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="text-muted-foreground">
+                <span className="text-foreground font-medium">Sem novas cobranças.</span>{' '}
+                {nextCharge ? `Tudo funciona até ${nextCharge}.` : 'O acesso foi encerrado.'}
+              </p>
+              {canceledWithAccess && <ReactivateButton onDone={() => router.refresh()} />}
+            </div>
           ) : nextCharge ? (
             <p className="text-muted-foreground">
               Próxima cobrança em <span className="text-foreground font-medium">{nextCharge}</span>{' '}
@@ -282,8 +323,8 @@ export function BillingDashboard(props: BillingDashboardProps) {
         </div>
       </section>
 
-      {/* 5. Trocas comuns em destaque */}
-      {(appointmentsAlerting && nextUpgrade) || normalizedCurrentCycle === 'MONTHLY' ? (
+      {/* 5. Trocas comuns em destaque (só faz sentido com assinatura ativa) */}
+      {isActive && ((appointmentsAlerting && nextUpgrade) || normalizedCurrentCycle === 'MONTHLY') ? (
         <div className="grid gap-3 sm:grid-cols-2">
           {appointmentsAlerting && nextUpgrade && (
             <button
@@ -330,6 +371,8 @@ export function BillingDashboard(props: BillingDashboardProps) {
         </p>
       </section>
 
+      {isActive && (
+        <>
       {/* 3a. Trocar de plano */}
       <section className="bg-card space-y-4 rounded-2xl border p-6">
         <div>
@@ -475,34 +518,65 @@ export function BillingDashboard(props: BillingDashboardProps) {
           </div>
         )}
       </section>
+        </>
+      )}
 
       {/* 3c. Pagamento + faturas + cancelamento */}
       <section className="bg-card space-y-3 rounded-2xl border p-6">
         <h2 className="font-medium">Pagamento</h2>
-        <div className="flex flex-wrap items-center gap-2">
-          <UpdateCardButton />
-          <a
-            className="text-sm underline underline-offset-2"
-            href="#faturas"
-            onClick={(e) => {
-              e.preventDefault();
-              document.getElementById('faturas')?.scrollIntoView({ behavior: 'smooth' });
-            }}
+
+        {/* Linha da forma de pagamento: badge + descrição + "Trocar" (só com assinatura ativa). */}
+        <div className="border-border-soft bg-cream flex flex-wrap items-center gap-3 rounded-xl border p-3.5">
+          <span
+            className="bg-green-deep text-on-emerald flex h-6 w-9 shrink-0 items-center justify-center rounded-md text-[8px] font-bold tracking-wider"
+            aria-hidden
           >
-            Ver faturas anteriores
-          </a>
+            {paymentMethod === 'PIX' ? 'PIX' : 'CARD'}
+          </span>
+          <p className="text-ink-70 min-w-0 flex-1 text-[13px] font-medium">
+            {paymentMethod === 'PIX'
+              ? 'Pix recorrente - o Pix é gerado a cada renovação.'
+              : cardLast4
+                ? `Cartão de crédito •••• ${cardLast4}${cardBrand ? ` · ${cardBrand}` : ''}`
+                : paymentMethod === 'CREDIT_CARD'
+                  ? 'Cartão de crédito cadastrado.'
+                  : 'Forma de pagamento definida no checkout.'}
+          </p>
+          {isActive && (
+            <button
+              type="button"
+              onClick={() => setPayOpen(true)}
+              className="text-green-deep hover:bg-chip shrink-0 rounded-lg px-2.5 py-2 text-xs font-semibold whitespace-nowrap"
+            >
+              Trocar
+            </button>
+          )}
         </div>
-        {/* Cancelar sempre visível - dificultar cancelamento queima confiança. */}
-        <div className="border-t pt-3">
-          <Button
-            type="button"
-            variant="ghost"
-            className="text-red-600 hover:text-red-700"
-            onClick={() => setCancelOpen(true)}
-          >
-            Cancelar assinatura
-          </Button>
-        </div>
+
+        <a
+          className="text-sm underline underline-offset-2"
+          href="#faturas"
+          onClick={(e) => {
+            e.preventDefault();
+            document.getElementById('faturas')?.scrollIntoView({ behavior: 'smooth' });
+          }}
+        >
+          Ver faturas anteriores
+        </a>
+
+        {/* Cancelar sempre visível qdo ativa - dificultar cancelamento queima confiança. */}
+        {isActive && (
+          <div className="border-t pt-3">
+            <Button
+              type="button"
+              variant="ghost"
+              className="text-red-600 hover:text-red-700"
+              onClick={() => setCancelOpen(true)}
+            >
+              Cancelar assinatura
+            </Button>
+          </div>
+        )}
       </section>
 
       {/* Modal: confirmar troca de plano */}
@@ -557,13 +631,23 @@ export function BillingDashboard(props: BillingDashboardProps) {
         </DialogContent>
       </Dialog>
 
-      {/* Modal: cancelamento */}
+      {/* Modal: trocar forma de pagamento */}
+      <PaymentMethodDialog
+        open={payOpen}
+        onOpenChange={setPayOpen}
+        currentMethod={paymentMethod}
+        priceLabel={formatBRL(priceCents)}
+        nextCharge={nextCharge}
+        onChanged={() => router.refresh()}
+      />
+
+      {/* Modal: cancelamento com retenção + reativar */}
       <CancelDialog
         open={cancelOpen}
         onOpenChange={setCancelOpen}
         withinGuarantee={withinGuarantee}
         nextCharge={nextCharge}
-        onCanceled={() => router.refresh()}
+        onChanged={() => router.refresh()}
       />
     </div>
   );
@@ -571,25 +655,32 @@ export function BillingDashboard(props: BillingDashboardProps) {
 
 // --- Botões/ações isolados (cada um com seu próprio estado de transição) -------
 
-function UpdateCardButton() {
+/** Reativa a assinatura cancelada num toque (recria a recorrência no Asaas). */
+function ReactivateButton({
+  onDone,
+  variant = 'coral',
+}: {
+  onDone: () => void;
+  variant?: 'coral' | 'outline';
+}) {
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex flex-col items-end gap-1">
       <Button
         type="button"
-        variant="outline"
+        variant={variant}
         disabled={pending}
         onClick={() => {
           setError(null);
           start(async () => {
-            const r = await updateCard();
+            const r = await reactivateSubscription();
             if ('error' in r) setError(r.error);
-            else window.location.href = r.redirectUrl;
+            else onDone();
           });
         }}
       >
-        {pending ? 'Abrindo…' : 'Trocar cartão'}
+        {pending ? 'Reativando…' : 'Reativar assinatura'}
       </Button>
       {error && <span className="text-sm text-red-600">{error}</span>}
     </div>
@@ -665,80 +756,465 @@ function ActivateAddonCta({ setupFeeCents }: { setupFeeCents: number | null }) {
   );
 }
 
+/** Motivos de cancelamento (radio obrigatório). O texto vai como feedback ao servidor. */
+const CANCEL_REASONS = [
+  'Tá pesando no bolso agora',
+  'Não usei tanto quanto esperava',
+  'Faltou um recurso que eu precisava',
+  'Foi só pra testar',
+  'Vou usar outra ferramenta',
+];
+
+/**
+ * Cancelamento com retenção: "Já vai embora?" + 5 motivos (radio obrigatório - o botão de
+ * cancelar fica cinza até escolher). Confirmando, vira a tela "Assinatura cancelada" com
+ * Reativar num toque. "Vou ficar" é o CTA coral que fecha sem cancelar.
+ */
 function CancelDialog({
   open,
   onOpenChange,
   withinGuarantee,
   nextCharge,
-  onCanceled,
+  onChanged,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   withinGuarantee: boolean;
   nextCharge: string | null;
-  onCanceled: () => void;
+  onChanged: () => void;
 }) {
   const [reason, setReason] = useState('');
+  const [step, setStep] = useState<'ask' | 'done'>('ask');
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
+  function close() {
+    onOpenChange(false);
+    // Reseta depois da animação de fechar, pra não piscar de volta pro passo 'ask'.
+    setTimeout(() => {
+      setStep('ask');
+      setReason('');
+      setError(null);
+    }, 200);
+  }
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(v) => (v ? onOpenChange(true) : close())}>
+      <DialogContent dismissable={false}>
+        {step === 'ask' ? (
+          <>
+            <DialogHeader>
+              <DialogTitle className="font-serif text-[22px] font-medium tracking-tight">
+                Já vai <em className="italic text-green-deep">embora</em>?
+              </DialogTitle>
+              <DialogDescription>
+                Antes de cancelar, conta pra gente o que pesou - de verdade, isso ajuda.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="flex flex-col gap-2">
+              {CANCEL_REASONS.map((r) => {
+                const on = reason === r;
+                return (
+                  <button
+                    key={r}
+                    type="button"
+                    onClick={() => setReason(r)}
+                    className={`flex items-center gap-2.5 rounded-xl border p-3 text-left text-[13px] font-semibold transition-colors ${
+                      on ? 'border-green-bright bg-chip' : 'border-border hover:border-green-bright/50'
+                    }`}
+                  >
+                    <span
+                      className={`flex size-4 shrink-0 items-center justify-center rounded-full border-2 ${
+                        on ? 'border-green-bright' : 'border-border'
+                      }`}
+                    >
+                      {on && <span className="bg-green-bright size-2 rounded-full" />}
+                    </span>
+                    {r}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-3.5 text-[12.5px] leading-relaxed text-amber-900">
+              {withinGuarantee ? (
+                <>
+                  Você está nos <strong>30 dias de garantia</strong>: ao cancelar, fazemos o reembolso
+                  integral automático e o acesso encerra agora. Seus dados ficam guardados por 90 dias.
+                </>
+              ) : (
+                <>
+                  Cancelando, sua página sai do ar e o app para de mostrar seus horários em{' '}
+                  <strong>{nextCharge ?? 'o fim do período'}</strong>. Seus dados e clientes ficam
+                  guardados por 90 dias - se voltar, tá tudo lá.
+                </>
+              )}
+            </div>
+
+            {error && <p className="text-sm text-red-600">{error}</p>}
+
+            <div className="flex items-center gap-3 border-t pt-3">
+              <button
+                type="button"
+                disabled={!reason || pending}
+                onClick={() => {
+                  setError(null);
+                  start(async () => {
+                    const r = await cancelSubscription(reason);
+                    if ('error' in r) setError(r.error);
+                    else {
+                      setStep('done');
+                      onChanged();
+                    }
+                  });
+                }}
+                className={`rounded-full px-3.5 py-2.5 text-xs font-semibold whitespace-nowrap transition-colors ${
+                  reason
+                    ? 'text-coral-deep hover:bg-coral-tint'
+                    : 'text-ink-30 cursor-not-allowed'
+                }`}
+              >
+                {!reason
+                  ? 'Escolhe um motivo pra continuar'
+                  : pending
+                    ? 'Cancelando…'
+                    : 'Cancelar assinatura'}
+              </button>
+              <div className="flex-1" />
+              <DialogClose asChild>
+                <Button type="button" variant="coral" disabled={pending}>
+                  Vou ficar
+                </Button>
+              </DialogClose>
+            </div>
+          </>
+        ) : (
+          <div className="px-1 py-2 text-center">
+            <div className="border-border mx-auto mb-4 flex size-16 items-center justify-center rounded-full border bg-[#f6f1e4] text-ink-50">
+              <BellOff className="size-6" aria-hidden />
+            </div>
+            <DialogTitle className="font-serif text-2xl font-medium tracking-tight">
+              Assinatura <em className="italic text-ink-50">cancelada</em>
+            </DialogTitle>
+            <p className="text-ink-70 mx-auto mt-2.5 max-w-sm text-[13px] leading-relaxed">
+              {withinGuarantee
+                ? 'Reembolso integral a caminho. Seus dados ficam guardados por 90 dias.'
+                : `Tudo continua funcionando até ${nextCharge ?? 'o fim do período'}. Depois disso, seus dados ficam guardados por 90 dias.`}
+            </p>
+            <p className="text-ink-50 mt-1 text-xs">Mudou de ideia? É um toque pra reativar.</p>
+            <div className="mt-5 flex items-center justify-center gap-3">
+              {!withinGuarantee && <ReactivateButton onDone={close} />}
+              <DialogClose asChild>
+                <Button type="button" variant="ghost">
+                  Fechar
+                </Button>
+              </DialogClose>
+            </div>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// Estilo compartilhado dos inputs do form de cartão (paleta cream/verde do protótipo).
+const CARD_INPUT_CLASS =
+  'border-border bg-cream text-ink w-full rounded-xl border px-3.5 py-3 text-sm outline-none focus:border-green-bright';
+
+/**
+ * Trocar forma de pagamento: abas Cartão / Pix recorrente.
+ * - Cartão: máscaras + CTA que só acende com dados completos. O cartão é tokenizado no Asaas
+ *   (o PAN/CVV não fica no nosso servidor); a linha de cobrança passa a mostrar os últimos 4.
+ * - Pix: troca a recorrência pra Pix e mostra o QR/copia-e-cola da cobrança em aberto.
+ */
+function PaymentMethodDialog({
+  open,
+  onOpenChange,
+  currentMethod,
+  priceLabel,
+  nextCharge,
+  onChanged,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  currentMethod: PaymentMethod | null;
+  priceLabel: string;
+  nextCharge: string | null;
+  onChanged: () => void;
+}) {
+  const [tab, setTab] = useState<'card' | 'pix'>(currentMethod === 'PIX' ? 'pix' : 'card');
+  const [card, setCard] = useState({
+    number: '',
+    exp: '',
+    cvv: '',
+    name: '',
+    cpfCnpj: '',
+    cep: '',
+    addressNumber: '',
+  });
+  const [pending, start] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+  const [pix, setPix] = useState<{ qrCode: string; copyPaste: string } | null>(null);
+  const [pixDone, setPixDone] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const cardOk = isCardComplete(card);
+  const set = (k: keyof typeof card, v: string) => setCard((c) => ({ ...c, [k]: v }));
+
+  function close() {
+    onOpenChange(false);
+    setTimeout(() => {
+      setError(null);
+      setPix(null);
+      setPixDone(false);
+      setCopied(false);
+    }, 200);
+  }
+
+  function submitCard() {
+    setError(null);
+    start(async () => {
+      const r = await changePaymentMethod({
+        method: 'CARD',
+        cardNumber: card.number,
+        cardExp: card.exp,
+        cardCvv: card.cvv,
+        cardName: card.name,
+        cpfCnpj: card.cpfCnpj,
+        cep: card.cep,
+        addressNumber: card.addressNumber,
+      });
+      if ('error' in r) setError(r.error);
+      else {
+        onChanged();
+        close();
+      }
+    });
+  }
+
+  function submitPix() {
+    setError(null);
+    start(async () => {
+      const r = await changePaymentMethod({ method: 'PIX' });
+      if ('error' in r) setError(r.error);
+      else if (r.method === 'PIX') {
+        onChanged();
+        // Tem cobrança em aberto → mostra o QR pra pagar; senão só confirma (vale da próxima).
+        if (r.pix) setPix(r.pix);
+        else setPixDone(true);
+      }
+    });
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => (v ? onOpenChange(true) : close())}>
       <DialogContent dismissable={false}>
         <DialogHeader>
-          <DialogTitle>Cancelar sua assinatura?</DialogTitle>
+          <DialogTitle className="font-serif text-[22px] font-medium tracking-tight">
+            Forma de <em className="italic text-green-deep">pagamento</em>
+          </DialogTitle>
           <DialogDescription>
-            {withinGuarantee
-              ? 'Você está dentro dos 30 dias de garantia: ao cancelar, fazemos o reembolso integral automático e o acesso é encerrado agora.'
-              : `Sem novas cobranças. Você continua com acesso até o fim do período já pago${
-                  nextCharge ? ` (${nextCharge})` : ''
-                }.`}
+            Vale a partir da próxima cobrança{nextCharge ? `, ${nextCharge}` : ''}.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-2">
-          <label htmlFor="cancelReason" className="text-sm font-medium">
-            Quer contar por que está saindo?{' '}
-            <span className="text-muted-foreground">(opcional)</span>
-          </label>
-          <textarea
-            id="cancelReason"
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-            rows={3}
-            maxLength={500}
-            placeholder="Seu feedback nos ajuda a melhorar."
-            className="border-input bg-background focus-visible:ring-ring w-full rounded-md border p-2 text-sm focus-visible:outline-none focus-visible:ring-2"
-          />
-        </div>
-
-        {error && <p className="text-sm text-red-600">{error}</p>}
-
-        <div className="flex justify-end gap-2">
-          <DialogClose asChild>
-            <Button type="button" variant="ghost" disabled={pending}>
-              Manter assinatura
+        {pix ? (
+          // Pix ativado com cobrança em aberto: QR + copia-e-cola pra pagar agora.
+          <div className="flex flex-col gap-3">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={pix.qrCode} alt="QR Code Pix" className="mx-auto size-52 rounded-xl" />
+            <div className="flex items-center gap-2">
+              <p className="border-border bg-cream text-ink-70 min-w-0 flex-1 truncate rounded-xl border px-3.5 py-3 font-mono text-xs">
+                {pix.copyPaste}
+              </p>
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(pix.copyPaste);
+                    setCopied(true);
+                    setTimeout(() => setCopied(false), 1800);
+                  } catch {
+                    /* clipboard indisponível - o usuário copia manualmente */
+                  }
+                }}
+                className="border-border text-ink-70 hover:bg-cream-2 shrink-0 rounded-xl border px-3.5 py-3 text-xs font-semibold whitespace-nowrap"
+              >
+                {copied ? 'Copiado!' : 'Copiar código'}
+              </button>
+            </div>
+            <div className="flex justify-end">
+              <Button type="button" variant="coral" onClick={close}>
+                Já paguei
+              </Button>
+            </div>
+          </div>
+        ) : pixDone ? (
+          <div className="flex flex-col items-center gap-3 py-4 text-center">
+            <div className="bg-chip flex size-14 items-center justify-center rounded-full">
+              <Check className="text-green-deep size-6" strokeWidth={2.4} aria-hidden />
+            </div>
+            <p className="text-ink-70 max-w-sm text-sm leading-relaxed">
+              Pix ativado. O próximo Pix de <strong className="text-ink">{priceLabel}</strong> é gerado
+              na renovação{nextCharge ? `, ${nextCharge}` : ''}.
+            </p>
+            <Button type="button" variant="coral" onClick={close}>
+              Fechar
             </Button>
-          </DialogClose>
-          <Button
-            type="button"
-            variant="destructive"
-            disabled={pending}
-            onClick={() => {
-              setError(null);
-              start(async () => {
-                const r = await cancelSubscription(reason);
-                if ('error' in r) setError(r.error);
-                else {
-                  onOpenChange(false);
-                  onCanceled();
-                }
-              });
-            }}
-          >
-            {pending ? 'Cancelando…' : 'Confirmar cancelamento'}
-          </Button>
-        </div>
+          </div>
+        ) : (
+          <>
+            {/* Abas */}
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setTab('card')}
+                className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl border px-3 py-3 text-[12.5px] font-semibold transition-colors ${
+                  tab === 'card'
+                    ? 'border-green-bright bg-chip text-green-deep'
+                    : 'border-border text-ink-70'
+                }`}
+              >
+                <CreditCard className="size-4" aria-hidden />
+                Cartão de crédito
+              </button>
+              <button
+                type="button"
+                onClick={() => setTab('pix')}
+                className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl border px-3 py-3 text-[12.5px] font-semibold transition-colors ${
+                  tab === 'pix'
+                    ? 'border-green-bright bg-chip text-green-deep'
+                    : 'border-border text-ink-70'
+                }`}
+              >
+                <QrCode className="size-4" aria-hidden />
+                Pix recorrente
+              </button>
+            </div>
+
+            {tab === 'card' ? (
+              <div className="flex flex-col gap-3">
+                <label className="flex flex-col gap-1.5">
+                  <span className="text-ink-70 text-xs font-semibold">Número do cartão</span>
+                  <input
+                    value={card.number}
+                    onChange={(e) => set('number', maskCardNumber(e.target.value))}
+                    placeholder="0000 0000 0000 0000"
+                    inputMode="numeric"
+                    autoComplete="cc-number"
+                    className={CARD_INPUT_CLASS}
+                  />
+                </label>
+                <div className="flex gap-2.5">
+                  <label className="flex flex-1 flex-col gap-1.5">
+                    <span className="text-ink-70 text-xs font-semibold">Validade</span>
+                    <input
+                      value={card.exp}
+                      onChange={(e) => set('exp', maskExpiry(e.target.value))}
+                      placeholder="MM/AA"
+                      inputMode="numeric"
+                      autoComplete="cc-exp"
+                      className={CARD_INPUT_CLASS}
+                    />
+                  </label>
+                  <label className="flex flex-1 flex-col gap-1.5">
+                    <span className="text-ink-70 text-xs font-semibold">CVV</span>
+                    <input
+                      value={card.cvv}
+                      onChange={(e) => set('cvv', maskCvv(e.target.value))}
+                      placeholder="123"
+                      inputMode="numeric"
+                      autoComplete="cc-csc"
+                      className={CARD_INPUT_CLASS}
+                    />
+                  </label>
+                </div>
+                <label className="flex flex-col gap-1.5">
+                  <span className="text-ink-70 text-xs font-semibold">Nome impresso no cartão</span>
+                  <input
+                    value={card.name}
+                    onChange={(e) => set('name', e.target.value)}
+                    placeholder="Como aparece no cartão"
+                    autoComplete="cc-name"
+                    className={CARD_INPUT_CLASS}
+                  />
+                </label>
+                <div className="flex gap-2.5">
+                  <label className="flex flex-[1.4] flex-col gap-1.5">
+                    <span className="text-ink-70 text-xs font-semibold">CPF/CNPJ do titular</span>
+                    <input
+                      value={card.cpfCnpj}
+                      onChange={(e) => set('cpfCnpj', e.target.value)}
+                      placeholder="Somente números"
+                      inputMode="numeric"
+                      className={CARD_INPUT_CLASS}
+                    />
+                  </label>
+                  <label className="flex flex-1 flex-col gap-1.5">
+                    <span className="text-ink-70 text-xs font-semibold">CEP</span>
+                    <input
+                      value={card.cep}
+                      onChange={(e) => set('cep', maskCep(e.target.value))}
+                      placeholder="00000-000"
+                      inputMode="numeric"
+                      className={CARD_INPUT_CLASS}
+                    />
+                  </label>
+                  <label className="flex w-20 flex-col gap-1.5">
+                    <span className="text-ink-70 text-xs font-semibold">Nº</span>
+                    <input
+                      value={card.addressNumber}
+                      onChange={(e) => set('addressNumber', e.target.value)}
+                      placeholder="50"
+                      inputMode="numeric"
+                      className={CARD_INPUT_CLASS}
+                    />
+                  </label>
+                </div>
+                <p className="text-ink-50 text-[11.5px] leading-relaxed">
+                  O cartão é processado com segurança pelo Asaas - guardamos só os últimos 4 dígitos
+                  {card.number.replace(/\D/g, '').length >= 4 ? ` (•••• ${extractLast4(card.number)})` : ''}.
+                </p>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-3">
+                <div className="border-border-soft bg-cream flex items-center gap-3.5 rounded-2xl border p-3.5">
+                  <div className="border-border text-ink-30 flex size-[68px] shrink-0 items-center justify-center rounded-xl border border-dashed bg-white">
+                    <QrCode className="size-7" aria-hidden />
+                  </div>
+                  <p className="text-ink-70 min-w-0 flex-1 text-[12.5px] leading-relaxed">
+                    Ao ativar, a recorrência passa a ser por <strong className="text-ink">Pix</strong>:
+                    a cada renovação geramos um Pix de <strong className="text-ink">{priceLabel}</strong>{' '}
+                    pra você pagar. Sem cartão, sem boleto.
+                  </p>
+                </div>
+                <p className="text-ink-50 text-[11.5px] leading-relaxed">
+                  Volta pro cartão quando quiser, aqui mesmo.
+                </p>
+              </div>
+            )}
+
+            {error && <p className="text-sm text-red-600">{error}</p>}
+
+            <div className="flex items-center justify-end gap-2 border-t pt-3">
+              <DialogClose asChild>
+                <Button type="button" variant="ghost" disabled={pending}>
+                  Cancelar
+                </Button>
+              </DialogClose>
+              {tab === 'card' ? (
+                <Button type="button" variant="coral" disabled={!cardOk || pending} onClick={submitCard}>
+                  {pending ? 'Salvando…' : 'Salvar cartão'}
+                </Button>
+              ) : (
+                <Button type="button" variant="coral" disabled={pending} onClick={submitPix}>
+                  {pending ? 'Ativando…' : 'Ativar Pix recorrente'}
+                </Button>
+              )}
+            </div>
+          </>
+        )}
       </DialogContent>
     </Dialog>
   );

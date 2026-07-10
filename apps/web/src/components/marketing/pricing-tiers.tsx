@@ -77,7 +77,7 @@ function featuresFor(t: PricingTier, prevName: string | null): Feat[] {
     case 'PROFISSIONAL':
       return [
         { on: true, strong: true, text: `Tudo do ${prevName ?? 'Solo'}` },
-        { on: true, text: 'Pagamentos online (Pix + cartão na conversa)' },
+        { on: true, text: 'Pagamentos online (Pix + cartão no app e na web)' },
         { on: true, text: `Equipe: até ${fmtLimit(t.maxProfessionals)} profissionais` },
         { on: true, text: 'Webhooks (Discord, Slack, Zapier, n8n)' },
         { on: true, text: appts },
@@ -267,7 +267,7 @@ export function PricingTiers({ tiers }: { tiers: PricingTier[] }) {
                         </span>
                         {installmentCents && (
                           <p className="pt-0.5">
-                            ou 12× de {brlCents(installmentCents)} no cartão (com taxas)
+                            ou 12× de {brlCents(installmentCents)} no cartão (com juros)
                           </p>
                         )}
                         <p>Sem taxa de instalação.</p>

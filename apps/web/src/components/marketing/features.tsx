@@ -66,7 +66,7 @@ export function Features() {
         <SectionHeading
           dark
           eyebrow="A plataforma"
-          title="Muito mais que um chatbot: a sua agenda inteira, de ponta a ponta."
+          title="App, web e painel: a sua agenda inteira, de ponta a ponta."
         >
           App, web e painel trabalhando junto - tudo que já está no ar, sem promessa pra depois.
         </SectionHeading>
@@ -142,7 +142,7 @@ export function Features() {
             kicker="Pagamentos online"
             title="Receba na hora de marcar"
             items={[
-              'Pix copia-e-cola ou link de cartão na conversa e no app',
+              'Pix copia-e-cola ou link de cartão no app e na web',
               'Confirma o pagamento sozinho assim que o valor cai',
               'Menos furo de horário: quem paga, aparece',
             ]}

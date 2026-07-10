@@ -33,8 +33,8 @@ export function ClientApp() {
           <p className="text-ink-soft mb-8 max-w-[520px] text-[1.1rem] leading-relaxed">
             No app, o cliente marca, reagenda, cancela e acha o caminho até você sem depender de
             ninguém. E quem está por perto encontra seu negócio na busca por proximidade. O app é
-            grátis pro cliente - e quem prefere a web ou o WhatsApp segue por lá, sem ficar preso a
-            um canal só.
+            grátis pro cliente - e quem prefere a web agenda por lá, sem baixar nada. O WhatsApp
+            cuida dos lembretes, sem ninguém ficar preso a um canal só.
           </p>
           <ul className="flex max-w-[520px] flex-col gap-3.5">
             {perks.map((p) => (

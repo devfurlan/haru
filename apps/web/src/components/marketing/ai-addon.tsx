@@ -1,11 +1,11 @@
 import { Check, Phone, Smartphone } from 'lucide-react';
-import Link from 'next/link';
 
 import { Button } from '@/components/ui/button';
 
 import { Container } from './container';
 import { Eyebrow } from './eyebrow';
 import { HeroPhone } from './hero-phone';
+import { InterestDialog } from './interest-dialog';
 
 const highlights = [
   'Conversa em linguagem natural pra agendar, remarcar ou cancelar - sem menu robótico',
@@ -19,12 +19,12 @@ const channels = [
   {
     Icon: Phone,
     title: 'Número Demandaê',
-    text: 'Atende por um número nosso, com a identificação do seu negócio. Ativa na hora.',
+    text: 'Vai atender por um número nosso, com a identificação do seu negócio - sem burocracia de Meta.',
   },
   {
     Icon: Smartphone,
     title: 'Número próprio',
-    text: 'Atende pelo número do seu negócio. A gente configura a conta oficial na Meta pra você.',
+    text: 'Vai atender pelo número do seu negócio. A gente configura a conta oficial na Meta pra você.',
   },
 ];
 
@@ -33,14 +33,16 @@ export function AiAddon() {
     <section id="addon" className="bg-cream-2 py-24">
       <Container className="grid items-center gap-14 lg:grid-cols-[1.05fr_0.95fr]">
         <div>
-          <Eyebrow className="text-coral">Addon premium · opcional</Eyebrow>
+          <Eyebrow className="text-coral">Addon opcional · em breve</Eyebrow>
           <h2 className="text-foreground mb-4 mt-4 font-serif text-[clamp(2rem,4vw,3.05rem)] font-semibold leading-[1.05] tracking-[-0.01em]">
-            Um <em className="text-coral italic">Atendente IA</em> conversando no seu WhatsApp.
+            Em breve: um <em className="text-coral italic">Atendente IA</em> conversando no seu
+            WhatsApp.
           </h2>
           <p className="text-ink-soft mb-7 max-w-[540px] text-[1.1rem] leading-relaxed">
-            Além dos avisos automáticos que já vêm no plano, o addon liga a conversa de verdade: o
-            cliente manda mensagem e a IA agenda, remarca e tira dúvidas sozinha - inclusive por
-            áudio.
+            Hoje o WhatsApp já confirma e lembra sozinho no seu plano. O próximo passo é opcional:
+            um addon que liga a conversa de verdade - o cliente manda mensagem e a IA agenda,
+            remarca e tira dúvidas sozinha, inclusive por áudio. Entre na lista de espera pra ser
+            dos primeiros.
           </p>
 
           <ul className="mb-7 flex flex-col gap-3">
@@ -64,9 +66,14 @@ export function AiAddon() {
             ))}
           </div>
 
-          <Button asChild variant="ink" size="pill">
-            <Link href="/precos#addon">Ver preços do addon →</Link>
-          </Button>
+          <InterestDialog
+            title="Lista de espera do Atendente IA"
+            description="O Atendente IA no WhatsApp está a caminho. Deixe seus dados que a gente avisa assim que abrir - e você entra na frente."
+          >
+            <Button variant="ink" size="pill">
+              Entrar na lista de espera →
+            </Button>
+          </InterestDialog>
         </div>
 
         <div className="order-first lg:order-last">

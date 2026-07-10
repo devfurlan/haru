@@ -5,10 +5,10 @@ import { SectionHeading } from './section-heading';
 
 // Sem citar nomes (evita briga jurídica) - só comunica a diferenciação.
 const rows = [
-  { label: 'Bot de IA de verdade', them: 'Menu de botão' },
-  { label: 'Áudio no WhatsApp', them: 'Não tem' },
-  { label: 'Pagamentos na conversa', them: 'Add-on pago' },
-  { label: 'App do cliente', them: 'Raro' },
+  { label: 'App do cliente + agenda na web', them: 'Só link ou WhatsApp' },
+  { label: 'Funciona sem depender da Meta', them: 'Preso ao WhatsApp' },
+  { label: 'Sua marca, sem marketplace', them: 'Vitrine com concorrente' },
+  { label: 'Pagamento online (Pix + cartão)', them: 'Add-on pago' },
   { label: 'Setup em minutos', them: 'Semanas' },
 ];
 

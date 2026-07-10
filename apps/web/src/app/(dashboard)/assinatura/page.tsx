@@ -5,6 +5,7 @@ import {
   getAddonUsageStatus,
   getUsageStatus,
   isAddonActive,
+  isSubscriptionActive,
 } from '@haru/billing';
 
 import { requireAdmin } from '@/lib/auth';
@@ -71,7 +72,9 @@ export default async function AssinaturaPage({
         )}
       </div>
 
-      {sub?.status === 'ACTIVE' ? (
+      {/* Cancelada MAS com acesso até o fim do período pago também renderiza o painel (mostra
+          "Cancelada · ativa até X" + Reativar). Só cai no formulário quando não há acesso. */}
+      {sub && isSubscriptionActive(sub) ? (
         await renderDashboard(tenant, sub, options)
       ) : (
         <>
@@ -163,6 +166,9 @@ async function renderDashboard(
       currentPlanName={TIER_LABEL[sub.planTier]}
       currentCycle={sub.billingCycle}
       status={sub.status}
+      paymentMethod={sub.paymentMethod}
+      cardLast4={sub.cardLast4}
+      cardBrand={sub.cardBrand}
       priceCents={sub.priceCents}
       nextChargeISO={sub.currentPeriodEnd ? sub.currentPeriodEnd.toISOString() : null}
       guaranteeUntilISO={sub.guaranteeUntil ? sub.guaranteeUntil.toISOString() : null}

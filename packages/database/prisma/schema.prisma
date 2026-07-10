@@ -815,6 +815,21 @@ model Subscription {
   /// e-mail/recibo duplicado nem reprocessar.
   lastBilledPaymentId String?
 
+  // --- Forma de pagamento da recorrência (escolhida em "Trocar forma de pagamento") ---
+  /// Método ativo da recorrência (CREDIT_CARD | PIX). null = ainda não definido/legado.
+  /// Reusa o enum PaymentMethod (UNDEFINED não se aplica à assinatura).
+  paymentMethod PaymentMethod?
+  /// Últimos 4 dígitos e bandeira do cartão tokenizado - só p/ exibir "•••• 4242". O
+  /// PAN/CVV NUNCA é persistido: é repassado ao Asaas e tokenizado.
+  cardLast4     String?
+  cardBrand     String?
+  /// Token do cartão devolvido pelo Asaas (NÃO é dado de cartão). Permite recobrar/
+  /// reativar sem redigitar. Guardado só quando o método é cartão.
+  asaasCardToken String?
+  /// id da autorização de Pix Automático (autoriza-uma-vez), quando a conta Asaas tem o
+  /// recurso. null = Pix por ciclo (QR por cobrança) ou método não-Pix.
+  pixRecurringId String?
+
   /// Marca quando o lembrete de renovação (7d antes) já saiu neste ciclo. Resetado a
   /// null na renovação (webhook ACTIVE) pra rearmar no ciclo seguinte. Dedup do cron.
   renewalReminderSentAt DateTime?

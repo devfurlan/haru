@@ -20,8 +20,9 @@ const channels = [
     Icon: MessageCircle,
     tag: 'WhatsApp',
     title: 'Conversando no WhatsApp',
-    text: 'Com o addon Atendente IA ativo, é só mandar mensagem: a IA entende, mostra os horários e marca ali mesmo.',
+    text: 'Em breve: com o addon Atendente IA, o cliente vai poder só mandar mensagem - a IA entende, mostra os horários e marca ali mesmo.',
     accent: true,
+    soon: true,
   },
 ];
 
@@ -30,8 +31,8 @@ export function ClientFlow() {
     <section id="como-cliente" className="py-24">
       <Container>
         <SectionHeading eyebrow="Pro seu cliente" title="Cada cliente agenda do jeito que já usa.">
-          App, web ou WhatsApp - seu cliente escolhe o canal e não fica preso a nenhum. O
-          agendamento é o mesmo em todos, e cai direto na sua agenda.
+          App e web hoje, WhatsApp em breve - seu cliente escolhe o canal e não fica preso a nenhum.
+          O agendamento cai sempre direto na mesma agenda.
         </SectionHeading>
 
         <div className="grid gap-4 md:grid-cols-3">
@@ -40,6 +41,11 @@ export function ClientFlow() {
               key={c.title}
               className="border-border bg-paper relative flex flex-col rounded-2xl border p-7 shadow-sm"
             >
+              {c.soon && (
+                <span className="bg-coral/10 text-coral absolute right-4 top-4 rounded-full px-2.5 py-1 text-[0.62rem] font-bold uppercase tracking-[0.1em]">
+                  Em breve
+                </span>
+              )}
               <span
                 className={`grid h-11 w-11 place-items-center rounded-xl ${
                   c.accent ? 'bg-coral/10 text-coral' : 'bg-chip text-green'

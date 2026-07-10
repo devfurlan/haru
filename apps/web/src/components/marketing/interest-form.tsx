@@ -44,7 +44,7 @@ export function InterestForm() {
           name="businessName"
           type="text"
           autoComplete="organization"
-          placeholder="Barbearia do João"
+          placeholder="Studio da Ana"
           required
         />
       </div>

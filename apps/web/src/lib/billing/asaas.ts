@@ -118,6 +118,12 @@ interface CreateSubscriptionInput {
   description: string;
   /** Nosso Subscription.id - volta no webhook (externalReference) pra reconciliar. */
   externalReference: string;
+  /**
+   * "YYYY-MM-DD" da 1ª cobrança. Default = hoje (contratação normal). Na REATIVAÇÃO passamos
+   * o fim do período já pago pra 1ª cobrança cair só na renovação - senão cobraria de novo um
+   * ciclo já pago (cobrança em dobro).
+   */
+  nextDueDateISO?: string;
 }
 
 export interface SubscriptionResult {
@@ -147,7 +153,7 @@ export async function createSubscription(
       customer: input.customerId,
       billingType: input.method,
       value: input.amountCents / 100,
-      nextDueDate: todayISO(),
+      nextDueDate: input.nextDueDateISO ?? todayISO(),
       cycle: toAsaasCycle(input.cycle),
       description: input.description,
       externalReference: input.externalReference,
@@ -304,6 +310,117 @@ export async function getPendingInvoiceUrl(asaasSubscriptionId: string): Promise
     `/subscriptions/${asaasSubscriptionId}/payments?status=PENDING&limit=1`,
   );
   return payments.data[0]?.invoiceUrl ?? null;
+}
+
+// --- Trocar forma de pagamento ----------------------------------------------
+
+/** Últimos 4 + bandeira do cartão tokenizado (o resto o Asaas guarda; nós NÃO). */
+export interface CardTokenResult {
+  /** creditCardToken do Asaas - NÃO é dado de cartão; permite recobrar sem redigitar. */
+  token: string;
+  /** Últimos 4 dígitos (creditCardNumber que o Asaas devolve mascarado). */
+  last4: string;
+  /** Bandeira detectada pelo Asaas (VISA, MASTERCARD, ...). */
+  brand: string;
+}
+
+/**
+ * Tokeniza o cartão no Asaas e devolve token + últimos 4 + bandeira. O PAN/CVV é REPASSADO
+ * ao Asaas (TLS) e NÃO é persistido nem logado aqui - guardamos só o token. Exige os dados
+ * do titular (`creditCardHolderInfo`) e o IP do cliente (`remoteIp`), requisito antifraude do
+ * Asaas. Ver `/creditCard/tokenizeCreditCard` na doc Asaas v3.
+ */
+export async function tokenizeCard(input: {
+  customerId: string;
+  /** IP público do cliente (x-forwarded-for). Requisito do Asaas na tokenização. */
+  remoteIp: string;
+  card: {
+    holderName: string;
+    number: string;
+    expiryMonth: string;
+    expiryYear: string;
+    ccv: string;
+  };
+  holder: {
+    name: string;
+    email?: string | null;
+    cpfCnpj: string;
+    postalCode: string;
+    addressNumber: string;
+    phoneE164?: string | null;
+  };
+}): Promise<CardTokenResult> {
+  const res = await asaas<{
+    creditCardNumber: string;
+    creditCardBrand: string;
+    creditCardToken: string;
+  }>('/creditCard/tokenizeCreditCard', {
+    method: 'POST',
+    body: JSON.stringify({
+      customer: input.customerId,
+      creditCard: {
+        holderName: input.card.holderName,
+        number: input.card.number,
+        expiryMonth: input.card.expiryMonth,
+        expiryYear: input.card.expiryYear,
+        ccv: input.card.ccv,
+      },
+      creditCardHolderInfo: {
+        name: input.holder.name,
+        email: input.holder.email ?? undefined,
+        cpfCnpj: input.holder.cpfCnpj,
+        postalCode: input.holder.postalCode,
+        addressNumber: input.holder.addressNumber,
+        phone: input.holder.phoneE164 ? toNationalPhone(input.holder.phoneE164) : undefined,
+      },
+      remoteIp: input.remoteIp,
+    }),
+  });
+  return { token: res.creditCardToken, last4: res.creditCardNumber, brand: res.creditCardBrand };
+}
+
+/**
+ * Aponta a recorrência para um cartão já tokenizado (billingType CREDIT_CARD). Reescreve
+ * também a cobrança em aberto deste ciclo (`updatePendingPayments: true`) para o novo cartão
+ * valer já. O cartão em si não passa por aqui - só o token.
+ */
+export async function setSubscriptionCard(
+  asaasSubscriptionId: string,
+  creditCardToken: string,
+): Promise<void> {
+  await asaas(`/subscriptions/${asaasSubscriptionId}`, {
+    method: 'PUT',
+    body: JSON.stringify({
+      billingType: 'CREDIT_CARD',
+      creditCardToken,
+      updatePendingPayments: true,
+    }),
+  });
+}
+
+/**
+ * Troca a recorrência para Pix (billingType PIX) e devolve o QR + copia-e-cola da cobrança em
+ * aberto, se houver (null quando o ciclo atual já está pago - o Pix passa a valer da próxima).
+ *
+ * ponytail: hoje isto é Pix POR CICLO (o Asaas emite uma cobrança Pix a cada renovação e o
+ * cliente paga o QR). O "Pix Automático" (autoriza-uma-vez, debita sozinho) é produto Bacen/
+ * Asaas que precisa estar habilitado na conta; quando estiver, a autorização recorrente entra
+ * aqui (guardar o id em Subscription.pixRecurringId) - a assinatura e a UI já carregam o campo.
+ */
+export async function setSubscriptionPix(
+  asaasSubscriptionId: string,
+): Promise<{ qrCode: string; copyPaste: string } | null> {
+  await asaas(`/subscriptions/${asaasSubscriptionId}`, {
+    method: 'PUT',
+    body: JSON.stringify({ billingType: 'PIX', updatePendingPayments: true }),
+  });
+  const payments = await asaas<{ data: Array<{ id: string }> }>(
+    `/subscriptions/${asaasSubscriptionId}/payments?status=PENDING&limit=1`,
+  );
+  const p = payments.data[0];
+  if (!p) return null;
+  const qr = await asaas<{ encodedImage: string; payload: string }>(`/payments/${p.id}/pixQrCode`);
+  return { qrCode: `data:image/png;base64,${qr.encodedImage}`, copyPaste: qr.payload };
 }
 
 /** Uma cobrança da assinatura (linha do histórico). */
@@ -480,6 +597,9 @@ export interface ParsedBillingEvent {
   amountCents: number | null;
   /** Forma de pagamento da cobrança (CREDIT_CARD, PIX, ...). null em eventos sem payment. */
   billingType: string | null;
+  /** Últimos 4 + bandeira quando a cobrança foi no cartão (pra exibir "•••• 4242"). */
+  cardLast4: string | null;
+  cardBrand: string | null;
   /** Vencimento da cobrança (payment.dueDate). null em eventos sem payment. */
   dueDate: Date | null;
   /** Efeito no nosso Subscription.status, ou null pra eventos ignorados. */
@@ -518,6 +638,8 @@ export function parseBillingWebhook(rawBody: Buffer, headers: Headers): ParsedBi
       dueDate?: string | null;
       paymentDate?: string | null;
       value?: number | null;
+      /** Cartão usado na cobrança (o Asaas devolve mascarado - só últimos 4 + bandeira). */
+      creditCard?: { creditCardNumber?: string | null; creditCardBrand?: string | null } | null;
     };
     /** Eventos SUBSCRIPTION_* trazem a assinatura aqui (não em `payment`). */
     subscription?: { id?: string | null };
@@ -545,6 +667,8 @@ export function parseBillingWebhook(rawBody: Buffer, headers: Headers): ParsedBi
   const asaasPaymentId = body.payment?.id ?? null;
   const externalReference = body.payment?.externalReference ?? null;
   const billingType = body.payment?.billingType ?? null;
+  const cardLast4 = body.payment?.creditCard?.creditCardNumber ?? null;
+  const cardBrand = body.payment?.creditCard?.creditCardBrand ?? null;
   const dueDate = body.payment?.dueDate ? new Date(body.payment.dueDate) : null;
   const amountCents =
     typeof body.payment?.value === 'number' ? Math.round(body.payment.value * 100) : null;
@@ -593,6 +717,8 @@ export function parseBillingWebhook(rawBody: Buffer, headers: Headers): ParsedBi
     externalReference,
     amountCents,
     billingType,
+    cardLast4,
+    cardBrand,
     dueDate,
     effect,
     paidAt,

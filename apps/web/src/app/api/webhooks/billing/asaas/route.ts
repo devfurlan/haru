@@ -1,5 +1,5 @@
 import { prisma } from '@haru/database';
-import type { BillingCycle } from '@haru/database';
+import type { BillingCycle, PaymentMethod } from '@haru/database';
 import { snapshotPlan } from '@haru/billing';
 
 import { BillingConfigError, parseBillingWebhook } from '@/lib/billing/asaas';
@@ -303,6 +303,17 @@ export async function POST(req: Request) {
         }
       : {};
 
+    // Sincroniza a forma de pagamento com o que efetivamente cobrou (mantém o badge/últimos-4
+    // fiéis mesmo quando o método foi escolhido no checkout hospedado, sem passar por
+    // changePaymentMethod). Só grava o que veio; não zera um valor bom com null.
+    const methodFromWebhook: PaymentMethod | null =
+      parsed.billingType === 'CREDIT_CARD' ? 'CREDIT_CARD' : parsed.billingType === 'PIX' ? 'PIX' : null;
+    const paymentPatch = {
+      ...(methodFromWebhook ? { paymentMethod: methodFromWebhook } : {}),
+      ...(parsed.cardLast4 ? { cardLast4: parsed.cardLast4 } : {}),
+      ...(parsed.cardBrand ? { cardBrand: parsed.cardBrand } : {}),
+    };
+
     await prisma.subscription.update({
       where: { id: sub.id },
       data: {
@@ -315,6 +326,7 @@ export async function POST(req: Request) {
         renewalReminderSentAt: null,
         ...planChange,
         ...addonClear,
+        ...paymentPatch,
       },
     });
 

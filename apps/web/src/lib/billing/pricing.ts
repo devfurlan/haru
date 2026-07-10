@@ -38,6 +38,6 @@ export const AI_ADDON_SETUP_CENTS = 149700;
  */
 export const PLAN_INSTALLMENT_CENTS: Record<string, number> = {
   ESSENCIAL: 6115,
-  PROFISSIONAL: 19508,
-  NEGOCIO: 48770,
+  PROFISSIONAL: 20229,
+  NEGOCIO: 48681,
 };

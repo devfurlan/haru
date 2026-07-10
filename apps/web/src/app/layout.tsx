@@ -19,9 +19,9 @@ const hanken = Hanken_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: 'Demandaê - agendamento por WhatsApp com atendente de IA',
+  title: 'Demandaê - seu cliente agenda pelo app ou pela web',
   description:
-    'Atendente de IA que agenda, remarca e cancela conversando no WhatsApp do seu negócio. Para barbearias, salões, clínicas, podólogas e outros negócios de serviço.',
+    'A plataforma completa de agendamento: app do cliente, página pública com a cara do seu negócio e um painel que junta tudo num lugar só. Confirmações e lembretes automáticos no WhatsApp. Para barbearias, salões, clínicas, podologia, estética, tatuagem e afins.',
   manifest: '/manifest.json',
   icons: {
     icon: [

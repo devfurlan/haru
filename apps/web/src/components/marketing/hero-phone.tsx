@@ -39,7 +39,7 @@ export function HeroPhone() {
         <div className="text-[0.92rem] font-bold text-cream">
           Barbearia do Téo
           <span className="block text-[0.72rem] font-medium text-green-bright/90">
-            online · atende por IA
+            Atendente IA · em breve
           </span>
         </div>
       </div>

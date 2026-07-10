@@ -5,27 +5,27 @@ const diffs = [
   {
     n: '01',
     h: 'Plataforma completa',
-    p: 'App do cliente, página pública e painel num produto só. Não é um bot solto no WhatsApp - é a sua operação inteira.',
+    p: 'App do cliente, página pública e painel num produto só. Não é um bot solto no WhatsApp - é a sua operação inteira, numa agenda só.',
   },
   {
     n: '02',
     h: 'O cliente escolhe o canal',
-    p: 'App ou web: ele agenda por onde preferir e nunca fica preso a um só. O WhatsApp confirma e lembra - e, com o Atendente IA, também conversa e agenda.',
+    p: 'App ou web: ele agenda por onde preferir e nunca fica preso a um só. O WhatsApp confirma e lembra - é o mensageiro dos avisos, nunca o único jeito de marcar.',
   },
   {
     n: '03',
-    h: 'Você comanda tudo',
-    p: 'Todo agendamento, de todo canal, numa agenda só. Você vê o dia inteiro, a equipe e as faltas num lugar.',
+    h: 'Sua marca é sua',
+    p: 'Cada negócio aparece com nome, cara e link próprios. A busca no app leva cliente até você - sem vitrine empilhando o concorrente do seu lado.',
   },
   {
     n: '04',
-    h: 'Menos faltas, sem esforço',
-    p: 'Confirmação e lembrete automáticos no WhatsApp reduzem o no-show sem você precisar lembrar de nada.',
+    h: 'Funciona sem depender da Meta',
+    p: 'Se o WhatsApp subir preço, mudar regra ou cair, seu app e sua página seguem no ar. O agendamento não depende dele pra funcionar.',
   },
   {
     n: '05',
     h: 'Comece em minutos',
-    p: 'Cadastra os serviços, publica sua página e já está atendendo. Sem taxa de instalação no plano base.',
+    p: 'Cadastra os serviços, publica sua página e já está atendendo. Sem taxa de instalação no plano base, sem burocracia de Meta.',
   },
 ];
 

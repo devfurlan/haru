@@ -6,7 +6,8 @@ import { Pricing } from '@/components/marketing/pricing';
 
 export const metadata = {
   title: 'Preços · Demandaê',
-  description: 'Planos do Demandaê — agendamento e atendimento por IA no WhatsApp.',
+  description:
+    'Planos do Demandaê - app do cliente, agenda pública e painel completo em todos os planos. Confirmações e lembretes no WhatsApp, sem taxa de instalação.',
 };
 
 // Sempre fresco do BD (catálogo dinâmico, editável no admin) - sem cache de rota.

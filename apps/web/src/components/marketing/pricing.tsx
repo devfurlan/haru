@@ -75,9 +75,9 @@ export async function Pricing({ detailsHref }: { detailsHref?: string } = {}) {
         {/* Plano base entra sem taxa de entrada; o bot conversacional é o addon abaixo. */}
         <p className="text-ink-soft mx-auto mt-8 max-w-2xl text-center text-sm">
           Todos os planos incluem confirmações e lembretes automáticos no WhatsApp, sem taxa de
-          instalação. Quer um atendente de IA que conversa e agenda pelo WhatsApp?{' '}
+          instalação. Em breve, um atendente de IA opcional que conversa e agenda pelo WhatsApp -{' '}
           <a href="#addon" className="text-foreground font-semibold underline underline-offset-2">
-            Veja o addon Atendente IA
+            entre na lista de espera
           </a>
           .
         </p>
