@@ -165,6 +165,7 @@ model Tenant {
   subscription       Subscription?
   usageAlerts        UsageAlert[]
   notifications      Notification[]
+  loyaltyProgram     LoyaltyProgram?
 }
 
 model User {
@@ -336,9 +337,13 @@ model Service {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  appointments  Appointment[]
+  appointments       Appointment[]
   /// Quais profissionais executam este serviço (N:N). Vazio = nenhum oferece.
-  professionals ProfessionalService[]
+  professionals      ProfessionalService[]
+  /// Programas de fidelidade que dão ESTE serviço como prêmio (prizeServiceId).
+  loyaltyPrizeFor    LoyaltyProgram[]
+  /// Programas em que ESTE serviço conta carimbo (quando countMode = SPECIFIC).
+  loyaltyQualifiesIn LoyaltyProgramService[]
 }
 
 /// Vínculo N:N entre um profissional (User) e um Service que ele executa. Define
@@ -427,8 +432,9 @@ model Contact {
   createdAt          DateTime         @default(now())
   updatedAt          DateTime         @updatedAt
 
-  conversations Conversation[]
-  appointments  Appointment[]
+  conversations      Conversation[]
+  appointments       Appointment[]
+  loyaltyRedemptions LoyaltyRedemption[]
 
   @@unique([tenantId, phone])
   @@index([customerAccountId])
@@ -818,11 +824,11 @@ model Subscription {
   // --- Forma de pagamento da recorrência (escolhida em "Trocar forma de pagamento") ---
   /// Método ativo da recorrência (CREDIT_CARD | PIX). null = ainda não definido/legado.
   /// Reusa o enum PaymentMethod (UNDEFINED não se aplica à assinatura).
-  paymentMethod PaymentMethod?
+  paymentMethod  PaymentMethod?
   /// Últimos 4 dígitos e bandeira do cartão tokenizado - só p/ exibir "•••• 4242". O
   /// PAN/CVV NUNCA é persistido: é repassado ao Asaas e tokenizado.
-  cardLast4     String?
-  cardBrand     String?
+  cardLast4      String?
+  cardBrand      String?
   /// Token do cartão devolvido pelo Asaas (NÃO é dado de cartão). Permite recobrar/
   /// reativar sem redigitar. Guardado só quando o método é cartão.
   asaasCardToken String?
@@ -850,17 +856,17 @@ model Subscription {
 /// cobrança = novo `windowStart` = linha nova = alertas zerados (reset por ciclo). O
 /// banner in-app é status ao vivo e não passa por aqui. Ver @haru/billing nextUsageAlerts.
 model UsageAlert {
-  id       String @id @default(cuid())
-  tenantId String
-  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  id          String   @id @default(cuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   /// 'appointments' (plano base) | 'conversations' (addon) | 'fairuse' (alerta interno).
   metric      String
   /// Início da janela de cota (mensal, ancorada no dia do ciclo) a que o alerta pertence.
   windowStart DateTime
   /// Maior nível já alertado nesta janela: 85 | 90 | 95 | 100.
-  level     Int
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  level       Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@unique([tenantId, metric, windowStart])
   @@index([tenantId])
@@ -873,20 +879,20 @@ model UsageAlert {
 /// e serve de dedup + ícone. Escrito pelo loop de uso (bot), pelo webhook de billing e
 /// pelo cron de renovação. Ler = marcar readAt. Leitura por tenant (não por usuário).
 model Notification {
-  id       String              @id @default(cuid())
-  tenantId String
-  tenant   Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  channel  NotificationChannel
+  id        String              @id @default(cuid())
+  tenantId  String
+  tenant    Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  channel   NotificationChannel
   /// Tipo do aviso (dedup + ícone), ex.: "usage.appointments.90", "billing.past_due".
-  kind     String
-  title    String
-  body     String
+  kind      String
+  title     String
+  body      String
   /// CTA opcional: rótulo + destino relativo no app (ex.: "/assinatura").
-  ctaLabel String?
-  ctaHref  String?
+  ctaLabel  String?
+  ctaHref   String?
   /// null = não lida. Marcada quando o dono abre o sino.
   readAt    DateTime?
-  createdAt DateTime  @default(now())
+  createdAt DateTime            @default(now())
 
   @@index([tenantId, createdAt])
 }
@@ -955,13 +961,13 @@ model Charge {
 
   /// id do pagamento no Asaas (payment.id). Unique = dedup natural do webhook
   /// (CONFIRMED e RECEIVED chegam para o mesmo pagamento).
-  asaasPaymentId String @unique
+  asaasPaymentId      String  @unique
   /// id da assinatura Asaas quando a cobrança é recorrente (mensal/anual à vista).
   /// null para 12x (installment avulso) e para o setup do addon.
   asaasSubscriptionId String?
 
   /// O que esta cobrança cobre (rastreabilidade dos componentes da fatura).
-  kind ChargeKind
+  kind         ChargeKind
   /// Snapshot do plano/ciclo/valor vigentes NO MOMENTO da cobrança (grandfather).
   planTier     PlanTier
   billingCycle BillingCycle
@@ -975,12 +981,12 @@ model Charge {
   /// Gancho fiscal: estado da emissão de NF desta cobrança e o custo (R$0,40/emissão)
   /// registrado para cálculo de margem. Integração NFS-e via Asaas (assíncrona: o gancho
   /// agenda/autoriza; o webhook INVOICE_* fecha o estado).
-  nfStatus    NfStatus @default(NONE)
+  nfStatus       NfStatus @default(NONE)
   /// Custo da emissão (R$0,40), gravado só quando a nota é AUTORIZADA de fato (é quando o
   /// Asaas cobra). Fica 0 se a emissão falhar. Alimenta o cálculo de margem.
-  nfCostCents Int      @default(0)
+  nfCostCents    Int      @default(0)
   /// id da nota no Asaas (invoice.id) - reconcilia o webhook INVOICE_* com esta cobrança.
-  asaasInvoiceId String? @unique
+  asaasInvoiceId String?  @unique
   /// Link do PDF da nota autorizada (enviado ao cliente por e-mail).
   nfUrl          String?
   /// Número fiscal da nota autorizada (recibo/rastreio).
@@ -988,7 +994,7 @@ model Charge {
   /// Última mensagem de erro de emissão (quando nfStatus=FAILED).
   nfError        String?
   /// Tentativas de emissão já feitas - teto de retentativa do cron, evita loop de erro.
-  nfAttempts     Int     @default(0)
+  nfAttempts     Int      @default(0)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1073,4 +1079,77 @@ enum SupportCategory {
   DUVIDA
   CRITICA
   SUGESTAO
+}
+
+/// Programa de fidelidade (cartão de carimbos) de um estabelecimento. Um por tenant.
+/// Os CARIMBOS não são armazenados: derivam do histórico de agendamentos do cliente
+/// (todo agendamento passado que não foi cancelado nem deu falta vale 1 carimbo,
+/// espelhando a regra de `isReviewable`). O único estado gravado por cliente é o
+/// RESGATE (LoyaltyRedemption), que zera o cartão a partir da data do resgate. Ver
+/// apps/web/src/lib/loyalty.ts.
+model LoyaltyProgram {
+  id              String           @id @default(cuid())
+  tenantId        String           @unique
+  tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  /// Quantos carimbos completam o cartão (fidN no protótipo). Entre 5 e 15.
+  stampsRequired  Int              @default(10)
+  /// FREE_SERVICE = um serviço de graça (prizeServiceId); DISCOUNT = desconto (discountPercent).
+  prizeKind       LoyaltyPrizeKind @default(FREE_SERVICE)
+  /// Serviço dado de graça quando prizeKind = FREE_SERVICE. onDelete: SetNull -> apagar
+  /// o serviço não derruba o programa (a regra continua, só perde a referência do prêmio).
+  prizeServiceId  String?
+  prizeService    Service?         @relation(fields: [prizeServiceId], references: [id], onDelete: SetNull)
+  /// Percentual de desconto (1-100) quando prizeKind = DISCOUNT.
+  discountPercent Int?
+  /// ALL_SERVICES = qualquer agendamento vale carimbo; SPECIFIC = só os serviços em
+  /// qualifyingServices (fidConta no protótipo).
+  countMode       LoyaltyCountMode @default(ALL_SERVICES)
+  /// Validade do carimbo em dias (fidVal). null = nunca expira.
+  stampTtlDays    Int?
+  /// Programa pausado: enquanto != null, agendamentos depois desta data não contam
+  /// carimbo e o cartão fica congelado. null = ativo.
+  pausedAt        DateTime?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  qualifyingServices LoyaltyProgramService[]
+  redemptions        LoyaltyRedemption[]
+}
+
+enum LoyaltyPrizeKind {
+  FREE_SERVICE
+  DISCOUNT
+}
+
+enum LoyaltyCountMode {
+  ALL_SERVICES
+  SPECIFIC
+}
+
+/// Serviço que conta carimbo num programa com countMode = SPECIFIC (N:N).
+model LoyaltyProgramService {
+  id        String         @id @default(cuid())
+  programId String
+  program   LoyaltyProgram @relation(fields: [programId], references: [id], onDelete: Cascade)
+  serviceId String
+  service   Service        @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@unique([programId, serviceId])
+  @@index([serviceId])
+}
+
+/// Resgate de um prêmio por um cliente (Contact). Marca o momento em que o cartão foi
+/// zerado: carimbos passam a contar só a partir de `redeemedAt`. `stampsUsed` congela a
+/// regra vigente no resgate (auditoria; a regra pode mudar depois).
+model LoyaltyRedemption {
+  id         String         @id @default(cuid())
+  programId  String
+  program    LoyaltyProgram @relation(fields: [programId], references: [id], onDelete: Cascade)
+  contactId  String
+  contact    Contact        @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  stampsUsed Int
+  redeemedAt DateTime       @default(now())
+
+  @@index([programId, contactId, redeemedAt])
+  @@index([contactId])
 }

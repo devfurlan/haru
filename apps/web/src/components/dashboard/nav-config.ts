@@ -1,6 +1,7 @@
 import {
   CalendarDays,
   Clock,
+  Gift,
   Globe,
   LayoutGrid,
   MessageCircle,
@@ -31,15 +32,45 @@ export interface NavItem {
 // `/page` são novas. Configurações e Página pública/Equipe têm gating refinado nas
 // fases seguintes; por ora só Configurações é adminOnly (como já era /settings).
 export const NAV_ITEMS: NavItem[] = [
-  { key: 'inicio', label: 'Início', href: '/dashboard', icon: LayoutGrid, group: 'dia', mobile: true },
-  { key: 'agenda', label: 'Agenda', href: '/appointments', icon: CalendarDays, group: 'dia', mobile: true },
-  { key: 'conversas', label: 'Conversas', href: '/conversations', icon: MessageCircle, group: 'dia', mobile: true, badge: 'handoff' },
+  {
+    key: 'inicio',
+    label: 'Início',
+    href: '/dashboard',
+    icon: LayoutGrid,
+    group: 'dia',
+    mobile: true,
+  },
+  {
+    key: 'agenda',
+    label: 'Agenda',
+    href: '/appointments',
+    icon: CalendarDays,
+    group: 'dia',
+    mobile: true,
+  },
+  {
+    key: 'conversas',
+    label: 'Conversas',
+    href: '/conversations',
+    icon: MessageCircle,
+    group: 'dia',
+    mobile: true,
+    badge: 'handoff',
+  },
   { key: 'clientes', label: 'Clientes', href: '/clients', icon: User, group: 'dia', mobile: true },
   { key: 'servicos', label: 'Serviços', href: '/services', icon: Scissors, group: 'negocio' },
+  { key: 'fidelidade', label: 'Fidelidade', href: '/loyalty', icon: Gift, group: 'negocio' },
   { key: 'equipe', label: 'Equipe', href: '/team', icon: Users, group: 'negocio' },
   { key: 'horarios', label: 'Horários', href: '/schedule', icon: Clock, group: 'negocio' },
   { key: 'pagina', label: 'Página pública', href: '/page', icon: Globe, group: 'negocio' },
-  { key: 'config', label: 'Configurações', href: '/settings', icon: Settings, group: 'negocio', adminOnly: true },
+  {
+    key: 'config',
+    label: 'Configurações',
+    href: '/settings',
+    icon: Settings,
+    group: 'negocio',
+    adminOnly: true,
+  },
 ];
 
 export const NAV_GROUPS: { id: NavGroupId; label: string }[] = [
