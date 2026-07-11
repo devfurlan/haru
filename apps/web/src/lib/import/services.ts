@@ -1,11 +1,11 @@
-// Spec de importação de SERVIÇOS (Service). resolveService é PURO; applyServices busca os
-// serviços existentes (dedup por nome, case-insensitive) e os profissionais do tenant uma
-// vez. Serviço novo é vinculado a TODOS os profissionais (senão some do booking).
+// Spec de SERVIÇOS. resolveService é puro (testável); runServices busca os serviços
+// existentes (dedup por nome) e os profissionais uma vez, e no commit grava (serviço novo
+// vinculado a todos os profissionais, senão some do booking). Não tem par/conflito.
 
 import { prisma } from '@haru/database';
 
 import {
-  type ApplyResult,
+  type AnalyzeResult,
   cell,
   type Mapping,
   parseDurationMin,
@@ -25,7 +25,6 @@ export interface ServiceInput {
   price: string;
   description: string;
 }
-
 export interface ServiceWrite {
   name: string;
   durationMinutes: number;
@@ -33,7 +32,7 @@ export interface ServiceWrite {
   description: string | null;
 }
 
-/** Puro. `existingNames` (nomes em minúsculo) é mutado pra deduplicar dentro do lote. */
+/** Puro. `existingNames` (minúsculo) é mutado pra deduplicar dentro do lote. */
 export function resolveService(
   input: ServiceInput,
   existingNames: Set<string>,
@@ -71,52 +70,54 @@ function readService(row: Row, m: Mapping): ServiceInput {
   };
 }
 
-export async function applyServices(
+async function runServices(
   tenant: TenantCtx,
   rows: Row[],
   mapping: Mapping,
-  dryRun: boolean,
-): Promise<ApplyResult> {
+  commit: boolean,
+): Promise<AnalyzeResult> {
   const existing = await prisma.service.findMany({
     where: { tenantId: tenant.id },
     select: { id: true, name: true },
   });
   const idByName = new Map(existing.map((s) => [s.name.toLowerCase(), s.id]));
   const existingNames = new Set(idByName.keys());
-
-  // Ids dos profissionais só são necessários na gravação (pra vincular serviço novo).
-  const proIds = dryRun
-    ? []
-    : (
+  const proIds = commit
+    ? (
         await prisma.user.findMany({
           where: { tenantId: tenant.id, isProfessional: true },
           select: { id: true },
         })
-      ).map((p) => p.id);
+      ).map((p) => p.id)
+    : [];
 
   const counts = { create: 0, update: 0, skip: 0, error: 0 };
-  const results: RowResult[] = [];
+  const errors: { row: number; error: string }[] = [];
+  let rowNum = 1;
   for (const row of rows) {
+    rowNum++;
     const r = resolveService(readService(row, mapping), existingNames);
     if (r.disposition === 'error' || !r.write) {
       counts.error++;
-      results.push({ disposition: 'error', error: r.error });
+      if (errors.length < 200) errors.push({ row: rowNum, error: r.error ?? 'erro' });
       continue;
     }
-    if (!dryRun) {
+    if (commit) {
       try {
         await writeService(tenant.id, r.write, idByName, proIds);
       } catch {
         counts.error++;
-        results.push({ disposition: 'error', error: 'Falha ao gravar' });
+        if (errors.length < 200) errors.push({ row: rowNum, error: 'Falha ao gravar' });
         continue;
       }
     }
     counts[r.disposition]++;
-    results.push({ disposition: r.disposition });
   }
-  return { counts, rows: results };
+  return { counts, errors, pairs: [], conflicts: [] };
 }
+
+export const analyzeServices = (t: TenantCtx, r: Row[], m: Mapping) => runServices(t, r, m, false);
+export const commitServices = (t: TenantCtx, r: Row[], m: Mapping) => runServices(t, r, m, true);
 
 async function writeService(
   tenantId: string,

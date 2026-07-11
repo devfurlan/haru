@@ -1,17 +1,16 @@
-// POST /api/import/parse - recebe FormData(file, entity, source), parseia a planilha
-// server-side (SheetJS fora do bundle do cliente) e devolve headers + linhas + o palpite
-// de de-para. Route handler (não server action) pra não esbarrar no limite de 1 MB.
+// POST /api/import/parse - recebe uma ou mais planilhas (CSV/Excel), lê todas as abas,
+// detecta a entidade de cada tabela pelo cabeçalho, agrupa por entidade e devolve, por
+// entidade: cabeçalhos, linhas, palpite de de-para e contagem. Sem gravar nada.
 
 import { getCurrentUserAndTenant, isAdmin } from '@/lib/auth';
-import { type EntityId, guessMapping, type SourceId } from '@/lib/import/mapping';
-import { parseTable } from '@/lib/import/parse';
+import { detectEntity, type EntityId, guessMapping, type Row } from '@/lib/import/mapping';
+import { parseWorkbook } from '@/lib/import/parse';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const ENTITIES = ['contacts', 'services', 'appointments'];
-const SOURCES = ['appbarber', 'trinks', 'generic'];
-const MAX_FILE_BYTES = 8_000_000;
+const MAX_FILE_BYTES = 12_000_000;
+const MAX_FILES = 8;
 const MAX_ROWS = 5000;
 
 export async function POST(req: Request) {
@@ -21,41 +20,58 @@ export async function POST(req: Request) {
     return Response.json({ error: 'Apenas o dono pode importar dados' }, { status: 403 });
 
   const form = await req.formData();
-  const file = form.get('file');
-  const entity = String(form.get('entity') ?? '');
-  const source = String(form.get('source') ?? 'generic');
+  const files = form.getAll('file').filter((f): f is File => f instanceof File && f.size > 0);
+  if (files.length === 0) return Response.json({ error: 'Arquivo ausente' }, { status: 400 });
+  if (files.length > MAX_FILES)
+    return Response.json({ error: `Máximo de ${MAX_FILES} arquivos` }, { status: 413 });
 
-  if (!ENTITIES.includes(entity))
-    return Response.json({ error: 'Entidade inválida' }, { status: 400 });
-  if (!(file instanceof File) || file.size === 0)
-    return Response.json({ error: 'Arquivo ausente' }, { status: 400 });
-  if (file.size > MAX_FILE_BYTES)
-    return Response.json({ error: 'Arquivo muito grande (máx 8 MB)' }, { status: 413 });
-
-  let parsed;
-  try {
-    parsed = parseTable(Buffer.from(await file.arrayBuffer()));
-  } catch {
-    return Response.json(
-      { error: 'Não consegui ler o arquivo. Envie .xlsx, .xls ou .csv.' },
-      { status: 422 },
-    );
+  const byEntity = new Map<EntityId, { headers: string[]; headerSet: Set<string>; rows: Row[] }>();
+  for (const file of files) {
+    if (file.size > MAX_FILE_BYTES)
+      return Response.json(
+        { error: `"${file.name}" é grande demais (máx 12 MB)` },
+        { status: 413 },
+      );
+    let tables;
+    try {
+      tables = parseWorkbook(Buffer.from(await file.arrayBuffer()), file.name);
+    } catch {
+      return Response.json(
+        { error: `Não consegui ler "${file.name}". Envie .xlsx, .xls ou .csv.` },
+        { status: 422 },
+      );
+    }
+    for (const t of tables) {
+      const entity = detectEntity(t.headers);
+      const bucket = byEntity.get(entity) ?? {
+        headers: [],
+        headerSet: new Set<string>(),
+        rows: [],
+      };
+      for (const h of t.headers) {
+        if (!bucket.headerSet.has(h)) {
+          bucket.headerSet.add(h);
+          bucket.headers.push(h);
+        }
+      }
+      bucket.rows.push(...t.rows);
+      byEntity.set(entity, bucket);
+    }
   }
-  if (parsed.headers.length === 0 || parsed.rows.length === 0) {
-    return Response.json({ error: 'Planilha vazia ou sem linhas de dados.' }, { status: 422 });
-  }
 
-  const truncated = parsed.rows.length > MAX_ROWS;
-  const mapping = guessMapping(
-    parsed.headers,
-    entity as EntityId,
-    (SOURCES.includes(source) ? source : 'generic') as SourceId,
-  );
-  return Response.json({
-    headers: parsed.headers,
-    rows: truncated ? parsed.rows.slice(0, MAX_ROWS) : parsed.rows,
-    mapping,
-    total: parsed.rows.length,
-    truncated,
-  });
+  if (byEntity.size === 0)
+    return Response.json({ error: 'Planilha vazia ou sem linhas.' }, { status: 422 });
+
+  const entities = [...byEntity.entries()].map(([entity, b]) => ({
+    entity,
+    headers: b.headers,
+    rows: b.rows.slice(0, MAX_ROWS),
+    mapping: guessMapping(b.headers, entity),
+    count: b.rows.length,
+    truncated: b.rows.length > MAX_ROWS,
+  }));
+
+  const fileName =
+    files.length === 1 ? files[0].name : `${files[0].name} · +${files.length - 1} arquivo(s)`;
+  return Response.json({ entities, fileName });
 }

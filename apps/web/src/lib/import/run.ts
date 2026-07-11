@@ -1,29 +1,55 @@
-// Dispatch da importação: escolhe o spec pela entidade. `dryRun` prova a prévia e a
-// gravação pelo MESMO caminho, então a prévia nunca diverge do que será gravado.
+// Dispatch por entidade. analyze = dryRun rico (counts + erros + pares + conflitos, nada
+// gravado); commit = grava honrando as resoluções do usuário. Mesmo caminho de resolução
+// nos dois, então a prévia não diverge da gravação.
 
-import { applyAppointments } from './appointments';
-import { applyContacts } from './contacts';
-import type { ApplyResult, EntityId, Mapping, Row } from './mapping';
-import { applyServices } from './services';
+import {
+  analyzeAppointments,
+  analyzeHistory,
+  commitAppointments,
+  commitHistory,
+} from './appointments';
+import { analyzeContacts, commitContacts } from './contacts';
+import type { AnalyzeResult, EntityId, Mapping, Resolutions, Row } from './mapping';
+import { analyzeServices, commitServices } from './services';
 
 interface TenantCtx {
   id: string;
   timezone: string;
 }
 
-export function applyImport(
+export function analyzeEntity(
   tenant: TenantCtx,
   entity: EntityId,
   rows: Row[],
   mapping: Mapping,
-  dryRun: boolean,
-): Promise<ApplyResult> {
+): Promise<AnalyzeResult> {
   switch (entity) {
-    case 'contacts':
-      return applyContacts(tenant, rows, mapping, dryRun);
     case 'services':
-      return applyServices(tenant, rows, mapping, dryRun);
+      return analyzeServices(tenant, rows, mapping);
+    case 'contacts':
+      return analyzeContacts(tenant, rows, mapping);
     case 'appointments':
-      return applyAppointments(tenant, rows, mapping, dryRun);
+      return analyzeAppointments(tenant, rows, mapping);
+    case 'history':
+      return analyzeHistory(tenant, rows, mapping);
+  }
+}
+
+export function commitEntity(
+  tenant: TenantCtx,
+  entity: EntityId,
+  rows: Row[],
+  mapping: Mapping,
+  resolutions?: Resolutions,
+): Promise<AnalyzeResult> {
+  switch (entity) {
+    case 'services':
+      return commitServices(tenant, rows, mapping);
+    case 'contacts':
+      return commitContacts(tenant, rows, mapping, resolutions);
+    case 'appointments':
+      return commitAppointments(tenant, rows, mapping, resolutions);
+    case 'history':
+      return commitHistory(tenant, rows, mapping, resolutions);
   }
 }

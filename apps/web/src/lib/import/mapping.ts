@@ -1,10 +1,8 @@
-// Núcleo PURO da importação (zero Prisma/Next/SheetJS): define os campos-alvo de cada
-// entidade, adivinha o de-para coluna->campo a partir do cabeçalho e parseia os valores
-// crus (preço BR, duração, datas). Reusado pelos specs, pelos route handlers e pelo
-// self-check. Mantém-se puro pra ser testável com `tsx` sem subir banco.
+// Núcleo PURO da importação (zero Prisma/Next/SheetJS): campos-alvo de cada entidade,
+// palpite de de-para coluna->campo, detecção de qual entidade é uma aba/planilha pelo
+// cabeçalho, e parsers de valor (preço BR, duração, datas). Puro pra ser testável com tsx.
 
-export type EntityId = 'contacts' | 'services' | 'appointments';
-export type SourceId = 'appbarber' | 'trinks' | 'generic';
+export type EntityId = 'contacts' | 'services' | 'appointments' | 'history';
 
 /** Uma linha crua da planilha: cabeçalho -> valor (tudo string, já trimado). */
 export type Row = Record<string, string>;
@@ -17,31 +15,74 @@ export interface RowResult {
   disposition: Disposition;
   error?: string;
 }
-export interface ApplyResult {
-  counts: { create: number; update: number; skip: number; error: number };
-  rows: RowResult[];
+export interface Counts {
+  create: number;
+  update: number;
+  skip: number;
+  error: number;
+}
+
+/** Um par possivelmente duplicado (clientes), surgido do mesmo telefone. */
+export interface DuplicatePair {
+  /** Chave estável do par (telefone normalizado). */
+  id: string;
+  reason: string;
+  /** Lado esquerdo: contato já existente OU a 1ª linha do arquivo. */
+  leftTag: string;
+  leftName: string;
+  leftMeta: string;
+  /** Lado direito: sempre uma linha do arquivo. */
+  rightTag: string;
+  rightName: string;
+  rightMeta: string;
+  /** 'existing' = existente x arquivo; 'internal' = duas linhas do arquivo. */
+  kind: 'existing' | 'internal';
+}
+
+/** Um conflito de agenda: um agendamento do arquivo bate com um já existente. */
+export interface ScheduleConflict {
+  id: string;
+  when: string;
+  incomingLabel: string;
+  incomingMeta: string;
+  existingLabel: string;
+  existingMeta: string;
+}
+
+/** Escolhas do usuário na tela de revisão, por chave de par/conflito. */
+export interface Resolutions {
+  /** telefone -> escolha. Ausente = 'merge' (default). */
+  duplicates?: Record<string, 'merge' | 'ignore'>;
+  /** id do conflito -> escolha. Ausente = 'skip' (default). */
+  conflicts?: Record<string, 'skip' | 'import'>;
+}
+
+/** Resultado de uma passada (analyze = dryRun rico; commit = já gravado). */
+export interface AnalyzeResult {
+  counts: Counts;
+  errors: { row: number; error: string }[];
+  pairs: DuplicatePair[];
+  conflicts: ScheduleConflict[];
 }
 
 export interface FieldDef {
   id: string;
   label: string;
-  /** Dica curta exibida abaixo do label no passo de mapeamento. */
   hint?: string;
 }
 
-// Campos-alvo por entidade (ordem = ordem de exibição e de prioridade no match: os mais
-// específicos primeiro pra "fisgarem" o cabeçalho antes dos genéricos).
+// Campos-alvo por entidade. Ordem = exibição e prioridade no match (específico primeiro).
 export const ENTITY_FIELDS: Record<EntityId, FieldDef[]> = {
   contacts: [
-    { id: 'phone', label: 'Telefone / WhatsApp', hint: 'chave de deduplicação' },
+    { id: 'phone', label: 'Telefone (WhatsApp)', hint: 'chave de deduplicação' },
     { id: 'name', label: 'Nome' },
     { id: 'email', label: 'E-mail' },
     { id: 'document', label: 'CPF' },
-    { id: 'birthDate', label: 'Nascimento' },
+    { id: 'birthDate', label: 'Data de nascimento' },
   ],
   services: [
     { id: 'name', label: 'Nome do serviço' },
-    { id: 'durationMinutes', label: 'Duração (min)' },
+    { id: 'durationMinutes', label: 'Duração' },
     { id: 'price', label: 'Preço' },
     { id: 'description', label: 'Descrição' },
   ],
@@ -49,10 +90,19 @@ export const ENTITY_FIELDS: Record<EntityId, FieldDef[]> = {
     { id: 'serviceName', label: 'Serviço' },
     { id: 'professionalName', label: 'Profissional' },
     { id: 'customerPhone', label: 'Telefone do cliente' },
+    { id: 'customerName', label: 'Cliente' },
     { id: 'date', label: 'Data' },
-    { id: 'time', label: 'Hora' },
+    { id: 'time', label: 'Horário' },
     { id: 'status', label: 'Status' },
-    { id: 'customerName', label: 'Nome do cliente' },
+  ],
+  history: [
+    { id: 'serviceName', label: 'Serviço' },
+    { id: 'professionalName', label: 'Profissional' },
+    { id: 'customerPhone', label: 'Telefone do cliente' },
+    { id: 'customerName', label: 'Cliente' },
+    { id: 'date', label: 'Data do atendimento' },
+    { id: 'time', label: 'Horário' },
+    { id: 'value', label: 'Valor pago' },
   ],
 };
 
@@ -60,29 +110,23 @@ export const ENTITY_LABEL: Record<EntityId, string> = {
   contacts: 'Clientes',
   services: 'Serviços',
   appointments: 'Agendamentos',
+  history: 'Histórico',
 };
 
-export const SOURCE_LABEL: Record<SourceId, string> = {
-  appbarber: 'AppBarber',
-  trinks: 'Trinks',
-  generic: 'Planilha',
-};
+/** Ordem canônica de commit: serviços antes (agendamentos referenciam), depois clientes,
+ *  depois a agenda futura, por fim o histórico. */
+export const ENTITY_ORDER: EntityId[] = ['services', 'contacts', 'appointments', 'history'];
 
-// Sinônimos genéricos por campo (substrings do cabeçalho normalizado). É o "preset"
-// da planilha genérica e a base pra AppBarber/Trinks. Um sinônimo mais longo ganha do
-// mais curto no desempate (ex.: "telefone" > "tel").
+// Sinônimos por campo (substrings do cabeçalho normalizado). Sinônimo mais longo ganha.
 const SYNONYMS: Record<string, string[]> = {
-  // contacts
   phone: ['whatsapp', 'telefone', 'celular', 'contato', 'fone', 'phone', 'tel'],
   name: ['nomecompleto', 'nomedocliente', 'cliente', 'nome', 'name', 'paciente'],
   email: ['email', 'mail'],
   document: ['cpfcnpj', 'documento', 'cpf', 'doc'],
   birthDate: ['datadenascimento', 'nascimento', 'aniversario', 'dtnasc', 'birth'],
-  // services
   durationMinutes: ['duracao', 'duration', 'tempo', 'minutos', 'min'],
   price: ['preco', 'valor', 'price', 'rs'],
   description: ['descricao', 'description', 'observacao', 'obs'],
-  // appointments
   serviceName: ['servicos', 'servico', 'service', 'procedimento'],
   professionalName: [
     'profissional',
@@ -98,17 +142,7 @@ const SYNONYMS: Record<string, string[]> = {
   date: ['datahora', 'agendamento', 'data', 'inicio', 'dia', 'date'],
   time: ['horario', 'hora', 'time'],
   status: ['situacao', 'status', 'estado'],
-};
-
-// Presets por origem: sinônimos EXTRA específicos do export de cada sistema. Vazio hoje
-// porque o match genérico já cobre os cabeçalhos PT-BR comuns e o ajuste manual é a rede
-// de segurança.
-// ponytail: palpite - calibrar contra um export real de AppBarber/Trinks e adicionar aqui
-// os cabeçalhos exatos que o genérico não pegar (ex.: 'nomefantasia', abreviações).
-const SOURCE_PRESETS: Record<SourceId, Record<string, string[]>> = {
-  appbarber: {},
-  trinks: {},
-  generic: {},
+  value: ['valorpago', 'valor', 'total', 'pago', 'preco'],
 };
 
 /** minúsculo, sem acento, só alfanumérico: "Telefone / Celular" -> "telefonecelular". */
@@ -129,17 +163,13 @@ function matchScore(normHeader: string, synonyms: string[]): number {
   return best;
 }
 
-/**
- * Adivinha o de-para (campo-alvo -> cabeçalho) por match de sinônimos. Cada cabeçalho é
- * usado por no máximo um campo (o de maior score). Campo sem match vira null.
- */
-export function guessMapping(headers: string[], entity: EntityId, source: SourceId): Mapping {
-  const syn = SOURCE_PRESETS[source];
+/** Adivinha o de-para (campo -> cabeçalho). Cada cabeçalho vai pra no máximo um campo. */
+export function guessMapping(headers: string[], entity: EntityId): Mapping {
   const norm = headers.map((h) => ({ raw: h, n: normalizeHeader(h) }));
   const used = new Set<string>();
   const mapping: Mapping = {};
   for (const field of ENTITY_FIELDS[entity]) {
-    const synonyms = [...(syn[field.id] ?? []), ...(SYNONYMS[field.id] ?? [])];
+    const synonyms = SYNONYMS[field.id] ?? [];
     let bestHeader: string | null = null;
     let bestScore = 0;
     for (const h of norm) {
@@ -156,6 +186,29 @@ export function guessMapping(headers: string[], entity: EntityId, source: Source
   return mapping;
 }
 
+/**
+ * Adivinha QUAL entidade é uma tabela (aba/planilha) pelo cabeçalho. Regras em ordem:
+ * serviços (tem duração/preço, sem data) > histórico (data + valor pago) > agendamentos
+ * (data + cliente + serviço) > clientes (telefone/nome). Default: clientes.
+ * ponytail: heurística - se errar, o usuário troca a aba no passo de conferência.
+ */
+export function detectEntity(headers: string[]): EntityId {
+  const norm = headers.map(normalizeHeader);
+  const has = (syns: string[]) => norm.some((h) => syns.some((s) => h.includes(s)));
+  const hasDate = has(SYNONYMS.date);
+  const hasCustomer = has(['cliente', 'paciente']) || has(SYNONYMS.phone);
+  const hasService = has(SYNONYMS.serviceName);
+  const hasDuration = has(SYNONYMS.durationMinutes);
+  const hasPrice = has(['preco', 'valor', 'price']);
+  const hasPago = norm.some((h) => h.includes('pago'));
+
+  if ((hasDuration || hasPrice) && hasService && !hasDate) return 'services';
+  if (hasDate && hasCustomer && (hasPago || (hasPrice && !has(SYNONYMS.professionalName))))
+    return 'history';
+  if (hasDate && hasCustomer && hasService) return 'appointments';
+  return 'contacts';
+}
+
 /** Valor de um campo numa linha, conforme o de-para. '' se não mapeado ou vazio. */
 export function cell(row: Row, mapping: Mapping, fieldId: string): string {
   const header = mapping[fieldId];
@@ -165,11 +218,7 @@ export function cell(row: Row, mapping: Mapping, fieldId: string): string {
 
 // ─── Parsers de valor (puros) ──────────────────────────────────────────────────────
 
-/**
- * Preço BR/US -> centavos. Se há vírgula, ela é o decimal e o ponto é milhar
- * ("1.234,56" -> 123456). Sem vírgula, o ponto é decimal ("50.00" -> 5000). null se não
- * for número >= 0.
- */
+/** Preço BR/US -> centavos. Vírgula = decimal (ponto = milhar); sem vírgula, ponto = decimal. */
 export function parsePriceToCents(raw: string): number | null {
   const cleaned = raw.replace(/[^\d.,-]/g, '');
   if (!cleaned) return null;
@@ -178,7 +227,7 @@ export function parsePriceToCents(raw: string): number | null {
   return Number.isFinite(n) && n >= 0 ? Math.round(n * 100) : null;
 }
 
-/** Duração -> minutos. Aceita "30", "30 min", "1h", "1h30", "01:30". null se não achar. */
+/** Duração -> minutos. "30", "30 min", "1h", "1h30", "01:30". null se não achar. */
 export function parseDurationMin(raw: string): number | null {
   const s = raw.trim().toLowerCase();
   if (!s) return null;
@@ -191,12 +240,9 @@ export function parseDurationMin(raw: string): number | null {
 }
 
 /**
- * Data (+ hora opcional) de planilha -> { dateStr 'YYYY-MM-DD', minutes desde meia-noite }
- * em HORA LOCAL (o fuso é aplicado depois, no spec, via localWallTimeToUtc). Aceita
- * "dd/mm/yyyy", "dd/mm/yy", "yyyy-mm-dd", com hora " HH:mm" junto ou em `timeRaw`
- * separado. Sem hora -> meia-noite. BR: assume dd/mm (não mm/dd). null se irreconhecível.
- * ponytail: cobre os formatos comuns; formato exótico (ex.: "jun/26") cai como erro na
- * prévia - o dono vê e corrige a planilha.
+ * Data (+ hora opcional) -> { dateStr 'YYYY-MM-DD', minutes } em HORA LOCAL (o fuso é
+ * aplicado no spec). "dd/mm/yyyy", "dd/mm/yy", "yyyy-mm-dd", hora junto ou separada.
+ * BR: assume dd/mm. null se irreconhecível.
  */
 export function parseImportDate(
   dateRaw: string,

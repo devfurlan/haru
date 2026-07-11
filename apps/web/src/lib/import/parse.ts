@@ -1,40 +1,46 @@
-// Wrapper SheetJS (server-only: só é importado nos route handlers). Lê xlsx/xls/csv da
-// primeira aba num caminho só e devolve { headers, rows } com todos os valores como
-// string de exibição (raw:false = datas/preços legíveis, sem lidar com serial do Excel).
+// Wrapper SheetJS (server-only). Lê xlsx/xls/csv e devolve UMA tabela por aba não-vazia
+// (workbook de várias abas = várias entidades), valores como string de exibição.
 
 import * as XLSX from 'xlsx';
 
 import type { Row } from './mapping';
 
-export interface ParsedTable {
+export interface Table {
+  /** Nome da aba (xlsx multi-aba) ou nome do arquivo (csv/aba única). */
+  name: string;
   headers: string[];
   rows: Row[];
 }
 
-export function parseTable(buffer: Buffer): ParsedTable {
+export function parseWorkbook(buffer: Buffer, fileName: string): Table[] {
   const wb = XLSX.read(buffer, { type: 'buffer' });
-  const sheetName = wb.SheetNames[0];
-  const sheet = sheetName ? wb.Sheets[sheetName] : undefined;
-  if (!sheet) return { headers: [], rows: [] };
+  const single = wb.SheetNames.length <= 1;
+  const tables: Table[] = [];
+  for (const sheetName of wb.SheetNames) {
+    const sheet = wb.Sheets[sheetName];
+    if (!sheet) continue;
+    const t = sheetToTable(sheet, single ? fileName.replace(/\.[^.]+$/, '') : sheetName);
+    if (t) tables.push(t);
+  }
+  return tables;
+}
 
-  // header:1 -> matriz de arrays; raw:false -> valor formatado (string); defval:'' ->
-  // célula vazia vira '' (mantém alinhamento posicional); blankrows:false -> pula linha vazia.
+function sheetToTable(sheet: XLSX.WorkSheet, name: string): Table | null {
   const aoa = XLSX.utils.sheet_to_json<unknown[]>(sheet, {
     header: 1,
     raw: false,
     defval: '',
     blankrows: false,
   });
-  if (aoa.length === 0) return { headers: [], rows: [] };
+  if (aoa.length === 0) return null;
 
-  // Cabeçalhos: vazio vira "Coluna N"; duplicado ganha sufixo pra não colidir na chave do objeto.
   const seen = new Map<string, number>();
   const headers = (aoa[0] as unknown[]).map((h, i) => {
-    let name = String(h ?? '').trim() || `Coluna ${i + 1}`;
-    const n = seen.get(name) ?? 0;
-    seen.set(name, n + 1);
-    if (n > 0) name = `${name} (${n + 1})`;
-    return name;
+    let col = String(h ?? '').trim() || `Coluna ${i + 1}`;
+    const n = seen.get(col) ?? 0;
+    seen.set(col, n + 1);
+    if (n > 0) col = `${col} (${n + 1})`;
+    return col;
   });
 
   const rows: Row[] = [];
@@ -50,5 +56,6 @@ export function parseTable(buffer: Buffer): ParsedTable {
     }
     if (hasValue) rows.push(row);
   }
-  return { headers, rows };
+  if (rows.length === 0) return null;
+  return { name, headers, rows };
 }

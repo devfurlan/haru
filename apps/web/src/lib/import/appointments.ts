@@ -1,21 +1,26 @@
-// Spec de importação de AGENDAMENTOS (Appointment) - o mais complexo: precisa resolver 3
-// FKs (cliente por telefone/nome, serviço por nome, profissional por nome com fallback
-// solo), converter data local do tenant -> UTC e deduplicar por (cliente, serviço, início).
-// resolveAppointment é PURO (recebe os conjuntos já carregados); applyAppointments carrega
-// tudo de uma vez, resolve em memória e, se não for dryRun, cria (upsertando o contato que
-// faltar por telefone). Não cria Payment/lembrete/série - é dado histórico/agenda pura.
+// Spec de AGENDAMENTOS (futuros) e HISTÓRICO (passados) - mesmo motor, `mode` decide.
+// Resolve 3 FKs (cliente por telefone/nome, serviço por nome, profissional com fallback
+// solo), converte data local -> UTC, deduplica por (cliente, serviço, início). No modo
+// 'future' o analyze detecta CONFLITO de horário contra a agenda existente (mesmo
+// profissional, intervalos sobrepostos, reserva diferente); no commit o usuário escolhe
+// pular (default) ou importar assim mesmo. 'history' grava status COMPLETED e não detecta
+// conflito (histórico se sobrepõe naturalmente).
+// ponytail: o "valor pago" do histórico é lido mas não persistido - não há campo pra ele
+// no Appointment; upgrade = coluna nova ou Payment manual.
 
 import type { AppointmentStatus } from '@haru/database';
 import { prisma } from '@haru/database';
 import { localWallTimeToUtc, normalizePhoneBR } from '@haru/shared';
 
 import {
-  type ApplyResult,
+  type AnalyzeResult,
   cell,
   type Mapping,
   parseImportDate,
+  type Resolutions,
   type Row,
   type RowResult,
+  type ScheduleConflict,
 } from './mapping';
 
 interface TenantCtx {
@@ -23,6 +28,7 @@ interface TenantCtx {
   timezone: string;
 }
 
+type Mode = 'future' | 'history';
 const VALID_PHONE = /^55\d{10,11}$/;
 
 export interface ApptInput {
@@ -43,10 +49,9 @@ export interface ApptCtx {
   proIds: string[];
   tz: string;
   now: number;
-  /** Chaves já existentes no banco: `${contactId}|${serviceId}|${iso}`. */
   existingKeys: Set<string>;
-  /** Deduplicação dentro do lote (mutado). */
   seen: Set<string>;
+  mode: Mode;
 }
 
 export interface ApptWrite {
@@ -54,13 +59,13 @@ export interface ApptWrite {
   contactPhone: string | null;
   contactName: string | null;
   serviceId: string;
+  serviceName: string;
   professionalId: string;
   startsAt: Date;
   endsAt: Date;
   status: AppointmentStatus;
 }
 
-/** Mapeia o texto de status da origem pro enum; sem match, decide por passado/futuro. */
 function mapStatus(raw: string, startsMs: number, nowMs: number): AppointmentStatus {
   const s = raw.toLowerCase();
   if (s.includes('cancel')) return 'CANCELED';
@@ -133,7 +138,8 @@ export function resolveAppointment(
     return { disposition: 'error', error: 'Sem cliente (informe telefone ou nome)' };
   }
 
-  const status = mapStatus(input.status, startsAt.getTime(), ctx.now);
+  const status =
+    ctx.mode === 'history' ? 'COMPLETED' : mapStatus(input.status, startsAt.getTime(), ctx.now);
 
   const contactKey = contactId ?? `phone:${contactPhone}`;
   const key = `${contactKey}|${svc.id}|${startsAt.toISOString()}`;
@@ -147,6 +153,7 @@ export function resolveAppointment(
       contactPhone,
       contactName,
       serviceId: svc.id,
+      serviceName: sName,
       professionalId,
       startsAt,
       endsAt,
@@ -167,12 +174,35 @@ function readAppt(row: Row, m: Mapping): ApptInput {
   };
 }
 
-export async function applyAppointments(
+interface ExistingSlot {
+  start: number;
+  end: number;
+  label: string;
+}
+
+function formatWhen(date: Date, tz: string, proName: string): string {
+  const day = new Intl.DateTimeFormat('pt-BR', {
+    timeZone: tz,
+    weekday: 'short',
+    day: '2-digit',
+    month: 'short',
+  }).format(date);
+  const time = new Intl.DateTimeFormat('pt-BR', {
+    timeZone: tz,
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date);
+  return proName ? `${day} · ${time} · com ${proName}` : `${day} · ${time}`;
+}
+
+async function runAppointments(
   tenant: TenantCtx,
   rows: Row[],
   mapping: Mapping,
-  dryRun: boolean,
-): Promise<ApplyResult> {
+  mode: Mode,
+  commit: boolean,
+  resolutions?: Resolutions,
+): Promise<AnalyzeResult> {
   const [services, contacts, pros, existingAppts] = await Promise.all([
     prisma.service.findMany({
       where: { tenantId: tenant.id },
@@ -187,8 +217,16 @@ export async function applyAppointments(
       select: { id: true, name: true },
     }),
     prisma.appointment.findMany({
-      where: { tenantId: tenant.id },
-      select: { contactId: true, serviceId: true, startsAt: true },
+      where: { tenantId: tenant.id, status: { not: 'CANCELED' } },
+      select: {
+        contactId: true,
+        serviceId: true,
+        professionalId: true,
+        startsAt: true,
+        endsAt: true,
+        contact: { select: { name: true } },
+        service: { select: { name: true } },
+      },
     }),
   ]);
 
@@ -207,10 +245,28 @@ export async function applyAppointments(
     }
   }
   const prosByName = new Map<string, string>();
-  for (const p of pros) if (p.name) prosByName.set(p.name.toLowerCase(), p.id);
+  const proNameById = new Map<string, string>();
+  for (const p of pros) {
+    if (p.name) {
+      prosByName.set(p.name.toLowerCase(), p.id);
+      proNameById.set(p.id, p.name);
+    }
+  }
   const existingKeys = new Set(
     existingAppts.map((a) => `${a.contactId}|${a.serviceId}|${a.startsAt.toISOString()}`),
   );
+  // Slots ocupados por profissional (pra detectar conflito).
+  const busyByPro = new Map<string, ExistingSlot[]>();
+  for (const a of existingAppts) {
+    const slot: ExistingSlot = {
+      start: a.startsAt.getTime(),
+      end: a.endsAt.getTime(),
+      label: `${a.service.name} · ${a.contact.name ?? 'cliente'}`,
+    };
+    const arr = busyByPro.get(a.professionalId);
+    if (arr) arr.push(slot);
+    else busyByPro.set(a.professionalId, [slot]);
+  }
 
   const ctx: ApptCtx = {
     servicesByName,
@@ -222,38 +278,98 @@ export async function applyAppointments(
     now: Date.now(),
     existingKeys,
     seen: new Set(),
+    mode,
   };
 
+  const forcedImport = new Set(
+    Object.entries(resolutions?.conflicts ?? {})
+      .filter(([, v]) => v === 'import')
+      .map(([k]) => k),
+  );
+
   const counts = { create: 0, update: 0, skip: 0, error: 0 };
-  const results: RowResult[] = [];
+  const errors: { row: number; error: string }[] = [];
+  const conflicts: ScheduleConflict[] = [];
+
+  let rowNum = 1;
   for (const row of rows) {
+    rowNum++;
     const r = resolveAppointment(readAppt(row, mapping), ctx);
     if (r.disposition === 'error') {
       counts.error++;
-      results.push({ disposition: 'error', error: r.error });
+      if (errors.length < 200) errors.push({ row: rowNum, error: r.error ?? 'erro' });
       continue;
     }
     if (r.disposition === 'skip' || !r.write) {
       counts.skip++;
-      results.push({ disposition: 'skip' });
       continue;
     }
-    if (!dryRun) {
+
+    // Conflito de horário (só agenda futura).
+    const conflictId = `c${rowNum}`;
+    let clash: ExistingSlot | undefined;
+    if (mode === 'future') {
+      const busy = busyByPro.get(r.write.professionalId);
+      if (busy)
+        clash = busy.find(
+          (b) => r.write!.startsAt.getTime() < b.end && r.write!.endsAt.getTime() > b.start,
+        );
+    }
+    if (clash && !forcedImport.has(conflictId)) {
+      if (!commit) {
+        if (conflicts.length < 50) {
+          conflicts.push({
+            id: conflictId,
+            when: formatWhen(
+              r.write.startsAt,
+              tenant.timezone,
+              proNameById.get(r.write.professionalId) ?? '',
+            ),
+            incomingLabel: `${r.write.serviceName} · ${r.write.contactName ?? formatPhoneBRSafe(r.write.contactPhone)}`,
+            incomingMeta: 'na planilha',
+            existingLabel: clash.label,
+            existingMeta: 'já na sua agenda',
+          });
+        }
+      }
+      counts.skip++;
+      continue; // default = pular o conflito
+    }
+
+    if (commit) {
       try {
-        await writeAppointment(tenant.id, r.write, ctx);
+        await writeAppointment(tenant.id, r.write, ctx, busyByPro);
       } catch {
         counts.error++;
-        results.push({ disposition: 'error', error: 'Falha ao gravar' });
+        if (errors.length < 200) errors.push({ row: rowNum, error: 'Falha ao gravar' });
         continue;
       }
     }
     counts.create++;
-    results.push({ disposition: 'create' });
   }
-  return { counts, rows: results };
+
+  return { counts, errors, pairs: [], conflicts };
 }
 
-async function writeAppointment(tenantId: string, w: ApptWrite, ctx: ApptCtx): Promise<void> {
+function formatPhoneBRSafe(phone: string | null): string {
+  return phone ?? 'cliente';
+}
+
+export const analyzeAppointments = (t: TenantCtx, r: Row[], m: Mapping) =>
+  runAppointments(t, r, m, 'future', false);
+export const commitAppointments = (t: TenantCtx, r: Row[], m: Mapping, res?: Resolutions) =>
+  runAppointments(t, r, m, 'future', true, res);
+export const analyzeHistory = (t: TenantCtx, r: Row[], m: Mapping) =>
+  runAppointments(t, r, m, 'history', false);
+export const commitHistory = (t: TenantCtx, r: Row[], m: Mapping, res?: Resolutions) =>
+  runAppointments(t, r, m, 'history', true, res);
+
+async function writeAppointment(
+  tenantId: string,
+  w: ApptWrite,
+  ctx: ApptCtx,
+  busyByPro: Map<string, ExistingSlot[]>,
+): Promise<void> {
   let contactId = w.contactId;
   if (!contactId && w.contactPhone) {
     const contact = await prisma.contact.upsert({
@@ -277,4 +393,12 @@ async function writeAppointment(tenantId: string, w: ApptWrite, ctx: ApptCtx): P
     },
   });
   ctx.existingKeys.add(`${contactId}|${w.serviceId}|${w.startsAt.toISOString()}`);
+  const arr = busyByPro.get(w.professionalId);
+  const slot: ExistingSlot = {
+    start: w.startsAt.getTime(),
+    end: w.endsAt.getTime(),
+    label: w.serviceName,
+  };
+  if (arr) arr.push(slot);
+  else busyByPro.set(w.professionalId, [slot]);
 }
