@@ -1,11 +1,8 @@
 'use client';
 
-import { Check, Minus, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
 
-import { Button } from '@/components/ui/button';
-import { PLAN_INSTALLMENT_CENTS } from '@/lib/billing/pricing';
 import { cn } from '@/lib/utils';
 
 export interface PricingTier {
@@ -26,7 +23,7 @@ export interface PricingTier {
 
 type Cycle = 'MONTHLY' | 'ANNUAL';
 
-/** R$ sem centavos (ex.: 8900 -> "R$ 89"). */
+/** R$ sem centavos (ex.: 6900 -> "R$ 69"). */
 function brl(cents: number): string {
   return (cents / 100).toLocaleString('pt-BR', {
     style: 'currency',
@@ -35,269 +32,188 @@ function brl(cents: number): string {
   });
 }
 
-/** R$ com centavos (ex.: 7416.67 -> "R$ 74,17"). Usado no parcelamento 12x. */
-function brlCents(cents: number): string {
-  return (cents / 100).toLocaleString('pt-BR', {
-    style: 'currency',
-    currency: 'BRL',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-}
-
 function fmtLimit(n: number | null): string {
   return n === null ? 'ilimitado' : n.toLocaleString('pt-BR');
 }
 
+const SUBTITLE: Record<string, string> = {
+  ESSENCIAL: 'Pra quem toca tudo sozinho',
+  PROFISSIONAL: 'Pra equipe no mesmo endereço',
+  NEGOCIO: 'Pra quem tem mais de uma unidade',
+};
+
 interface Feat {
-  on: boolean;
   text: string;
   strong?: boolean;
 }
 
-/**
- * Lista incremental por tier ("Tudo do X" + o que o tier adiciona). Os números
- * (agendamentos, IA, profissionais) vêm do catálogo do banco; as bullets de copy
- * são curadas. Tiers fora dos 3 padrão caem no fallback dirigido por flags.
- */
+/** Só o que ESTÁ incluso (design lista incremental, sem linha de "não tem"). */
 function featuresFor(t: PricingTier, prevName: string | null): Feat[] {
   const appts = `${fmtLimit(t.appointmentsPerMonth)} agendamentos/mês`;
-
   switch (t.tier) {
     case 'ESSENCIAL':
       return [
-        { on: true, text: 'App do cliente + agenda pública na web' },
-        { on: true, text: 'Painel completo + histórico' },
-        { on: true, text: 'Confirmações e lembretes automáticos no WhatsApp' },
-        { on: true, text: appts },
-        { on: true, text: '1 profissional' },
-        { on: false, text: 'Pagamentos online' },
-        { on: false, text: 'Webhooks' },
+        { text: '1 profissional' },
+        { text: 'Agenda + painel completo' },
+        { text: 'Página pública com sua marca' },
+        { text: 'App do cliente' },
+        { text: 'Confirmação e lembrete no WhatsApp' },
       ];
     case 'PROFISSIONAL':
       return [
-        { on: true, strong: true, text: `Tudo do ${prevName ?? 'Solo'}` },
-        { on: true, text: 'Pagamentos online (Pix + cartão no app e na web)' },
-        { on: true, text: `Equipe: até ${fmtLimit(t.maxProfessionals)} profissionais` },
-        { on: true, text: 'Webhooks (Discord, Slack, Zapier, n8n)' },
-        { on: true, text: appts },
+        { text: `Tudo do ${prevName ?? 'Solo'}, mais:`, strong: true },
+        { text: 'Vários profissionais' },
+        { text: 'Pagamento online · Pix e cartão' },
+        { text: 'Webhooks - Discord, Slack, Zapier, n8n' },
       ];
     case 'NEGOCIO':
       return [
-        { on: true, strong: true, text: `Tudo do ${prevName ?? 'Time'}` },
-        { on: true, text: 'Profissionais ilimitados' },
-        { on: true, text: 'Suporte prioritário' },
-        { on: true, text: appts },
+        { text: `Tudo do ${prevName ?? 'Time'}, mais:`, strong: true },
+        { text: 'Várias unidades num painel' },
+        { text: 'Visão consolidada do faturamento' },
+        { text: 'Permissões por unidade' },
       ];
     default:
       return [
-        { on: true, text: 'App do cliente + agenda pública na web' },
-        { on: true, text: 'Confirmações e lembretes no WhatsApp' },
-        { on: true, text: appts },
-        { on: t.onlinePayments, text: 'Pagamentos online (Pix/cartão)' },
-        {
-          on: t.team,
-          text: t.team
-            ? `Equipe: até ${fmtLimit(t.maxProfessionals)} profissionais`
-            : '1 profissional',
-        },
-        { on: t.webhooks, text: 'Webhooks (Discord/Slack/n8n)' },
+        { text: 'App do cliente + agenda pública na web' },
+        { text: 'Confirmações e lembretes no WhatsApp' },
+        { text: appts },
       ];
   }
 }
 
-function FeatureRow({ feat, featured }: { feat: Feat; featured: boolean }) {
-  const { on, text, strong } = feat;
-  return (
-    <li className="flex gap-x-3">
-      {on ? (
-        <Check
-          aria-hidden
-          strokeWidth={3}
-          className={cn(
-            'mt-0.5 size-4 shrink-0',
-            featured ? 'text-coral-soft' : 'text-green-bright',
-          )}
-        />
-      ) : (
-        <Minus
-          aria-hidden
-          strokeWidth={3}
-          className={cn('mt-0.5 size-4 shrink-0', featured ? 'text-cream/30' : 'text-ink-soft/35')}
-        />
-      )}
-      <span
-        className={cn(
-          strong && 'font-semibold',
-          on
-            ? featured
-              ? 'text-cream/85'
-              : 'text-ink-soft'
-            : featured
-              ? 'text-cream/40'
-              : 'text-ink-soft/45',
-        )}
-      >
-        {text}
-      </span>
-    </li>
-  );
-}
-
 export function PricingTiers({ tiers }: { tiers: PricingTier[] }) {
-  // Anual é o default: mostra a versão mais barata primeiro e ancora a expectativa pra baixo.
+  // Anual é o default: ancora a expectativa no preço mais baixo.
   const [cycle, setCycle] = useState<Cycle>('ANNUAL');
   const isAnnual = cycle === 'ANNUAL';
 
   return (
     <>
-      {/* Toggle de frequência */}
-      <div className="mt-12 flex justify-center">
-        <div className="border-border bg-paper grid grid-cols-2 gap-1 rounded-full border p-1 text-sm font-semibold">
-          {(['MONTHLY', 'ANNUAL'] as Cycle[]).map((c) => (
-            <button
-              key={c}
-              type="button"
-              onClick={() => setCycle(c)}
-              className={cn(
-                'rounded-full px-5 py-1.5 transition-colors',
-                cycle === c
-                  ? 'bg-foreground text-background'
-                  : 'text-ink-soft hover:text-foreground',
-              )}
-            >
-              {c === 'MONTHLY' ? 'Mensal' : 'Anual'}
-            </button>
-          ))}
+      {/* Cabeçalho da seção + toggle de frequência */}
+      <div className="mb-[52px] flex flex-col justify-between gap-8 sm:flex-row sm:items-end">
+        <div className="max-w-[560px]">
+          <div className="text-sub mb-4 text-[0.72rem] font-bold uppercase tracking-[0.15em]">
+            Planos
+          </div>
+          <h2 className="font-serif text-[clamp(2rem,4vw,2.6rem)] font-medium leading-[1.08] tracking-[-0.02em]">
+            Planos simples, <em className="font-normal italic">sem pegadinha.</em>
+          </h2>
+        </div>
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="bg-chip text-green-deep rounded-full px-3.5 py-1.5 text-xs font-semibold">
+            {isAnnual ? '2 meses grátis no plano anual' : 'cobrado mês a mês'}
+          </span>
+          <div className="bg-paper border-edge flex rounded-full border p-1">
+            {(['MONTHLY', 'ANNUAL'] as Cycle[]).map((c) => (
+              <button
+                key={c}
+                type="button"
+                onClick={() => setCycle(c)}
+                className={cn(
+                  'rounded-full px-5 py-2 text-[0.8rem] font-semibold transition-colors',
+                  cycle === c ? 'bg-green-deep text-cream' : 'text-ink-70',
+                )}
+              >
+                {c === 'MONTHLY' ? 'Mensal' : 'Anual'}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
-      {/* Selo do anual: 2 meses grátis (à vista = 10× o mensal). */}
-      <div className="mt-3 flex min-h-6 justify-center">
-        {isAnnual ? (
-          <span className="bg-green/10 text-green inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold">
-            <Sparkles aria-hidden className="size-3.5" />2 meses grátis no plano anual
-          </span>
-        ) : (
-          <span className="text-ink-soft/70 text-xs">
-            No plano anual você ganha 2 meses grátis.
-          </span>
-        )}
-      </div>
-
       {/* Cards */}
-      <div className="mx-auto mt-12 grid max-w-md grid-cols-1 gap-8 lg:max-w-none lg:grid-cols-3">
+      <div className="grid gap-5 lg:grid-cols-3">
         {tiers.map((t, i) => {
           const featured = t.featured;
           const prevName = i > 0 ? tiers[i - 1].name : null;
-          // No anual, o destaque é o equivalente por mês (pra comparar com o mensal).
           const headlineCents = isAnnual
             ? Math.round(t.priceAnnualCents / 12)
             : t.priceMonthlyCents;
-          // Economia do anual vs mensal = 12 mensalidades - preço anual. (Setup fora: é
-          // opcional, então não infla o número - vira uma linha à parte "grátis no anual".)
-          const totalSavingsCents = t.priceMonthlyCents * 12 - t.priceAnnualCents;
-          // Parcela do anual 12x com taxas (dado do gateway; ver PLAN_INSTALLMENT_CENTS).
-          // ponytail: quando a coluna Plan.priceAnnualInstallmentCents estiver migrada,
-          // trocar por t.priceAnnualInstallmentCents e aposentar a constante.
-          const installmentCents = PLAN_INSTALLMENT_CENTS[t.tier];
 
           return (
             <div
               key={t.tier}
               className={cn(
-                'relative flex flex-col rounded-3xl p-8 ring-1 transition-transform duration-300 hover:-translate-y-1',
-                featured ? 'bg-ink text-cream ring-ink shadow-coral' : 'bg-paper ring-border',
+                'relative rounded-[22px] p-[34px]',
+                featured
+                  ? 'bg-green-deep text-cream shadow-[0_24px_50px_-20px_rgba(10,51,36,.5)]'
+                  : 'bg-paper border-edge hover:border-green-deep border transition-[border-color,box-shadow] hover:shadow-[0_16px_36px_-18px_rgba(10,51,36,.25)]',
               )}
+              style={
+                featured
+                  ? {
+                      backgroundImage:
+                        'radial-gradient(320px 180px at 85% -15%, rgba(47,211,122,.15), transparent)',
+                    }
+                  : undefined
+              }
             >
               {featured && (
-                <span className="bg-coral shadow-coral absolute -top-3 left-8 rounded-full px-3 py-1 text-[0.7rem] font-bold uppercase tracking-wide text-white">
-                  Mais popular
+                <span className="bg-coral text-paper absolute -top-3 left-[34px] rounded-full px-4 py-1.5 text-[0.68rem] font-bold uppercase tracking-[0.08em]">
+                  Pra equipes
                 </span>
               )}
 
-              <h3 className="font-serif text-xl font-semibold tracking-[-0.01em]">{t.name}</h3>
-
-              <div className="mt-5 min-h-[9.5rem]">
+              <div className="mb-1 font-serif text-lg font-semibold">{t.name}</div>
+              <div
+                className={cn('mb-5 text-[0.88rem]', featured ? 'text-on-emerald-mut' : 'text-sub')}
+              >
+                {SUBTITLE[t.tier] ?? ''}
+              </div>
+              <div className="mb-5">
                 {t.custom ? (
-                  <p className="font-serif text-4xl font-black leading-none">Sob consulta</p>
+                  <span className="font-serif text-[2.75rem] font-semibold tracking-[-0.02em]">
+                    Sob consulta
+                  </span>
                 ) : (
                   <>
-                    {isAnnual && (
-                      <p
-                        className={cn(
-                          'text-sm font-medium line-through',
-                          featured ? 'text-cream/45' : 'text-ink-soft/45',
-                        )}
-                      >
-                        {brl(t.priceMonthlyCents)}/mês
-                      </p>
-                    )}
-                    <p className="flex items-baseline gap-x-1 font-serif leading-none">
-                      <span className="text-4xl font-black">{brl(headlineCents)}</span>
-                      <span
-                        className={cn(
-                          'text-sm font-semibold',
-                          featured ? 'text-cream/70' : 'text-ink-soft',
-                        )}
-                      >
-                        {isAnnual ? '/mês (anual)' : '/mês'}
-                      </span>
-                    </p>
-
-                    {isAnnual ? (
-                      <div
-                        className={cn(
-                          'mt-2 space-y-1 text-xs',
-                          featured ? 'text-cream/60' : 'text-ink-soft/70',
-                        )}
-                      >
-                        <p className="font-medium">
-                          cobrado {brl(t.priceAnnualCents)}/ano à vista
-                        </p>
-                        <span
-                          className={cn(
-                            'mt-1 inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold',
-                            featured
-                              ? 'bg-green-bright/15 text-green-bright'
-                              : 'bg-green/10 text-green',
-                          )}
-                        >
-                          Economize {brl(totalSavingsCents)}/ano
-                        </span>
-                        {installmentCents && (
-                          <p className="pt-0.5">
-                            ou 12× de {brlCents(installmentCents)} no cartão (com juros)
-                          </p>
-                        )}
-                        <p>Sem taxa de instalação.</p>
-                      </div>
-                    ) : (
-                      <p
-                        className={cn(
-                          'mt-2 text-xs',
-                          featured ? 'text-cream/60' : 'text-ink-soft/70',
-                        )}
-                      >
-                        Comece agora, sem taxa de instalação.
-                      </p>
-                    )}
+                    <span className="font-serif text-[2.75rem] font-semibold tracking-[-0.02em]">
+                      {brl(headlineCents)}
+                    </span>
+                    <span
+                      className={cn(
+                        'text-[0.95rem] font-medium',
+                        featured ? 'text-on-emerald-mut' : 'text-sub',
+                      )}
+                    >
+                      /mês
+                    </span>
                   </>
                 )}
               </div>
 
-              {/* CTA único e com a mesma cor nos três (o badge "Mais popular" já ancora). */}
-              <Button asChild variant="coral" className="mt-6 w-full rounded-full">
-                <Link href={t.custom ? '/signup' : `/signup?plano=${t.tier.toLowerCase()}`}>
-                  Começar
-                </Link>
-              </Button>
-
-              <ul className="mt-8 flex flex-1 flex-col gap-3 text-[0.92rem] leading-snug">
-                {featuresFor(t, prevName).map((feat) => (
-                  <FeatureRow key={feat.text} feat={feat} featured={featured} />
+              <ul className="flex flex-col gap-2">
+                {featuresFor(t, prevName).map((f) => (
+                  <li
+                    key={f.text}
+                    className={cn(
+                      'text-[0.9rem] leading-[1.4]',
+                      f.strong && 'font-semibold',
+                      featured
+                        ? f.strong
+                          ? 'text-cream'
+                          : 'text-on-emerald-mut'
+                        : f.strong
+                          ? 'text-ink'
+                          : 'text-ink-70',
+                    )}
+                  >
+                    {f.text}
+                  </li>
                 ))}
               </ul>
+
+              <Link
+                href={t.custom ? '/signup' : `/signup?plano=${t.tier.toLowerCase()}`}
+                className={cn(
+                  'mt-6 block rounded-[14px] py-3.5 text-center text-[0.95rem] font-semibold transition-colors',
+                  featured
+                    ? 'bg-coral text-paper shadow-coral hover:brightness-[1.04]'
+                    : 'border-green-deep text-green-deep hover:bg-green-deep hover:text-cream border-[1.5px]',
+                )}
+              >
+                Começar com o {t.name}
+              </Link>
             </div>
           );
         })}

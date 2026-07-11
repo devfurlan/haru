@@ -1,177 +1,122 @@
-import { cn } from '@/lib/utils';
+import { Bell, CreditCard, Globe, LayoutGrid, Smartphone, Users, Webhook } from 'lucide-react';
 
 import { Container } from './container';
-import { SectionHeading } from './section-heading';
 
-function FeatureCard({
-  kicker,
-  title,
-  items,
-  className,
-  style,
-  kickerClass = 'text-green-bright',
-  checkClass = 'text-green-bright',
-  badge,
-  children,
-}: {
-  kicker: string;
-  title: string;
-  items: string[];
-  className?: string;
-  style?: React.CSSProperties;
-  kickerClass?: string;
-  checkClass?: string;
-  badge?: string;
-  children?: React.ReactNode;
-}) {
+const cardBase =
+  'bg-paper border-edge rounded-[20px] border p-[30px] transition-shadow hover:shadow-[0_16px_36px_-18px_rgba(10,51,36,.25)]';
+const iconBox = 'bg-green-deep mb-[18px] grid h-[46px] w-[46px] place-items-center rounded-[14px]';
+
+function TimeBadge() {
   return (
-    <div
-      style={style}
-      className={cn(
-        'bg-ink-soft hover:border-green-bright/40 relative overflow-hidden rounded-[18px] border border-white/[0.07] p-8 transition-transform duration-300 hover:-translate-y-1',
-        className,
-      )}
-    >
-      {badge && (
-        <span className="bg-coral/15 text-coral-soft absolute right-5 top-6 rounded-full px-2.5 py-1 text-[0.66rem] font-bold uppercase tracking-[0.1em]">
-          {badge}
-        </span>
-      )}
-      <span
-        className={cn(
-          'mb-3.5 block text-[0.74rem] font-bold uppercase tracking-[0.12em]',
-          kickerClass,
-        )}
-      >
-        {kicker}
-      </span>
-      <h3 className="mb-3 font-serif text-2xl font-semibold tracking-[-0.01em]">{title}</h3>
-      <ul className="flex flex-col gap-2.5">
-        {items.map((it) => (
-          <li key={it} className="text-cream/85 flex gap-2.5 text-[0.95rem] leading-snug">
-            <span className={cn('mt-0.5 shrink-0 font-extrabold', checkClass)}>✓</span>
-            <span>{it}</span>
-          </li>
-        ))}
-      </ul>
-      {children}
-    </div>
+    <span className="bg-chip text-green-deep absolute right-[22px] top-[22px] rounded-full px-3 py-1 text-[0.68rem] font-bold tracking-[0.06em]">
+      TIME+
+    </span>
   );
 }
 
 export function Features() {
   return (
-    <section id="recursos" className="bg-ink text-cream py-24">
-      <Container>
-        <SectionHeading
-          dark
-          eyebrow="A plataforma"
-          title="App, web e painel: a sua agenda inteira, de ponta a ponta."
-        >
-          App, web e painel trabalhando junto - tudo que já está no ar, sem promessa pra depois.
-        </SectionHeading>
+    <section id="recursos" className="border-edge bg-line border-y">
+      <Container className="py-24">
+        <div className="mb-[52px] max-w-[620px]">
+          <div className="text-sub mb-4 text-[0.72rem] font-bold uppercase tracking-[0.15em]">
+            O que vem dentro
+          </div>
+          <h2 className="font-serif text-[clamp(2rem,4vw,2.6rem)] font-medium leading-[1.08] tracking-[-0.02em]">
+            Tudo que a operação precisa, <em className="font-normal italic">nada que atrapalha.</em>
+          </h2>
+        </div>
 
-        <div className="grid gap-4 lg:grid-cols-12">
-          <FeatureCard
-            className="lg:col-span-7"
-            style={{ backgroundImage: 'linear-gradient(160deg,#163a29,#0e2a1d)' }}
-            kicker="App do cliente + área logada"
-            title="Seu negócio no bolso do cliente"
-            items={[
-              'App grátis onde o cliente agenda, remarca e cancela sozinho, a qualquer hora',
-              'Área logada com todo o histórico de atendimentos e os próximos horários',
-              'Lembrete no push e um toque pra salvar o horário na agenda do celular',
-              'Busca por proximidade (GPS): quem está perto encontra seu negócio',
-              'Favoritos e "volte pra": o cliente reagenda com você em dois toques',
-            ]}
-          />
+        <div className="grid gap-5 lg:grid-cols-12">
+          <div className={`${cardBase} lg:col-span-5`}>
+            <span className={iconBox}>
+              <Smartphone className="text-green-bright size-[22px]" aria-hidden />
+            </span>
+            <div className="mb-2 font-serif text-xl font-semibold">App do seu cliente</div>
+            <p className="text-ink-70 text-[0.95rem] leading-[1.55]">
+              Histórico, favoritos e "agendar de novo" num toque. Seu negócio na mão de quem volta
+              sempre - iOS e Android.
+            </p>
+          </div>
 
-          <FeatureCard
-            className="lg:col-span-5"
-            kicker="Página pública"
-            title="Um link /seunegocio pra divulgar"
-            items={[
-              'Página própria de agendamento, no ar em minutos, sem você programar nada',
-              'Cola na bio do Instagram e no story: quem clica agenda sem baixar app',
-              'Mostra serviços, preços e horários livres, com a cara do seu negócio',
-            ]}
-          />
-
-          <FeatureCard
-            className="lg:col-span-5"
-            kicker="Agenda inteligente"
-            title="Nunca marca em cima"
-            items={[
-              'Respeita seu expediente, inclusive partido (08–12h e 14–18h)',
-              'Valida a disponibilidade em tempo real: dois clientes nunca pegam o mesmo horário',
-              'Agenda recorrente: semanal, quinzenal ou mensal marcada de uma vez',
-              'Cada profissional com a própria agenda, serviços e horários',
-            ]}
-          />
-
-          <FeatureCard
-            className="lg:col-span-7"
-            kicker="Painel de gestão (web)"
-            title="A visão completa do seu dia"
-            items={[
-              'Dashboard com os agendamentos de hoje, os próximos 7 dias e os serviços ativos',
-              'Controle de presença: marque "atendido" ou "não compareceu" e acompanhe as faltas',
-              'Cadastro de serviços com nome, descrição, duração e preço',
-              'Equipe: cada profissional com sua agenda; crie e remarque manualmente',
-              'Caixa de conversas com o histórico de cada cliente, estilo WhatsApp',
-            ]}
-          />
-
-          <FeatureCard
-            className="lg:col-span-4"
-            kicker="Lembretes automáticos"
-            title="Cadeira vazia dói no bolso"
-            items={[
-              'Lembrete X horas antes - por WhatsApp, e-mail e push no app',
-              'Você define quantas horas antes; pra desligar, é só colocar 0',
-              'Reduz falta sem você mandar nada na mão',
-            ]}
-          />
-
-          <FeatureCard
-            className="lg:col-span-4"
-            style={{ backgroundImage: 'linear-gradient(160deg,#2a1b12,#1c130c)' }}
-            kickerClass="text-coral-soft"
-            checkClass="text-coral-soft"
-            badge="Time+"
-            kicker="Pagamentos online"
-            title="Receba na hora de marcar"
-            items={[
-              'Pix copia-e-cola ou link de cartão no app e na web',
-              'Confirma o pagamento sozinho assim que o valor cai',
-              'Menos furo de horário: quem paga, aparece',
-            ]}
-          />
-
-          <FeatureCard
-            className="lg:col-span-4"
-            style={{ backgroundImage: 'linear-gradient(160deg,#2a1b12,#1c130c)' }}
-            kickerClass="text-coral-soft"
-            checkClass="text-coral-soft"
-            badge="Time+"
-            kicker="Integrações"
-            title="Conecta no seu fluxo"
-            items={[
-              'WhatsApp oficial (Meta) com o número próprio do seu negócio',
-              'Webhooks: todo agendamento criado, cancelado ou remarcado dispara um aviso',
-            ]}
-          >
-            <div className="mt-4 flex flex-wrap gap-2">
-              {['Discord', 'Slack', 'Zapier', 'n8n'].map((chip) => (
-                <span
-                  key={chip}
-                  className="rounded-lg border border-white/10 bg-white/[0.08] px-3 py-1.5 text-[0.82rem] font-semibold"
-                >
-                  {chip}
+          <div className={`${cardBase} lg:col-span-7`}>
+            <div className="flex items-start justify-between gap-6">
+              <div>
+                <span className={iconBox}>
+                  <Globe className="text-green-bright size-[22px]" aria-hidden />
                 </span>
-              ))}
+                <div className="mb-2 font-serif text-xl font-semibold">
+                  Página pública do seu negócio
+                </div>
+                <p className="text-ink-70 max-w-[330px] text-[0.95rem] leading-[1.55]">
+                  Com a sua marca, seus serviços e seus horários. Um link só pra divulgar onde
+                  quiser.
+                </p>
+              </div>
+              <div className="bg-cream border-edge mt-2 hidden shrink-0 rounded-[14px] border px-[18px] py-3.5 sm:block">
+                <div className="text-ink-30 mb-1 text-[0.62rem] font-bold uppercase tracking-[0.12em]">
+                  Seu link
+                </div>
+                <div className="text-green-deep text-[0.95rem] font-semibold">
+                  demandae.com/<span className="text-coral">seunegocio</span>
+                </div>
+              </div>
             </div>
-          </FeatureCard>
+          </div>
+
+          <div className={`${cardBase} lg:col-span-7`}>
+            <span className={iconBox}>
+              <LayoutGrid className="text-green-bright size-[22px]" aria-hidden />
+            </span>
+            <div className="mb-2 font-serif text-xl font-semibold">Painel completo</div>
+            <p className="text-ink-70 max-w-[420px] text-[0.95rem] leading-[1.55]">
+              Dashboard do dia, agenda, cadastro de serviços e clientes. Tudo que você gerencia, num
+              lugar só.
+            </p>
+          </div>
+
+          <div className={`${cardBase} relative lg:col-span-5`}>
+            <TimeBadge />
+            <span className={iconBox}>
+              <CreditCard className="text-green-bright size-[22px]" aria-hidden />
+            </span>
+            <div className="mb-2 font-serif text-xl font-semibold">Pagamento online</div>
+            <p className="text-ink-70 text-[0.95rem] leading-[1.55]">
+              Pix e cartão na hora do agendamento. Menos furo, caixa antecipado.
+            </p>
+          </div>
+
+          <div className={`${cardBase} relative lg:col-span-4`}>
+            <TimeBadge />
+            <span className={iconBox}>
+              <Users className="text-green-bright size-[22px]" aria-hidden />
+            </span>
+            <div className="mb-2 font-serif text-lg font-semibold">Vários profissionais</div>
+            <p className="text-ink-70 text-[0.95rem] leading-[1.55]">
+              Cada um com sua agenda e seus serviços.
+            </p>
+          </div>
+
+          <div className={`${cardBase} relative lg:col-span-4`}>
+            <TimeBadge />
+            <span className={iconBox}>
+              <Webhook className="text-green-bright size-[22px]" aria-hidden />
+            </span>
+            <div className="mb-2 font-serif text-lg font-semibold">Webhooks</div>
+            <p className="text-ink-70 text-[0.95rem] leading-[1.55]">
+              Discord, Slack, Zapier, n8n - sua agenda avisa onde você já trabalha.
+            </p>
+          </div>
+
+          <div className={`${cardBase} lg:col-span-4`}>
+            <span className={iconBox}>
+              <Bell className="text-green-bright size-[22px]" aria-hidden />
+            </span>
+            <div className="mb-2 font-serif text-lg font-semibold">Notificações em camadas</div>
+            <p className="text-ink-70 text-[0.95rem] leading-[1.55]">
+              WhatsApp, e-mail e push do app. A mensagem chega por onde o cliente tá.
+            </p>
+          </div>
         </div>
       </Container>
     </section>

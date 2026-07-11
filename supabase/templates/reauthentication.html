@@ -1,0 +1,40 @@
+<!-- Assunto: Seu código de verificação - Demandaê -->
+<!--
+  Reautenticação (Supabase: template "Reauthentication" / reauthentication).
+  HOJE dormente: secure_password_change = false. Sem link - só um código OTP de 6
+  dígitos ({{ .Token }}) que o usuário digita para confirmar uma operação sensível.
+-->
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;">Seu código de verificação do Demandaê.</div>
+<div style="margin:0;padding:0;background:#faf5ea;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#faf5ea;">
+    <tr><td align="center" style="padding:32px 16px;">
+      <table role="presentation" width="520" cellpadding="0" cellspacing="0" style="width:520px;max-width:100%;background:#ffffff;border:1px solid #ece3d3;border-top:3px solid #ff5a36;border-radius:16px;">
+        <tr><td style="padding:28px 36px 0;">
+          <img src="https://www.demandae.com/logo-email.png" width="168" height="24" alt="Demandaê" style="display:block;border:0;outline:none;text-decoration:none;-ms-interpolation-mode:bicubic;" />
+        </td></tr>
+        <tr><td style="padding:22px 36px 0;">
+          <h1 style="margin:0;font-family:'Fraunces',Georgia,'Times New Roman',serif;font-weight:800;font-size:21px;line-height:1.3;color:#0f1f18;">Código de verificação</h1>
+        </td></tr>
+        <tr><td style="padding:12px 36px 0;">
+          <div style="font-family:'Hanken Grotesk',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,system-ui,sans-serif;font-size:14px;line-height:1.65;color:#27392f;">
+            Use o código abaixo para confirmar sua identidade e concluir a operação no Demandaê.
+          </div>
+        </td></tr>
+        <tr><td style="padding:22px 36px 4px;">
+          <div style="display:inline-block;background:#faf5ea;border:1px solid #ece3d3;border-radius:12px;padding:14px 26px;font-family:'Hanken Grotesk',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,system-ui,sans-serif;font-size:30px;font-weight:800;letter-spacing:8px;color:#0f1f18;">{{ .Token }}</div>
+        </td></tr>
+        <tr><td style="padding:16px 36px 0;">
+          <div style="font-family:'Hanken Grotesk',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,system-ui,sans-serif;font-size:13px;line-height:1.6;color:#7c8a80;">
+            O código vale por 1 hora. Se você não solicitou, ignore este e-mail.
+          </div>
+        </td></tr>
+        <tr><td style="padding:28px 36px 30px;">
+          <div style="border-top:1px solid #ece3d3;padding-top:20px;">
+            <img src="https://www.demandae.com/logo-email.png" width="120" height="17" alt="Demandaê" style="display:block;border:0;outline:none;text-decoration:none;-ms-interpolation-mode:bicubic;" />
+            <div style="margin-top:10px;font-family:'Hanken Grotesk',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,system-ui,sans-serif;font-size:12px;line-height:1.5;color:#9aa39d;">Sua agenda, sem enrolação.</div>
+          </div>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</div>

@@ -7,26 +7,25 @@ import { Logo } from '@/components/logo';
 import { Container } from './container';
 
 const links = [
-  { href: '/#como-cliente', label: 'Como funciona' },
+  { href: '/#cliente', label: 'Como funciona' },
   { href: '/#recursos', label: 'Recursos' },
-  { href: '/#app', label: 'App' },
-  { href: '/#addon', label: 'Atendente IA (em breve)' },
-  { href: '/precos', label: 'Preços' },
+  { href: '/#planos', label: 'Planos' },
+  { href: '/#faq', label: 'FAQ' },
 ];
 
 export function MarketingNav() {
   return (
-    <nav className="border-border bg-cream/80 sticky top-0 z-50 border-b backdrop-blur-md">
+    <nav className="border-line bg-cream/90 sticky top-0 z-50 border-b backdrop-blur-md">
       <Container className="flex h-[70px] items-center justify-between">
         <Link href="/" aria-label="Demandaê">
           <Logo pulse />
         </Link>
-        <div className="hidden gap-8 text-[0.95rem] font-semibold md:flex">
+        <div className="hidden items-center gap-1 text-sm font-semibold md:flex">
           {links.map((l) => (
             <a
               key={l.href}
               href={l.href}
-              className="opacity-75 transition-opacity hover:opacity-100"
+              className="hover:bg-line rounded-full px-3.5 py-2 transition-colors"
             >
               {l.label}
             </a>
@@ -35,8 +34,8 @@ export function MarketingNav() {
         <div className="flex items-center gap-2">
           <Button
             asChild
-            variant="ghost"
-            className="hidden h-11 rounded-full px-5 font-semibold sm:inline-flex"
+            variant="outline"
+            className="border-green-deep text-green-deep hover:bg-green-deep hover:text-cream hidden h-11 rounded-full border-[1.5px] px-5 font-semibold hover:translate-y-0 sm:inline-flex"
           >
             <Link href="/login">Entrar</Link>
           </Button>

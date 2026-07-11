@@ -7,57 +7,48 @@ import { HeroShowcase } from './hero-showcase';
 
 export function Hero() {
   return (
-    <header className="bg-green-deep text-cream relative overflow-hidden">
-      <div
-        className="pointer-events-none absolute inset-0"
-        style={{
-          background:
-            'radial-gradient(620px 420px at 88% 8%, rgba(47,211,122,.18), transparent 60%), radial-gradient(500px 380px at 8% 95%, rgba(255,90,54,.14), transparent 60%)',
-        }}
-      />
-      <Container className="relative grid items-center gap-14 py-20 lg:grid-cols-[1.05fr_0.95fr] lg:py-24">
+    <section
+      id="hero"
+      className="bg-green-deep text-cream relative overflow-hidden"
+      style={{
+        backgroundImage:
+          'radial-gradient(1000px 480px at 72% -12%, rgba(47,211,122,.14), transparent), radial-gradient(760px 400px at 8% 118%, rgba(255,90,54,.10), transparent)',
+      }}
+    >
+      <Container className="relative grid items-center gap-14 py-20 lg:grid-cols-[1fr_minmax(0,540px)] lg:py-24">
         <div>
-          <div className="border-green-bright/30 bg-green-bright/10 text-green-bright mb-6 inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-sm font-semibold">
-            <span className="animate-pulse-ring bg-green-bright h-2 w-2 rounded-full" />
-            Sua agenda, sem enrolação.
+          <div className="border-on-emerald-mut/35 text-on-emerald-mut mb-6 inline-flex items-center gap-2 rounded-full border px-4 py-[7px] text-[0.68rem] font-bold uppercase tracking-[0.14em]">
+            <span className="bg-green-bright animate-pulse-ring h-[7px] w-[7px] rounded-full" />
+            Sua agenda, sem enrolação
           </div>
-          <h1 className="mb-5 font-serif text-[clamp(2.5rem,5.2vw,4.1rem)] font-semibold leading-[1.03] tracking-[-0.02em]">
-            Seu cliente agenda pelo <em className="text-green-bright italic">app</em> ou pela{' '}
-            <em className="text-green-bright italic">web</em>.
+          <h1 className="mb-6 font-serif text-[clamp(2.5rem,5.2vw,3.85rem)] font-medium leading-[1.05] tracking-[-0.02em]">
+            Seu cliente agenda pelo <em className="text-green-bright font-normal italic">app</em> ou
+            pela <em className="text-green-bright font-normal italic">web.</em>
           </h1>
-          <p className="text-cream/85 mb-8 max-w-[540px] text-lg leading-relaxed">
-            O Demandaê é a plataforma completa de agendamento: app do cliente, página pública do seu
-            negócio e um painel que junta tudo num lugar só. O WhatsApp confirma e lembra sozinho -
-            e seu cliente nunca fica preso a um único canal.
+          <p className="text-on-emerald-mut mb-8 max-w-[470px] text-[1.18rem] leading-[1.6]">
+            Plataforma completa de agendamento: app do cliente, página do seu negócio e um painel que
+            junta tudo. O WhatsApp confirma e lembra sozinho - e ninguém fica preso a um canal só.
           </p>
-          <div className="flex flex-wrap items-center gap-3.5">
+          <div className="mb-5 flex flex-wrap items-center gap-3.5">
             <Button asChild variant="coral" size="pill">
-              <Link href="/signup">Começar agora →</Link>
+              <Link href="/signup">Começar agora</Link>
             </Button>
             <Button
               asChild
               size="pill"
               variant="outline"
-              className="border-cream/25 text-cream hover:border-cream/60 hover:bg-cream/10"
+              className="border-cream/40 text-cream hover:border-cream/70 hover:bg-cream/10"
             >
-              <a href="#como-cliente">Ver como funciona</a>
+              <a href="#cliente">Ver como funciona</a>
             </Button>
           </div>
-          <div className="text-cream/70 mt-8 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
-            <span>
-              <span className="text-green-bright font-extrabold">✓</span> Pronto em minutos
-            </span>
-            <span>
-              <span className="text-green-bright font-extrabold">✓</span> Sem taxa de instalação
-            </span>
-            <span>
-              <span className="text-green-bright font-extrabold">✓</span> Garantia de 30 dias
-            </span>
+          <div className="text-on-emerald-faint text-sm font-medium">
+            Sem taxa de instalação · Garantia de 30 dias · Cancele quando quiser
           </div>
         </div>
 
         <HeroShowcase />
       </Container>
-    </header>
+    </section>
   );
 }

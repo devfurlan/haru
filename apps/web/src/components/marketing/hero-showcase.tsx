@@ -1,76 +1,54 @@
-import { CalendarIcon, ScissorsIcon } from './app-icons';
-import { ClientAppPhone } from './client-phone';
+import { MessageCircle } from 'lucide-react';
 
-const services = [
-  { name: 'Corte masculino', meta: '45min', price: 'R$ 45' },
-  { name: 'Corte + barba', meta: '1h', price: 'R$ 65' },
-];
-
-const slots = ['14:00', '15:30', '17:00'];
-
-/** Janela de navegador com a página pública do estabelecimento (/seunegocio). */
-function PublicPageBrowser() {
+/** Mock da página pública de agendamento (browser). Reusado no mobile como card estático. */
+function WebCard({ className }: { className?: string }) {
   return (
-    <div className="bg-paper text-ink w-full overflow-hidden rounded-2xl border border-black/10 shadow-[0_40px_80px_-30px_rgba(0,0,0,0.55)]">
-      {/* chrome do navegador */}
-      <div className="bg-cream-2 flex items-center gap-2 border-b border-black/5 px-4 py-2.5">
-        <span className="flex gap-1.5">
-          <i className="h-2.5 w-2.5 rounded-full bg-[#ff5f57]" />
-          <i className="h-2.5 w-2.5 rounded-full bg-[#febc2e]" />
-          <i className="h-2.5 w-2.5 rounded-full bg-[#28c840]" />
-        </span>
-        <span className="bg-paper text-sub ml-2 flex-1 truncate rounded-md px-3 py-1 text-[0.72rem] font-medium">
-          demandae.com/<span className="text-ink font-semibold">barbeariadoteo</span>
+    <div
+      className={`bg-paper border-edge overflow-hidden rounded-[18px] border shadow-[0_30px_60px_-20px_rgba(2,16,10,.55)] ${className ?? ''}`}
+    >
+      <div className="border-line bg-cream flex items-center gap-2 border-b px-4 py-3">
+        <span className="bg-edge h-2.5 w-2.5 rounded-full" />
+        <span className="bg-edge h-2.5 w-2.5 rounded-full" />
+        <span className="bg-edge h-2.5 w-2.5 rounded-full" />
+        <span className="bg-paper border-line text-ink-70 ml-2.5 rounded-full border px-3.5 py-1 text-xs font-medium">
+          demandae.com/<strong className="text-ink">barbearia-do-leo</strong>
         </span>
       </div>
-
-      {/* capa + identidade */}
-      <div className="from-green to-green-deep relative h-[74px] bg-gradient-to-br">
-        <div className="border-paper bg-cream text-green-deep absolute -bottom-5 left-5 grid h-12 w-12 place-items-center rounded-2xl border-2 font-serif text-xl font-black shadow-sm">
-          T
+      <div
+        className="bg-green-deep px-6 py-5"
+        style={{
+          backgroundImage:
+            'radial-gradient(360px 140px at 85% -30%, rgba(47,211,122,.16), transparent)',
+        }}
+      >
+        <div className="flex items-center gap-3">
+          <span className="bg-green-card border-green-bright/25 text-green-bright grid h-11 w-11 place-items-center rounded-[14px] border font-serif text-lg font-semibold">
+            L
+          </span>
+          <div>
+            <div className="text-cream font-serif text-[1.2rem] font-semibold">Barbearia do Léo</div>
+            <div className="text-on-emerald-mut text-xs font-medium">
+              ★ 4,9 · Vila Madalena · aberto agora
+            </div>
+          </div>
         </div>
       </div>
-      <div className="px-5 pb-5 pt-7">
-        <p className="font-serif text-lg font-bold leading-none">Barbearia do Téo</p>
-        <p className="text-sub mt-1 text-[0.78rem] font-medium">Aberto até 20h · Centro</p>
-
-        <p className="text-sub mb-2 mt-4 text-[0.68rem] font-bold uppercase tracking-[0.12em]">
-          Escolha um serviço
-        </p>
-        <ul className="flex flex-col gap-2">
-          {services.map((s) => (
-            <li
-              key={s.name}
-              className="border-line bg-cream/50 flex items-center gap-3 rounded-xl border px-3 py-2.5"
-            >
-              <span className="bg-green/10 text-green grid h-8 w-8 shrink-0 place-items-center rounded-lg">
-                <ScissorsIcon className="h-4 w-4" />
-              </span>
-              <div className="min-w-0 flex-1 leading-tight">
-                <p className="truncate text-[0.85rem] font-bold">{s.name}</p>
-                <p className="text-sub text-[0.72rem]">
-                  {s.meta} · {s.price}
-                </p>
-              </div>
-              <span className="bg-coral rounded-lg px-3 py-1.5 text-[0.72rem] font-bold text-white">
-                Agendar
-              </span>
-            </li>
-          ))}
-        </ul>
-
-        <div className="mt-3 flex items-center gap-2">
-          <CalendarIcon className="text-green h-4 w-4 shrink-0" />
-          {slots.map((t, i) => (
-            <span
-              key={t}
-              className={`rounded-lg px-2.5 py-1 text-[0.74rem] font-bold ${
-                i === 1 ? 'bg-green text-cream' : 'border-line bg-paper text-ink-soft border'
-              }`}
-            >
-              {t}
-            </span>
-          ))}
+      <div className="px-6 pb-6 pt-5">
+        <div className="text-sub mb-3 text-[0.68rem] font-bold uppercase tracking-[0.14em]">
+          Escolhe o serviço
+        </div>
+        <div className="flex flex-col gap-2">
+          <div className="bg-cream border-green-deep flex items-center justify-between rounded-[14px] border-[1.5px] px-4 py-3">
+            <span className="text-ink text-[0.95rem] font-semibold">Corte + barba</span>
+            <span className="text-green-deep font-serif text-base font-semibold">R$ 70</span>
+          </div>
+          <div className="border-line flex items-center justify-between rounded-[14px] border px-4 py-3">
+            <span className="text-ink-70 text-[0.95rem] font-medium">Corte</span>
+            <span className="text-ink-70 font-serif text-[0.95rem] font-medium">R$ 45</span>
+          </div>
+        </div>
+        <div className="bg-coral text-paper mt-3.5 rounded-[14px] py-3 text-center text-sm font-semibold">
+          Continuar · passo 1 de 2
         </div>
       </div>
     </div>
@@ -79,30 +57,71 @@ function PublicPageBrowser() {
 
 export function HeroShowcase() {
   return (
-    <div className="relative mx-auto w-full max-w-[470px] sm:pb-[150px] lg:pb-[130px]">
-      {/* web pública do estabelecimento */}
-      <div className="w-full max-w-[430px] sm:ml-auto">
-        <PublicPageBrowser />
+    <>
+      {/* Mobile: só o card da página pública, estático. */}
+      <div className="mx-auto w-full max-w-[420px] lg:hidden">
+        <WebCard />
       </div>
 
-      {/* app do cliente subindo no canto inferior-esquerdo (topo do browser fica livre) */}
-      <div className="absolute bottom-0 left-0 hidden origin-bottom-left scale-[0.55] drop-shadow-2xl sm:block lg:-left-4">
-        <ClientAppPhone chips={false} />
-      </div>
+      {/* Desktop: composição flutuante (web + app + aviso do WhatsApp). */}
+      <div className="relative mx-auto hidden h-[560px] w-[540px] lg:block">
+        <WebCard className="absolute left-0 top-[34px] w-[500px]" />
 
-      {/* chips dos canais */}
-      <span
-        className="animate-rise bg-coral shadow-coral absolute -top-3 right-4 inline-block rotate-[4deg] rounded-full px-3 py-1.5 text-[0.74rem] font-bold text-white opacity-0 lg:-right-6"
-        style={{ animationDelay: '0.5s' }}
-      >
-        agenda pela web 🌐
-      </span>
-      <span
-        className="animate-rise bg-green-bright text-green-deep absolute bottom-10 right-2 inline-block -rotate-3 rounded-full px-3 py-1.5 text-[0.74rem] font-bold opacity-0 sm:bottom-24 lg:right-4"
-        style={{ animationDelay: '0.7s' }}
-      >
-        confirma no WhatsApp ✓
-      </span>
-    </div>
+        {/* Telefone com o próximo agendamento */}
+        <div className="bg-ink absolute bottom-0 right-0 w-[240px] rounded-[38px] p-[9px] shadow-[0_34px_64px_-18px_rgba(2,16,10,.6)]">
+          <div className="bg-cream overflow-hidden rounded-[30px]">
+            <div
+              className="bg-green-deep px-[18px] pb-4 pt-5"
+              style={{
+                backgroundImage:
+                  'radial-gradient(200px 90px at 90% -20%, rgba(47,211,122,.18), transparent)',
+              }}
+            >
+              <div className="text-on-emerald-mut text-[0.8rem]">Que bom te ver,</div>
+              <div className="text-cream font-serif text-xl font-semibold">Marcos</div>
+            </div>
+            <div className="px-3.5 pb-[18px] pt-3.5">
+              <div className="text-sub mb-2 flex items-center gap-1.5 text-[0.62rem] font-bold uppercase tracking-[0.12em]">
+                <span className="bg-green-bright animate-pulse-ring h-1.5 w-1.5 rounded-full" />
+                Seu próximo · em 2 dias
+              </div>
+              <div className="bg-paper border-line rounded-2xl border p-3">
+                <div className="text-ink font-serif text-[0.95rem] font-semibold">
+                  Barbearia do Léo
+                </div>
+                <div className="text-sub mb-2 mt-0.5 text-[0.68rem] font-medium">
+                  Corte + barba · com Léo
+                </div>
+                <div className="border-edge flex items-baseline justify-between border-t border-dashed pt-2">
+                  <span className="text-green-deep font-serif text-[0.95rem] font-semibold">
+                    Qua, 9 jul · 10h
+                  </span>
+                  <span className="text-ink font-serif text-[0.8rem] font-semibold">R$ 70</span>
+                </div>
+              </div>
+              <div className="bg-coral text-paper mt-2.5 rounded-xl py-2.5 text-center text-[0.72rem] font-semibold">
+                Agendar de novo
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Aviso do WhatsApp */}
+        <div className="bg-paper border-line absolute right-0 top-0 flex w-[320px] items-center gap-3 rounded-[18px] border p-3.5 shadow-[0_20px_44px_-14px_rgba(2,16,10,.5)]">
+          <span className="bg-chip grid h-[38px] w-[38px] shrink-0 place-items-center rounded-xl">
+            <MessageCircle className="text-green-deep size-5" aria-hidden />
+          </span>
+          <div className="min-w-0">
+            <div className="flex justify-between gap-2">
+              <span className="text-ink text-xs font-bold">WhatsApp</span>
+              <span className="text-ink-30 text-[0.68rem] font-medium">agora</span>
+            </div>
+            <div className="text-ink-70 text-[0.78rem] leading-[1.35]">
+              Confirmado ✓ Corte + barba, qua 9 jul às 10h - Barbearia do Léo
+            </div>
+          </div>
+        </div>
+      </div>
+    </>
   );
 }

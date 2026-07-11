@@ -6,34 +6,37 @@ import { Container } from './container';
 
 export function FinalCta() {
   return (
-    <section className="bg-green-deep text-cream relative overflow-hidden">
-      <div
-        className="pointer-events-none absolute inset-0"
-        style={{
-          background:
-            'radial-gradient(600px 380px at 50% 0%, rgba(47,211,122,.2), transparent 65%)',
-        }}
-      />
-      <Container className="relative py-24 text-center">
-        <h2 className="mx-auto mb-4 max-w-3xl font-serif text-[clamp(2.2rem,4.6vw,3.4rem)] font-semibold leading-[1.05] tracking-[-0.02em]">
-          Sua agenda, <em className="text-green-bright italic">sem enrolação</em>, começa hoje.
+    <section
+      id="cta-final"
+      className="bg-green-deep text-cream relative overflow-hidden"
+      style={{
+        backgroundImage:
+          'radial-gradient(800px 380px at 70% -10%, rgba(47,211,122,.14), transparent), radial-gradient(640px 340px at 15% 120%, rgba(255,90,54,.10), transparent)',
+      }}
+    >
+      <Container className="relative max-w-[880px] py-28 text-center">
+        <h2 className="mb-[18px] font-serif text-[clamp(2.4rem,5vw,3.5rem)] font-normal leading-[1.06] tracking-[-0.02em]">
+          Bora destravar <em className="italic">sua agenda?</em>
         </h2>
-        <p className="text-cream/85 mx-auto mb-8 max-w-[540px] text-[1.15rem]">
-          Publique sua página, libere o app pro seu cliente e deixe o WhatsApp avisar por você -
-          tudo comandado de um painel só.
+        <p className="text-on-emerald-mut mx-auto mb-9 max-w-[560px] text-[1.12rem] leading-[1.6]">
+          Configura em minutos: cadastra os serviços, define os horários e compartilha seu link. O
+          resto anda sozinho.
         </p>
-        <div className="flex flex-wrap items-center justify-center gap-3.5">
-          <Button asChild variant="coral" size="pill">
-            <Link href="/signup">Começar agora →</Link>
+        <div className="mb-4 flex flex-wrap items-center justify-center gap-3.5">
+          <Button asChild variant="coral" size="pill" className="h-14 px-9 text-[1.05rem]">
+            <Link href="/signup">Começar agora</Link>
           </Button>
           <Button
             asChild
             size="pill"
             variant="outline"
-            className="border-cream/25 text-cream hover:border-cream/60 hover:bg-cream/10"
+            className="border-cream/40 text-cream hover:border-cream/70 hover:bg-cream/10 h-14 px-8 text-[1.05rem]"
           >
-            <Link href="/precos">Ver planos</Link>
+            <a href="#planos">Ver planos</a>
           </Button>
+        </div>
+        <div className="text-on-emerald-faint text-sm font-medium">
+          Garantia de 30 dias com devolução integral · Suporte em português, direto com o fundador
         </div>
       </Container>
     </section>

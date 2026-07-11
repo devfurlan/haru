@@ -128,6 +128,31 @@ otp_expiry = 3600
 subject = "Redefina sua senha - Demandaê"
 content_path = "./supabase/templates/recovery.html"
 
+# Demais templates de auth on-brand (mesma casca dos e-mails do produto). Só o
+# recovery é disparado hoje; os outros ficam prontos caso sejam ligados (confirmação
+# de e-mail, magic link, troca de e-mail, reautenticação, convite nativo). Lembrete:
+# o Supabase hospedado NÃO lê este config.toml - replicar cada um em Auth → Email
+# Templates no dashboard (assunto + HTML).
+[auth.email.template.confirmation]
+subject = "Confirme seu e-mail - Demandaê"
+content_path = "./supabase/templates/confirmation.html"
+
+[auth.email.template.invite]
+subject = "Você foi convidado - Demandaê"
+content_path = "./supabase/templates/invite.html"
+
+[auth.email.template.magic_link]
+subject = "Seu link de acesso - Demandaê"
+content_path = "./supabase/templates/magic_link.html"
+
+[auth.email.template.email_change]
+subject = "Confirme seu novo e-mail - Demandaê"
+content_path = "./supabase/templates/email_change.html"
+
+[auth.email.template.reauthentication]
+subject = "Seu código de verificação - Demandaê"
+content_path = "./supabase/templates/reauthentication.html"
+
 # Login/cadastro com Google (só a área do cliente usa - web /conta e app mobile).
 # As credenciais vêm de um OAuth Client (tipo Web) no Google Cloud. IMPORTANTE: o
 # Supabase hospedado (produção) NÃO lê este config.toml - configurar o provider e

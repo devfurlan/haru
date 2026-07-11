@@ -1,83 +1,45 @@
-import { Check, Phone, Smartphone } from 'lucide-react';
-
 import { Button } from '@/components/ui/button';
 
 import { Container } from './container';
-import { Eyebrow } from './eyebrow';
-import { HeroPhone } from './hero-phone';
 import { InterestDialog } from './interest-dialog';
-
-const highlights = [
-  'Conversa em linguagem natural pra agendar, remarcar ou cancelar - sem menu robótico',
-  'Entende áudio: transcreve o que o cliente falou e já responde',
-  'Mostra serviços, preços e horários no chat e marca ali mesmo',
-  'Agrupa mensagens em rajada ("oi" · "queria agendar") num atendimento só',
-  'Passa a conversa pra você quando o cliente pede uma pessoa',
-];
-
-const channels = [
-  {
-    Icon: Phone,
-    title: 'Número Demandaê',
-    text: 'Vai atender por um número nosso, com a identificação do seu negócio - sem burocracia de Meta.',
-  },
-  {
-    Icon: Smartphone,
-    title: 'Número próprio',
-    text: 'Vai atender pelo número do seu negócio. A gente configura a conta oficial na Meta pra você.',
-  },
-];
 
 export function AiAddon() {
   return (
-    <section id="addon" className="bg-cream-2 py-24">
-      <Container className="grid items-center gap-14 lg:grid-cols-[1.05fr_0.95fr]">
+    <section id="addon" className="border-edge bg-line border-y">
+      <Container className="grid items-center gap-16 py-24 lg:grid-cols-[1fr_400px]">
         <div>
-          <Eyebrow className="text-coral">Addon opcional · em breve</Eyebrow>
-          <h2 className="text-foreground mb-4 mt-4 font-serif text-[clamp(2rem,4vw,3.05rem)] font-semibold leading-[1.05] tracking-[-0.01em]">
-            Em breve: um <em className="text-coral italic">Atendente IA</em> conversando no seu
-            WhatsApp.
+          <span className="bg-paper border-edge text-ink-70 mb-5 inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-[0.68rem] font-bold uppercase tracking-[0.14em]">
+            <span className="bg-green-bright animate-pulse-ring h-1.5 w-1.5 rounded-full" />
+            Em desenvolvimento
+          </span>
+          <h2 className="mb-3.5 font-serif text-[clamp(1.9rem,3.4vw,2.25rem)] font-medium leading-[1.1] tracking-[-0.02em]">
+            Addon: atendente IA <em className="font-normal italic">no WhatsApp</em>
           </h2>
-          <p className="text-ink-soft mb-7 max-w-[540px] text-[1.1rem] leading-relaxed">
-            Hoje o WhatsApp já confirma e lembra sozinho no seu plano. O próximo passo é opcional:
-            um addon que liga a conversa de verdade - o cliente manda mensagem e a IA agenda,
-            remarca e tira dúvidas sozinha, inclusive por áudio. Entre na lista de espera pra ser
-            dos primeiros.
+          <p className="text-ink-70 max-w-[520px] text-[1rem] leading-[1.6]">
+            Pra quem quiser, um atendente que conversa com o cliente e marca o horário direto no
+            WhatsApp - em cima da mesma agenda, sem virar um segundo sistema. Tá no forno; entra na
+            lista que a gente te chama pra testar primeiro.
           </p>
+        </div>
 
-          <ul className="mb-7 flex flex-col gap-3">
-            {highlights.map((h) => (
-              <li key={h} className="flex items-start gap-2.5">
-                <Check aria-hidden strokeWidth={3} className="text-coral mt-1 size-4 shrink-0" />
-                <span className="text-ink-soft text-[1rem] leading-snug">{h}</span>
-              </li>
-            ))}
-          </ul>
-
-          <div className="mb-8 grid gap-3 sm:grid-cols-2">
-            {channels.map(({ Icon, title, text }) => (
-              <div key={title} className="border-border bg-paper flex gap-3 rounded-2xl border p-4">
-                <Icon className="text-coral mt-0.5 size-5 shrink-0" aria-hidden />
-                <div>
-                  <p className="text-sm font-semibold">{title}</p>
-                  <p className="text-ink-soft mt-1 text-[0.82rem] leading-relaxed">{text}</p>
-                </div>
-              </div>
-            ))}
+        <div className="bg-paper border-edge rounded-[18px] border p-7">
+          <div className="text-ink mb-1 font-serif text-[1.15rem] font-semibold">
+            Quer testar primeiro?
           </div>
-
+          <p className="text-ink-70 mb-5 text-[0.9rem] leading-[1.5]">
+            Entre na lista de espera e a gente te avisa assim que abrir.
+          </p>
           <InterestDialog
             title="Lista de espera do Atendente IA"
             description="O Atendente IA no WhatsApp está a caminho. Deixe seus dados que a gente avisa assim que abrir - e você entra na frente."
           >
-            <Button variant="ink" size="pill">
-              Entrar na lista de espera →
+            <Button variant="coral" className="h-12 w-full rounded-[14px] text-base">
+              Entrar na lista de espera
             </Button>
           </InterestDialog>
-        </div>
-
-        <div className="order-first lg:order-last">
-          <HeroPhone />
+          <div className="text-ink-30 mt-3 text-center text-xs font-medium">
+            Sem spam. Só o aviso do lançamento.
+          </div>
         </div>
       </Container>
     </section>
