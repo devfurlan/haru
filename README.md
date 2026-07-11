@@ -224,6 +224,19 @@ Diferente dos de cima (cada Tenant cria os seus na conta dele), estes vivem na *
 
 **Aprovação:** criar os dois na conta WhatsApp Business **da plataforma** (WhatsApp Manager → _Modelos de mensagem_), categoria `UTILITY`, aguardar aprovação e preencher as envs acima. A aprovação em si não é feita nesta camada - só a lista + o envio env-gated ficam prontos.
 
+### Transacional ao cliente pela PLATAFORMA (fallback do plano base)
+
+No plano base o Tenant não tem WABA própria, então a saída transacional ao cliente final (lembrete, cancelamento, remarcação) sai **pelo número da plataforma** Demandaê, com os mesmos 3 parâmetros dos templates do Tenant. **Fallback aditivo:** quem tem WABA própria (variante OWN do addon) segue enviando pelo número dele; só quem não tem cai na plataforma. Env-gated: sem `WHATSAPP_PLATFORM_PHONE_NUMBER_ID` / `WHATSAPP_PLATFORM_ACCESS_TOKEN` + o template do evento, vira no-op (base fica só com e-mail/push - honesto com a arquitetura atual). Registrar/aprovar na WABA da plataforma, categoria `UTILITY`.
+
+- **Lembrete** — env `WHATSAPP_TEMPLATE_REMINDER` · Idioma `pt_BR` · Enviado em [apps/bot/src/lib/reminders.ts](apps/bot/src/lib/reminders.ts)
+- **Cancelamento** — env `WHATSAPP_TEMPLATE_CANCEL` · Idioma `pt_BR` · Enviado em [apps/web/src/lib/whatsapp-templates.ts](apps/web/src/lib/whatsapp-templates.ts)
+- **Remarcação** — env `WHATSAPP_TEMPLATE_RESCHEDULE` · Idioma `pt_BR` · Enviado em [apps/web/src/lib/whatsapp-templates.ts](apps/web/src/lib/whatsapp-templates.ts)
+- **Variáveis (nos três):** `{{1}}` nome do cliente · `{{2}}` data/hora · `{{3}}` serviço
+- **Corpo sugerido (lembrete):**
+  > Oi, {{1}}! Passando pra lembrar do seu horário: {{2}} · {{3}}. Até lá!
+
+**Confirmação** (evento de criação) ainda **não** sai por WhatsApp - depende de criar o template de confirmação e ligar a flag `WHATSAPP_CONFIRMATION_ACTIVE` na copy de sucesso (`public-booking.tsx` / mobile). Hoje a confirmação sai por e-mail + área logada (app/web).
+
 Notas:
 
 - **Fallback:** se o Tenant não tem template configurado, o código cai para texto livre - que **só entrega se o cliente falou com o número nas últimas 24h**. Por isso os templates são o caminho oficial.

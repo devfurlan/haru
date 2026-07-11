@@ -4,7 +4,7 @@ import Link from 'next/link';
 export const metadata: Metadata = {
   title: 'Política de Cookies - Demandaê',
   description:
-    'O que são cookies, quais o Demandaê utiliza e como você pode gerenciá-los na plataforma de agendamento e pagamentos pelo WhatsApp e no aplicativo.',
+    'O que são cookies, quais o Demandaê utiliza e como você pode gerenciá-los na plataforma de agendamento e pagamentos do Demandaê - app do cliente, página pública e painel.',
 };
 
 const LAST_UPDATED = '2 de julho de 2026';

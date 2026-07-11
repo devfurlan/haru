@@ -1,5 +1,8 @@
 import { redirect } from 'next/navigation';
 
+import { isAddonActive } from '@haru/billing';
+import { prisma } from '@haru/database';
+
 import { BillingBanner } from '@/components/billing-banner';
 import { DashboardShell } from '@/components/dashboard/dashboard-shell';
 import { NotificationBell } from '@/components/notification-bell';
@@ -22,6 +25,10 @@ export default async function DashboardLayout({
   // onboardingCompletedAt preenchido (backfill da migration).
   if (!tenant.onboardingCompletedAt) redirect('/onboarding');
 
+  // Gate da aba Conversas: só com o addon "Atendente IA" ativo (o inbound do bot é
+  // quem popula a caixa; sem addon fica vazia).
+  const subscription = await prisma.subscription.findUnique({ where: { tenantId: tenant.id } });
+
   return (
     <>
       <DashboardShell
@@ -32,6 +39,7 @@ export default async function DashboardLayout({
         userEmail={email}
         userAvatarUrl={avatarUrl}
         isAdmin={isAdmin(user)}
+        addonActive={isAddonActive(subscription)}
         notification={<NotificationBell tenantId={tenant.id} />}
         banners={
           <>

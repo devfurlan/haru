@@ -4,7 +4,7 @@ import Link from 'next/link';
 export const metadata: Metadata = {
   title: 'Política de Privacidade - Demandaê',
   description:
-    'Como o Demandaê coleta, usa, compartilha e protege dados pessoais na plataforma de agendamento e pagamentos pelo WhatsApp e no aplicativo para clientes.',
+    'Como o Demandaê coleta, usa, compartilha e protege dados pessoais na plataforma de agendamento e pagamentos para negócios de serviço - app do cliente, página pública e painel.',
 };
 
 const LAST_UPDATED = '2 de julho de 2026';
@@ -20,10 +20,11 @@ export default function PrivacyPolicyPage() {
           <p>
             Esta Política de Privacidade descreve como o Demandaê (&ldquo;Demandaê&rdquo;,
             &ldquo;nós&rdquo;) coleta, utiliza, compartilha e protege dados pessoais ao oferecer uma
-            plataforma de agendamento e pagamentos por meio do WhatsApp para negócios de serviço
-            (barbearias, clínicas, podólogas e similares), bem como um site e um aplicativo móvel por
-            meio dos quais o cliente final cria uma conta para encontrar estabelecimentos, agendar,
-            pagar e acompanhar seus atendimentos.
+            plataforma de agendamento e pagamentos para negócios de serviço (barbearias, clínicas,
+            podólogas e similares), composta por um aplicativo móvel, uma página pública de
+            agendamento e um painel de gestão, por meio dos quais o cliente final cria uma conta para
+            encontrar estabelecimentos, agendar, pagar e acompanhar seus atendimentos. O WhatsApp é
+            um canal opcional de avisos.
           </p>
           <p>
             Estamos comprometidos com a Lei nº 13.709/2018 (Lei Geral de Proteção de Dados - LGPD).

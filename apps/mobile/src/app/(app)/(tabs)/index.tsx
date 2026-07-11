@@ -8,11 +8,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text } from '@/components/text';
 
 import { HeartIcon } from '@/components/heart-icon';
+import { LoyaltyStrip } from '@/components/loyalty-strip';
 import { SearchIcon } from '@/components/search-icon';
 import { TenantAvatar } from '@/components/tenant-avatar';
 import { api, ApiError, type AppointmentItem, type AppointmentsData, type Me } from '@/lib/api';
 import { useBoot } from '@/lib/boot';
 import { useFavorites } from '@/lib/use-favorites';
+import { useLoyaltyCelebration } from '@/lib/use-loyalty-celebration';
 
 const fraunces = { fontFamily: 'Fraunces_600SemiBold' };
 const frauncesItalic = { fontFamily: 'Fraunces_500Medium_Italic' };
@@ -200,6 +202,7 @@ export default function HomeScreen() {
   const [error, setError] = useState<string | null>(null);
   const { list: favorites, ids, reload: reloadFavs, toggle } = useFavorites();
   const { markContentReady } = useBoot();
+  useLoyaltyCelebration();
 
   const loadCore = useCallback(async () => {
     setError(null);
@@ -326,6 +329,11 @@ export default function HomeScreen() {
               title="Favoritos"
               subtitle={`${favorites.length} ${favorites.length === 1 ? 'lugar' : 'lugares'}`}
             />
+          </View>
+
+          {/* Cartão fidelidade (some sozinho se não houver) */}
+          <View className="px-6 pt-6">
+            <LoyaltyStrip />
           </View>
 
           {/* Volte pra… */}

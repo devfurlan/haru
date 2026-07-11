@@ -6,7 +6,7 @@ const features = [
   {
     Icon: CalendarDays,
     title: 'Agenda inteligente',
-    text: 'Respeita seu expediente e seus intervalos. Nunca marca um em cima do outro.',
+    text: 'Respeita seu expediente e evita dois no mesmo horário. E marca horário fixo - semanal, quinzenal ou mensal - de uma vez.',
   },
   {
     Icon: Bell,

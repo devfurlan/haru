@@ -39,7 +39,7 @@ function fmtLimit(n: number | null): string {
 const SUBTITLE: Record<string, string> = {
   ESSENCIAL: 'Pra quem toca tudo sozinho',
   PROFISSIONAL: 'Pra equipe no mesmo endereço',
-  NEGOCIO: 'Pra quem tem mais de uma unidade',
+  NEGOCIO: 'Pra operação grande, equipe sem teto',
 };
 
 interface Feat {
@@ -69,9 +69,9 @@ function featuresFor(t: PricingTier, prevName: string | null): Feat[] {
     case 'NEGOCIO':
       return [
         { text: `Tudo do ${prevName ?? 'Time'}, mais:`, strong: true },
-        { text: 'Várias unidades num painel' },
-        { text: 'Visão consolidada do faturamento' },
-        { text: 'Permissões por unidade' },
+        { text: 'Profissionais ilimitados' },
+        { text: 'Recepcionistas ilimitados' },
+        { text: appts },
       ];
     default:
       return [

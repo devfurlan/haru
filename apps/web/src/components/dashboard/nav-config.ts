@@ -7,6 +7,7 @@ import {
   MessageCircle,
   Scissors,
   Settings,
+  Upload,
   User,
   Users,
   type LucideIcon,
@@ -22,6 +23,9 @@ export interface NavItem {
   group: NavGroupId;
   /** Só OWNER vê. */
   adminOnly?: boolean;
+  /** Só aparece com o addon "Atendente IA" ativo (o inbound do bot é quem cria as
+   * conversas; sem o addon a caixa fica vazia). */
+  addonOnly?: boolean;
   /** Aparece na barra inferior do mobile (4 primeiros). */
   mobile?: boolean;
   /** Recebe o badge coral de handoff (contagem de conversas esperando você). */
@@ -56,9 +60,18 @@ export const NAV_ITEMS: NavItem[] = [
     group: 'dia',
     mobile: true,
     badge: 'handoff',
+    addonOnly: true,
   },
   { key: 'clientes', label: 'Clientes', href: '/clients', icon: User, group: 'dia', mobile: true },
   { key: 'servicos', label: 'Serviços', href: '/services', icon: Scissors, group: 'negocio' },
+  {
+    key: 'importar',
+    label: 'Importar',
+    href: '/import',
+    icon: Upload,
+    group: 'negocio',
+    adminOnly: true,
+  },
   { key: 'fidelidade', label: 'Fidelidade', href: '/loyalty', icon: Gift, group: 'negocio' },
   { key: 'equipe', label: 'Equipe', href: '/team', icon: Users, group: 'negocio' },
   { key: 'horarios', label: 'Horários', href: '/schedule', icon: Clock, group: 'negocio' },

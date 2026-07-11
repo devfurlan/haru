@@ -217,32 +217,54 @@ export async function getLoyaltyOverview(
   };
 }
 
-/** Carimbos atuais de UM cliente (usado no resgate, pra validar que ganhou). */
-export async function stampsForContact(
-  program: LoyaltyProgramView & { pausedAt?: Date | null },
-  tenantId: string,
-  contactId: string,
-): Promise<number> {
-  const now = new Date();
-  const ttlFloor =
-    program.stampTtlDays != null
-      ? new Date(now.getTime() - program.stampTtlDays * 86_400_000)
-      : null;
+/** Campos mínimos do programa pra calcular carimbos de um cliente. */
+type StampRule = {
+  id: string;
+  stampTtlDays: number | null;
+  countMode: LoyaltyCountMode;
+  qualifyingServiceIds: string[];
+};
 
-  const lastRedemption = await prisma.loyaltyRedemption.findFirst({
-    where: { programId: program.id, contactId },
+/** Data-piso a partir da qual carimbos contam para um cliente: máx entre a validade
+ * (ttl) e o último resgate. null = sem piso. */
+async function stampFloor(
+  programId: string,
+  contactId: string,
+  ttlDays: number | null,
+  now: Date,
+): Promise<Date | null> {
+  const ttlFloor = ttlDays != null ? new Date(now.getTime() - ttlDays * 86_400_000) : null;
+  const last = await prisma.loyaltyRedemption.findFirst({
+    where: { programId, contactId },
     orderBy: { redeemedAt: 'desc' },
     select: { redeemedAt: true },
   });
-  const floor = [ttlFloor, lastRedemption?.redeemedAt].filter(Boolean) as Date[];
-  const lowerBound = floor.length ? new Date(Math.max(...floor.map((d) => d.getTime()))) : null;
+  const floors = [ttlFloor, last?.redeemedAt].filter(Boolean) as Date[];
+  return floors.length ? new Date(Math.max(...floors.map((d) => d.getTime()))) : null;
+}
 
-  return prisma.appointment.count({
+export interface QualifyingAppointment {
+  id: string;
+  startsAt: Date;
+  serviceName: string;
+}
+
+/** Agendamentos que valem carimbo pra UM cliente (passados, não cancelados/falta,
+ * dentro da validade e depois do último resgate), mais recentes primeiro. É a fonte
+ * única do carimbo - a contagem é só o `.length` disto. */
+export async function getContactQualifyingAppointments(
+  program: StampRule,
+  tenantId: string,
+  contactId: string,
+): Promise<QualifyingAppointment[]> {
+  const now = new Date();
+  const floor = await stampFloor(program.id, contactId, program.stampTtlDays, now);
+  const rows = await prisma.appointment.findMany({
     where: {
       tenantId,
       contactId,
       status: { notIn: ['CANCELED', 'NO_SHOW'] },
-      startsAt: { lt: now, ...(lowerBound ? { gt: lowerBound } : {}) },
+      startsAt: { lt: now, ...(floor ? { gt: floor } : {}) },
       ...(program.countMode === 'SPECIFIC'
         ? {
             serviceId: {
@@ -251,5 +273,17 @@ export async function stampsForContact(
           }
         : {}),
     },
+    select: { id: true, startsAt: true, service: { select: { name: true } } },
+    orderBy: { startsAt: 'desc' },
   });
+  return rows.map((r) => ({ id: r.id, startsAt: r.startsAt, serviceName: r.service.name }));
+}
+
+/** Carimbos atuais de UM cliente (usado no resgate, pra validar que ganhou). */
+export async function stampsForContact(
+  program: StampRule,
+  tenantId: string,
+  contactId: string,
+): Promise<number> {
+  return (await getContactQualifyingAppointments(program, tenantId, contactId)).length;
 }

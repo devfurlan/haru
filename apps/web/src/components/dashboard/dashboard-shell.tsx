@@ -24,6 +24,8 @@ export interface DashboardShellProps {
   userEmail: string;
   userAvatarUrl: string | null;
   isAdmin: boolean;
+  /** Addon "Atendente IA" ativo. Gate da aba Conversas (sem addon, inbox fica vazio). */
+  addonActive: boolean;
   /** Conversas esperando você (badge coral). Populado na fase de Conversas. */
   handoffCount?: number;
   /** Sino de notificações (server component) injetado pelo layout. */
@@ -80,6 +82,7 @@ export function DashboardShell({
   userEmail,
   userAvatarUrl,
   isAdmin,
+  addonActive,
   handoffCount = 0,
   notification,
   banners,
@@ -91,7 +94,9 @@ export function DashboardShell({
   const tenantInitials = initialsOf(tenantName, 'D');
   const userInitial = initialsOf(userName || userEmail, 'U');
   const roleLabel = isAdmin ? 'Administrador' : 'Equipe';
-  const visibleItems = NAV_ITEMS.filter((i) => isAdmin || !i.adminOnly);
+  const visibleItems = NAV_ITEMS.filter(
+    (i) => (isAdmin || !i.adminOnly) && (addonActive || !i.addonOnly),
+  );
   const mobileItems = visibleItems.filter((i) => i.mobile);
   const moreItems = visibleItems.filter((i) => i.group === 'negocio');
   const statusText = live ? 'No ar pros seus clientes' : 'Página pausada';

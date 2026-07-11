@@ -1760,7 +1760,8 @@ function StepConfirmar({
               htmlFor="booking-phone"
               className="text-ink-soft mb-1.5 block text-[12.5px] font-semibold"
             >
-              WhatsApp <span className="text-sub font-normal">(opcional)</span>
+              WhatsApp{' '}
+              {hasAccount ? <span className="text-sub font-normal">(opcional)</span> : null}
             </label>
             <input
               id="booking-phone"
@@ -1776,7 +1777,9 @@ function StepConfirmar({
               className={FIELD_INPUT}
             />
             <p id="booking-phone-hint" className="text-sub mt-1.5 text-[11.5px]">
-              Se quiser receber lembretes por lá. Inclua o DDD.
+              {hasAccount
+                ? 'Se quiser receber lembretes por lá. Inclua o DDD.'
+                : 'Precisamos dele pra confirmar e te lembrar do horário. Inclua o DDD.'}
             </p>
           </div>
         </div>
@@ -1798,7 +1801,10 @@ function StepConfirmar({
         <div className="border-green/20 bg-accent space-y-3 rounded-2xl border p-4">
           <p className="text-foreground flex items-center gap-1.5 text-sm font-medium">
             <Sparkles className="text-green h-4 w-4 shrink-0" aria-hidden="true" />
-            Crie sua conta pra confirmar
+            Crie sua conta (opcional)
+          </p>
+          <p className="text-sub text-xs">
+            Dá pra confirmar só com nome e WhatsApp. Com conta, você ainda:
           </p>
           <ul className="text-sub space-y-1 text-xs">
             <li className="flex items-start gap-1.5">
@@ -1877,8 +1883,8 @@ function StepConfirmar({
 
         <ConfirmButton
           disabled={
-            !hasAccount ||
             !nameOk ||
+            (!hasAccount && !phoneOk) ||
             lookingUp ||
             (isSeries && (previewLoading || chosenIsos.length < 2))
           }

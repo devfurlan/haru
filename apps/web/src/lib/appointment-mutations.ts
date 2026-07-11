@@ -250,9 +250,19 @@ export async function createBookingCore(args: {
     return { error: 'Esse horário acabou de ser preenchido. Escolha outro.' };
   }
 
-  const appointment = await prisma.appointment.create({
-    data: { tenantId, contactId, serviceId, professionalId, startsAt, endsAt, status },
-  });
+  let appointment;
+  try {
+    appointment = await prisma.appointment.create({
+      data: { tenantId, contactId, serviceId, professionalId, startsAt, endsAt, status },
+    });
+  } catch (err) {
+    // A guarda de banco (exclusion constraint Appointment_no_overlap) vence a corrida
+    // que o findFirst acima não pega. Traduz pro mesmo erro amigável, sem estourar 500.
+    if (err instanceof Error && err.message.includes('Appointment_no_overlap')) {
+      return { error: 'Esse horário acabou de ser preenchido. Escolha outro.' };
+    }
+    throw err;
+  }
 
   notifyAppointmentCreated(appointment.id).catch((err) =>
     console.error('[appointment-mutations] notify create failed', err),

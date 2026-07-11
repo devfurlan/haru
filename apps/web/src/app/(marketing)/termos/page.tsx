@@ -4,7 +4,7 @@ import Link from 'next/link';
 export const metadata: Metadata = {
   title: 'Termos de Serviço - Demandaê',
   description:
-    'Termos e condições de uso do Demandaê, plataforma de agendamento e pagamentos pelo WhatsApp para negócios de serviço e aplicativo para clientes.',
+    'Termos e condições de uso do Demandaê - plataforma completa de agendamento e pagamentos para negócios de serviço: app do cliente, página pública e painel. WhatsApp como canal de avisos.',
 };
 
 const LAST_UPDATED = '2 de julho de 2026';
@@ -26,11 +26,13 @@ export default function TermsOfServicePage() {
             (&ldquo;Demandaê&rdquo;, &ldquo;nós&rdquo;).
           </p>
           <p>
-            O Demandaê oferece uma plataforma de agendamento e pagamentos por meio do WhatsApp para
-            negócios de serviço, além de um site e um aplicativo móvel por meio dos quais o cliente
-            final pode criar uma conta para encontrar estabelecimentos, agendar, pagar e acompanhar
-            seus atendimentos. Ao criar uma conta ou utilizar a plataforma, você declara ter lido,
-            compreendido e concordado com estes Termos.
+            O Demandaê oferece uma plataforma de agendamento e pagamentos para negócios de serviço,
+            composta por um aplicativo móvel, uma página pública de agendamento e um painel de
+            gestão, por meio dos quais o cliente final pode criar uma conta para encontrar
+            estabelecimentos, agendar, pagar e acompanhar seus atendimentos. O WhatsApp é um canal
+            opcional de avisos (confirmações e lembretes) e, quando contratado o serviço de
+            atendimento por IA, de atendimento conversacional. Ao criar uma conta ou utilizar a
+            plataforma, você declara ter lido, compreendido e concordado com estes Termos.
           </p>
         </section>
 

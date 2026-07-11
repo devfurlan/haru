@@ -109,6 +109,20 @@ async function processReminders() {
     // envio falharia) mas seguimos mandando os lembretes por e-mail.
     let whatsappBlocked = false;
 
+    // Canal do lembrete por WhatsApp: WABA PRÓPRIA do tenant (variante OWN do addon) ou, no
+    // plano base, o número da PLATAFORMA Demandaê (env-gated pelo template aprovado). Sem
+    // nenhum → não sai por WhatsApp (só e-mail/push). O número da plataforma NUNCA usa
+    // freeform: a janela de 24h exige que o cliente já tenha escrito pro número, o que não
+    // acontece com o da plataforma - por isso o fallback base depende do template aprovado.
+    const ownNumberId = tenant.whatsappPhoneNumberId;
+    const platformNumberId = process.env.WHATSAPP_PLATFORM_PHONE_NUMBER_ID;
+    const platformReminderTpl = process.env.WHATSAPP_TEMPLATE_REMINDER;
+    const platformReady = Boolean(platformNumberId && platformReminderTpl);
+    const waNumberId = ownNumberId ?? (platformReady ? platformNumberId : undefined);
+    const waTemplateName = ownNumberId ? tenant.reminderTemplateName : platformReminderTpl;
+    const waTemplateLang = ownNumberId ? (tenant.reminderTemplateLanguage ?? 'pt_BR') : 'pt_BR';
+    const waAllowFreeform = Boolean(ownNumberId);
+
     for (const appt of appts) {
       const when = formatWhen(appt.startsAt, tenant.timezone);
       const name = appt.contact.name ?? 'cliente';
@@ -118,50 +132,41 @@ async function processReminders() {
       // logado, sem número) recebe só por e-mail/push. ---
       if (
         appt.contact.phone != null &&
-        tenant.whatsappPhoneNumberId &&
+        waNumberId &&
         !whatsappBlocked &&
         appt.reminderSentAt == null &&
         appt.contact.remindersOptOutAt == null
       ) {
         let sent = false;
 
-        if (tenant.reminderTemplateName) {
+        if (waTemplateName) {
           // Caminho oficial: template aprovado pela Meta. Escapa da regra das 24h.
           try {
-            await sendTemplateMessage(
-              tenant.whatsappPhoneNumberId,
-              appt.contact.phone,
-              tenant.reminderTemplateName,
-              tenant.reminderTemplateLanguage ?? 'pt_BR',
-              [
-                {
-                  type: 'body',
-                  parameters: [
-                    { type: 'text', text: name },
-                    { type: 'text', text: when },
-                    { type: 'text', text: appt.service.name },
-                  ],
-                },
-              ],
-            );
+            await sendTemplateMessage(waNumberId, appt.contact.phone, waTemplateName, waTemplateLang, [
+              {
+                type: 'body',
+                parameters: [
+                  { type: 'text', text: name },
+                  { type: 'text', text: when },
+                  { type: 'text', text: appt.service.name },
+                ],
+              },
+            ]);
             sent = true;
           } catch (err) {
             console.error('[reminders] template falhou', err);
             Sentry.captureException(err, {
               tags: { component: 'reminders', mode: 'template' },
-              extra: {
-                tenantId: tenant.id,
-                appointmentId: appt.id,
-                template: tenant.reminderTemplateName,
-              },
+              extra: { tenantId: tenant.id, appointmentId: appt.id, template: waTemplateName },
             });
-            // O erro da Meta é genérico (#135000) e não diz o motivo. Confirma na
-            // Graph API se o número foi banido; se foi, marca o tenant (o loop passa
-            // a pulá-lo) e para o WhatsApp nos demais appts - mas o e-mail continua.
-            if (await flagIfBanned(tenant)) whatsappBlocked = true;
+            // O erro da Meta é genérico (#135000) e não diz o motivo. Confirma na Graph API se
+            // o número foi banido; se foi, marca o tenant e para o WhatsApp nos demais appts -
+            // mas o e-mail continua. SÓ pro número PRÓPRIO: o da plataforma é compartilhado,
+            // um ban dele é problema de plataforma, não deste tenant.
+            if (ownNumberId && (await flagIfBanned(tenant))) whatsappBlocked = true;
           }
-        } else {
-          // Fallback: freeform (só funciona se cliente mandou mensagem nas últimas 24h)
+        } else if (waAllowFreeform) {
+          // Fallback: freeform (só no número próprio, e só se o cliente escreveu nas últimas 24h)
           const greeting = appt.contact.name ? `Oi, ${appt.contact.name}!` : 'Oi!';
           const text =
             `${greeting} Passando pra lembrar do seu agendamento na ${tenant.name}:\n\n` +
@@ -169,9 +174,9 @@ async function processReminders() {
             `✂️ ${appt.service.name}\n\n` +
             `Se precisar remarcar ou cancelar, é só me chamar por aqui. Até lá!`;
 
-          sent = await sendTextSafely(tenant.whatsappPhoneNumberId, appt.contact.phone, text, {
+          sent = await sendTextSafely(waNumberId, appt.contact.phone, text, {
             phone: appt.contact.phone,
-            phoneNumberId: tenant.whatsappPhoneNumberId,
+            phoneNumberId: waNumberId,
             tenantId: tenant.id,
             flow: 'reminder',
           });

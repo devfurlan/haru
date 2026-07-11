@@ -143,6 +143,27 @@ export class ApiError extends Error {
   }
 }
 
+// --- Fidelidade (cartões de carimbo). Espelha lib/loyalty-customer.ts do web. ---
+export type LoyaltyCard = {
+  tenantId: string;
+  tenantSlug: string;
+  tenantName: string;
+  logoUrl: string | null;
+  stamps: number;
+  required: number;
+  /** 0-100. */
+  pct: number;
+  won: boolean;
+  /** "A cada 10 visitas, corte de graça". */
+  ruleLabel: string;
+  /** "corte de graça" / "30% de desconto". */
+  prizeLabel: string;
+};
+
+export type LoyaltyVisit = { id: string; serviceName: string; whenLabel: string };
+
+export type LoyaltyCardDetail = LoyaltyCard & { timezone: string; visits: LoyaltyVisit[] };
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const { data } = await supabase.auth.getSession();
   const token = data.session?.access_token;
@@ -261,6 +282,14 @@ export const api = {
     request<{ ok: true }>('/favorites', { method: 'POST', body: JSON.stringify({ tenantId }) }),
   removeFavorite: (tenantId: string) =>
     request<{ ok: true }>(`/favorites/${tenantId}`, { method: 'DELETE' }),
+
+  // --- Fidelidade ---
+  loyalty: () => request<{ cards: LoyaltyCard[] }>('/loyalty'),
+  loyaltyDetail: (tenantId: string) => request<LoyaltyCardDetail>(`/loyalty/${tenantId}`),
+  loyaltyRedeem: (tenantId: string) =>
+    request<{ ok: true; prizeLabel: string; required: number }>(`/loyalty/${tenantId}/redeem`, {
+      method: 'POST',
+    }),
 
   tenantSlots: (slug: string, serviceId: string, dateStr: string, professionalId?: string) =>
     request<{ slots: AvailableSlot[] }>(`/tenants/${slug}/slots`, {

@@ -69,6 +69,29 @@ function HeartRowIcon() {
   );
 }
 
+function LoyaltyRowIcon() {
+  return (
+    <Svg width={21} height={21} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M19 13v6a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-6"
+        stroke={ROW_ICON}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Rect x={3} y={8} width={18} height={5} rx={1.5} stroke={ROW_ICON} strokeWidth={2} />
+      <Path d="M12 8v13" stroke={ROW_ICON} strokeWidth={2} strokeLinecap="round" />
+      <Path
+        d="M7.5 8a2.5 2.5 0 1 1 0-5C10 3 12 8 12 8s2-5 4.5-5a2.5 2.5 0 1 1 0 5"
+        stroke={ROW_ICON}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
 function HelpRowIcon() {
   return (
     <Svg width={21} height={21} viewBox="0 0 24 24" fill="none">
@@ -275,6 +298,12 @@ export default function MenuScreen() {
           label="Favoritos"
           right={<ChevronRight />}
           onPress={() => router.push({ pathname: '/buscar', params: { tab: 'favoritos' } } as Href)}
+        />
+        <Row
+          icon={<LoyaltyRowIcon />}
+          label="Fidelidade"
+          right={<ChevronRight />}
+          onPress={() => router.push('/fidelidade' as Href)}
         />
         <Row
           icon={<LockRowIcon />}
