@@ -41,7 +41,11 @@ export default async function AppointmentsPage() {
         select: { weekday: true, startMinute: true, endMinute: true },
       }),
       prisma.scheduleException.findMany({
-        where: { tenantId: tenant.id, startsAt: { lte: calendarTo }, endsAt: { gte: calendarFrom } },
+        where: {
+          tenantId: tenant.id,
+          startsAt: { lte: calendarTo },
+          endsAt: { gte: calendarFrom },
+        },
         orderBy: { startsAt: 'asc' },
       }),
       prisma.user.findMany({
@@ -82,6 +86,7 @@ export default async function AppointmentsPage() {
     startsAt: e.startsAt.toISOString(),
     endsAt: e.endsAt.toISOString(),
     reason: e.reason,
+    professionalId: e.professionalId,
   }));
 
   const hm = (d: Date) =>

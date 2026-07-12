@@ -1,0 +1,16 @@
+-- Reverte 20260711120000_appointment_no_overlap.
+--
+-- Aquela migração criava uma constraint EXCLUDE que proibia QUALQUER sobreposição de
+-- agendamentos ativos (PENDING/CONFIRMED) do mesmo profissional. Isso conflita com o
+-- "Encaixe" (apps/web/src/app/(dashboard)/appointments/actions.ts): feature em que o
+-- dono cria um agendamento sobrepondo outro DE PROPÓSITO ("libera as 24h e a
+-- sobreposição"). Como não existe coluna no Appointment que marque um registro como
+-- encaixe, não dá pra fazer uma constraint parcial que o ignore - a trava no banco
+-- rejeitaria todo encaixe no runtime. A proteção contra double-booking de corrida
+-- continua no app (findFirst+create em appointment-mutations.ts), que já tem o bypass
+-- do encaixe.
+--
+-- IF EXISTS: em produção a constraint nunca chegou a ser criada (a migração original
+-- falhou por overlaps já existentes); em bancos onde ela entrou (local fresh), remove.
+-- Idempotente: seguro reaplicar.
+ALTER TABLE "Appointment" DROP CONSTRAINT IF EXISTS "Appointment_no_overlap";

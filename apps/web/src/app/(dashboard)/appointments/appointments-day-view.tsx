@@ -11,9 +11,9 @@ import { Button } from '@/components/ui/button';
 import { Chip } from '@/components/ui/chip';
 
 import { cancelAppointment, confirmAppointment } from './actions';
-import { AppointmentDetailDialog } from './appointment-detail-dialog';
+import { AppointmentDetailCard } from './appointment-detail-card';
 import { BlockTimeDialog } from './block-time-dialog';
-import { DayTimeline } from './day-timeline';
+import { DayGrid } from './day-grid';
 import { MiniMonth } from './mini-month';
 
 export interface CalendarAppointment {
@@ -35,6 +35,8 @@ export interface CalendarException {
   startsAt: string; // ISO UTC
   endsAt: string; // ISO UTC
   reason: string | null;
+  /** Folga de um profissional específico; null = estabelecimento inteiro. */
+  professionalId: string | null;
 }
 
 export interface DayScheduleBlock {
@@ -51,6 +53,17 @@ export interface PendingItem {
   priceLabel: string;
   proName: string | null;
 }
+
+/** Uma coluna da grade (profissional visível). */
+export interface GridProfessional {
+  id: string;
+  name: string;
+  color: string;
+  meta?: string;
+}
+
+/** Cores por profissional (ponto do chip + borda do avatar na coluna). */
+const PRO_COLORS = ['#2FD37A', '#C9A24B', '#FF5A36', '#3B82F6', '#A855F7', '#EC4899', '#14B8A6'];
 
 interface AppointmentsDayViewProps {
   appointments: CalendarAppointment[];
@@ -97,6 +110,16 @@ export function AppointmentsDayView({
   const [blockSeq, setBlockSeq] = useState(0);
   const [proFilter, setProFilter] = useState<string | null>(null); // null = todos
 
+  const multiPro = professionals.length > 1;
+  const colorOf = (id: string) =>
+    PRO_COLORS[professionals.findIndex((p) => p.id === id) % PRO_COLORS.length];
+
+  // Selecionar outro dia/filtro fecha o detalhe (ele pode não estar mais visível).
+  const goToDay = (day: string) => {
+    setSelected(day);
+    setActive(null);
+  };
+
   const byDay = useMemo(() => {
     const map = new Map<string, CalendarAppointment[]>();
     for (const appt of appointments) {
@@ -113,7 +136,10 @@ export function AppointmentsDayView({
     const map = new Map<string, CalendarException[]>();
     for (const ex of exceptions) {
       const firstKey = localDayKey(ex.startsAt, timezone);
-      const lastKey = localDayKey(new Date(new Date(ex.endsAt).getTime() - 1).toISOString(), timezone);
+      const lastKey = localDayKey(
+        new Date(new Date(ex.endsAt).getTime() - 1).toISOString(),
+        timezone,
+      );
       for (let key = firstKey; key <= lastKey; key = shiftDayKey(key, 1)) {
         const list = map.get(key);
         if (list) list.push(ex);
@@ -124,10 +150,28 @@ export function AppointmentsDayView({
   }, [exceptions, timezone]);
 
   const daysWithAppointments = useMemo(() => new Set(byDay.keys()), [byDay]);
-  const dayAppointments = (byDay.get(selected) ?? []).filter(
-    (a) => proFilter === null || a.professionalId === proFilter,
-  );
+  const dayApptsAll = byDay.get(selected) ?? [];
+  const gridAppts =
+    proFilter === null ? dayApptsAll : dayApptsAll.filter((a) => a.professionalId === proFilter);
   const dayExceptions = exceptionsByDay.get(selected) ?? [];
+
+  // Colunas da grade: solo (≤1 prof) usa coluna única sem cabeçalho; multi mostra
+  // uma coluna por profissional (ou só a selecionada pelo chip).
+  const columns: GridProfessional[] = useMemo(() => {
+    if (!multiPro) return [];
+    const list =
+      proFilter === null ? professionals : professionals.filter((p) => p.id === proFilter);
+    return list.map((p) => {
+      const n = dayApptsAll.filter((a) => a.professionalId === p.id).length;
+      return {
+        id: p.id,
+        name: p.name,
+        color: colorOf(p.id),
+        meta: n === 0 ? 'livre' : `${n} no dia`,
+      };
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [multiPro, proFilter, professionals, dayApptsAll]);
 
   const selectedLabel = useMemo(() => {
     const [y, m, d] = selected.split('-').map(Number);
@@ -140,13 +184,17 @@ export function AppointmentsDayView({
     return label.charAt(0).toUpperCase() + label.slice(1);
   }, [selected, timezone]);
 
+  const professionalName = active
+    ? (professionals.find((p) => p.id === active.professionalId)?.name ?? null)
+    : null;
+
   return (
     <div className="mx-auto flex w-full max-w-[1360px] flex-col gap-4">
       {/* header */}
       <div className="flex flex-wrap items-end gap-4">
         <div className="min-w-[220px] flex-1">
-          <h1 className="font-serif text-[28px] tracking-tight text-ink">Agenda</h1>
-          <p className="mt-1 text-sm text-ink-50">Tudo que marcaram com você, num lugar só.</p>
+          <h1 className="text-ink font-serif text-[28px] tracking-tight">Agenda</h1>
+          <p className="text-ink-50 mt-1 text-sm">Tudo que marcaram com você, num lugar só.</p>
         </div>
         <div className="flex flex-none items-center gap-2.5">
           <Button
@@ -166,35 +214,35 @@ export function AppointmentsDayView({
 
       {/* toolbar */}
       <div className="flex flex-wrap items-center gap-3">
-        <div className="flex items-center gap-1.5 rounded-full border border-edge bg-paper p-1">
+        <div className="border-edge bg-paper flex items-center gap-1.5 rounded-full border p-1">
           <button
             type="button"
             aria-label="Dia anterior"
-            onClick={() => setSelected((s) => shiftDayKey(s, -1))}
-            className="flex size-7 items-center justify-center rounded-full text-ink-70 hover:bg-cream-2"
+            onClick={() => goToDay(shiftDayKey(selected, -1))}
+            className="text-ink-70 hover:bg-cream-2 flex size-[30px] items-center justify-center rounded-full"
           >
             <ChevronLeft className="size-4" />
           </button>
-          <span className="px-1.5 font-serif text-sm text-ink">{selectedLabel}</span>
+          <span className="text-ink px-1.5 font-serif text-sm">{selectedLabel}</span>
           <button
             type="button"
             aria-label="Próximo dia"
-            onClick={() => setSelected((s) => shiftDayKey(s, 1))}
-            className="flex size-7 items-center justify-center rounded-full text-ink-70 hover:bg-cream-2"
+            onClick={() => goToDay(shiftDayKey(selected, 1))}
+            className="text-ink-70 hover:bg-cream-2 flex size-[30px] items-center justify-center rounded-full"
           >
             <ChevronRight className="size-4" />
           </button>
         </div>
         <button
           type="button"
-          onClick={() => setSelected(today)}
+          onClick={() => goToDay(today)}
           disabled={selected === today}
-          className="rounded-full border border-edge bg-paper px-4 py-2.5 text-xs font-semibold text-ink-70 hover:bg-cream-2 disabled:opacity-50"
+          className="border-edge bg-paper text-ink-70 hover:bg-cream-2 rounded-full border px-4 py-2.5 text-xs font-semibold disabled:opacity-50"
         >
           Hoje
         </button>
         <div className="flex-1" />
-        {professionals.length > 1 && (
+        {multiPro && (
           <div className="flex flex-wrap items-center gap-2">
             <Chip selected={proFilter === null} onClick={() => setProFilter(null)}>
               Todos
@@ -203,8 +251,9 @@ export function AppointmentsDayView({
               <Chip
                 key={p.id}
                 dot
+                dotColor={colorOf(p.id)}
                 selected={proFilter === p.id}
-                onClick={() => setProFilter(p.id)}
+                onClick={() => setProFilter((cur) => (cur === p.id ? null : p.id))}
               >
                 {p.name.split(/\s+/)[0]}
               </Chip>
@@ -215,40 +264,45 @@ export function AppointmentsDayView({
 
       <div className="flex flex-wrap items-start gap-4">
         {/* grade */}
-        <div className="min-w-0 flex-1 overflow-hidden rounded-[18px] border border-line bg-paper p-4 shadow-soft">
-          <div className="max-h-[34rem] overflow-y-auto pt-2">
-            <DayTimeline
+        <div className="border-line bg-paper shadow-soft min-w-0 flex-1 overflow-hidden rounded-[18px] border">
+          <div className="max-h-[40rem] overflow-y-auto">
+            <DayGrid
               dayKey={selected}
-              appointments={dayAppointments}
+              appointments={gridAppts}
               exceptions={dayExceptions}
               scheduleBlocks={scheduleBlocks}
+              columns={columns}
               timezone={timezone}
               isToday={selected === today}
+              selectedId={active?.id ?? null}
               onSelect={setActive}
             />
           </div>
         </div>
 
         {/* trilho direito */}
-        <div className="flex w-[300px] flex-none flex-col gap-4">
+        <div className="flex w-[320px] max-w-full flex-none flex-col gap-3.5">
+          {active && (
+            <AppointmentDetailCard
+              appointment={active}
+              professionalName={multiPro ? professionalName : null}
+              timezone={timezone}
+              onClose={() => setActive(null)}
+            />
+          )}
           {pending.length > 0 && <PendingPanel pending={pending} />}
-          <div className="rounded-[18px] border border-line bg-paper p-4 shadow-soft">
+          <div className="border-line bg-paper shadow-soft rounded-[18px] border p-4">
             <MiniMonth
               selected={selected}
               today={today}
               daysWithAppointments={daysWithAppointments}
               timezone={timezone}
-              onSelect={setSelected}
+              onSelect={goToDay}
             />
           </div>
         </div>
       </div>
 
-      <AppointmentDetailDialog
-        appointment={active}
-        timezone={timezone}
-        onClose={() => setActive(null)}
-      />
       <BlockTimeDialog
         key={blockSeq}
         open={blocking}
@@ -272,24 +326,26 @@ function PendingPanel({ pending }: { pending: PendingItem[] }) {
   }
 
   return (
-    <div className="rounded-[18px] border border-coral-tint bg-paper p-4 shadow-soft">
-      <div className="mb-1 flex items-center gap-2 font-serif text-base text-ink">
+    <div className="border-coral-tint bg-paper shadow-soft rounded-[18px] border p-4">
+      <div className="text-ink mb-1 flex items-center gap-2 font-serif text-base">
         Pendentes
-        <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-coral px-1.5 text-[11px] font-bold text-white">
+        <span className="bg-coral inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] font-bold text-white">
           {pending.length}
         </span>
       </div>
-      <p className="mb-1.5 text-[11.5px] text-ink-50">Pedidos da página pública esperando o seu ok.</p>
+      <p className="text-ink-50 mb-1.5 text-[11.5px]">
+        Pedidos da página pública esperando o seu ok.
+      </p>
       {pending.map((p) => (
-        <div key={p.id} className="border-t border-dotted border-edge py-2.5">
+        <div key={p.id} className="border-edge border-t border-dotted py-2.5">
           <div className="flex items-baseline gap-2">
-            <span className="font-serif text-sm text-ink">{p.timeLabel}</span>
-            <span className="min-w-0 flex-1 truncate text-[12.5px] font-semibold text-ink">
+            <span className="text-ink font-serif text-sm">{p.timeLabel}</span>
+            <span className="text-ink min-w-0 flex-1 truncate text-[12.5px] font-semibold">
               {p.clientName}
             </span>
-            {p.proName && <span className="text-[11px] font-medium text-ink-50">{p.proName}</span>}
+            {p.proName && <span className="text-ink-50 text-[11px] font-medium">{p.proName}</span>}
           </div>
-          <div className="mb-2 mt-0.5 text-[11.5px] text-ink-50">
+          <div className="text-ink-50 mb-2 mt-0.5 text-[11.5px]">
             {p.serviceName} · {p.priceLabel}
           </div>
           <div className="flex gap-2">
@@ -297,7 +353,7 @@ function PendingPanel({ pending }: { pending: PendingItem[] }) {
               type="button"
               disabled={busy}
               onClick={() => act(() => confirmAppointment(p.id))}
-              className="flex-1 rounded-full bg-green-deep px-2 py-2 text-[11.5px] font-semibold text-cream disabled:opacity-50"
+              className="bg-green-deep text-cream flex-1 rounded-full px-2 py-2 text-[11.5px] font-semibold disabled:opacity-50"
             >
               Confirmar
             </button>
@@ -308,7 +364,7 @@ function PendingPanel({ pending }: { pending: PendingItem[] }) {
                 if (!confirm('Recusar este pedido?')) return;
                 act(() => cancelAppointment(p.id, { notifyClient: true }));
               }}
-              className="flex-1 rounded-full border border-edge px-2 py-2 text-[11.5px] font-semibold text-ink-70 hover:bg-cream-2 disabled:opacity-50"
+              className="border-edge text-ink-70 hover:bg-cream-2 flex-1 rounded-full border px-2 py-2 text-[11.5px] font-semibold disabled:opacity-50"
             >
               Recusar
             </button>
