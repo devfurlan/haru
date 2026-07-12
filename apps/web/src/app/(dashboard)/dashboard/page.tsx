@@ -5,7 +5,13 @@ import Link from 'next/link';
 
 import { Button } from '@/components/ui/button';
 import { requireUserAndTenant } from '@/lib/auth';
+import { computeLapsed } from '@/lib/lapsed-clients';
 import { isWhatsappConnected } from '@/lib/whatsapp-status';
+
+import { LapsedClientsCard } from './lapsed-clients-card';
+
+// Cliente "sumido": era de casa e não volta há este tanto de dias (protótipo Painel do Dono).
+const LAPSE_DAYS = 60;
 
 const BRL = new Intl.NumberFormat('pt-BR', {
   style: 'currency',
@@ -55,7 +61,7 @@ export default async function DashboardPage() {
   const dayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
   const weekday = now.getDay();
 
-  const [todayAppts, pendingCount, blocks, recent] = await Promise.all([
+  const [todayAppts, pendingCount, blocks, recent, lapsedContacts] = await Promise.all([
     prisma.appointment.findMany({
       where: { tenantId: tenant.id, startsAt: { gte: dayStart, lt: dayEnd }, status: { not: 'CANCELED' } },
       include: { service: true, contact: true, professional: true },
@@ -71,7 +77,23 @@ export default async function DashboardPage() {
       orderBy: { createdAt: 'desc' },
       take: 5,
     }),
+    // ponytail: scan de contatos+agendamentos por load do cockpit, limitado a 1000
+    // contatos. Se o histórico de um tenant crescer muito, materializar um count/soma.
+    prisma.contact.findMany({
+      where: { tenantId: tenant.id },
+      select: {
+        id: true,
+        name: true,
+        phone: true,
+        appointments: {
+          select: { startsAt: true, status: true, service: { select: { name: true, priceCents: true } } },
+        },
+      },
+      take: 1000,
+    }),
   ]);
+
+  const lapsed = computeLapsed(lapsedContacts, now, LAPSE_DAYS);
 
   // KPIs
   const receitaCents = todayAppts.reduce((sum, a) => sum + a.service.priceCents, 0);
@@ -310,6 +332,9 @@ export default async function DashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* Clientes sumidos - win-back (só aparece quando há alguém pra chamar de volta) */}
+      <LapsedClientsCard data={lapsed} tz={tz} lapseDays={LAPSE_DAYS} />
     </div>
   );
 }
