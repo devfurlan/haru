@@ -3,6 +3,14 @@
     {
       "path": "/api/cron/comms",
       "schedule": "0 12 * * *"
+    },
+    {
+      "path": "/api/cron/waitlist",
+      "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/cron/billing-reconcile",
+      "schedule": "*/5 * * * *"
     }
   ]
 }

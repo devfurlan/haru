@@ -9,6 +9,7 @@
 //   - colidem com outro agendamento ativo (mesma fórmula de overlap do resto do app).
 
 import { prisma, type AppointmentStatus, type RecurrenceFrequency } from '@haru/database';
+import { isoDateInTz } from '@haru/shared';
 
 import {
   generateSeriesDates,
@@ -83,6 +84,20 @@ export async function createAppointmentSeries(
     select: { startsAt: true, endsAt: true },
   });
 
+  // Reserva temporária da fila de espera: dias (deste profissional) com um episódio ATIVO e
+  // reserva no futuro estão CONGELADOS - o fluxo normal não marca por cima (mesma regra que
+  // isSlotFrozenByWaitlist aplica no avulso; aqui em lote pra não consultar por ocorrência).
+  const frozenOffers = await prisma.waitlistOffer.findMany({
+    where: {
+      tenantId: input.tenantId,
+      professionalId: input.professionalId,
+      status: 'ACTIVE',
+      holdExpiresAt: { gt: now },
+    },
+    select: { date: true },
+  });
+  const frozenDays = new Set(frozenOffers.map((o) => o.date.toISOString().slice(0, 10)));
+
   const toCreate: { startsAt: Date; endsAt: Date }[] = [];
   const skipped: string[] = [];
   let beyondHorizon = 0;
@@ -117,6 +132,11 @@ export async function createAppointmentSeries(
       select: { id: true },
     });
     if (conflict) {
+      skipped.push(iso);
+      continue;
+    }
+    // Dia reservado pela fila de espera: pula (não marca por cima da reserva temporária).
+    if (frozenDays.has(isoDateInTz(startsAt, input.tz))) {
       skipped.push(iso);
       continue;
     }

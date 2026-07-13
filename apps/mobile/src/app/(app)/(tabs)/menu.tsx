@@ -92,6 +92,15 @@ function LoyaltyRowIcon() {
   );
 }
 
+function WaitlistRowIcon() {
+  return (
+    <Svg width={21} height={21} viewBox="0 0 24 24" fill="none">
+      <Circle cx={12} cy={12} r={9} stroke={ROW_ICON} strokeWidth={2} />
+      <Path d="M12 7.5V12l3 2" stroke={ROW_ICON} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
 function HelpRowIcon() {
   return (
     <Svg width={21} height={21} viewBox="0 0 24 24" fill="none">
@@ -304,6 +313,12 @@ export default function MenuScreen() {
           label="Fidelidade"
           right={<ChevronRight />}
           onPress={() => router.push('/fidelidade' as Href)}
+        />
+        <Row
+          icon={<WaitlistRowIcon />}
+          label="Fila de espera"
+          right={<ChevronRight />}
+          onPress={() => router.push('/fila' as Href)}
         />
         <Row
           icon={<LockRowIcon />}

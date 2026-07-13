@@ -10,6 +10,7 @@
 import { prisma, type AppointmentStatus } from '@haru/database';
 
 import { sendAppointmentEmails } from '@/lib/appointment-email';
+import { insertAppointmentGuarded } from '@/lib/appointment-insert';
 import { BOOKING_HORIZON_DAYS, isoDateInTz } from '@haru/shared';
 import {
   notifyAppointmentCanceled,
@@ -17,6 +18,7 @@ import {
   notifyAppointmentRescheduled,
 } from '@/lib/notify';
 import { getServiceDaySlots } from '@/lib/professionals';
+import { isSlotFrozenByWaitlist, triggerWaitlistMatch } from '@/lib/waitlist';
 import { sendAppointmentTemplate } from '@/lib/whatsapp-templates';
 
 /** Dia "YYYY-MM-DD" de hoje no fuso `tz`. */
@@ -88,6 +90,14 @@ export async function rescheduleAppointmentCore(args: {
     return { error: 'Esse horário não está disponível na agenda do profissional. Escolha outro.' };
   }
 
+  // Não remarca por cima de um slot reservado pela fila de espera.
+  if (await isSlotFrozenByWaitlist(tenantId, appt.professionalId, dateStr, new Date())) {
+    return { error: 'Esse horário está reservado por instantes pela fila de espera. Tente já já.' };
+  }
+
+  // Horário ANTIGO que vai vagar (captura antes do update).
+  const freedStartsAt = appt.startsAt;
+
   await prisma.appointment.update({
     where: { id: appt.id },
     data: {
@@ -99,6 +109,18 @@ export async function rescheduleAppointmentCore(args: {
       reminderPushSentAt: null,
     },
   });
+
+  // Slot antigo liberado (só se era futuro): dispara o match da fila. Fire-and-forget.
+  if (freedStartsAt > new Date()) {
+    triggerWaitlistMatch({
+      tenantId,
+      professionalId: appt.professionalId,
+      freedDate: isoDateInTz(freedStartsAt, tz),
+      now: new Date(),
+    }).catch((err) =>
+      console.error('[appointment-mutations] waitlist match (reschedule) failed', err),
+    );
+  }
 
   // Fire-and-forget: webhook externo + template aprovado pro cliente.
   notifyAppointmentRescheduled(appt.id).catch((err) =>
@@ -130,11 +152,36 @@ export async function cancelAppointmentCore(args: {
   notifyOwner?: boolean;
 }): Promise<boolean> {
   const { appointmentId, tenantId, notifyClient = true, notifyOwner = true } = args;
+  // Carrega antes de cancelar (professional/horário do slot que vai vagar) - o updateMany
+  // não devolve esses campos.
+  const freed = await prisma.appointment.findFirst({
+    where: { id: appointmentId, tenantId },
+    select: {
+      professionalId: true,
+      startsAt: true,
+      status: true,
+      tenant: { select: { timezone: true } },
+    },
+  });
   const result = await prisma.appointment.updateMany({
     where: { id: appointmentId, tenantId },
     data: { status: 'CANCELED' },
   });
   if (result.count === 0) return false;
+
+  // Slot liberado (só se era ativo e é futuro): dispara o match da fila. Fire-and-forget.
+  if (
+    freed &&
+    (freed.status === 'PENDING' || freed.status === 'CONFIRMED') &&
+    freed.startsAt > new Date()
+  ) {
+    triggerWaitlistMatch({
+      tenantId,
+      professionalId: freed.professionalId,
+      freedDate: isoDateInTz(freed.startsAt, freed.tenant.timezone),
+      now: new Date(),
+    }).catch((err) => console.error('[appointment-mutations] waitlist match (cancel) failed', err));
+  }
 
   notifyAppointmentCanceled(appointmentId).catch((err) =>
     console.error('[appointment-mutations] notify cancel failed', err),
@@ -173,7 +220,7 @@ export async function cancelSeriesCore(args: {
       status: { in: ['PENDING', 'CONFIRMED'] },
       startsAt: { gte: now },
     },
-    select: { id: true },
+    select: { id: true, professionalId: true, startsAt: true },
     orderBy: { startsAt: 'asc' },
   });
   if (futures.length === 0) return 0;
@@ -187,6 +234,28 @@ export async function cancelSeriesCore(args: {
     },
     data: { status: 'CANCELED' },
   });
+
+  // Cada (profissional, dia) liberado dispara um match da fila (dedup). Fire-and-forget.
+  const seriesTz = (
+    await prisma.tenant.findUnique({ where: { id: tenantId }, select: { timezone: true } })
+  )?.timezone;
+  if (seriesTz) {
+    const seen = new Set<string>();
+    for (const f of futures) {
+      const freedDate = isoDateInTz(f.startsAt, seriesTz);
+      const key = `${f.professionalId}|${freedDate}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      triggerWaitlistMatch({
+        tenantId,
+        professionalId: f.professionalId,
+        freedDate,
+        now: new Date(),
+      }).catch((err) =>
+        console.error('[appointment-mutations] waitlist match (series cancel) failed', err),
+      );
+    }
+  }
 
   notifyAppointmentCanceled(futures[0].id).catch((err) =>
     console.error('[appointment-mutations] notify cancel (series) failed', err),
@@ -224,6 +293,10 @@ export async function createBookingCore(args: {
   /** Avisar o dono por e-mail (novo agendamento). Default true; criação manual pelo
    * próprio dono passa false. O cliente é sempre avisado. */
   notifyOwner?: boolean;
+  /** Marca o agendamento como recuperado pela fila de espera (métrica de receita). */
+  fromWaitlist?: boolean;
+  /** Presente = confirmação de fila; pula a guarda de reserva (o slot é DESTE episódio). */
+  waitlistOfferId?: string;
 }): Promise<CreateBookingResult> {
   const {
     tenantId,
@@ -234,35 +307,46 @@ export async function createBookingCore(args: {
     durationMinutes,
     status,
     notifyOwner = true,
+    fromWaitlist = false,
+    waitlistOfferId,
   } = args;
   const endsAt = new Date(startsAt.getTime() + durationMinutes * 60_000);
 
-  // Re-checa conflito imediatamente antes de criar (corrida) - por profissional.
-  const conflict = await prisma.appointment.findFirst({
-    where: {
-      tenantId,
-      professionalId,
-      status: { in: ['PENDING', 'CONFIRMED'] },
-      AND: [{ startsAt: { lt: endsAt } }, { endsAt: { gt: startsAt } }],
-    },
-  });
-  if (conflict) {
-    return { error: 'Esse horário acabou de ser preenchido. Escolha outro.' };
+  // Reserva da fila: o fluxo normal não marca por cima de um slot congelado por um episódio
+  // ativo. A confirmação da própria fila (waitlistOfferId) escapa - o slot é dela.
+  if (!waitlistOfferId) {
+    const tenant = await prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: { timezone: true },
+    });
+    if (tenant) {
+      const dateStr = isoDateInTz(startsAt, tenant.timezone);
+      if (await isSlotFrozenByWaitlist(tenantId, professionalId, dateStr, new Date())) {
+        return {
+          error: 'Esse horário está reservado por instantes pela fila de espera. Tente já já.',
+        };
+      }
+    }
   }
 
-  let appointment;
-  try {
-    appointment = await prisma.appointment.create({
-      data: { tenantId, contactId, serviceId, professionalId, startsAt, endsAt, status },
-    });
-  } catch (err) {
-    // A guarda de banco (exclusion constraint Appointment_no_overlap) vence a corrida
-    // que o findFirst acima não pega. Traduz pro mesmo erro amigável, sem estourar 500.
-    if (err instanceof Error && err.message.includes('Appointment_no_overlap')) {
-      return { error: 'Esse horário acabou de ser preenchido. Escolha outro.' };
-    }
-    throw err;
+  // Cria sob guarda de corrida (advisory lock por profissional+horário dentro da transação):
+  // duas confirmações concorrentes do mesmo slot não geram double-booking. Substitui o antigo
+  // findFirst+create não-atômico (a constraint EXCLUDE de banco foi removida por causa do
+  // Encaixe - ver appointment-insert.ts).
+  const inserted = await insertAppointmentGuarded({
+    tenantId,
+    contactId,
+    serviceId,
+    professionalId,
+    startsAt,
+    endsAt,
+    status,
+    fromWaitlist,
+  });
+  if ('conflict' in inserted) {
+    return { error: 'Esse horário acabou de ser preenchido. Escolha outro.' };
   }
+  const appointment = { id: inserted.appointmentId };
 
   notifyAppointmentCreated(appointment.id).catch((err) =>
     console.error('[appointment-mutations] notify create failed', err),

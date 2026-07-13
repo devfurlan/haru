@@ -31,6 +31,7 @@ export {
   recurringValueCents,
   prorataCents,
   hasFeature,
+  hasWaitlist,
   getProfessionalUsage,
   getReceptionistUsage,
   canAddProfessional,

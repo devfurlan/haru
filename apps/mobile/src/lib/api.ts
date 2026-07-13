@@ -96,6 +96,7 @@ export type PublicTenant = {
   timezone: string;
   logoUrl: string | null;
   publicBookingEnabled: boolean;
+  waitlistEnabled: boolean;
   horizonDays: number;
   openWeekdays: number[];
   services: PublicService[];
@@ -163,6 +164,43 @@ export type LoyaltyCard = {
 export type LoyaltyVisit = { id: string; serviceName: string; whenLabel: string };
 
 export type LoyaltyCardDetail = LoyaltyCard & { timezone: string; visits: LoyaltyVisit[] };
+
+// --- Fila de espera. Espelha os tipos da engine (apps/web/src/lib/waitlist.ts). ---
+// Uma fila em que a conta está (GET /waitlist). offer presente = vaga aberta esperando.
+export type CustomerWaitlistEntry = {
+  entryId: string;
+  tenantName: string;
+  tenantSlug: string;
+  logoUrl: string | null;
+  serviceName: string;
+  professionalId: string;
+  professionalName: string | null;
+  dateStr: string;
+  dayLabel: string;
+  position: number;
+  offer: { offerId: string; slotsCount: number } | null;
+};
+
+// Tela de confirmação da vaga (GET /waitlist/[offerId]?entry=). `expired` = oferta
+// encerrada/timer vencido (o cliente segue na fila). slots = TODOS os livres do dia.
+export type WaitlistOfferView = {
+  offerId: string;
+  entryId: string;
+  expired: boolean;
+  dayLabel: string;
+  professionalId: string;
+  dateStr: string;
+  professionalName: string | null;
+  serviceName: string;
+  tenantName: string;
+  slug: string;
+  slots: { startsAtIso: string; label: string }[];
+  holdExpiresAtIso: string;
+  confirmWindowSeconds: number;
+  priceLabel: string | null;
+};
+
+export type WaitlistJoinResult = { ok: true; entryId: string; position: number };
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const { data } = await supabase.auth.getSession();
@@ -289,6 +327,31 @@ export const api = {
   loyaltyRedeem: (tenantId: string) =>
     request<{ ok: true; prizeLabel: string; required: number }>(`/loyalty/${tenantId}/redeem`, {
       method: 'POST',
+    }),
+
+  // --- Fila de espera (dia lotado -> "me avisa se abrir") ---
+  // Entra na fila do dia + profissional. Retorna a posição pra tela de sucesso.
+  joinWaitlist: (
+    slug: string,
+    input: { serviceId: string; professionalId: string; dateStr: string; name: string; phone?: string },
+  ) =>
+    request<WaitlistJoinResult>(`/tenants/${slug}/waitlist`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
+  // "Meus interesses": as filas da conta (dias/estabelecimentos diferentes).
+  waitlistEntries: () => request<{ entries: CustomerWaitlistEntry[] }>('/waitlist'),
+  leaveWaitlist: (input: { slug: string; professionalId: string; dateStr: string }) =>
+    request<{ ok: true }>('/waitlist/leave', { method: 'POST', body: JSON.stringify(input) }),
+  // Vaga aberta (deep link do push): todos os horários livres do dia + timer.
+  waitlistOffer: (offerId: string, entryId: string) =>
+    request<WaitlistOfferView>(`/waitlist/${offerId}?entry=${encodeURIComponent(entryId)}`),
+  // Confirma o horário escolhido. 2xx = garantiu; erro (400) = corrida/expirou -> a tela
+  // re-lê a oferta pra decidir entre re-escolher, "alguém pegou antes" ou "tempo esgotou".
+  confirmWaitlistSlot: (offerId: string, input: { entryId: string; slotIso: string }) =>
+    request<{ ok: true; appointmentId: string }>(`/waitlist/${offerId}/confirm`, {
+      method: 'POST',
+      body: JSON.stringify(input),
     }),
 
   tenantSlots: (slug: string, serviceId: string, dateStr: string, professionalId?: string) =>

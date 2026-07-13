@@ -89,6 +89,10 @@ export async function bookAppointment(args: BookAppointmentArgs): Promise<BookAp
     return { ok: false, reason: resolved.reason };
   }
 
+  // ponytail: o bot cria direto, sem a guarda de corrida (advisory lock em
+  // insertAppointmentGuarded) nem o freeze da fila de espera (isSlotFrozenByWaitlist). Aceitável
+  // porque o bot é o addon "Atendente IA", não lançado. Ao lançar, rotear por insertAppointmentGuarded
+  // e checar o freeze aqui (senão o bot marca por cima de reserva da fila / double-booka em corrida).
   const appointment = await prisma.appointment.create({
     data: {
       tenantId: args.tenantId,

@@ -1,4 +1,4 @@
-import { hasFeature } from '@haru/billing';
+import { hasFeature, hasWaitlist } from '@haru/billing';
 
 import { requireAdmin } from '@/lib/auth';
 import { getBaseUrl } from '@/lib/base-url';
@@ -8,6 +8,7 @@ import { PaymentsCard } from './payments-card';
 import { PlanCard } from './plan-card';
 import { SupportCard } from './support-card';
 import { TimezoneCard } from './timezone-card';
+import { WaitlistCard } from './waitlist-card';
 
 export default async function SettingsPage() {
   const { tenant } = await requireAdmin();
@@ -38,6 +39,14 @@ export default async function SettingsPage() {
         rescheduleTemplateName={tenant.rescheduleTemplateName}
         rescheduleTemplateLanguage={tenant.rescheduleTemplateLanguage}
       />
+
+      {hasWaitlist(tenant.subscription) && (
+        <WaitlistCard
+          enabled={tenant.waitlistEnabled}
+          windowMinutes={tenant.waitlistWindowMinutes}
+          notifyAllAtOnce={tenant.waitlistNotifyAllAtOnce}
+        />
+      )}
 
       <PaymentsCard
         provider={tenant.paymentProvider}

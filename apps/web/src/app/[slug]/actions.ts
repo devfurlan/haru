@@ -23,6 +23,7 @@ import { normalizePhoneBR } from '@haru/shared';
 import { notifyAppointmentCreated } from '@/lib/notify';
 import { getServiceDaySlots, resolveBookingProfessional } from '@/lib/professionals';
 import { withinRateLimitByIp } from '@/lib/ratelimit';
+import { confirmWaitlistSlot, joinWaitlist } from '@/lib/waitlist';
 
 import { loadPublicTenant } from './_tenant';
 
@@ -470,4 +471,41 @@ export async function createPublicBooking(
     appointmentId: created.appointmentId,
     paymentAvailable,
   };
+}
+
+/**
+ * Entra na fila de espera (web pública). Identidade = conta logada (se houver) + nome/
+ * WhatsApp do formulário. Toda a validação (dia lotado + expediente aberto) é server-side
+ * dentro de joinWaitlist.
+ */
+export async function joinWaitlistAction(input: {
+  slug: string;
+  serviceId: string;
+  professionalId: string;
+  dateStr: string;
+  name: string;
+  phone?: string;
+}): Promise<{ ok: true; entryId: string } | { error: string }> {
+  const account = await getCustomerAccount();
+  return joinWaitlist({ ...input, account, now: new Date() });
+}
+
+/**
+ * Garante um horário aberto pela fila (web pública, via link do WhatsApp). A capacidade é o
+ * par offerId+entryId do link (o cliente pode não estar logado no web), por isso não exige
+ * conta - o link é enviado só pra ele.
+ */
+export async function confirmWaitlistAction(input: {
+  offerId: string;
+  entryId: string;
+  slotIso: string;
+}): Promise<{ ok: true; appointmentId: string } | { error: string; taken?: boolean }> {
+  const startsAt = new Date(input.slotIso);
+  if (Number.isNaN(startsAt.getTime())) return { error: 'Horário inválido' };
+  return confirmWaitlistSlot({
+    offerId: input.offerId,
+    entryId: input.entryId,
+    startsAt,
+    now: new Date(),
+  });
 }

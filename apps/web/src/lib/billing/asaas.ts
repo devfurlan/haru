@@ -475,6 +475,43 @@ export async function findLastPaidCharge(asaasSubscriptionId: string): Promise<s
   return charges.find((c) => PAID_STATUSES.includes(c.status))?.id ?? null;
 }
 
+/** Um status bruto do Asaas conta como cobrança paga? (usado pela reconciliação). */
+export function isPaidChargeStatus(status: string): boolean {
+  return PAID_STATUSES.includes(status);
+}
+
+/**
+ * Cobranças por externalReference (mais recentes primeiro) - pro anual 12x (installment), que
+ * NÃO é recorrência (sem asaasSubscriptionId), e cujo externalReference é o Subscription.id.
+ */
+export async function listChargesByReference(
+  externalReference: string,
+  limit = 10,
+): Promise<BillingCharge[]> {
+  const res = await asaas<{
+    data: Array<{
+      id: string;
+      value?: number | null;
+      status?: string | null;
+      dueDate?: string | null;
+      paymentDate?: string | null;
+      invoiceUrl?: string | null;
+      billingType?: string | null;
+    }>;
+  }>(
+    `/payments?externalReference=${encodeURIComponent(externalReference)}&limit=${limit}&offset=0&order=desc`,
+  );
+  return res.data.map((p) => ({
+    id: p.id,
+    amountCents: typeof p.value === 'number' ? Math.round(p.value * 100) : 0,
+    status: p.status ?? 'PENDING',
+    dueDate: p.dueDate ?? null,
+    paidAt: p.paymentDate ?? null,
+    invoiceUrl: p.invoiceUrl ?? null,
+    billingType: p.billingType ?? null,
+  }));
+}
+
 // --- Notas Fiscais (NFS-e) --------------------------------------------------
 
 /**

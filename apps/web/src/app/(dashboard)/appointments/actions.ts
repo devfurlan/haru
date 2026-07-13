@@ -13,6 +13,7 @@ import {
   rescheduleAppointmentCore,
 } from '@/lib/appointment-mutations';
 import { createAppointmentSeries } from '@/lib/appointment-series';
+import { isSlotFrozenByWaitlist } from '@/lib/waitlist';
 import { type AvailableSlotWithProfessionals, localWallTimeToUtc } from '@haru/shared';
 import { requireUserAndTenant } from '@/lib/auth';
 import {
@@ -387,6 +388,15 @@ export async function createManualAppointment(
       createdCount: result.createdIds.length,
       skipped: result.skipped,
       beyondHorizon: result.beyondHorizon,
+    };
+  }
+
+  // Slot reservado pela fila de espera: bloqueia o agendamento normal do dono; "encaixe"
+  // (override explícito) força por cima, como já faz com o expediente.
+  if (!encaixe && (await isSlotFrozenByWaitlist(tenant.id, professionalId, dateStr, new Date()))) {
+    return {
+      error:
+        'Esse horário está reservado por instantes pela fila de espera. Marque "encaixe" pra forçar.',
     };
   }
 

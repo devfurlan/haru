@@ -68,12 +68,12 @@ export async function registerForPush(): Promise<void> {
   }
 }
 
-// Abre a tela do agendamento quando o usuário toca na notificação. Cobre app
-// já rodando (listener) e cold start / app aberto pela notificação (getLast...).
-// Import dinâmico pelo mesmo motivo do resto do módulo (não quebrar no Expo Go).
-// Retorna um cleanup pra remover o listener.
+// Abre a tela certa quando o usuário toca na notificação. Cobre app já rodando (listener)
+// e cold start / app aberto pela notificação (getLast...). A rota vem do payload: vaga da
+// fila de espera -> /fila/aviso; lembrete/confirmação -> /appointment. Import dinâmico
+// pelo mesmo motivo do resto do módulo (não quebrar no Expo Go). Retorna um cleanup.
 export async function attachNotificationTap(
-  navigate: (appointmentId: string) => void,
+  navigate: (href: string) => void,
 ): Promise<() => void> {
   if (Constants.appOwnership === 'expo') return () => {};
 
@@ -81,8 +81,15 @@ export async function attachNotificationTap(
     const Notifications = await import('expo-notifications');
 
     const handle = (response: NotificationResponse) => {
-      const id = response.notification.request.content.data?.appointmentId;
-      if (typeof id === 'string') navigate(id);
+      const data = response.notification.request.content.data ?? {};
+      // Vaga aberta da fila: o par offerId+entryId é a capacidade da tela de confirmação.
+      if (typeof data.offerId === 'string' && typeof data.entryId === 'string') {
+        navigate(`/fila/aviso?offer=${data.offerId}&entry=${data.entryId}`);
+      } else if (data.type === 'waitlist_joined') {
+        navigate('/fila');
+      } else if (typeof data.appointmentId === 'string') {
+        navigate(`/appointment/${data.appointmentId}`);
+      }
     };
 
     // Cold start: app foi aberto por um toque na notificação.

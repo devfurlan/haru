@@ -1,6 +1,7 @@
 'use client';
 
 import type { PlanTier } from '@haru/database';
+import { useRouter } from 'next/navigation';
 import { useActionState, useEffect, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -8,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
 import { subscribe, type CheckoutResult } from './actions';
+import { checkSubscriptionActivation } from './reconcile-actions';
 
 export interface PlanOption {
   tier: PlanTier;
@@ -51,6 +53,8 @@ export function SubscribeForm({
     subscribe,
     undefined,
   );
+  const router = useRouter();
+  const [activated, setActivated] = useState(false);
 
   const selected = plans.find((p) => p.tier === tier) ?? plans[0];
 
@@ -74,11 +78,42 @@ export function SubscribeForm({
   const error = state && 'error' in state ? state.error : null;
   const pixOk = state && 'ok' in state && state.method === 'PIX' ? state : null;
   const cardOk = state && 'ok' in state && state.method === 'CARD' ? state : null;
+  const showingPix = !!pixOk;
 
   // Cartão: redireciona pra fatura hospedada do Asaas (o cartão é digitado lá, não aqui).
   useEffect(() => {
     if (cardOk) window.location.href = cardOk.checkoutUrl;
   }, [cardOk]);
+
+  // Pix: enquanto o QR está na tela, pergunta ao servidor "já ativou?". Barato nos primeiros
+  // 20s (só lê o status - o webhook costuma virar em segundos); depois força reconciliação
+  // contra o Asaas (fallback pra webhook atrasado). Vira sozinho quando confirma; teto de 10min.
+  useEffect(() => {
+    if (!showingPix || activated) return;
+    let stopped = false;
+    const startedAt = Date.now();
+    let timer: ReturnType<typeof setTimeout>;
+    const poll = async () => {
+      if (stopped) return;
+      const deep = Date.now() - startedAt > 20_000;
+      try {
+        const { status } = await checkSubscriptionActivation(deep);
+        if (status === 'ACTIVE') {
+          setActivated(true);
+          router.refresh(); // some o banner de PENDING no resto do painel
+          return;
+        }
+      } catch {
+        // rede/servidor instável: tenta de novo no próximo tick
+      }
+      if (!stopped && Date.now() - startedAt < 10 * 60_000) timer = setTimeout(poll, 5000);
+    };
+    timer = setTimeout(poll, 5000);
+    return () => {
+      stopped = true;
+      clearTimeout(timer);
+    };
+  }, [showingPix, activated, router]);
 
   if (cardOk) {
     return (
@@ -98,23 +133,43 @@ export function SubscribeForm({
   if (pixOk) {
     return (
       <div className="bg-card space-y-4 rounded-xl border p-6">
-        <div>
-          <p className="font-medium">Quase lá - pague o Pix para ativar</p>
-          <p className="text-muted-foreground text-sm">
-            Assim que o pagamento for confirmado, sua assinatura ativa automaticamente.
-          </p>
-        </div>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={pixOk.pixQrCode} alt="QR Code Pix" className="mx-auto h-56 w-56" />
-        <div>
-          <Label htmlFor="pixcopy">Pix copia-e-cola</Label>
-          <textarea
-            id="pixcopy"
-            readOnly
-            value={pixOk.pixCopyPaste}
-            className="bg-muted/30 mt-1 h-24 w-full rounded-md border p-2 text-xs"
-          />
-        </div>
+        {activated ? (
+          <div className="space-y-2 text-center">
+            <p className="font-medium">Pagamento confirmado - sua assinatura está ativa! 🎉</p>
+            <p className="text-muted-foreground text-sm">
+              Tudo liberado.{' '}
+              <a className="underline" href="/">
+                Ir para o painel
+              </a>
+              .
+            </p>
+          </div>
+        ) : (
+          <>
+            <div>
+              <p className="font-medium">Quase lá - pague o Pix para ativar</p>
+              <p className="text-muted-foreground text-sm">
+                Assim que o pagamento for confirmado, sua assinatura ativa automaticamente - esta
+                tela atualiza sozinha.
+              </p>
+            </div>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={pixOk.pixQrCode} alt="QR Code Pix" className="mx-auto h-56 w-56" />
+            <div>
+              <Label htmlFor="pixcopy">Pix copia-e-cola</Label>
+              <textarea
+                id="pixcopy"
+                readOnly
+                value={pixOk.pixCopyPaste}
+                className="bg-muted/30 mt-1 h-24 w-full rounded-md border p-2 text-xs"
+              />
+            </div>
+            <p className="text-muted-foreground flex items-center gap-2 text-xs">
+              <span className="inline-block h-2.5 w-2.5 animate-pulse rounded-full bg-amber-400" />
+              Aguardando a confirmação do pagamento…
+            </p>
+          </>
+        )}
       </div>
     );
   }

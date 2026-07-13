@@ -1,7 +1,14 @@
+import { hasWaitlist } from '@haru/billing';
 import { prisma } from '@haru/database';
 import { formatPhoneBR } from '@haru/shared';
 
 import { requireUserAndTenant } from '@/lib/auth';
+import {
+  getActiveOfferLive,
+  getRecoveryMetric,
+  getWaitlistGroups,
+  getWaitlistInsight,
+} from '@/lib/waitlist-panel';
 
 import {
   AppointmentsDayView,
@@ -22,48 +29,62 @@ export default async function AppointmentsPage() {
   const calendarTo = new Date(now);
   calendarTo.setMonth(calendarTo.getMonth() + 12);
 
-  const [calendarRows, scheduleBlocks, exceptionRows, professionals, pendingRows] =
-    await Promise.all([
-      prisma.appointment.findMany({
-        where: {
-          tenantId: tenant.id,
-          startsAt: { gte: calendarFrom, lte: calendarTo },
-          status: { notIn: ['CANCELED'] },
-        },
-        include: {
-          service: { select: { name: true, durationMinutes: true, priceCents: true } },
-          contact: { select: { name: true, phone: true } },
-        },
-        orderBy: { startsAt: 'asc' },
-      }),
-      prisma.scheduleBlock.findMany({
-        where: { tenantId: tenant.id },
-        select: { weekday: true, startMinute: true, endMinute: true },
-      }),
-      prisma.scheduleException.findMany({
-        where: {
-          tenantId: tenant.id,
-          startsAt: { lte: calendarTo },
-          endsAt: { gte: calendarFrom },
-        },
-        orderBy: { startsAt: 'asc' },
-      }),
-      prisma.user.findMany({
-        where: { tenantId: tenant.id, isProfessional: true },
-        select: { id: true, name: true },
-        orderBy: { name: 'asc' },
-      }),
-      prisma.appointment.findMany({
-        where: { tenantId: tenant.id, status: 'PENDING', startsAt: { gte: now } },
-        include: {
-          service: { select: { name: true, priceCents: true } },
-          contact: { select: { name: true, phone: true } },
-          professional: { select: { name: true } },
-        },
-        orderBy: { startsAt: 'asc' },
-        take: 8,
-      }),
-    ]);
+  const [
+    calendarRows,
+    scheduleBlocks,
+    exceptionRows,
+    professionals,
+    pendingRows,
+    waitlistGroups,
+    recoveryMetric,
+    activeOffer,
+  ] = await Promise.all([
+    prisma.appointment.findMany({
+      where: {
+        tenantId: tenant.id,
+        startsAt: { gte: calendarFrom, lte: calendarTo },
+        status: { notIn: ['CANCELED'] },
+      },
+      include: {
+        service: { select: { name: true, durationMinutes: true, priceCents: true } },
+        contact: { select: { name: true, phone: true } },
+      },
+      orderBy: { startsAt: 'asc' },
+    }),
+    prisma.scheduleBlock.findMany({
+      where: { tenantId: tenant.id },
+      select: { weekday: true, startMinute: true, endMinute: true },
+    }),
+    prisma.scheduleException.findMany({
+      where: {
+        tenantId: tenant.id,
+        startsAt: { lte: calendarTo },
+        endsAt: { gte: calendarFrom },
+      },
+      orderBy: { startsAt: 'asc' },
+    }),
+    prisma.user.findMany({
+      where: { tenantId: tenant.id, isProfessional: true },
+      select: { id: true, name: true },
+      orderBy: { name: 'asc' },
+    }),
+    prisma.appointment.findMany({
+      where: { tenantId: tenant.id, status: 'PENDING', startsAt: { gte: now } },
+      include: {
+        service: { select: { name: true, priceCents: true } },
+        contact: { select: { name: true, phone: true } },
+        professional: { select: { name: true } },
+      },
+      orderBy: { startsAt: 'asc' },
+      take: 8,
+    }),
+    getWaitlistGroups(tenant.id, tenant.timezone),
+    getRecoveryMetric(tenant.id, tenant.timezone),
+    getActiveOfferLive(tenant.id, tenant.timezone),
+  ]);
+
+  const waitlistInsight = getWaitlistInsight(waitlistGroups);
+  const waitlistTotal = waitlistGroups.reduce((acc, g) => acc + g.count, 0);
 
   const multiProf = professionals.length > 1;
 
@@ -124,6 +145,14 @@ export default async function AppointmentsPage() {
       pending={pending}
       timezone={tenant.timezone}
       today={todayLocal}
+      waitlist={{
+        enabled: tenant.waitlistEnabled && hasWaitlist(tenant.subscription),
+        metric: recoveryMetric,
+        insight: waitlistInsight,
+        live: activeOffer,
+        groups: waitlistGroups,
+        totalWaiting: waitlistTotal,
+      }}
     />
   );
 }

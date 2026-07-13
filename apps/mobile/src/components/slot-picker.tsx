@@ -29,6 +29,8 @@ type Props = {
   initialDay?: string;
   /** Até quantos dias adiante o carrossel vai. Default = horizonte de agendamento avulso. */
   horizonDays?: number;
+  /** Reporta os slots carregados do dia selecionado (dia lotado -> fila de espera). */
+  onDaySlots?: (dateStr: string, slots: AvailableSlot[]) => void;
 };
 
 // "sáb., 30/05" -> { weekday: "SÁB", day: "30" } para a célula de dia do design.
@@ -83,6 +85,7 @@ export function SlotPicker({
   timeLabel = 'Horário',
   initialDay,
   horizonDays,
+  onDaySlots,
 }: Props) {
   // Inclui dias fechados (open:false) - buildBookingDays já apara as pontas, então
   // days[0] é sempre atendível. Os fechados aparecem desabilitados/riscados (design 10).
@@ -117,12 +120,20 @@ export function SlotPicker({
     if (!selectedDay) return;
     let active = true;
     loadSlots(selectedDay)
-      .then((s) => active && setFetched({ day: selectedDay, slots: s }))
-      .catch(() => active && setFetched({ day: selectedDay, slots: [] }));
+      .then((s) => {
+        if (!active) return;
+        setFetched({ day: selectedDay, slots: s });
+        onDaySlots?.(selectedDay, s);
+      })
+      .catch(() => {
+        if (!active) return;
+        setFetched({ day: selectedDay, slots: [] });
+        onDaySlots?.(selectedDay, []);
+      });
     return () => {
       active = false;
     };
-  }, [selectedDay, loadSlots]);
+  }, [selectedDay, loadSlots, onDaySlots]);
 
   const loadingSlots = fetched?.day !== selectedDay;
   const slots = fetched?.day === selectedDay ? fetched.slots : null;

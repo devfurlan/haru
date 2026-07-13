@@ -67,6 +67,13 @@ import {
   previewPublicSeries,
 } from './actions';
 import { createPaymentForAppointment } from './payments-actions';
+import { getQueueEligibility, joinQueue, leaveQueue, type QueueEligibility } from './queue-actions';
+import {
+  QueueEmptyCard,
+  QueueGateDialog,
+  QueueJoinedScreen,
+  type QueueBookingContext,
+} from './queue-booking';
 
 type AvailableSlot = AvailableSlotWithProfessionals;
 
@@ -124,6 +131,9 @@ export interface PublicBookingProps {
   initialServiceId?: string | null;
   /** Fechar o modal - usado no "voltar" do primeiro passo. */
   onRequestClose?: () => void;
+  /** Volta pra fila depois de logar: retoma o passo dia/horário no mesmo contexto
+   *  (serviço, profissional, dia) que o cliente tinha antes de ir pro login. */
+  resume?: { serviceId: string; professionalId: string; dateStr: string } | null;
 }
 
 /**
@@ -135,7 +145,7 @@ export interface PublicBookingProps {
  *  'contact' - Contato + resumo / recorrência / conta / confirmação.
  *  'done'    - Tela de sucesso animada.
  */
-type Step = 'vitrine' | 'select' | 'slot' | 'contact' | 'done';
+type Step = 'vitrine' | 'select' | 'slot' | 'contact' | 'queue-joined' | 'done';
 
 type FrequencyChoice = 'NONE' | RecurrenceFrequency;
 
@@ -885,6 +895,7 @@ function StepDiaHora({
   continueDisabled,
   onOpenOptions,
   headingRef,
+  queue,
 }: {
   tenantName: string;
   service: ServiceOption;
@@ -916,6 +927,8 @@ function StepDiaHora({
   /** Logado que confirma direto: link discreto pra abrir opções (recorrência). */
   onOpenOptions?: () => void;
   headingRef: React.RefObject<HTMLHeadingElement | null>;
+  /** Fila de espera no estado "sem horário": elegibilidade + handlers. null = sem fila. */
+  queue: (Omit<QueueBookingContext, 'onSeeOtherDays'> & { onSeeOtherDays?: () => void }) | null;
 }) {
   // Rola o carrossel até o chip escolhido (ex.: quando vem do date-picker).
   const railRef = useRef<HTMLDivElement>(null);
@@ -932,6 +945,9 @@ function StepDiaHora({
     selectedDate && !selectedDay
       ? [...days, { value: selectedDate, label: labelFromIso(selectedDate, timezone), open: true }]
       : days;
+
+  // Nenhum horário LIVRE (dia vazio OU lotado com tudo ocupado). `every` em [] é true.
+  const noFreeSlots = slots.every((s) => s.available === false);
 
   return (
     <>
@@ -1058,39 +1074,50 @@ function StepDiaHora({
                 <Skeleton key={i} className="h-[42px] w-[76px] rounded-[12px]" />
               ))}
             </div>
-          ) : slots.length === 0 ? (
-            <p className="bg-muted text-sub rounded-lg border p-4 text-sm">
-              Nenhum horário livre nesse dia.
-            </p>
           ) : (
-            <div
-              className="flex flex-wrap gap-[9px]"
-              role="group"
-              aria-label="Horários disponíveis"
-            >
-              {slots.map((slot) => {
-                const busy = slot.available === false;
-                const isSelected = slot.startsAtIso === selectedSlotIso;
-                return (
-                  <button
-                    key={slot.startsAtIso}
-                    type="button"
-                    disabled={busy}
-                    aria-pressed={isSelected}
-                    onClick={() => onSelectSlot(slot)}
-                    className={cn(
-                      'w-[76px] rounded-[12px] py-[11px] text-center text-sm transition-[transform,background-color,border-color]',
-                      busy
-                        ? 'cursor-not-allowed bg-[#f2ebda] font-semibold text-[#b9ad93] line-through'
-                        : isSelected
-                          ? 'bg-coral font-bold text-white'
-                          : 'bg-card text-foreground border-edge hover:border-coral border font-semibold active:scale-95',
-                    )}
-                  >
-                    {fmtTime(slot.label)}
-                  </button>
-                );
-              })}
+            <div className="space-y-4">
+              {slots.length > 0 ? (
+                <div className="flex flex-wrap gap-[9px]" role="group" aria-label="Horários do dia">
+                  {slots.map((slot) => {
+                    const busy = slot.available === false;
+                    const isSelected = slot.startsAtIso === selectedSlotIso;
+                    return (
+                      <button
+                        key={slot.startsAtIso}
+                        type="button"
+                        disabled={busy}
+                        aria-pressed={isSelected}
+                        onClick={() => onSelectSlot(slot)}
+                        className={cn(
+                          'w-[76px] rounded-[12px] py-[11px] text-center text-sm transition-[transform,background-color,border-color]',
+                          busy
+                            ? 'cursor-not-allowed bg-[#f2ebda] font-semibold text-[#b9ad93] line-through'
+                            : isSelected
+                              ? 'bg-coral font-bold text-white'
+                              : 'bg-card text-foreground border-edge hover:border-coral border font-semibold active:scale-95',
+                        )}
+                      >
+                        {fmtTime(slot.label)}
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : null}
+              {noFreeSlots ? (
+                queue ? (
+                  <QueueEmptyCard
+                    ctx={{
+                      ...queue,
+                      onSeeOtherDays: () =>
+                        railRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }),
+                    }}
+                  />
+                ) : (
+                  <p className="bg-muted text-sub rounded-lg border p-4 text-sm">
+                    Nenhum horário livre nesse dia.
+                  </p>
+                )
+              ) : null}
             </div>
           )}
         </div>
@@ -2404,6 +2431,7 @@ export function PublicBooking({
   asModal = false,
   initialServiceId = null,
   onRequestClose,
+  resume = null,
 }: PublicBookingProps) {
   const router = useRouter();
 
@@ -2414,7 +2442,13 @@ export function PublicBooking({
   // escolhido (select se há profissionais, senão dia/horário). Fora do modal, começa
   // na vitrine como sempre.
   const [step, setStep] = useState<Step>(
-    asModal && initialServiceId ? (hasProfessionals ? 'select' : 'slot') : 'vitrine',
+    resume
+      ? 'slot'
+      : asModal && initialServiceId
+        ? hasProfessionals
+          ? 'select'
+          : 'slot'
+        : 'vitrine',
   );
 
   // Conta criada agora, pelo modal inline do passo de confirmação.
@@ -2444,10 +2478,12 @@ export function PublicBooking({
     [timezone],
   );
 
-  // Serviço escolhido (passo vitrine, ou pré-selecionado pelo modal da página).
-  const [serviceId, setServiceId] = useState(asModal ? (initialServiceId ?? '') : '');
+  // Serviço escolhido (passo vitrine, ou pré-selecionado pelo modal da página / resume da fila).
+  const [serviceId, setServiceId] = useState(
+    resume?.serviceId ?? (asModal ? (initialServiceId ?? '') : ''),
+  );
   // Profissional escolhido no passo select. '' = sem preferência (sistema atribui).
-  const [professionalId, setProfessionalId] = useState('');
+  const [professionalId, setProfessionalId] = useState(resume?.professionalId ?? '');
 
   // Contato (pedido só no passo final). phone = dígitos crus.
   const [phone, setPhone] = useState('');
@@ -2489,12 +2525,21 @@ export function PublicBooking({
   // Passo slot - dia / hora. Já abre no 1º dia com expediente (como o app mobile),
   // então os horários carregam de cara em vez de "selecione um dia". buildBookingDays
   // apara as pontas fechadas, então days[0] é sempre atendível.
-  const [dateStr, setDateStr] = useState<string>(() => days[0]?.value ?? '');
+  const [dateStr, setDateStr] = useState<string>(() => resume?.dateStr ?? days[0]?.value ?? '');
   const [slots, setSlots] = useState<AvailableSlot[]>([]);
   const [selectedSlotIso, setSelectedSlotIso] = useState('');
   const [loadingSlots, startLoadingSlots] = useTransition();
   const [expiryNotice, setExpiryNotice] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
+
+  // Fila de espera: só entra em cena quando o dia+profissional escolhidos ficam sem
+  // nenhum horário livre. A elegibilidade (dia lotado c/ expediente aberto, fila cheia,
+  // dia fechado) é decidida server-side em getQueueEligibility.
+  const [queueEligibility, setQueueEligibility] = useState<QueueEligibility | null>(null);
+  const [queueGateOpen, setQueueGateOpen] = useState(false);
+  const [queuePosition, setQueuePosition] = useState<number | null>(null);
+  const [joiningQueue, startJoin] = useTransition();
+  const [leavingQueue, startLeave] = useTransition();
 
   // Recorrência (opcional, no passo de confirmação). 'NONE' = agendamento único.
   const [frequency, setFrequency] = useState<FrequencyChoice>('NONE');
@@ -2546,14 +2591,38 @@ export function PublicBooking({
   useEffect(() => {
     setSelectedSlotIso('');
     setSubmitError(null);
+    setQueueEligibility(null);
     if (!serviceId || !dateStr) {
       setSlots([]);
       return;
     }
+    // Guarda contra resposta obsoleta: trocar dia rápido dispara vários fetches e
+    // useTransition não cancela os em voo - só o último (active) pode gravar estado.
+    let active = true;
     startLoadingSlots(async () => {
       const result = await getAvailableSlots(slug, serviceId, dateStr, professionalId || undefined);
+      if (!active) return;
       setSlots(result);
+      // Sem horário LIVRE (dia vazio OU lotado com todos ocupados) pergunta se dá pra
+      // entrar na fila. getAvailableSlots vem com includeBusy, então um dia lotado volta
+      // slots available:false (não [] ) - por isso o teste é "nenhum livre", não length.
+      if (!result.some((s) => s.available !== false)) {
+        try {
+          const elig = await getQueueEligibility({
+            slug,
+            serviceId,
+            dateStr,
+            professionalId: professionalId || undefined,
+          });
+          if (active) setQueueEligibility(elig);
+        } catch {
+          if (active) setQueueEligibility({ state: 'unavailable' });
+        }
+      }
     });
+    return () => {
+      active = false;
+    };
   }, [slug, serviceId, dateStr, professionalId]);
 
   // Sucesso do submit → tela final. Salva o contato pro próximo agendamento.
@@ -2615,6 +2684,91 @@ export function PublicBooking({
     setSubmitError(null);
     setSelectedSlotIso(slot.startsAtIso);
   }
+
+  // --- Fila de espera ---------------------------------------------------------
+  // Dia por extenso ("Sábado") pros textos da fila. Meio-dia UTC evita cruzar a
+  // virada do dia em qualquer fuso BR.
+  const queueWeekday = useMemo(() => {
+    if (!dateStr) return '';
+    const wd = new Intl.DateTimeFormat('pt-BR', { timeZone: timezone, weekday: 'long' }).format(
+      new Date(`${dateStr}T12:00:00Z`),
+    );
+    return wd.charAt(0).toUpperCase() + wd.slice(1);
+  }, [dateStr, timezone]);
+  // Nome do profissional escolhido (null quando "qualquer" - a fila é por profissional,
+  // então nesse caso a elegibilidade server-side decide se ainda faz sentido).
+  const queueProfessionalName = professionalId
+    ? (professionals.find((p) => p.id === professionalId)?.name ?? null)
+    : null;
+
+  function runJoinQueue() {
+    startJoin(async () => {
+      const res = await joinQueue({
+        slug,
+        serviceId,
+        dateStr,
+        professionalId: professionalId || undefined,
+      });
+      if ('ok' in res) {
+        setSubmitError(null);
+        setQueuePosition(res.position);
+        setStep('queue-joined');
+      } else {
+        setSubmitError(res.error);
+      }
+    });
+  }
+
+  /** Entrar na fila: sem conta, abre o gate (conta é requisito); com conta, entra direto. */
+  function handleJoinQueue() {
+    if (!hasAccount) {
+      setQueueGateOpen(true);
+      return;
+    }
+    runJoinQueue();
+  }
+
+  /** Cadastro inline concluído no gate: a sessão já existe no servidor, então entra na fila. */
+  function handleQueueAuthenticated() {
+    setQueueGateOpen(false);
+    setAccountCreated(true);
+    router.refresh();
+    runJoinQueue();
+  }
+
+  function handleLeaveQueue() {
+    startLeave(async () => {
+      const res = await leaveQueue({
+        slug,
+        serviceId,
+        dateStr,
+        professionalId: professionalId || undefined,
+      });
+      if ('ok' in res) {
+        setSubmitError(null);
+        setQueuePosition(null);
+        if (step === 'queue-joined') setStep('slot');
+        // Re-checa a elegibilidade (o dia pode ter enchido/fechado durante a espera) em
+        // vez de assumir 'open' - senão o CTA "me avisa" reaparece pra um estado inválido.
+        try {
+          setQueueEligibility(
+            await getQueueEligibility({
+              slug,
+              serviceId,
+              dateStr,
+              professionalId: professionalId || undefined,
+            }),
+          );
+        } catch {
+          setQueueEligibility({ state: 'unavailable' });
+        }
+      } else {
+        setSubmitError(res.error);
+      }
+    });
+  }
+
+  const queueFirstName = (customerName ?? name ?? '').trim().split(' ')[0] ?? '';
 
   // Cliente logado já agenda direto pelo rodapé do horário (igual ao app mobile): não faz
   // sentido pedir "Seus dados" de quem já tem conta. O WhatsApp é opcional, então basta ter
@@ -2722,6 +2876,27 @@ export function PublicBooking({
           // Logado confirma direto, mas pode abrir "Seus dados" (onde vive a recorrência).
           onOpenOptions={canDirectConfirm ? () => setStep('contact') : undefined}
           headingRef={headingRef}
+          queue={{
+            eligibility: queueEligibility,
+            professionalName: queueProfessionalName,
+            weekday: queueWeekday,
+            joining: joiningQueue,
+            leaving: leavingQueue,
+            onJoin: handleJoinQueue,
+            onLeave: handleLeaveQueue,
+          }}
+        />
+      ) : null}
+
+      {step === 'queue-joined' ? (
+        <QueueJoinedScreen
+          firstName={queueFirstName}
+          weekday={queueWeekday}
+          professionalName={queueProfessionalName}
+          position={queuePosition ?? 1}
+          leaving={leavingQueue}
+          onLeave={handleLeaveQueue}
+          error={submitError}
         />
       ) : null}
 
@@ -2789,6 +2964,15 @@ export function PublicBooking({
           />
         )
       ) : null}
+
+      <QueueGateDialog
+        open={queueGateOpen}
+        onOpenChange={setQueueGateOpen}
+        loginHref={`/login?next=${encodeURIComponent(
+          `/${slug}?fila=1&s=${serviceId}&p=${professionalId}&d=${dateStr}`,
+        )}`}
+        onAuthenticated={handleQueueAuthenticated}
+      />
     </div>
   );
 }

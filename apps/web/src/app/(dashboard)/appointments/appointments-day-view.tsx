@@ -9,12 +9,14 @@ import type { AppointmentStatus } from '@haru/database';
 
 import { Button } from '@/components/ui/button';
 import { Chip } from '@/components/ui/chip';
+import { SegmentedControl } from '@/components/ui/segmented-control';
 
 import { cancelAppointment, confirmAppointment } from './actions';
 import { AppointmentDetailCard } from './appointment-detail-card';
 import { BlockTimeDialog } from './block-time-dialog';
 import { DayGrid } from './day-grid';
 import { MiniMonth } from './mini-month';
+import { WaitlistView, type WaitlistViewProps } from './waitlist-view';
 
 export interface CalendarAppointment {
   id: string;
@@ -74,6 +76,8 @@ interface AppointmentsDayViewProps {
   timezone: string;
   /** "Hoje" no fuso do tenant (YYYY-MM-DD). */
   today: string;
+  /** Dados da aba "Fila de espera" (só leitura; a fila roda sozinha). */
+  waitlist: WaitlistViewProps;
 }
 
 function localDayKey(iso: string, timezone: string): string {
@@ -103,7 +107,9 @@ export function AppointmentsDayView({
   pending,
   timezone,
   today,
+  waitlist,
 }: AppointmentsDayViewProps) {
+  const [tab, setTab] = useState<'agenda' | 'fila'>('agenda');
   const [selected, setSelected] = useState(today);
   const [active, setActive] = useState<CalendarAppointment | null>(null);
   const [blocking, setBlocking] = useState(false);
@@ -212,96 +218,119 @@ export function AppointmentsDayView({
         </div>
       </div>
 
-      {/* toolbar */}
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="border-edge bg-paper flex items-center gap-1.5 rounded-full border p-1">
-          <button
-            type="button"
-            aria-label="Dia anterior"
-            onClick={() => goToDay(shiftDayKey(selected, -1))}
-            className="text-ink-70 hover:bg-cream-2 flex size-[30px] items-center justify-center rounded-full"
-          >
-            <ChevronLeft className="size-4" />
-          </button>
-          <span className="text-ink px-1.5 font-serif text-sm">{selectedLabel}</span>
-          <button
-            type="button"
-            aria-label="Próximo dia"
-            onClick={() => goToDay(shiftDayKey(selected, 1))}
-            className="text-ink-70 hover:bg-cream-2 flex size-[30px] items-center justify-center rounded-full"
-          >
-            <ChevronRight className="size-4" />
-          </button>
-        </div>
-        <button
-          type="button"
-          onClick={() => goToDay(today)}
-          disabled={selected === today}
-          className="border-edge bg-paper text-ink-70 hover:bg-cream-2 rounded-full border px-4 py-2.5 text-xs font-semibold disabled:opacity-50"
-        >
-          Hoje
-        </button>
-        <div className="flex-1" />
-        {multiPro && (
-          <div className="flex flex-wrap items-center gap-2">
-            <Chip selected={proFilter === null} onClick={() => setProFilter(null)}>
-              Todos
-            </Chip>
-            {professionals.map((p) => (
-              <Chip
-                key={p.id}
-                dot
-                dotColor={colorOf(p.id)}
-                selected={proFilter === p.id}
-                onClick={() => setProFilter((cur) => (cur === p.id ? null : p.id))}
+      {/* abas: Agenda | Fila de espera */}
+      <SegmentedControl
+        className="self-start"
+        value={tab}
+        onChange={(v) => setTab(v as 'agenda' | 'fila')}
+        options={[
+          { label: 'Agenda', value: 'agenda' },
+          {
+            label:
+              waitlist.totalWaiting > 0
+                ? `Fila de espera (${waitlist.totalWaiting})`
+                : 'Fila de espera',
+            value: 'fila',
+          },
+        ]}
+      />
+
+      {tab === 'fila' && <WaitlistView {...waitlist} />}
+
+      {tab === 'agenda' && (
+        <>
+          {/* toolbar */}
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="border-edge bg-paper flex items-center gap-1.5 rounded-full border p-1">
+              <button
+                type="button"
+                aria-label="Dia anterior"
+                onClick={() => goToDay(shiftDayKey(selected, -1))}
+                className="text-ink-70 hover:bg-cream-2 flex size-[30px] items-center justify-center rounded-full"
               >
-                {p.name.split(/\s+/)[0]}
-              </Chip>
-            ))}
+                <ChevronLeft className="size-4" />
+              </button>
+              <span className="text-ink px-1.5 font-serif text-sm">{selectedLabel}</span>
+              <button
+                type="button"
+                aria-label="Próximo dia"
+                onClick={() => goToDay(shiftDayKey(selected, 1))}
+                className="text-ink-70 hover:bg-cream-2 flex size-[30px] items-center justify-center rounded-full"
+              >
+                <ChevronRight className="size-4" />
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={() => goToDay(today)}
+              disabled={selected === today}
+              className="border-edge bg-paper text-ink-70 hover:bg-cream-2 rounded-full border px-4 py-2.5 text-xs font-semibold disabled:opacity-50"
+            >
+              Hoje
+            </button>
+            <div className="flex-1" />
+            {multiPro && (
+              <div className="flex flex-wrap items-center gap-2">
+                <Chip selected={proFilter === null} onClick={() => setProFilter(null)}>
+                  Todos
+                </Chip>
+                {professionals.map((p) => (
+                  <Chip
+                    key={p.id}
+                    dot
+                    dotColor={colorOf(p.id)}
+                    selected={proFilter === p.id}
+                    onClick={() => setProFilter((cur) => (cur === p.id ? null : p.id))}
+                  >
+                    {p.name.split(/\s+/)[0]}
+                  </Chip>
+                ))}
+              </div>
+            )}
           </div>
-        )}
-      </div>
 
-      <div className="flex flex-wrap items-start gap-4">
-        {/* grade */}
-        <div className="border-line bg-paper shadow-soft min-w-0 flex-1 overflow-hidden rounded-[18px] border">
-          <div className="max-h-[40rem] overflow-y-auto">
-            <DayGrid
-              dayKey={selected}
-              appointments={gridAppts}
-              exceptions={dayExceptions}
-              scheduleBlocks={scheduleBlocks}
-              columns={columns}
-              timezone={timezone}
-              isToday={selected === today}
-              selectedId={active?.id ?? null}
-              onSelect={setActive}
-            />
-          </div>
-        </div>
+          <div className="flex flex-wrap items-start gap-4">
+            {/* grade */}
+            <div className="border-line bg-paper shadow-soft min-w-0 flex-1 overflow-hidden rounded-[18px] border">
+              <div className="max-h-[40rem] overflow-y-auto">
+                <DayGrid
+                  dayKey={selected}
+                  appointments={gridAppts}
+                  exceptions={dayExceptions}
+                  scheduleBlocks={scheduleBlocks}
+                  columns={columns}
+                  timezone={timezone}
+                  isToday={selected === today}
+                  selectedId={active?.id ?? null}
+                  onSelect={setActive}
+                />
+              </div>
+            </div>
 
-        {/* trilho direito */}
-        <div className="flex w-[320px] max-w-full flex-none flex-col gap-3.5">
-          {active && (
-            <AppointmentDetailCard
-              appointment={active}
-              professionalName={multiPro ? professionalName : null}
-              timezone={timezone}
-              onClose={() => setActive(null)}
-            />
-          )}
-          {pending.length > 0 && <PendingPanel pending={pending} />}
-          <div className="border-line bg-paper shadow-soft rounded-[18px] border p-4">
-            <MiniMonth
-              selected={selected}
-              today={today}
-              daysWithAppointments={daysWithAppointments}
-              timezone={timezone}
-              onSelect={goToDay}
-            />
+            {/* trilho direito */}
+            <div className="flex w-[320px] max-w-full flex-none flex-col gap-3.5">
+              {active && (
+                <AppointmentDetailCard
+                  appointment={active}
+                  professionalName={multiPro ? professionalName : null}
+                  timezone={timezone}
+                  onClose={() => setActive(null)}
+                />
+              )}
+              {pending.length > 0 && <PendingPanel pending={pending} />}
+              <div className="border-line bg-paper shadow-soft rounded-[18px] border p-4">
+                <MiniMonth
+                  selected={selected}
+                  today={today}
+                  daysWithAppointments={daysWithAppointments}
+                  timezone={timezone}
+                  onSelect={goToDay}
+                />
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
+        </>
+      )}
 
       <BlockTimeDialog
         key={blockSeq}

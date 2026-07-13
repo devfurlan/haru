@@ -1,5 +1,5 @@
 import { Image } from 'expo-image';
-import { Link, router, useLocalSearchParams } from 'expo-router';
+import { Link, router, useLocalSearchParams, type Href } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -32,6 +32,9 @@ import { PaymentSection } from '@/components/payment-section';
 import { PressScale } from '@/components/press-scale';
 import { SlotPicker } from '@/components/slot-picker';
 import { Text, TextInput } from '@/components/text';
+import { WaitlistCta } from '@/components/waitlist-cta';
+import { WaitlistJoinSheet } from '@/components/waitlist-join-sheet';
+import { WaitlistJoinedOverlay } from '@/components/waitlist-joined-overlay';
 import {
   api,
   ApiError,
@@ -110,6 +113,18 @@ function buildConfirmWhen(iso: string, timezone: string) {
     .replace(':', 'h')
     .replace(/h00$/, 'h');
   return `${wd}, ${dm} · ${time}`;
+}
+
+// "2026-07-15" -> "Sáb, 15/07" no fuso do tenant (rótulo do dia pra fila de espera).
+// Meio-dia evita virar o dia por diferença de fuso na hora de formatar.
+function dayLabelFromDateStr(dateStr: string, timezone: string) {
+  const d = new Date(`${dateStr}T12:00:00`);
+  const wdRaw = new Intl.DateTimeFormat('pt-BR', { timeZone: timezone, weekday: 'short' })
+    .format(d)
+    .replace('.', '');
+  const wd = wdRaw.charAt(0).toUpperCase() + wdRaw.slice(1);
+  const dm = new Intl.DateTimeFormat('pt-BR', { timeZone: timezone, day: '2-digit', month: '2-digit' }).format(d);
+  return `${wd}, ${dm}`;
 }
 
 function ShareIcon({ size = 18, color = '#faf5ea' }: { size?: number; color?: string }) {
@@ -359,6 +374,16 @@ export default function BookScreen() {
     | null
   >(null);
   const [calOpen, setCalOpen] = useState(false);
+  // Fila de espera: slots do dia selecionado (pra detectar dia lotado) + estados do fluxo.
+  const [dayFull, setDayFull] = useState<{ dateStr: string; full: boolean } | null>(null);
+  const [joinSheetOpen, setJoinSheetOpen] = useState(false);
+  const [joining, setJoining] = useState(false);
+  const [joined, setJoined] = useState<{
+    position: number;
+    serviceName: string;
+    professionalName: string | null;
+    dayLabel: string;
+  } | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -404,6 +429,20 @@ export default function BookScreen() {
         : Promise.resolve([]),
     [slug, service, professionalId],
   );
+
+  // Dia lotado = dia atendível cujos horários vieram TODOS ocupados (available:false).
+  // Se vier 0 horários, é dia sem expediente/passado - sem fila (regra 1). O servidor é a
+  // fonte da verdade ao entrar na fila; aqui só decidimos mostrar o CTA.
+  const handleDaySlots = useCallback((dateStr: string, slots: AvailableSlot[]) => {
+    const full = slots.length > 0 && slots.every((s) => s.available === false);
+    setDayFull({ dateStr, full });
+  }, []);
+
+  // Sair do passo de horário zera a detecção: ao voltar (novo serviço/dia), o CTA não
+  // pisca pro dia antigo enquanto o SlotPicker recarrega.
+  useEffect(() => {
+    if (step !== 'slot') setDayFull(null);
+  }, [step]);
 
   // Prévia editável da recorrência: recarrega ao mudar frequência/quantidade/slot/profissional.
   useEffect(() => {
@@ -498,6 +537,36 @@ export default function BookScreen() {
     }
   }
 
+  // Entra na fila do dia lotado. Exige conta (a identidade é o cliente logado - visitante
+  // vai pro login) e um profissional concreto (a fila é por profissional). O servidor
+  // valida a elegibilidade e devolve a posição.
+  async function handleJoinWaitlist() {
+    if (!service || !dayFull || !tenant || !waitlistProId) return;
+    setJoining(true);
+    setError(null);
+    try {
+      const res = await api.joinWaitlist(slug, {
+        serviceId: service.id,
+        professionalId: waitlistProId,
+        dateStr: dayFull.dateStr,
+        name: name.trim(),
+        phone: phone || undefined,
+      });
+      setJoinSheetOpen(false);
+      setJoined({
+        position: res.position,
+        serviceName: service.name,
+        professionalName: waitlistProName,
+        dayLabel: dayLabelFromDateStr(dayFull.dateStr, tenant.timezone),
+      });
+    } catch (err) {
+      // Erro real (ex.: fila desligada no servidor): mostra e mantém o sheet.
+      setError(err instanceof ApiError ? err.message : 'Não foi possível entrar na fila.');
+    } finally {
+      setJoining(false);
+    }
+  }
+
   function goBack() {
     if (step === 'contact') setStep('slot');
     else if (step === 'slot') setStep('select');
@@ -547,6 +616,14 @@ export default function BookScreen() {
     : tenant.professionals;
   const lowestPrice = tenant.services.length
     ? Math.min(...tenant.services.map((s) => s.priceCents))
+    : null;
+
+  // Fila de espera é por profissional CONCRETO. "Qualquer" (professionalId null) só resolve
+  // quando o serviço tem um único profissional; senão não dá pra oferecer fila (= sem CTA).
+  const waitlistProId =
+    professionalId ?? (serviceProfs.length === 1 ? serviceProfs[0].id : null);
+  const waitlistProName = waitlistProId
+    ? (tenant.professionals.find((p) => p.id === waitlistProId)?.name ?? null)
     : null;
 
   // Ações do rodapé da tela de sucesso (adicionar à agenda / compartilhar / CTA),
@@ -884,8 +961,26 @@ export default function BookScreen() {
                         setSlotSummary(slot ? buildSlotSummary(slot, tenant) : null);
                       }}
                       submitting={submitting}
+                      onDaySlots={handleDaySlots}
                     />
                   </View>
+
+                  {/* Dia lotado + expediente rolando: entra na fila de espera (regra 1). Só
+                      com a fila ligada no estabelecimento e um profissional concreto. */}
+                  {tenant.waitlistEnabled && waitlistProId && dayFull?.full && !slotIso ? (
+                    <WaitlistCta
+                      dayLabel={dayLabelFromDateStr(dayFull.dateStr, tenant.timezone)}
+                      professionalName={waitlistProName}
+                      submitting={joining}
+                      onPress={() => {
+                        if (!session) {
+                          router.push('/login');
+                          return;
+                        }
+                        setJoinSheetOpen(true);
+                      }}
+                    />
+                  ) : null}
                 </>
               ) : step === 'contact' ? (
                 <View>
@@ -1186,6 +1281,36 @@ export default function BookScreen() {
             minutes: service.durationMinutes,
             location: tenant.name,
           }}
+        />
+      ) : null}
+
+      {/* Fila de espera: confirmação de entrada (sheet) + tela de sucesso (overlay). */}
+      {service && dayFull ? (
+        <WaitlistJoinSheet
+          visible={joinSheetOpen}
+          dayLabel={dayLabelFromDateStr(dayFull.dateStr, tenant.timezone)}
+          professionalName={waitlistProName}
+          serviceName={service.name}
+          priceLabel={formatBRL(service.priceCents)}
+          submitting={joining}
+          onConfirm={handleJoinWaitlist}
+          onClose={() => setJoinSheetOpen(false)}
+        />
+      ) : null}
+
+      {joined ? (
+        <WaitlistJoinedOverlay
+          tenantName={tenant.name}
+          logoUrl={tenant.logoUrl}
+          serviceName={joined.serviceName}
+          professionalName={joined.professionalName}
+          dayLabel={joined.dayLabel}
+          position={joined.position}
+          onSeeInterests={() => {
+            setJoined(null);
+            router.replace('/fila' as Href);
+          }}
+          onClose={() => setJoined(null)}
         />
       ) : null}
     </View>

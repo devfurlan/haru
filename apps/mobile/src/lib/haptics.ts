@@ -5,3 +5,9 @@ import * as Haptics from 'expo-haptics';
 export function tapLight() {
   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
 }
+
+// Feedback de sucesso (confirmar vaga da fila, "deu certo"). Mesmo contrato à prova
+// de ambiente sem módulo nativo.
+export function notifySuccess() {
+  Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+}

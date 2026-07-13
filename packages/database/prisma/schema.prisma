@@ -118,6 +118,16 @@ model Tenant {
   inviteTemplateName            String?
   inviteTemplateLanguage        String? @default("pt_BR")
 
+  // --- Fila de espera ---------------------------------------------------------
+  /// Liga/desliga a fila de espera do estabelecimento (dono controla em /settings).
+  /// Quando false, não dá pra entrar na fila e cancelamentos não disparam match.
+  waitlistEnabled         Boolean @default(true)
+  /// Minutos que cada onda tem pra confirmar antes de passar pra próxima (e por quanto
+  /// tempo a reserva temporária segura os horários). Padrão 15.
+  waitlistWindowMinutes   Int     @default(15)
+  /// Modo de notificação: false = em ondas de 3 (padrão); true = avisa todos de uma vez.
+  waitlistNotifyAllAtOnce Boolean @default(false)
+
   // --- Atendente IA (addon) ---------------------------------------------------
   /// Identidade que o Atendente IA usa pra se apresentar ao cliente final. Coletada
   /// na ativação do addon. Crítico na variante "número Demandaê" (número compartilhado):
@@ -166,6 +176,8 @@ model Tenant {
   usageAlerts        UsageAlert[]
   notifications      Notification[]
   loyaltyProgram     LoyaltyProgram?
+  waitlistEntries    WaitlistEntry[]
+  waitlistOffers     WaitlistOffer[]
 }
 
 model User {
@@ -210,6 +222,8 @@ model User {
   scheduleExceptions   ScheduleException[]
   appointments         Appointment[]
   professionalServices ProfessionalService[]
+  waitlistEntries      WaitlistEntry[]
+  waitlistOffers       WaitlistOffer[]
 }
 
 enum UserRole {
@@ -344,6 +358,7 @@ model Service {
   loyaltyPrizeFor    LoyaltyProgram[]
   /// Programas em que ESTE serviço conta carimbo (quando countMode = SPECIFIC).
   loyaltyQualifiesIn LoyaltyProgramService[]
+  waitlistEntries    WaitlistEntry[]
 }
 
 /// Vínculo N:N entre um profissional (User) e um Service que ele executa. Define
@@ -435,6 +450,7 @@ model Contact {
   conversations      Conversation[]
   appointments       Appointment[]
   loyaltyRedemptions LoyaltyRedemption[]
+  waitlistEntries    WaitlistEntry[]
 
   @@unique([tenantId, phone])
   @@index([customerAccountId])
@@ -521,6 +537,9 @@ model Appointment {
   /// Marca de quando o lembrete via PUSH (app) foi enviado. null = ainda não. Mesmo
   /// padrão dos outros canais - evita reenvio a cada tick do loop; zerado na remarcação.
   reminderPushSentAt  DateTime?
+  /// True quando este agendamento nasceu de uma confirmação na FILA DE ESPERA (vaga
+  /// recuperada). Alimenta on-read a métrica de receita recuperada no painel do dono.
+  fromWaitlist        Boolean            @default(false)
   createdAt           DateTime           @default(now())
   updatedAt           DateTime           @updatedAt
 
@@ -1152,4 +1171,69 @@ model LoyaltyRedemption {
 
   @@index([programId, contactId, redeemedAt])
   @@index([contactId])
+}
+
+/// Fila de espera: um cliente quer um DIA + PROFISSIONAL cuja agenda está cheia. Quando
+/// um horário libera (cancelamento/remarcação), a engine (apps/web/src/lib/waitlist.ts)
+/// notifica em ondas quem espera aquele par. A chave da fila é (tenantId, professionalId,
+/// date); serviceId guarda o que o cliente queria (duração p/ recalcular horários + preço
+/// p/ a métrica de receita recuperada). Ordem da fila = createdAt.
+model WaitlistEntry {
+  id             String         @id @default(cuid())
+  tenantId       String
+  tenant         Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  professionalId String
+  professional   User           @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+  serviceId      String
+  service        Service        @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  contactId      String
+  contact        Contact        @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  /// Dia desejado (data-calendário no fuso do tenant, sem hora).
+  date           DateTime       @db.Date
+  status         WaitlistStatus @default(WAITING)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@unique([tenantId, professionalId, date, contactId])
+  @@index([tenantId, professionalId, date, status])
+}
+
+/// Episódio de match: criado quando um horário vaga e existe fila p/ (tenant, pro, dia).
+/// Guarda o estado das ondas e serve de RESERVA temporária - enquanto ACTIVE e
+/// holdExpiresAt > now, todos os horários livres desse profissional nesse dia ficam
+/// congelados pro fluxo normal (ver isSlotFrozenByWaitlist). Não há tabela de hold por
+/// slot: a reserva é derivada da existência deste offer.
+model WaitlistOffer {
+  id               String              @id @default(cuid())
+  tenantId         String
+  tenant           Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  professionalId   String
+  professional     User                @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+  /// Dia em que o horário vagou (mesma semântica de WaitlistEntry.date).
+  date             DateTime            @db.Date
+  /// Onda atual (1 = primeiros da fila). Cresce a cada avanço.
+  wave             Int                 @default(1)
+  /// Quando o cron deve avançar p/ a próxima onda (= último disparo + windowMinutes).
+  nextWaveAt       DateTime
+  /// Expiração da reserva temporária. Bump a cada onda; = now ao encerrar (libera o slot).
+  holdExpiresAt    DateTime
+  /// Ids de WaitlistEntry já notificados neste episódio (próxima onda = WAITING fora daqui).
+  notifiedEntryIds String[]            @default([])
+  status           WaitlistOfferStatus @default(ACTIVE)
+  createdAt        DateTime            @default(now())
+
+  @@index([status, nextWaveAt])
+  @@index([tenantId, professionalId, date])
+}
+
+enum WaitlistStatus {
+  WAITING
+  FULFILLED
+  CANCELED
+}
+
+enum WaitlistOfferStatus {
+  ACTIVE
+  FULFILLED
+  EXHAUSTED
 }

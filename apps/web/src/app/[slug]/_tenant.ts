@@ -44,6 +44,8 @@ export async function loadPublicTenant(slug: string) {
         include: { professionals: { select: { professionalId: true } } },
       },
       scheduleBlocks: { orderBy: [{ weekday: 'asc' }, { startMinute: 'asc' }] },
+      // Assinatura: pra derivar o flag efetivo da fila (feature Time+) sem query extra.
+      subscription: true,
       // Profissionais (com agenda) para o passo "escolha o profissional" no booking.
       users: {
         where: { isProfessional: true },

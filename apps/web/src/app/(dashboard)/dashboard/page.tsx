@@ -6,9 +6,11 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { requireUserAndTenant } from '@/lib/auth';
 import { computeLapsed } from '@/lib/lapsed-clients';
+import { getRecoveryMetric } from '@/lib/waitlist-panel';
 import { isWhatsappConnected } from '@/lib/whatsapp-status';
 
 import { LapsedClientsCard } from './lapsed-clients-card';
+import { RecoveryBanner } from './recovery-banner';
 
 // Cliente "sumido": era de casa e não volta há este tanto de dias (protótipo Painel do Dono).
 const LAPSE_DAYS = 60;
@@ -63,7 +65,11 @@ export default async function DashboardPage() {
 
   const [todayAppts, pendingCount, blocks, recent, lapsedContacts] = await Promise.all([
     prisma.appointment.findMany({
-      where: { tenantId: tenant.id, startsAt: { gte: dayStart, lt: dayEnd }, status: { not: 'CANCELED' } },
+      where: {
+        tenantId: tenant.id,
+        startsAt: { gte: dayStart, lt: dayEnd },
+        status: { not: 'CANCELED' },
+      },
       include: { service: true, contact: true, professional: true },
       orderBy: { startsAt: 'asc' },
     }),
@@ -72,7 +78,10 @@ export default async function DashboardPage() {
     }),
     prisma.scheduleBlock.findMany({ where: { tenantId: tenant.id, weekday } }),
     prisma.appointment.findMany({
-      where: { tenantId: tenant.id, createdAt: { gte: new Date(now.getTime() - 36 * 3600 * 1000) } },
+      where: {
+        tenantId: tenant.id,
+        createdAt: { gte: new Date(now.getTime() - 36 * 3600 * 1000) },
+      },
       include: { service: true, contact: true },
       orderBy: { createdAt: 'desc' },
       take: 5,
@@ -86,7 +95,11 @@ export default async function DashboardPage() {
         name: true,
         phone: true,
         appointments: {
-          select: { startsAt: true, status: true, service: { select: { name: true, priceCents: true } } },
+          select: {
+            startsAt: true,
+            status: true,
+            service: { select: { name: true, priceCents: true } },
+          },
         },
       },
       take: 1000,
@@ -102,7 +115,8 @@ export default async function DashboardPage() {
     0,
   );
   const availableMin = blocks.reduce((sum, b) => sum + (b.endMinute - b.startMinute), 0);
-  const ocupacao = availableMin > 0 ? Math.min(100, Math.round((bookedMin / availableMin) * 100)) : 0;
+  const ocupacao =
+    availableMin > 0 ? Math.min(100, Math.round((bookedMin / availableMin) * 100)) : 0;
 
   // cor por profissional (estável por ordem de id no dia)
   const proIds = [...new Set(todayAppts.map((a) => a.professionalId))];
@@ -126,15 +140,17 @@ export default async function DashboardPage() {
   const clientName = (c: { name: string | null; phone: string | null }) =>
     c.name ?? (c.phone ? formatPhoneBR(c.phone) : 'Cliente');
 
+  const recoveryMetric = await getRecoveryMetric(tenant.id, tz);
+
   return (
     <div className="mx-auto flex w-full max-w-[1240px] flex-col gap-5">
       {/* header */}
       <div className="flex flex-wrap items-end gap-4">
         <div className="min-w-[260px] flex-1">
-          <div className="mb-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-ink-50">
+          <div className="text-ink-50 mb-1.5 text-[11px] font-bold uppercase tracking-[0.14em]">
             {dateLabel}
           </div>
-          <h1 className="font-serif text-3xl tracking-tight text-ink">
+          <h1 className="text-ink font-serif text-3xl tracking-tight">
             {greeting}, <em className="text-green-emph">{firstName}</em>
           </h1>
         </div>
@@ -148,6 +164,8 @@ export default async function DashboardPage() {
         </div>
       </div>
 
+      <RecoveryBanner metric={recoveryMetric} />
+
       {/* KPIs */}
       <div className="grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-3.5">
         <Kpi label="Agendamentos hoje" value={String(todayAppts.length)} sub="marcados pra hoje" />
@@ -157,13 +175,16 @@ export default async function DashboardPage() {
           sub="somando o dia"
           subClass="text-green-emph"
         />
-        <div className="rounded-2xl border border-line bg-paper p-4 shadow-soft">
-          <div className="text-[10.5px] font-bold uppercase tracking-[0.12em] text-ink-50">
+        <div className="border-line bg-paper shadow-soft rounded-2xl border p-4">
+          <div className="text-ink-50 text-[10.5px] font-bold uppercase tracking-[0.12em]">
             Ocupação do dia
           </div>
-          <div className="mb-2 mt-1.5 font-serif text-3xl text-ink">{ocupacao}%</div>
-          <div className="h-1.5 overflow-hidden rounded-full bg-line">
-            <div className="h-full rounded-full bg-green-bright" style={{ width: `${ocupacao}%` }} />
+          <div className="text-ink mb-2 mt-1.5 font-serif text-3xl">{ocupacao}%</div>
+          <div className="bg-line h-1.5 overflow-hidden rounded-full">
+            <div
+              className="bg-green-bright h-full rounded-full"
+              style={{ width: `${ocupacao}%` }}
+            />
           </div>
         </div>
         <Kpi
@@ -176,27 +197,27 @@ export default async function DashboardPage() {
 
       <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
         {/* Agora e a seguir */}
-        <div className="overflow-hidden rounded-[18px] border border-line bg-paper shadow-soft">
+        <div className="border-line bg-paper shadow-soft overflow-hidden rounded-[18px] border">
           <div className="flex items-baseline gap-2.5 px-[18px] pb-2.5 pt-4">
-            <div className="font-serif text-lg text-ink">Agora e a seguir</div>
-            <div className="text-xs font-medium text-ink-50">seu dia, do começo ao fim</div>
+            <div className="text-ink font-serif text-lg">Agora e a seguir</div>
+            <div className="text-ink-50 text-xs font-medium">seu dia, do começo ao fim</div>
             <Link
               href="/appointments"
-              className="ml-auto text-xs font-semibold text-green-emph no-underline hover:underline"
+              className="text-green-emph ml-auto text-xs font-semibold no-underline hover:underline"
             >
               Agenda completa →
             </Link>
           </div>
 
           {todayAppts.length === 0 ? (
-            <div className="m-[18px] mt-2 rounded-2xl border border-dashed border-edge px-6 py-9 text-center">
-              <div className="mx-auto mb-3 flex size-[50px] items-center justify-center rounded-[15px] bg-chip text-green-emph">
+            <div className="border-edge m-[18px] mt-2 rounded-2xl border border-dashed px-6 py-9 text-center">
+              <div className="bg-chip text-green-emph mx-auto mb-3 flex size-[50px] items-center justify-center rounded-[15px]">
                 <CalendarDays className="size-6" strokeWidth={2.1} />
               </div>
-              <div className="font-serif text-xl text-ink">
+              <div className="text-ink font-serif text-xl">
                 Tá tudo <em className="text-green-emph">livre</em> por aqui
               </div>
-              <p className="mx-auto mt-1.5 max-w-[340px] text-[13px] leading-relaxed text-ink-50">
+              <p className="text-ink-50 mx-auto mt-1.5 max-w-[340px] text-[13px] leading-relaxed">
                 Nenhum horário marcado ainda. Qualquer agendamento pelo app ou pela sua página
                 aparece aqui na hora.
               </p>
@@ -209,25 +230,25 @@ export default async function DashboardPage() {
                 return (
                   <li
                     key={a.id}
-                    className="flex items-center gap-3 border-t border-dotted border-edge px-[18px] py-2.5"
+                    className="border-edge flex items-center gap-3 border-t border-dotted px-[18px] py-2.5"
                   >
-                    <div className="w-[52px] flex-none font-serif text-base text-ink">
+                    <div className="text-ink w-[52px] flex-none font-serif text-base">
                       {hm(a.startsAt, tz)}
                     </div>
                     <div className="flex w-[9px] flex-none justify-center">
                       {live && (
-                        <span className="size-2 rounded-full bg-green-bright animate-pulse-ring" />
+                        <span className="bg-green-bright animate-pulse-ring size-2 rounded-full" />
                       )}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <div className="truncate text-[13.5px] font-semibold text-ink">
+                      <div className="text-ink truncate text-[13.5px] font-semibold">
                         {clientName(a.contact)}
                       </div>
-                      <div className="truncate text-[11.5px] font-medium text-ink-50">
+                      <div className="text-ink-50 truncate text-[11.5px] font-medium">
                         {a.service.name}
                       </div>
                     </div>
-                    <div className="hidden w-[84px] flex-none items-center gap-1.5 text-xs font-medium text-ink-70 sm:flex">
+                    <div className="text-ink-70 hidden w-[84px] flex-none items-center gap-1.5 text-xs font-medium sm:flex">
                       <span
                         className="size-[7px] flex-none rounded-full"
                         style={{ background: proColor(a.professionalId) }}
@@ -236,7 +257,7 @@ export default async function DashboardPage() {
                         {(a.professional.name ?? '').split(/\s+/)[0] || '—'}
                       </span>
                     </div>
-                    <div className="w-[56px] flex-none text-right font-serif text-[14.5px] text-ink">
+                    <div className="text-ink w-[56px] flex-none text-right font-serif text-[14.5px]">
                       {money(a.service.priceCents)}
                     </div>
                     <div className="flex w-[88px] flex-none justify-end">
@@ -257,11 +278,11 @@ export default async function DashboardPage() {
         {/* coluna direita */}
         <div className="flex flex-col gap-4">
           {/* Precisa de você */}
-          <div className="flex flex-col gap-3 rounded-[18px] border border-line bg-paper p-[18px] shadow-soft">
-            <div className="flex items-center gap-2 font-serif text-[17px] text-ink">
+          <div className="border-line bg-paper shadow-soft flex flex-col gap-3 rounded-[18px] border p-[18px]">
+            <div className="text-ink flex items-center gap-2 font-serif text-[17px]">
               Precisa de você
               {pendingCount > 0 && (
-                <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-coral px-1.5 text-[11px] font-bold text-white">
+                <span className="bg-coral inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] font-bold text-white">
                   {pendingCount}
                 </span>
               )}
@@ -270,11 +291,11 @@ export default async function DashboardPage() {
             {!whatsappConnected && (
               <Link
                 href="/settings"
-                className="block rounded-2xl border border-coral-tint bg-coral-tint p-3.5 no-underline"
+                className="border-coral-tint bg-coral-tint block rounded-2xl border p-3.5 no-underline"
                 style={{ borderColor: '#ffd6c9' }}
               >
-                <div className="text-[13px] font-semibold text-ink">WhatsApp não conectado</div>
-                <div className="mt-0.5 text-[11.5px] text-ink-50">
+                <div className="text-ink text-[13px] font-semibold">WhatsApp não conectado</div>
+                <div className="text-ink-50 mt-0.5 text-[11.5px]">
                   Conecte pra o bot receber e responder seus clientes · configurar →
                 </div>
               </Link>
@@ -283,23 +304,25 @@ export default async function DashboardPage() {
             {pendingCount > 0 && (
               <Link
                 href="/appointments?tab=upcoming"
-                className="block rounded-2xl border border-line bg-cream p-3.5 no-underline"
+                className="border-line bg-cream block rounded-2xl border p-3.5 no-underline"
               >
-                <div className="text-[13px] font-semibold text-ink">
-                  {pendingCount} {pendingCount === 1 ? 'agendamento aguardando' : 'agendamentos aguardando'} confirmação
+                <div className="text-ink text-[13px] font-semibold">
+                  {pendingCount}{' '}
+                  {pendingCount === 1 ? 'agendamento aguardando' : 'agendamentos aguardando'}{' '}
+                  confirmação
                 </div>
-                <div className="mt-0.5 text-[11.5px] text-ink-50">
+                <div className="text-ink-50 mt-0.5 text-[11.5px]">
                   feitos pela página pública · revisar agora →
                 </div>
               </Link>
             )}
 
             {whatsappConnected && pendingCount === 0 && (
-              <div className="rounded-2xl border border-dashed border-edge px-4 py-5 text-center">
-                <div className="font-serif text-[15px] text-ink">
+              <div className="border-edge rounded-2xl border border-dashed px-4 py-5 text-center">
+                <div className="text-ink font-serif text-[15px]">
                   Nada precisa de você <em className="text-green-emph">agora</em>
                 </div>
-                <p className="mt-1 text-xs text-ink-50">
+                <p className="text-ink-50 mt-1 text-xs">
                   Pedidos e avisos que precisam do seu ok aparecem aqui.
                 </p>
               </div>
@@ -307,23 +330,26 @@ export default async function DashboardPage() {
           </div>
 
           {/* Acontecendo agora */}
-          <div className="rounded-[18px] border border-line bg-paper p-[18px] shadow-soft">
-            <div className="mb-2.5 flex items-center gap-1.5 font-serif text-[17px] text-ink">
-              <span className="size-2 rounded-full bg-green-bright animate-pulse-ring" />
+          <div className="border-line bg-paper shadow-soft rounded-[18px] border p-[18px]">
+            <div className="text-ink mb-2.5 flex items-center gap-1.5 font-serif text-[17px]">
+              <span className="bg-green-bright animate-pulse-ring size-2 rounded-full" />
               Acontecendo agora
             </div>
             {recent.length === 0 ? (
-              <p className="text-[12.5px] leading-relaxed text-ink-50">
-                Tudo quieto por enquanto. Marcou, remarcou, mandou mensagem - pinta tudo aqui na hora.
+              <p className="text-ink-50 text-[12.5px] leading-relaxed">
+                Tudo quieto por enquanto. Marcou, remarcou, mandou mensagem - pinta tudo aqui na
+                hora.
               </p>
             ) : (
               <div className="flex flex-col gap-2.5">
                 {recent.map((a) => (
-                  <div key={a.id} className="flex gap-2.5 text-[12.5px] leading-snug text-ink-70">
-                    <span className="flex-none font-semibold text-ink-30">{hm(a.createdAt, tz)}</span>
+                  <div key={a.id} className="text-ink-70 flex gap-2.5 text-[12.5px] leading-snug">
+                    <span className="text-ink-30 flex-none font-semibold">
+                      {hm(a.createdAt, tz)}
+                    </span>
                     <span>
-                      <strong className="font-semibold text-ink">{clientName(a.contact)}</strong> marcou{' '}
-                      {a.service.name} · {hm(a.startsAt, tz)}
+                      <strong className="text-ink font-semibold">{clientName(a.contact)}</strong>{' '}
+                      marcou {a.service.name} · {hm(a.startsAt, tz)}
                     </span>
                   </div>
                 ))}
@@ -353,8 +379,8 @@ function Kpi({
   valueClass?: string;
 }) {
   return (
-    <div className="rounded-2xl border border-line bg-paper p-4 shadow-soft">
-      <div className="text-[10.5px] font-bold uppercase tracking-[0.12em] text-ink-50">{label}</div>
+    <div className="border-line bg-paper shadow-soft rounded-2xl border p-4">
+      <div className="text-ink-50 text-[10.5px] font-bold uppercase tracking-[0.12em]">{label}</div>
       <div className={`mt-1.5 font-serif text-3xl ${valueClass ?? 'text-ink'}`}>{value}</div>
       <div className={`text-xs font-medium ${subClass ?? 'text-ink-50'}`}>{sub}</div>
     </div>

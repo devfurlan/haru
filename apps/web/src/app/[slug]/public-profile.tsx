@@ -1,6 +1,13 @@
 'use client';
 
-import { ChevronLeft, ChevronRight, Instagram, MapPin, MessageCircle, UserRound } from 'lucide-react';
+import {
+  ChevronLeft,
+  ChevronRight,
+  Instagram,
+  MapPin,
+  MessageCircle,
+  UserRound,
+} from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
 
@@ -52,6 +59,9 @@ export interface PublicProfileProps {
   mapHref: string | null;
   /** Coordenadas geocodificadas - renderizam o mapa real (tiles OSM). null = sem mapa. */
   coords: { lat: number; lng: number } | null;
+  /** Volta da fila pós-login (URL ?fila=1&s&p&d): reabre o modal no passo dia/horário
+   *  com o contexto (serviço, profissional, dia) que o cliente tinha. null = fluxo normal. */
+  resume?: { serviceId: string; professionalId: string; dateStr: string } | null;
 }
 
 function initialsOf(name: string | null | undefined): string {
@@ -124,14 +134,20 @@ export function PublicProfile({
   hours,
   mapHref,
   coords,
+  resume = null,
 }: PublicProfileProps) {
   const { tenantName, logoUrl, segment, ratingAvg, ratingCount, services, professionals } = booking;
 
   const [cvIdx, setCvIdx] = useState(0);
-  const [bookOpen, setBookOpen] = useState(false);
-  const [bookServiceId, setBookServiceId] = useState<string | null>(null);
+  // Volta da fila pós-login: já abre o modal no serviço do contexto salvo.
+  const [bookOpen, setBookOpen] = useState(!!resume);
+  const [bookServiceId, setBookServiceId] = useState<string | null>(resume?.serviceId ?? null);
+  // O contexto da fila só vale pra reabertura automática; qualquer "Agendar" manual o
+  // limpa, senão o wizard priorizaria o dia/serviço antigo da fila sobre o novo escolhido.
+  const [resumeState, setResumeState] = useState(resume);
 
   function openBooking(serviceId: string | null) {
+    setResumeState(null);
     setBookServiceId(serviceId ?? services[0]?.id ?? null);
     setBookOpen(true);
   }
@@ -151,7 +167,11 @@ export function PublicProfile({
   function scrollToReviews(e: React.MouseEvent) {
     e.preventDefault();
     const el = document.getElementById('avaliacoes');
-    if (el) window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 70, behavior: 'smooth' });
+    if (el)
+      window.scrollTo({
+        top: el.getBoundingClientRect().top + window.scrollY - 70,
+        behavior: 'smooth',
+      });
   }
 
   // CTA principal (topo/trilho): abre o booking, cai no WhatsApp, ou some.
@@ -184,7 +204,11 @@ export function PublicProfile({
           <UserRound className="h-4 w-4" />
           {account.label}
         </Link>
-        <StatusPill open={status.open} label={status.shortLabel} className="text-ink-50 text-xs font-medium" />
+        <StatusPill
+          open={status.open}
+          label={status.shortLabel}
+          className="text-ink-50 text-xs font-medium"
+        />
         <PrimaryCTA className="bg-coral shadow-coral inline-flex items-center rounded-full px-4 py-2.5 text-[12.5px] font-semibold text-white transition-transform active:scale-95" />
       </div>
 
@@ -200,47 +224,50 @@ export function PublicProfile({
                 src={url}
                 alt=""
                 className="absolute inset-0 h-full w-full object-cover transition-opacity duration-500"
-                style={{ opacity: cvIdx === i ? 1 : 0, pointerEvents: cvIdx === i ? 'auto' : 'none' }}
+                style={{
+                  opacity: cvIdx === i ? 1 : 0,
+                  pointerEvents: cvIdx === i ? 'auto' : 'none',
+                }}
               />
             ))}
 
             {coverCount > 1 && (
-            <>
-              <button
-                type="button"
-                aria-label="Foto anterior"
-                onClick={() => goto(cvIdx - 1)}
-                className="text-ink absolute left-3 top-1/2 z-[6] flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-[rgba(255,253,248,.92)] shadow-[0_2px_8px_rgba(10,51,36,.2)] hover:bg-paper"
-              >
-                <ChevronLeft className="h-5 w-5" />
-              </button>
-              <button
-                type="button"
-                aria-label="Próxima foto"
-                onClick={() => goto(cvIdx + 1)}
-                className="text-ink absolute right-3 top-1/2 z-[6] flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-[rgba(255,253,248,.92)] shadow-[0_2px_8px_rgba(10,51,36,.2)] hover:bg-paper"
-              >
-                <ChevronRight className="h-5 w-5" />
-              </button>
-              <div className="absolute left-3.5 top-3 z-[6] rounded-full bg-[rgba(10,51,36,.65)] px-2.5 py-1.5 text-[10.5px] font-bold text-cream">
-                {cvIdx + 1}/{coverCount}
-              </div>
-              <div className="absolute bottom-2.5 left-0 right-0 z-[6] flex justify-center gap-1.5">
-                {covers.map((_, i) => (
-                  <button
-                    key={i}
-                    type="button"
-                    aria-label={`Foto ${i + 1}`}
-                    onClick={() => setCvIdx(i)}
-                    className={cn(
-                      'h-2 w-2 rounded-full shadow-[0_1px_3px_rgba(10,51,36,.3)]',
-                      cvIdx === i ? 'bg-cream' : 'bg-[rgba(250,245,234,.45)]',
-                    )}
-                  />
-                ))}
-              </div>
-            </>
-          )}
+              <>
+                <button
+                  type="button"
+                  aria-label="Foto anterior"
+                  onClick={() => goto(cvIdx - 1)}
+                  className="text-ink hover:bg-paper absolute left-3 top-1/2 z-[6] flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-[rgba(255,253,248,.92)] shadow-[0_2px_8px_rgba(10,51,36,.2)]"
+                >
+                  <ChevronLeft className="h-5 w-5" />
+                </button>
+                <button
+                  type="button"
+                  aria-label="Próxima foto"
+                  onClick={() => goto(cvIdx + 1)}
+                  className="text-ink hover:bg-paper absolute right-3 top-1/2 z-[6] flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-[rgba(255,253,248,.92)] shadow-[0_2px_8px_rgba(10,51,36,.2)]"
+                >
+                  <ChevronRight className="h-5 w-5" />
+                </button>
+                <div className="text-cream absolute left-3.5 top-3 z-[6] rounded-full bg-[rgba(10,51,36,.65)] px-2.5 py-1.5 text-[10.5px] font-bold">
+                  {cvIdx + 1}/{coverCount}
+                </div>
+                <div className="absolute bottom-2.5 left-0 right-0 z-[6] flex justify-center gap-1.5">
+                  {covers.map((_, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      aria-label={`Foto ${i + 1}`}
+                      onClick={() => setCvIdx(i)}
+                      className={cn(
+                        'h-2 w-2 rounded-full shadow-[0_1px_3px_rgba(10,51,36,.3)]',
+                        cvIdx === i ? 'bg-cream' : 'bg-[rgba(250,245,234,.45)]',
+                      )}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -263,25 +290,25 @@ export function PublicProfile({
                 {tenantName}
               </h1>
               <div className="text-ink-70 mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13.5px] font-medium">
-              {hasRating ? (
-                <>
-                  <span className="font-serif text-[13.5px] font-semibold">★ {ratingLabel}</span>
-                  <a
-                    href="#avaliacoes"
-                    onClick={scrollToReviews}
-                    className="text-green-emph font-semibold no-underline hover:underline"
-                  >
-                    {ratingCount} {ratingCount === 1 ? 'avaliação' : 'avaliações'}
-                  </a>
-                </>
-              ) : null}
-              {metaBits.map((m, i) => (
-                <span key={i} className="flex items-center gap-2">
-                  {(i > 0 || hasRating) && <span className="text-ink-30">·</span>}
-                  <span className={m.cap ? 'capitalize' : undefined}>{m.text}</span>
-                </span>
-              ))}
-            </div>
+                {hasRating ? (
+                  <>
+                    <span className="font-serif text-[13.5px] font-semibold">★ {ratingLabel}</span>
+                    <a
+                      href="#avaliacoes"
+                      onClick={scrollToReviews}
+                      className="text-green-emph font-semibold no-underline hover:underline"
+                    >
+                      {ratingCount} {ratingCount === 1 ? 'avaliação' : 'avaliações'}
+                    </a>
+                  </>
+                ) : null}
+                {metaBits.map((m, i) => (
+                  <span key={i} className="flex items-center gap-2">
+                    {(i > 0 || hasRating) && <span className="text-ink-30">·</span>}
+                    <span className={m.cap ? 'capitalize' : undefined}>{m.text}</span>
+                  </span>
+                ))}
+              </div>
               <StatusPill
                 open={status.open}
                 label={status.longLabel}
@@ -301,12 +328,17 @@ export function PublicProfile({
           {/* serviços */}
           {services.length > 0 ? (
             <section>
-              <h2 className="mb-3 font-serif text-[22px] font-medium tracking-[-0.02em]">Serviços</h2>
+              <h2 className="mb-3 font-serif text-[22px] font-medium tracking-[-0.02em]">
+                Serviços
+              </h2>
               <div className="border-line bg-paper overflow-hidden rounded-[18px] border shadow-[0_2px_10px_rgba(10,51,36,.05)]">
                 {services.map((s, i) => (
                   <div
                     key={s.id}
-                    className={cn('flex items-center gap-3.5 px-4 py-3.5 sm:px-[18px]', i > 0 && 'border-edge border-t border-dotted')}
+                    className={cn(
+                      'flex items-center gap-3.5 px-4 py-3.5 sm:px-[18px]',
+                      i > 0 && 'border-edge border-t border-dotted',
+                    )}
                   >
                     <div className="min-w-0 flex-1">
                       <p className="text-[14.5px] font-semibold leading-[1.25]">{s.name}</p>
@@ -335,7 +367,9 @@ export function PublicProfile({
           {/* equipe */}
           {professionals.length > 0 ? (
             <section>
-              <h2 className="mb-3 font-serif text-[22px] font-medium tracking-[-0.02em]">Quem atende</h2>
+              <h2 className="mb-3 font-serif text-[22px] font-medium tracking-[-0.02em]">
+                Quem atende
+              </h2>
               <div className="flex flex-wrap gap-3">
                 {professionals.map((p) => (
                   <div
@@ -345,7 +379,11 @@ export function PublicProfile({
                     <span className="bg-chip text-green-emph flex h-[42px] w-[42px] shrink-0 items-center justify-center overflow-hidden rounded-[13px] font-serif text-sm font-semibold">
                       {p.avatarUrl ? (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img src={p.avatarUrl} alt={p.name ?? ''} className="h-full w-full object-cover" />
+                        <img
+                          src={p.avatarUrl}
+                          alt={p.name ?? ''}
+                          className="h-full w-full object-cover"
+                        />
                       ) : (
                         initialsOf(p.name)
                       )}
@@ -365,7 +403,9 @@ export function PublicProfile({
           {/* comodidades */}
           {shownAmenities.length > 0 ? (
             <section>
-              <h2 className="mb-3 font-serif text-[22px] font-medium tracking-[-0.02em]">Comodidades</h2>
+              <h2 className="mb-3 font-serif text-[22px] font-medium tracking-[-0.02em]">
+                Comodidades
+              </h2>
               <div className="flex flex-wrap gap-2">
                 {shownAmenities.map(({ key, label, Icon }) => (
                   <span
@@ -393,34 +433,37 @@ export function PublicProfile({
                 </>
               ) : null}
             </div>
-              {reviews.length > 0 ? (
-                <div className="flex flex-col gap-3">
-                  {reviews.map((r, i) => (
-                    <div key={i} className="border-line bg-paper rounded-2xl border px-4 py-4 sm:px-[18px]">
-                      <div className="flex items-center gap-2.5">
-                        <div className="bg-chip text-green-emph flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full text-[12px] font-bold">
-                          {initialsOf(r.name)}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="text-[13.5px] font-semibold leading-[1.25]">
-                            {r.name ?? 'Cliente'}
-                          </div>
-                          <div className="text-ink-50 text-[11.5px] font-medium">{r.ago}</div>
-                        </div>
-                        <Stars rating={r.rating} />
+            {reviews.length > 0 ? (
+              <div className="flex flex-col gap-3">
+                {reviews.map((r, i) => (
+                  <div
+                    key={i}
+                    className="border-line bg-paper rounded-2xl border px-4 py-4 sm:px-[18px]"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <div className="bg-chip text-green-emph flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full text-[12px] font-bold">
+                        {initialsOf(r.name)}
                       </div>
-                      <p className="text-ink-70 mt-2.5 text-[13.5px] leading-[1.6]">{r.comment}</p>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-[13.5px] font-semibold leading-[1.25]">
+                          {r.name ?? 'Cliente'}
+                        </div>
+                        <div className="text-ink-50 text-[11.5px] font-medium">{r.ago}</div>
+                      </div>
+                      <Stars rating={r.rating} />
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="border-line bg-paper text-ink-50 rounded-2xl border px-4 py-8 text-center text-sm">
-                  {ratingCount > 0
-                    ? 'Ainda sem comentários por aqui.'
-                    : 'Ainda sem avaliações. Quem já foi atendido pode avaliar pela conta.'}
-                </div>
-              )}
-            </section>
+                    <p className="text-ink-70 mt-2.5 text-[13.5px] leading-[1.6]">{r.comment}</p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="border-line bg-paper text-ink-50 rounded-2xl border px-4 py-8 text-center text-sm">
+                {ratingCount > 0
+                  ? 'Ainda sem comentários por aqui.'
+                  : 'Ainda sem avaliações. Quem já foi atendido pode avaliar pela conta.'}
+              </div>
+            )}
+          </section>
         </div>
 
         {/* trilho */}
@@ -429,7 +472,10 @@ export function PublicProfile({
             <StatusPill
               open={status.open}
               label={status.longLabel}
-              className={cn('text-[13px] font-semibold', status.open ? 'text-green-emph' : 'text-ink-50')}
+              className={cn(
+                'text-[13px] font-semibold',
+                status.open ? 'text-green-emph' : 'text-ink-50',
+              )}
             />
 
             {coords ? (
@@ -476,7 +522,8 @@ export function PublicProfile({
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-1.5 no-underline hover:underline"
                   >
-                    <Instagram className="text-green-emph h-3.5 w-3.5" />@{instagram.replace(/^@+/, '')}
+                    <Instagram className="text-green-emph h-3.5 w-3.5" />@
+                    {instagram.replace(/^@+/, '')}
                   </a>
                 ) : null}
               </div>
@@ -489,10 +536,15 @@ export function PublicProfile({
                   {hours.map((h, i) => (
                     <div
                       key={i}
-                      className={cn('flex justify-between gap-3', h.closed ? 'text-ink-30' : 'text-ink-70')}
+                      className={cn(
+                        'flex justify-between gap-3',
+                        h.closed ? 'text-ink-30' : 'text-ink-70',
+                      )}
                     >
                       <span>{h.days}</span>
-                      <span className={cn(!h.closed && 'text-ink font-serif font-semibold')}>{h.value}</span>
+                      <span className={cn(!h.closed && 'text-ink font-serif font-semibold')}>
+                        {h.value}
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -551,6 +603,7 @@ export function PublicProfile({
                 asModal
                 initialServiceId={bookServiceId}
                 onRequestClose={() => setBookOpen(false)}
+                resume={resumeState}
               />
             ) : null}
           </DialogContent>

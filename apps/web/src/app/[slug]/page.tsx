@@ -81,10 +81,25 @@ export async function generateMetadata({
   };
 }
 
-export default async function TenantPublicPage({ params }: { params: Promise<{ slug: string }> }) {
+export default async function TenantPublicPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ slug: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const { slug } = await params;
   const tenant = await loadPublicTenant(slug);
   if (!tenant) notFound();
+
+  // Volta da fila pós-login (?fila=1&s=serviço&p=profissional&d=YYYY-MM-DD): reabre o
+  // booking no contexto salvo. `p` vazio = "qualquer profissional".
+  const sp = await searchParams;
+  const str = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? '';
+  const resume =
+    str(sp.fila) === '1' && str(sp.s) && str(sp.d)
+      ? { serviceId: str(sp.s), professionalId: str(sp.p), dateStr: str(sp.d) }
+      : null;
 
   const [customerAccount, reviewsRaw] = await Promise.all([
     getCustomerAccount(),
@@ -111,7 +126,10 @@ export default async function TenantPublicPage({ params }: { params: Promise<{ s
       value: closed
         ? 'Fechado'
         : blocks
-            .map((b) => `${brTime(minutesToHHMM(b.startMinute))} - ${brTime(minutesToHHMM(b.endMinute))}`)
+            .map(
+              (b) =>
+                `${brTime(minutesToHHMM(b.startMinute))} - ${brTime(minutesToHHMM(b.endMinute))}`,
+            )
             .join(', '),
     };
   });
@@ -151,7 +169,9 @@ export default async function TenantPublicPage({ params }: { params: Promise<{ s
 
   // Agendamento online: ligado, com serviços e pelo menos um dia atendível no horizonte.
   const openWeekdays = [...new Set(tenant.scheduleBlocks.map((b) => b.weekday))];
-  const hasBookableDay = buildBookingDays(tenant.timezone, new Set(openWeekdays)).some((d) => d.open);
+  const hasBookableDay = buildBookingDays(tenant.timezone, new Set(openWeekdays)).some(
+    (d) => d.open,
+  );
   const canBook = tenant.publicBookingEnabled && tenant.services.length > 0 && hasBookableDay;
 
   const coords =
@@ -215,6 +235,7 @@ export default async function TenantPublicPage({ params }: { params: Promise<{ s
       hours={hours}
       mapHref={mapHref}
       coords={coords}
+      resume={resume}
     />
   );
 }

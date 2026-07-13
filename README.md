@@ -237,6 +237,24 @@ No plano base o Tenant não tem WABA própria, então a saída transacional ao c
 
 **Confirmação** (evento de criação) ainda **não** sai por WhatsApp - depende de criar o template de confirmação e ligar a flag `WHATSAPP_CONFIRMATION_ACTIVE` na copy de sucesso (`public-booking.tsx` / mobile). Hoje a confirmação sai por e-mail + área logada (app/web).
 
+### Fila de espera (templates da PLATAFORMA ao cliente)
+
+Enviados **pelo número da plataforma** Demandaê ao cliente da fila (quem entrou pela web ou não tem app; quem tem app recebe por push). Categoria `UTILITY` (aviso de disponibilidade - **sem** "aproveite/promoção/não perca"). Env-gated e fail-soft: sem `WHATSAPP_PLATFORM_PHONE_NUMBER_ID` / `WHATSAPP_PLATFORM_ACCESS_TOKEN` + o template do evento, vira no-op logado (o cliente fica só com push + área logada). Enviados em [apps/web/src/lib/waitlist.ts](apps/web/src/lib/waitlist.ts) via `sendPlatformWhatsapp`.
+
+#### Vaga aberta (horário liberou)
+
+- **Nome (env `WHATSAPP_TEMPLATE_WAITLIST_OPENING`):** sugestão `demandae_waitlist_opening` · **Idioma:** `pt_BR` · **Categoria Meta:** `UTILITY`
+- **Variáveis:** `{{1}}` nome do cliente · `{{2}}` dia (ex.: `sábado, 11/07`) · `{{3}}` profissional · `{{4}}` estabelecimento · `{{5}}` link de confirmação
+- **Corpo sugerido:**
+  > Oi, {{1}}! Abriu horário {{2}} com o {{3}} na {{4}}. Você tem alguns minutos pra garantir: {{5}}
+
+#### Vaga garantida (confirmação da fila)
+
+- **Nome (env `WHATSAPP_TEMPLATE_WAITLIST_CONFIRMED`):** sugestão `demandae_waitlist_confirmed` · **Idioma:** `pt_BR` · **Categoria Meta:** `UTILITY`
+- **Variáveis:** `{{1}}` nome do cliente · `{{2}}` data/hora · `{{3}}` profissional
+- **Corpo sugerido:**
+  > Fechado, {{1}}! {{2}} com o {{3}}. Até lá!
+
 Notas:
 
 - **Fallback:** se o Tenant não tem template configurado, o código cai para texto livre - que **só entrega se o cliente falou com o número nas últimas 24h**. Por isso os templates são o caminho oficial.

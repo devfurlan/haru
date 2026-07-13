@@ -51,7 +51,7 @@ export default function AppLayout() {
     if (!navReady) return;
     let cleanup: (() => void) | undefined;
     let cancelled = false;
-    attachNotificationTap((id) => router.push(`/appointment/${id}` as Href)).then((fn) => {
+    attachNotificationTap((href) => router.push(href as Href)).then((fn) => {
       if (cancelled) fn();
       else cleanup = fn;
     });

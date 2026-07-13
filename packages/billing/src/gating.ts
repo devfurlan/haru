@@ -117,6 +117,22 @@ export function hasFeature(sub: Subscription | null | undefined, feature: Featur
   }
 }
 
+/**
+ * Fila de espera: feature do plano Time pra cima (PROFISSIONAL/NEGOCIO/ENTERPRISE). Solo
+ * (ESSENCIAL) não tem - agenda de 1 profissional raramente lota a ponto de gerar fila, e a
+ * fila é diferencial de retenção do Time (gancho natural de upgrade). Sem assinatura ativa
+ * também não libera.
+ *
+ * ponytail: gate por tier AO VIVO, não por flag snapshot como os demais features (featTeam,
+ * featOnlinePayments...). Aceitável com base pequena; alinhar a um snapshot (coluna
+ * featWaitlist na Subscription, grandfathered) quando mexer em quais features cada plano
+ * entrega virar problema real. Reusa isSubscriptionActive - trial/acesso, se um dia existir,
+ * entra LÁ e a fila herda de graça.
+ */
+export function hasWaitlist(sub: Subscription | null | undefined): boolean {
+  return isSubscriptionActive(sub) && !!sub && sub.planTier !== 'ESSENCIAL';
+}
+
 // --- Equipe: profissionais x recepcionistas ----------------------------------
 
 /** Profissionais (usuários com agenda própria) já cadastrados no tenant. */
