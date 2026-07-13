@@ -178,6 +178,9 @@ model Tenant {
   loyaltyProgram     LoyaltyProgram?
   waitlistEntries    WaitlistEntry[]
   waitlistOffers     WaitlistOffer[]
+  membershipPlans    MembershipPlan[]
+  memberships        Membership[]
+  membershipCharges  MembershipCharge[]
 }
 
 model User {
@@ -282,6 +285,7 @@ model CustomerAccount {
   pushDevices PushDevice[]
   favorites   Favorite[]
   reviews     Review[]
+  memberships Membership[]
 
   @@index([phone])
 }
@@ -359,6 +363,7 @@ model Service {
   /// Programas em que ESTE serviço conta carimbo (quando countMode = SPECIFIC).
   loyaltyQualifiesIn LoyaltyProgramService[]
   waitlistEntries    WaitlistEntry[]
+  membershipPlans    MembershipPlanService[]
 }
 
 /// Vínculo N:N entre um profissional (User) e um Service que ele executa. Define
@@ -451,6 +456,7 @@ model Contact {
   appointments       Appointment[]
   loyaltyRedemptions LoyaltyRedemption[]
   waitlistEntries    WaitlistEntry[]
+  memberships        Membership[]
 
   @@unique([tenantId, phone])
   @@index([customerAccountId])
@@ -540,14 +546,22 @@ model Appointment {
   /// True quando este agendamento nasceu de uma confirmação na FILA DE ESPERA (vaga
   /// recuperada). Alimenta on-read a métrica de receita recuperada no painel do dono.
   fromWaitlist        Boolean            @default(false)
+  /// Assinatura de serviços que cobriu este agendamento (crédito consumido). null =
+  /// avulso (pago normal ou sem cobrança). A FONTE do débito é a linha REDEEM do
+  /// MembershipCreditLedger com este appointmentId; este campo é o link barato pra
+  /// leitura/estorno. onDelete: SetNull -> apagar a assinatura não apaga o histórico.
+  membershipId        String?
+  membership          Membership?        @relation(fields: [membershipId], references: [id], onDelete: SetNull)
   createdAt           DateTime           @default(now())
   updatedAt           DateTime           @updatedAt
 
-  payments Payment[]
+  payments     Payment[]
+  creditLedger MembershipCreditLedger[]
 
   @@index([tenantId, startsAt])
   @@index([professionalId, startsAt])
   @@index([seriesId])
+  @@index([membershipId])
 }
 
 /// Agrupa as ocorrências de um agendamento recorrente (semanal/quinzenal/mensal).
@@ -1236,4 +1250,203 @@ enum WaitlistOfferStatus {
   ACTIVE
   FULFILLED
   EXHAUSTED
+}
+
+// --- Assinatura de serviços do cliente final (membership / "Clube") -----------
+// NÃO confundir com Subscription (assinatura do DONO ao Demandaê). Aqui o DONO cria
+// planos (MembershipPlan) e o CLIENTE FINAL assina (Membership), pagando mensalmente
+// pelo gateway do PRÓPRIO tenant (Asaas /subscriptions nativo; o dinheiro cai na conta
+// do dono). Créditos são consumidos ao agendar serviço coberto. Feature do plano Time+.
+
+/// Plano de assinatura que o DONO oferece aos clientes dele (ex.: "Clube do Corte -
+/// 4 cortes/mês, R$ 150"). É o catálogo/oferta; a assinatura de cada cliente é Membership.
+model MembershipPlan {
+  id              String             @id @default(cuid())
+  tenantId        String
+  tenant          Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name            String
+  description     String?
+  /// Preço mensal em centavos (cobrado recorrente no cartão do cliente).
+  priceCents      Int
+  interval        MembershipInterval @default(MONTHLY)
+  /// Créditos concedidos a cada ciclo (ex.: 4 cortes/mês).
+  creditsPerCycle Int
+  /// true = créditos não usados acumulam pro próximo ciclo (até rolloverCap); false =
+  /// vencem no fim do ciclo (aviso "créditos vencendo" alguns dias antes).
+  creditRollover  Boolean            @default(false)
+  /// Teto de créditos acumulados quando creditRollover=true. null = sem teto.
+  rolloverCap     Int?
+  /// false = plano pausado: para de VENDER novas assinaturas, mas quem já assina segue.
+  active          Boolean            @default(true)
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  services    MembershipPlanService[]
+  memberships Membership[]
+
+  @@index([tenantId, active])
+}
+
+/// Serviços cobertos por um MembershipPlan (N:N) + custo em créditos de cada um.
+model MembershipPlanService {
+  id         String         @id @default(cuid())
+  planId     String
+  plan       MembershipPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  serviceId  String
+  service    Service        @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  /// Quantos créditos um agendamento deste serviço consome (default 1).
+  creditCost Int            @default(1)
+
+  @@unique([planId, serviceId])
+  @@index([serviceId])
+}
+
+/// Assinatura de UM cliente final a um MembershipPlan do tenant. Cobrança recorrente
+/// mensal via /subscriptions nativo do gateway do tenant. Snapshot do plano na ativação
+/// (grandfather: reprecificar o plano não muda quem já assina). Ciclo de vida é
+/// webhook-driven (ver apps/web/src/lib/memberships/webhook-apply.ts).
+model Membership {
+  id                String          @id @default(cuid())
+  tenantId          String
+  tenant            Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  planId            String
+  plan              MembershipPlan  @relation(fields: [planId], references: [id])
+  /// Dono da assinatura (pagador/login). Cobrança recorrente no cartão exige conta -
+  /// cliente só-telefone não assina.
+  customerAccountId String
+  customerAccount   CustomerAccount @relation(fields: [customerAccountId], references: [id], onDelete: Cascade)
+  /// Contact por-tenant resolvido no agendamento (pra descontar o crédito). Opcional:
+  /// pode não existir ainda quando a assinatura é criada. SetNull preserva a assinatura.
+  contactId         String?
+  contact           Contact?        @relation(fields: [contactId], references: [id], onDelete: SetNull)
+
+  status MembershipStatus @default(PENDING)
+
+  // Snapshot do plano na ativação (grandfather).
+  planName        String
+  priceCents      Int
+  creditsPerCycle Int
+  creditRollover  Boolean @default(false)
+  rolloverCap     Int?
+
+  // Ciclo vigente (definido/estendido pelo webhook a cada pagamento confirmado).
+  currentPeriodStart DateTime?
+  currentPeriodEnd   DateTime?
+
+  /// Saldo de créditos disponível AGORA. CACHE denormalizado do MembershipCreditLedger
+  /// (= soma dos deltas não vencidos), mantido na MESMA transação de cada consumo/grant.
+  /// É a GUARDA de concorrência: o consumo faz `UPDATE ... WHERE creditBalance > 0`
+  /// atômico, impedindo gasto-duplo sob corrida (o advisory lock do insert é por
+  /// profissional+horário, não serve pra isso). Ledger = auditoria; contador = guarda.
+  creditBalance        Int       @default(0)
+  /// Quando os créditos do ciclo vencem (= currentPeriodEnd se creditRollover=false;
+  /// null se acumula). Alimenta o aviso "créditos vencendo".
+  creditsExpireAt      DateTime?
+  /// Dedup do aviso "créditos acabando": guarda o início do ciclo em que já avisamos,
+  /// pra não repetir a cada consumo dentro do mesmo ciclo.
+  lowCreditsNotifiedAt DateTime?
+
+  // Recorrência no gateway do PRÓPRIO tenant (mesmo padrão da Subscription do dono).
+  provider              PaymentProvider
+  gatewayCustomerId     String?
+  gatewaySubscriptionId String?         @unique
+  cardLast4             String?
+  cardBrand             String?
+
+  canceledAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  charges      MembershipCharge[]
+  ledger       MembershipCreditLedger[]
+  appointments Appointment[]
+
+  @@unique([planId, customerAccountId])
+  @@index([tenantId, status])
+  @@index([customerAccountId, status])
+}
+
+/// Recibo de UMA cobrança mensal recorrente da assinatura (análogo a Payment/Charge,
+/// mas SEM Appointment). Criado pelo webhook a cada ciclo. @@unique(provider, externalId)
+/// deduplica os múltiplos eventos que o gateway manda pro mesmo pagamento.
+model MembershipCharge {
+  id           String     @id @default(cuid())
+  tenantId     String
+  tenant       Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  membershipId String
+  membership   Membership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+
+  provider    PaymentProvider
+  method      PaymentMethod   @default(CREDIT_CARD)
+  status      PaymentStatus   @default(PENDING)
+  /// Valor cobrado neste ciclo (snapshot).
+  amountCents Int
+  /// Janela do ciclo que esta cobrança paga.
+  periodStart DateTime?
+  periodEnd   DateTime?
+  externalId  String?
+  paidAt      DateTime?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  ledger MembershipCreditLedger[]
+
+  @@unique([provider, externalId])
+  @@index([membershipId])
+  @@index([tenantId, status])
+}
+
+/// Ledger de créditos (fonte da verdade do saldo; Membership.creditBalance é o cache).
+/// Uma linha por movimento: +grant no ciclo, -consumo ao agendar, +estorno no cancel,
+/// -expiração no fim do ciclo sem rollover. Saldo = soma dos deltas não vencidos.
+model MembershipCreditLedger {
+  id            String                 @id @default(cuid())
+  membershipId  String
+  membership    Membership             @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  /// >0 concede crédito (grant/estorno), <0 consome (agendamento/expiração).
+  delta         Int
+  reason        MembershipLedgerReason
+  /// Cobrança que originou o grant (reason=CYCLE_GRANT).
+  chargeId      String?
+  charge        MembershipCharge?      @relation(fields: [chargeId], references: [id], onDelete: SetNull)
+  /// Agendamento que consumiu/estornou o crédito (reason=REDEEM/REVERSAL). SetNull
+  /// preserva a trilha se o agendamento for apagado.
+  appointmentId String?
+  appointment   Appointment?           @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
+  /// Vencimento do crédito concedido (grant sem rollover = currentPeriodEnd). Consumos
+  /// não vencem. Saldo disponível = soma dos deltas com expiresAt null ou > now.
+  expiresAt     DateTime?
+  createdAt     DateTime               @default(now())
+
+  /// Garante no máximo um débito e um estorno por agendamento (idempotência do consumo).
+  @@unique([appointmentId, reason])
+  @@index([membershipId, createdAt])
+}
+
+enum MembershipStatus {
+  /// Criada, aguardando confirmação do 1º pagamento (checkout hospedado).
+  PENDING
+  /// Em dia; créditos ativos.
+  ACTIVE
+  /// Pagamento falhou; créditos suspensos (agenda cai pra avulso) até regularizar.
+  PAST_DUE
+  /// Cancelada pelo cliente (créditos válidos até currentPeriodEnd) ou encerrada.
+  CANCELED
+}
+
+enum MembershipInterval {
+  MONTHLY
+}
+
+enum MembershipLedgerReason {
+  /// Créditos concedidos na ativação/renovação de um ciclo pago.
+  CYCLE_GRANT
+  /// Crédito consumido por um agendamento coberto.
+  REDEEM
+  /// Crédito devolvido (cancelamento/no-show de agendamento coberto dentro do ciclo).
+  REVERSAL
+  /// Créditos vencidos no fim do ciclo (plano sem rollover).
+  EXPIRE
+  /// Ajuste manual (suporte).
+  ADJUST
 }

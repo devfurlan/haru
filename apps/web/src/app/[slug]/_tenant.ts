@@ -46,6 +46,12 @@ export async function loadPublicTenant(slug: string) {
       scheduleBlocks: { orderBy: [{ weekday: 'asc' }, { startMinute: 'asc' }] },
       // Assinatura: pra derivar o flag efetivo da fila (feature Time+) sem query extra.
       subscription: true,
+      // Planos do Clube (ativos) pra vitrine de assinatura na página do estabelecimento.
+      membershipPlans: {
+        where: { active: true },
+        orderBy: { priceCents: 'asc' },
+        include: { services: { select: { serviceId: true } } },
+      },
       // Profissionais (com agenda) para o passo "escolha o profissional" no booking.
       users: {
         where: { isProfessional: true },

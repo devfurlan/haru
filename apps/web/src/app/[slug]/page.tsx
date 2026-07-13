@@ -2,14 +2,17 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 
 import { BOOKING_HORIZON_DAYS, buildBookingDays, minutesToHHMM } from '@haru/shared';
+import { hasServiceSubscriptions } from '@haru/billing';
 
 import { nextOpening, openStatus } from '@/lib/business-hours';
 import { getCustomerAccount } from '@/lib/customer-auth';
+import { getCustomerMemberships } from '@/lib/memberships/customer';
 import { getPublicReviews } from '@/lib/reviews';
 import { isWhatsappConnected } from '@/lib/whatsapp-status';
 
 import type { PublicBookingProps } from './public-booking';
 import { PublicProfile, type PublicProfileHours } from './public-profile';
+import type { PublicPlan, PlanMembershipState } from './subscription-plans';
 import { loadPublicTenant } from './_tenant';
 
 // Índice getDay() → abreviação BR. WEEKDAY_ABBR[1] = "Seg".
@@ -105,6 +108,52 @@ export default async function TenantPublicPage({
     getCustomerAccount(),
     getPublicReviews(tenant.id),
   ]);
+
+  // Clube (assinatura de serviços): só aparece se o dono tem plano ATIVO com a feature Time+
+  // (gate NÃO-BURLÁVEL, igual à engine) e criou planos. loadPublicTenant já traz só os planos
+  // ativos; aqui aplicamos o gate por tier que o loader não faz.
+  const showClub =
+    hasServiceSubscriptions(tenant.subscription) && tenant.membershipPlans.length > 0;
+  const serviceNameById = new Map(tenant.services.map((s) => [s.id, s.name]));
+  const clubPlans: PublicPlan[] = showClub
+    ? tenant.membershipPlans.map((p) => ({
+        id: p.id,
+        name: p.name,
+        description: p.description,
+        priceCents: p.priceCents,
+        creditsPerCycle: p.creditsPerCycle,
+        creditRollover: p.creditRollover,
+        rolloverCap: p.rolloverCap,
+        serviceNames: p.services
+          .map((s) => serviceNameById.get(s.serviceId))
+          .filter((n): n is string => !!n),
+      }))
+    : [];
+
+  // Assinaturas do cliente logado NESTE tenant: alimentam o estado "você já assina" na
+  // vitrine e o desconto de crédito em destaque no agendamento.
+  const tenantMemberships =
+    customerAccount && showClub
+      ? (await getCustomerMemberships(customerAccount.id)).filter(
+          (m) => m.tenantSlug === tenant.slug,
+        )
+      : [];
+  const planMemberships: PlanMembershipState[] = tenantMemberships.map((m) => ({
+    planId: m.planId,
+    status: m.status,
+    creditsLabel: m.creditsLabel,
+    payFailed: m.payFailed,
+    renewsLabel: m.renewsLabel,
+  }));
+  // Cobertura viva pro agendamento: só assinaturas que dão acesso a crédito (ACTIVE ou
+  // CANCELED-dentro-do-período). Saldo 0 entra também - vira o aviso "sem créditos este mês".
+  const bookingCoverage = tenantMemberships
+    .filter((m) => m.creditsUsable)
+    .map((m) => ({
+      planName: m.planName,
+      serviceIds: m.coveredServiceIds,
+      creditBalance: m.creditBalance,
+    }));
 
   // Grade de expediente por weekday (0=dom … 6=sáb).
   const byDay = new Map<number, { startMinute: number; endMinute: number }[]>();
@@ -208,6 +257,7 @@ export default async function TenantPublicPage({
     loggedIn: !!customerAccount,
     customerName: customerAccount?.name ?? null,
     customerPhone: customerAccount?.phone ?? customerAccount?.pendingPhone ?? null,
+    coverage: bookingCoverage,
   };
 
   return (
@@ -236,6 +286,8 @@ export default async function TenantPublicPage({
       mapHref={mapHref}
       coords={coords}
       resume={resume}
+      clubPlans={clubPlans}
+      clubMemberships={planMemberships}
     />
   );
 }

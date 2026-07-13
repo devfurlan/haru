@@ -32,6 +32,7 @@ export {
   prorataCents,
   hasFeature,
   hasWaitlist,
+  hasServiceSubscriptions,
   getProfessionalUsage,
   getReceptionistUsage,
   canAddProfessional,

@@ -21,6 +21,7 @@ import { AMENITIES } from '@/lib/amenities';
 import { cn } from '@/lib/utils';
 
 import { PublicBooking, type PublicBookingProps } from './public-booking';
+import { SubscriptionPlans, type PublicPlan, type PlanMembershipState } from './subscription-plans';
 
 export interface PublicProfileReview {
   name: string | null;
@@ -62,6 +63,10 @@ export interface PublicProfileProps {
   /** Volta da fila pós-login (URL ?fila=1&s&p&d): reabre o modal no passo dia/horário
    *  com o contexto (serviço, profissional, dia) que o cliente tinha. null = fluxo normal. */
   resume?: { serviceId: string; professionalId: string; dateStr: string } | null;
+  /** Planos do Clube (assinatura) ativos - vazio quando o dono não tem a feature/plano. */
+  clubPlans: PublicPlan[];
+  /** Assinaturas do cliente logado neste tenant (estado "você já assina" na vitrine). */
+  clubMemberships: PlanMembershipState[];
 }
 
 function initialsOf(name: string | null | undefined): string {
@@ -135,6 +140,8 @@ export function PublicProfile({
   mapHref,
   coords,
   resume = null,
+  clubPlans,
+  clubMemberships,
 }: PublicProfileProps) {
   const { tenantName, logoUrl, segment, ratingAvg, ratingCount, services, professionals } = booking;
 
@@ -363,6 +370,14 @@ export function PublicProfile({
               </div>
             </section>
           ) : null}
+
+          {/* assinaturas (Clube) - só aparece com plano ativo do dono (gate no server) */}
+          <SubscriptionPlans
+            slug={booking.slug}
+            plans={clubPlans}
+            memberships={clubMemberships}
+            loggedIn={booking.loggedIn}
+          />
 
           {/* equipe */}
           {professionals.length > 0 ? (

@@ -1,6 +1,6 @@
 'use client';
 
-import { CalendarDays, Gift, House, Search, User, type LucideIcon } from 'lucide-react';
+import { CalendarDays, Gift, House, Repeat, Search, User, type LucideIcon } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
@@ -14,6 +14,7 @@ const ITEMS: { href: string; label: string; icon: LucideIcon }[] = [
   { href: '/conta', label: 'Início', icon: House },
   { href: '/conta/buscar', label: 'Buscar', icon: Search },
   { href: '/conta/agendamentos', label: 'Agenda', icon: CalendarDays },
+  { href: '/conta/assinaturas', label: 'Assinaturas', icon: Repeat },
   { href: '/conta/fidelidade', label: 'Fidelidade', icon: Gift },
   { href: '/conta/perfil', label: 'Perfil', icon: User },
 ];

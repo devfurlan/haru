@@ -87,6 +87,15 @@ export async function attachNotificationTap(
         navigate(`/fila/aviso?offer=${data.offerId}&entry=${data.entryId}`);
       } else if (data.type === 'waitlist_joined') {
         navigate('/fila');
+      } else if (typeof data.type === 'string' && data.type.startsWith('clubsub')) {
+        // Eventos do Clube (assinatura): pagamento falhou cai na gestão da assinatura (banner
+        // + o que fazer); o resto (ativou, renovou, créditos acabando/vencendo, cancelou) cai
+        // em "Meus créditos". Payload da engine: { type, membershipId, slug }.
+        if (data.type === 'clubsub_payment_failed' && typeof data.membershipId === 'string') {
+          navigate(`/clube/${data.membershipId}`);
+        } else {
+          navigate('/clube');
+        }
       } else if (typeof data.appointmentId === 'string') {
         navigate(`/appointment/${data.appointmentId}`);
       }

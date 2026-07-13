@@ -11,6 +11,9 @@ import { prisma, type AppointmentStatus } from '@haru/database';
 
 import { sendAppointmentEmails } from '@/lib/appointment-email';
 import { insertAppointmentGuarded } from '@/lib/appointment-insert';
+import { notifyCreditsLowIfNeeded } from '@/lib/comms/subscription-events';
+import { refundMembershipCredit } from '@/lib/memberships/credit-core';
+import { resolveCoveredMembership } from '@/lib/memberships/credits';
 import { BOOKING_HORIZON_DAYS, isoDateInTz } from '@haru/shared';
 import {
   notifyAppointmentCanceled,
@@ -169,6 +172,12 @@ export async function cancelAppointmentCore(args: {
   });
   if (result.count === 0) return false;
 
+  // Estorna o crédito de assinatura (se era coberto e o débito foi no ciclo vigente).
+  // Idempotente e fail-soft: o cancelamento nunca trava por causa do estorno.
+  await refundMembershipCredit(appointmentId).catch((err) =>
+    console.error('[appointment-mutations] refund credit (cancel) failed', err),
+  );
+
   // Slot liberado (só se era ativo e é futuro): dispara o match da fila. Fire-and-forget.
   if (
     freed &&
@@ -235,6 +244,15 @@ export async function cancelSeriesCore(args: {
     data: { status: 'CANCELED' },
   });
 
+  // Estorna o crédito de cada ocorrência coberta (idempotente, fail-soft).
+  await Promise.all(
+    futures.map((f) =>
+      refundMembershipCredit(f.id).catch((err) =>
+        console.error('[appointment-mutations] refund credit (series cancel) failed', err),
+      ),
+    ),
+  );
+
   // Cada (profissional, dia) liberado dispara um match da fila (dedup). Fire-and-forget.
   const seriesTz = (
     await prisma.tenant.findUnique({ where: { id: tenantId }, select: { timezone: true } })
@@ -274,7 +292,9 @@ export async function cancelSeriesCore(args: {
   return futures.length;
 }
 
-export type CreateBookingResult = { appointmentId: string } | { error: string };
+export type CreateBookingResult =
+  | { appointmentId: string; coveredBySubscription: boolean }
+  | { error: string };
 
 /**
  * Cria um agendamento AVULSO já com profissional/contato resolvidos. Faz a checagem
@@ -329,6 +349,16 @@ export async function createBookingCore(args: {
     }
   }
 
+  // Cobertura por assinatura de serviços: se o cliente tem crédito pra ESTE serviço, o insert
+  // desconta 1 crédito na MESMA transação (guarda de concorrência própria) e o agendamento não
+  // gera cobrança. Fail-soft: erro ao resolver nunca bloqueia o booking (cai pra avulso).
+  let credit: { membershipId: string; creditCost: number } | undefined;
+  try {
+    credit = (await resolveCoveredMembership(tenantId, contactId, serviceId)) ?? undefined;
+  } catch (err) {
+    console.error('[appointment-mutations] resolveCoveredMembership failed', err);
+  }
+
   // Cria sob guarda de corrida (advisory lock por profissional+horário dentro da transação):
   // duas confirmações concorrentes do mesmo slot não geram double-booking. Substitui o antigo
   // findFirst+create não-atômico (a constraint EXCLUDE de banco foi removida por causa do
@@ -342,11 +372,19 @@ export async function createBookingCore(args: {
     endsAt,
     status,
     fromWaitlist,
+    credit,
   });
   if ('conflict' in inserted) {
     return { error: 'Esse horário acabou de ser preenchido. Escolha outro.' };
   }
   const appointment = { id: inserted.appointmentId };
+
+  // Consumiu crédito e o saldo ficou baixo: avisa "créditos acabando" (dedup por ciclo).
+  if (inserted.coveredBySubscription && credit) {
+    notifyCreditsLowIfNeeded(credit.membershipId).catch((err) =>
+      console.error('[appointment-mutations] notify credits low failed', err),
+    );
+  }
 
   notifyAppointmentCreated(appointment.id).catch((err) =>
     console.error('[appointment-mutations] notify create failed', err),
@@ -357,5 +395,8 @@ export async function createBookingCore(args: {
     notifyOwner,
   }).catch((err) => console.error('[appointment-mutations] email create failed', err));
 
-  return { appointmentId: appointment.id };
+  return {
+    appointmentId: appointment.id,
+    coveredBySubscription: inserted.coveredBySubscription,
+  };
 }

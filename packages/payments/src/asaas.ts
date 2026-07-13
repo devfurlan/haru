@@ -3,6 +3,8 @@ import { timingSafeEqual } from 'node:crypto';
 import {
   type CreateChargeInput,
   type CreateChargeResult,
+  type CreateSubscriptionInput,
+  type CreateSubscriptionResult,
   type ParsedWebhook,
   type ParseWebhookArgs,
   type PaymentGateway,
@@ -132,6 +134,77 @@ export class AsaasGateway implements PaymentGateway {
     };
   }
 
+  async createSubscription(input: CreateSubscriptionInput): Promise<CreateSubscriptionResult> {
+    // 1) Customer estável (reusado entre renovações; o Asaas guarda o cartão nele).
+    const customer = await this.request<{ id: string }>('/customers', {
+      method: 'POST',
+      body: JSON.stringify({
+        name: input.customer.name,
+        cpfCnpj: input.customer.cpfCnpj,
+        email: input.customer.email ?? undefined,
+        mobilePhone: input.customer.phoneE164
+          ? toNationalPhone(input.customer.phoneE164)
+          : undefined,
+        externalReference: input.externalReference,
+        // Quem fala com o cliente sobre a assinatura somos nós (push/WhatsApp/e-mail);
+        // desliga as notificações de cobrança do próprio Asaas pra não duplicar.
+        notificationDisabled: true,
+      }),
+    });
+
+    // 2) Assinatura recorrente. nextDueDate = data da 1ª cobrança (hoje = cobra já). O
+    // Asaas gera a cobrança de cada ciclo e faz o dunning nativo - não cobramos em loop.
+    const firstDue = input.firstDueDate ?? new Date();
+    const sub = await this.request<{ id: string; status: string }>('/subscriptions', {
+      method: 'POST',
+      body: JSON.stringify({
+        customer: customer.id,
+        billingType: input.method,
+        value: input.amountCents / 100,
+        nextDueDate: toAsaasDate(firstDue),
+        cycle: 'MONTHLY',
+        description: input.description,
+        externalReference: input.externalReference,
+      }),
+    });
+
+    // 3) A 1ª cobrança já nasce; busca pra pegar a fatura hospedada (cartão) ou o QR (Pix).
+    const payments = await this.request<{
+      data: Array<{ id: string; invoiceUrl?: string | null }>;
+    }>(`/subscriptions/${sub.id}/payments?limit=1`, { method: 'GET' });
+    const fp = payments.data[0];
+
+    let firstCharge: CreateSubscriptionResult['firstCharge'] = null;
+    if (fp) {
+      let pixQrCode: string | null = null;
+      let pixCopyPaste: string | null = null;
+      if (input.method === 'PIX') {
+        const qr = await this.request<AsaasPixQrCodeResponse>(`/payments/${fp.id}/pixQrCode`, {
+          method: 'GET',
+        });
+        pixQrCode = `data:image/png;base64,${qr.encodedImage}`;
+        pixCopyPaste = qr.payload;
+      }
+      firstCharge = {
+        externalId: fp.id,
+        checkoutUrl: fp.invoiceUrl ?? null,
+        pixQrCode,
+        pixCopyPaste,
+      };
+    }
+
+    return {
+      externalSubscriptionId: sub.id,
+      gatewayCustomerId: customer.id,
+      status: sub.status,
+      firstCharge,
+    };
+  }
+
+  async cancelSubscription(externalSubscriptionId: string): Promise<void> {
+    await this.request(`/subscriptions/${externalSubscriptionId}`, { method: 'DELETE' });
+  }
+
   parseWebhook({ rawBody, headers, webhookToken }: ParseWebhookArgs): ParsedWebhook {
     // Autenticidade: header `asaas-access-token` deve bater com o token do tenant.
     // Fail-closed: sem token não há como validar a origem - recusa em vez de aceitar cego.
@@ -145,7 +218,21 @@ export class AsaasGateway implements PaymentGateway {
       throw new PaymentConfigError('Token do webhook Asaas inválido');
     }
 
-    let body: { event?: string; payment?: { id?: string; paymentDate?: string | null } };
+    let body: {
+      event?: string;
+      payment?: {
+        id?: string;
+        /** Presente quando a cobrança pertence a uma assinatura recorrente. */
+        subscription?: string | null;
+        externalReference?: string | null;
+        billingType?: string | null;
+        dueDate?: string | null;
+        paymentDate?: string | null;
+        value?: number | null;
+        /** Cartão mascarado que o Asaas devolve (só últimos 4 + bandeira). */
+        creditCard?: { creditCardNumber?: string | null; creditCardBrand?: string | null } | null;
+      };
+    };
     try {
       body = JSON.parse(rawBody.toString('utf8'));
     } catch {
@@ -165,7 +252,20 @@ export class AsaasGateway implements PaymentGateway {
           : new Date()
         : null;
 
-    return { externalId, status, paidAt };
+    return {
+      externalId,
+      status,
+      paidAt,
+      // Recorrência: preenchido só quando a cobrança pertence a uma assinatura.
+      subscriptionExternalId: body.payment?.subscription ?? null,
+      event: body.event ?? null,
+      externalReference: body.payment?.externalReference ?? null,
+      amountCents:
+        typeof body.payment?.value === 'number' ? Math.round(body.payment.value * 100) : null,
+      cardLast4: body.payment?.creditCard?.creditCardNumber ?? null,
+      cardBrand: body.payment?.creditCard?.creditCardBrand ?? null,
+      dueDate: body.payment?.dueDate ? new Date(body.payment.dueDate) : null,
+    };
   }
 }
 
@@ -191,6 +291,10 @@ function mapAsaasEvent(event: string | undefined): ParsedWebhook['status'] {
       return 'REFUNDED';
     case 'PAYMENT_DELETED':
       return 'CANCELED';
+    case 'PAYMENT_CREDIT_CARD_CAPTURE_REFUSED':
+      // Cartão recusado na captura (fim de linha do dunning nativo). Trata como falha
+      // pra suspender o consumo de crédito e avisar o cliente ("atualize o cartão").
+      return 'FAILED';
     default:
       return 'PENDING';
   }

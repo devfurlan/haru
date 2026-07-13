@@ -38,6 +38,7 @@ import { WaitlistJoinedOverlay } from '@/components/waitlist-joined-overlay';
 import {
   api,
   ApiError,
+  type CustomerMembership,
   type PublicService,
   type PublicTenant,
   type RecurrenceFrequency,
@@ -141,6 +142,16 @@ function ShareIcon({ size = 18, color = '#faf5ea' }: { size?: number; color?: st
     >
       <Path d="M12 3v13M8 7l4-4 4 4" />
       <Path d="M5 12v7a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-7" />
+    </Svg>
+  );
+}
+
+// Ícone do Clube (ticket/canhoto) - o mesmo em todo o fluxo de assinatura.
+function TicketIcon({ color = '#2fd37a', size = 22 }: { color?: string; size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <Path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z" />
+      <Path d="M13 5v14" />
     </Svg>
   );
 }
@@ -368,8 +379,17 @@ export default function BookScreen() {
   const [swapOpenIso, setSwapOpenIso] = useState<string | null>(null);
   // Profissional resolvido da série (vem da prévia); usado ao trocar o dia de uma ocorrência.
   const [previewProfessionalId, setPreviewProfessionalId] = useState('');
+  // Assinaturas do Clube da conta logada (pra cobertura por crédito + bloco de descoberta).
+  const [memberships, setMemberships] = useState<CustomerMembership[]>([]);
   const [booked, setBooked] = useState<
-    | { kind: 'single'; appointmentId: string; paymentAvailable: boolean; status: string }
+    | {
+        kind: 'single';
+        appointmentId: string;
+        paymentAvailable: boolean;
+        status: string;
+        coveredBySubscription: boolean;
+        membership: { planName: string; remainingCredits: number } | null;
+      }
     | { kind: 'series'; createdCount: number; skipped: string[]; beyondHorizon: number }
     | null
   >(null);
@@ -421,6 +441,20 @@ export default function BookScreen() {
       active = false;
     };
   }, [session, slug]);
+
+  // Assinaturas do Clube (logado): alimenta a cobertura por crédito no agendar + o estado do
+  // bloco de descoberta ("Assinar" vs "Você é do clube"). Best-effort; sem clube, fica vazio.
+  useEffect(() => {
+    if (!session) return;
+    let active = true;
+    api
+      .myMemberships()
+      .then((r) => active && setMemberships(r.memberships))
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [session]);
 
   const loadSlots = useCallback(
     (dateStr: string) =>
@@ -528,6 +562,8 @@ export default function BookScreen() {
           appointmentId: result.appointmentId,
           paymentAvailable: result.paymentAvailable,
           status: result.status,
+          coveredBySubscription: result.coveredBySubscription,
+          membership: result.membership,
         });
       }
     } catch (err) {
@@ -617,6 +653,26 @@ export default function BookScreen() {
   const lowestPrice = tenant.services.length
     ? Math.min(...tenant.services.map((s) => s.priceCents))
     : null;
+
+  // --- Clube (assinatura) ---
+  // Vitrine: 1º plano ativo (o gate Time+ do dono já filtrou no servidor). ponytail: com
+  // múltiplos planos o bloco mostra o primeiro; o checkout carrega o plano escolhido.
+  const subPlan = tenant.membershipPlans[0] ?? null;
+  // Já assina aqui? (dá acesso, ativando ou em atraso) -> bloco vira "ver créditos".
+  const subscribedHere = memberships.some(
+    (m) => m.tenantSlug === slug && m.status !== 'CANCELED',
+  );
+  // Cobertura por crédito pro serviço escolhido. O desconto REAL é decidido no servidor no
+  // agendar (resolveCoveredMembership); aqui é só o aviso "vai usar crédito" / "acabaram".
+  const membershipForService = service
+    ? memberships.find((m) => m.tenantSlug === slug && m.coveredServiceIds.includes(service.id))
+    : undefined;
+  const creditCoverage =
+    membershipForService && membershipForService.creditsUsable && membershipForService.creditBalance > 0
+      ? membershipForService
+      : null;
+  const creditsRanOut =
+    !!membershipForService && membershipForService.creditsUsable && membershipForService.creditBalance <= 0;
 
   // Fila de espera é por profissional CONCRETO. "Qualquer" (professionalId null) só resolve
   // quando o serviço tem um único profissional; senão não dá pra oferecer fila (= sem CTA).
@@ -716,6 +772,41 @@ export default function BookScreen() {
                 </View>
               ) : (
                 <>
+                  {/* Bloco do Clube (assinatura) - só aparece se o estabelecimento tem plano ativo. */}
+                  {subPlan ? (
+                    <Pressable
+                      onPress={() =>
+                        subscribedHere
+                          ? router.push('/clube' as Href)
+                          : session
+                            ? router.push(`/clube/assinar?slug=${slug}&planId=${subPlan.id}` as Href)
+                            : router.push('/login')
+                      }
+                      className="bg-green-deep relative mb-5 flex-row items-center gap-3 overflow-hidden rounded-2xl px-3.5 py-3 active:opacity-90"
+                      style={{ shadowColor: '#04140d', shadowOpacity: 0.35, shadowRadius: 20, shadowOffset: { width: 0, height: 12 }, elevation: 4 }}
+                    >
+                      <View className="h-[42px] w-[42px] items-center justify-center rounded-xl" style={{ backgroundColor: 'rgba(47,211,122,0.16)' }}>
+                        <TicketIcon />
+                      </View>
+                      <View className="min-w-0 flex-1">
+                        <Text style={fraunces} className="text-cream text-[15px]" numberOfLines={1}>
+                          {subPlan.name}
+                        </Text>
+                        <Text className="mt-0.5 text-[11.5px]" style={{ color: '#8fbfa4' }} numberOfLines={1}>
+                          {subscribedHere
+                            ? 'Você é do clube'
+                            : `${subPlan.creditsPerCycle} por mês · ${formatBRL(subPlan.priceCents)}`}
+                        </Text>
+                      </View>
+                      <View className="bg-coral flex-row items-center gap-1.5 rounded-full px-3.5 py-2">
+                        <Text className="text-[12.5px] font-bold text-white">{subscribedHere ? 'Ver créditos' : 'Assinar'}</Text>
+                        <Svg width={13} height={13} viewBox="0 0 24 24" fill="none">
+                          <Path d="M9 5l7 7-7 7" stroke="#fff" strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round" />
+                        </Svg>
+                      </View>
+                    </Pressable>
+                  ) : null}
+
                   <Text style={fraunces} className="text-ink mb-3 text-[17px]">
                     Serviços
                   </Text>
@@ -949,6 +1040,31 @@ export default function BookScreen() {
                     </View>
                     <Text className="text-coral text-xs font-bold">Editar</Text>
                   </Pressable>
+
+                  {/* Cobertura por crédito do Clube: usa crédito (não cobra), ou avisa que acabou. */}
+                  {creditCoverage ? (
+                    <View className="mt-3 flex-row items-center gap-2.5 rounded-2xl border p-3" style={{ backgroundColor: '#eaf6ee', borderColor: '#c5e6d1' }}>
+                      <TicketIcon color="#1b9a5a" size={20} />
+                      <View className="flex-1">
+                        <Text className="text-[13px] font-semibold" style={{ color: '#1b7a4b' }}>
+                          Vai usar 1 crédito - não cobra nada
+                        </Text>
+                        <Text className="text-sub text-[11.5px]">
+                          Coberto pelo {creditCoverage.planName} · {creditCoverage.creditsLabel} este mês
+                        </Text>
+                      </View>
+                    </View>
+                  ) : creditsRanOut ? (
+                    <View className="mt-3 flex-row items-center gap-2.5 rounded-2xl border p-3" style={{ backgroundColor: '#f4ede0', borderColor: '#e6dcc6' }}>
+                      <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="#a37a2e" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                        <Path d="M12 8v5M12 16h.01M10.3 3.9 2.4 18a2 2 0 0 0 1.7 3h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" />
+                      </Svg>
+                      <Text className="text-sub flex-1 text-[12px] leading-4">
+                        Seus créditos do mês acabaram. Esse sai avulso
+                        {membershipForService?.renewsLabel ? ` - ou espere ${membershipForService.renewsLabel.toLowerCase()}, quando renova` : ''}.
+                      </Text>
+                    </View>
+                  ) : null}
 
                   <View className="mt-5">
                     <SlotPicker
@@ -1194,9 +1310,15 @@ export default function BookScreen() {
                     <Text className="text-sub text-[11.5px]" numberOfLines={1}>
                       {slotSummary}
                     </Text>
-                    <Text style={fraunces} className="text-ink text-[20px]">
-                      {formatBRL(service.priceCents)}
-                    </Text>
+                    {creditCoverage && !isSeries ? (
+                      <Text style={[fraunces, { color: '#1b7a4b' }]} className="text-[20px]">
+                        Grátis pelo clube
+                      </Text>
+                    ) : (
+                      <Text style={fraunces} className="text-ink text-[20px]">
+                        {formatBRL(service.priceCents)}
+                      </Text>
+                    )}
                   </View>
                   <PressScale
                     onPress={handleSlotConfirm}
@@ -1207,7 +1329,7 @@ export default function BookScreen() {
                       <ActivityIndicator color="#ffffff" size="small" />
                     ) : (
                       <Text className="text-[15px] font-bold text-white">
-                        {session && contactOk ? 'Confirmar' : 'Continuar'}
+                        {session && contactOk ? (creditCoverage && !isSeries ? 'Usar crédito' : 'Confirmar') : 'Continuar'}
                       </Text>
                     )}
                   </PressScale>
@@ -1250,21 +1372,36 @@ export default function BookScreen() {
           titlePlain={booked.status === 'CONFIRMED' ? 'Tá' : 'Horário'}
           titleAccent={booked.status === 'CONFIRMED' ? 'marcado!' : 'reservado!'}
           message={
-            booked.status === 'CONFIRMED'
-              ? WHATSAPP_CONFIRMATION_ACTIVE
-                ? 'Enviamos a confirmação pro seu WhatsApp e e-mail. A gente te lembra antes, relaxa.'
-                : 'Enviamos a confirmação pro seu e-mail e ela está na sua conta. A gente te lembra antes, relaxa.'
-              : WHATSAPP_CONFIRMATION_ACTIVE
-                ? 'O estabelecimento vai confirmar - você não precisa fazer mais nada. Avisamos pelo WhatsApp e e-mail.'
-                : 'O estabelecimento vai confirmar - você não precisa fazer mais nada. Avisamos por e-mail e na sua conta.'
+            booked.coveredBySubscription
+              ? 'É só chegar - nada a pagar, o clube cobre. A confirmação está na sua conta e a gente te lembra antes.'
+              : booked.status === 'CONFIRMED'
+                ? WHATSAPP_CONFIRMATION_ACTIVE
+                  ? 'Enviamos a confirmação pro seu WhatsApp e e-mail. A gente te lembra antes, relaxa.'
+                  : 'Enviamos a confirmação pro seu e-mail e ela está na sua conta. A gente te lembra antes, relaxa.'
+                : WHATSAPP_CONFIRMATION_ACTIVE
+                  ? 'O estabelecimento vai confirmar - você não precisa fazer mais nada. Avisamos pelo WhatsApp e e-mail.'
+                  : 'O estabelecimento vai confirmar - você não precisa fazer mais nada. Avisamos por e-mail e na sua conta.'
           }
           pending={booked.status !== 'CONFIRMED'}
           tenant={{ name: tenant.name, logoUrl: tenant.logoUrl }}
           line={service?.name ?? null}
           when={slotIso ? buildConfirmWhen(slotIso, tenant.timezone) : null}
-          price={service ? formatBRL(service.priceCents) : null}
+          price={booked.coveredBySubscription ? 'R$ 0' : service ? formatBRL(service.priceCents) : null}
         >
-          {booked.paymentAvailable ? (
+          {booked.coveredBySubscription && booked.membership ? (
+            <View className="flex-row items-center gap-2.5 rounded-2xl border p-3" style={{ backgroundColor: 'rgba(47,211,122,0.1)', borderColor: 'rgba(47,211,122,0.3)' }}>
+              <TicketIcon color="#2fd37a" size={20} />
+              <View className="flex-1">
+                <Text className="text-cream text-[13px] font-semibold">Usou 1 crédito</Text>
+                <Text className="text-[11.5px]" style={{ color: '#8fbfa4' }}>
+                  {booked.membership.remainingCredits === 1
+                    ? 'Resta 1 crédito'
+                    : `Restam ${booked.membership.remainingCredits} créditos`}{' '}
+                  no {booked.membership.planName}
+                </Text>
+              </View>
+            </View>
+          ) : booked.paymentAvailable ? (
             <PaymentSection slug={slug} appointmentId={booked.appointmentId} />
           ) : null}
           {successActions}

@@ -5,6 +5,7 @@ import {
   Globe,
   LayoutGrid,
   MessageCircle,
+  Repeat,
   Scissors,
   Settings,
   Upload,
@@ -73,6 +74,16 @@ export const NAV_ITEMS: NavItem[] = [
     adminOnly: true,
   },
   { key: 'fidelidade', label: 'Fidelidade', href: '/loyalty', icon: Gift, group: 'negocio' },
+  {
+    // Assinatura de serviços DO CLIENTE ao estabelecimento (feature Time+). adminOnly: mostra
+    // MRR/receita do dono, então só o dono vê. Página faz o gate de tier com upsell pro Solo.
+    key: 'assinaturas',
+    label: 'Assinaturas',
+    href: '/assinaturas-clientes',
+    icon: Repeat,
+    group: 'negocio',
+    adminOnly: true,
+  },
   { key: 'equipe', label: 'Equipe', href: '/team', icon: Users, group: 'negocio' },
   { key: 'horarios', label: 'Horários', href: '/schedule', icon: Clock, group: 'negocio' },
   { key: 'pagina', label: 'Página pública', href: '/page', icon: Globe, group: 'negocio' },

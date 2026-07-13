@@ -73,6 +73,12 @@ export async function createPaymentForAppointment(
   if (appointment.service.priceCents <= 0) {
     return { error: 'Este serviço não tem cobrança' };
   }
+  // Rede de segurança: agendamento coberto por crédito de assinatura NÃO gera cobrança (o
+  // consumo do crédito já "pagou"). Impede cobrar duas vezes se a UI escapar do
+  // paymentAvailable=false. Cobre o fluxo público E o mobile (ambos passam por aqui).
+  if (appointment.membershipId) {
+    return { error: 'Este agendamento está coberto pelo seu plano de assinatura' };
+  }
   const { tenant } = appointment;
   // Gate de plano + provider configurado. Ambos resultam na mesma mensagem neutra ao
   // cliente final (não expõe detalhe de plano de quem não está pagando o tier certo).

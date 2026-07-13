@@ -10,7 +10,11 @@
 
 import { type AppointmentStatus, prisma } from '@haru/database';
 
-export type GuardedInsert = { appointmentId: string } | { conflict: true };
+import { consumeCreditInTx } from './memberships/credit-core';
+
+export type GuardedInsert =
+  | { appointmentId: string; coveredBySubscription: boolean }
+  | { conflict: true };
 
 export async function insertAppointmentGuarded(input: {
   tenantId: string;
@@ -21,9 +25,24 @@ export async function insertAppointmentGuarded(input: {
   endsAt: Date;
   status: AppointmentStatus;
   fromWaitlist: boolean;
+  /**
+   * Crédito de assinatura a descontar NA MESMA TX do create (resolvido antes por
+   * resolveCoveredMembership). Ausente = agendamento avulso. Descontar dentro da tx garante
+   * "coberto ⟺ crédito debitado" atômico; se o saldo acabou numa corrida, cai pra avulso.
+   */
+  credit?: { membershipId: string; creditCost: number };
 }): Promise<GuardedInsert> {
-  const { tenantId, contactId, serviceId, professionalId, startsAt, endsAt, status, fromWaitlist } =
-    input;
+  const {
+    tenantId,
+    contactId,
+    serviceId,
+    professionalId,
+    startsAt,
+    endsAt,
+    status,
+    fromWaitlist,
+    credit,
+  } = input;
 
   return prisma.$transaction(async (tx) => {
     // Guarda de corrida: serializa criadores concorrentes do MESMO (profissional, horário).
@@ -48,6 +67,16 @@ export async function insertAppointmentGuarded(input: {
       data: { tenantId, contactId, serviceId, professionalId, startsAt, endsAt, status, fromWaitlist },
       select: { id: true },
     });
-    return { appointmentId: appt.id };
+
+    // Desconta o crédito NA MESMA TX (guarda de concorrência própria: UPDATE condicional).
+    const coveredBySubscription = credit
+      ? await consumeCreditInTx(tx, {
+          membershipId: credit.membershipId,
+          creditCost: credit.creditCost,
+          appointmentId: appt.id,
+        })
+      : false;
+
+    return { appointmentId: appt.id, coveredBySubscription };
   });
 }

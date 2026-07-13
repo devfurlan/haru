@@ -206,8 +206,12 @@ export type CreatePublicBookingResult =
       status: AppointmentStatus;
       summary: string;
       appointmentId: string;
-      /** Mostra o bloco "Pagar agora" na tela de sucesso. */
+      /** Mostra o bloco "Pagar agora" na tela de sucesso. false quando coberto por crédito. */
       paymentAvailable: boolean;
+      /** Agendamento coberto por crédito de assinatura (não gera cobrança). */
+      coveredBySubscription: boolean;
+      /** Plano + saldo restante quando coberto, pra tela de sucesso ("1 uso do plano, restam N"). */
+      membership: { planName: string; remainingCredits: number } | null;
     }
   | {
       ok: true;
@@ -462,7 +466,25 @@ export async function createPublicBooking(
     minute: '2-digit',
   }).format(startsAt);
 
-  const paymentAvailable = service.priceCents > 0 && tenant.paymentProvider !== null;
+  // Coberto por crédito de assinatura => sem cobrança (suprime o "Pagar agora").
+  const paymentAvailable =
+    !created.coveredBySubscription && service.priceCents > 0 && tenant.paymentProvider !== null;
+
+  // Plano + saldo que sobrou, pra tela de sucesso mostrar "1 uso do plano, restam N". A
+  // Membership já foi ligada ao Appointment no consumo (consumeCreditInTx), então lê por lá.
+  let membership: { planName: string; remainingCredits: number } | null = null;
+  if (created.coveredBySubscription) {
+    const appt = await prisma.appointment.findUnique({
+      where: { id: created.appointmentId },
+      select: { membership: { select: { planName: true, creditBalance: true } } },
+    });
+    if (appt?.membership) {
+      membership = {
+        planName: appt.membership.planName,
+        remainingCredits: appt.membership.creditBalance,
+      };
+    }
+  }
 
   return {
     ok: true,
@@ -470,6 +492,8 @@ export async function createPublicBooking(
     summary: `${service.name} · ${when}`,
     appointmentId: created.appointmentId,
     paymentAvailable,
+    coveredBySubscription: created.coveredBySubscription,
+    membership,
   };
 }
 

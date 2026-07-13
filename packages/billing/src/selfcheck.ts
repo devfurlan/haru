@@ -25,6 +25,8 @@ const {
   alertLevel,
   cycleWindow,
   isFairUse,
+  hasWaitlist,
+  hasServiceSubscriptions,
 } = await import('./gating');
 
 // --- Preço por ciclo (money path) --------------------------------------------
@@ -204,6 +206,29 @@ assert.equal(
   false,
 ); // addon encerrado => não é mais fair use
 
+// --- Features do plano Time+ (gate por tier ao vivo): fila e assinatura de serviços ---
+for (const [label, fn] of [
+  ['hasWaitlist', hasWaitlist],
+  ['hasServiceSubscriptions', hasServiceSubscriptions],
+] as const) {
+  assert.equal(fn(null), false, `${label}: sem assinatura`);
+  assert.equal(fn(sub({ planTier: 'ESSENCIAL' })), false, `${label}: Solo não tem`);
+  assert.equal(fn(sub({ planTier: 'PROFISSIONAL' })), true, `${label}: Time tem`);
+  assert.equal(fn(sub({ planTier: 'NEGOCIO' })), true, `${label}: Multi tem`);
+  assert.equal(fn(sub({ planTier: 'ENTERPRISE' })), true, `${label}: Enterprise tem`);
+  assert.equal(
+    fn(sub({ status: 'PENDING', planTier: 'PROFISSIONAL' })),
+    false,
+    `${label}: assinatura inativa não libera`,
+  );
+  // Time cancelado mas dentro do período pago ainda mantém acesso.
+  assert.equal(
+    fn(sub({ status: 'CANCELED', planTier: 'PROFISSIONAL', currentPeriodEnd: future })),
+    true,
+    `${label}: cancelado no período pago segue`,
+  );
+}
+
 console.log(
-  '✓ billing selfcheck: preço por ciclo, grandfather, acesso, tetos, janela e fair use OK',
+  '✓ billing selfcheck: preço por ciclo, grandfather, acesso, tetos, janela, fair use e Time+ OK',
 );

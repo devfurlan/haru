@@ -133,6 +133,23 @@ export function hasWaitlist(sub: Subscription | null | undefined): boolean {
   return isSubscriptionActive(sub) && !!sub && sub.planTier !== 'ESSENCIAL';
 }
 
+/**
+ * Assinatura de serviços do cliente final ("Clube do Corte"): feature do plano Time pra
+ * cima (PROFISSIONAL/NEGOCIO/ENTERPRISE). Solo (ESSENCIAL) não tem - é diferencial de
+ * receita recorrente do Time. Gate NÃO-BURLÁVEL: cada write que move dinheiro/cria linha
+ * (dono cria/edita plano, cliente assina, cobrança recorrente) chama isto no corpo da
+ * action, não só esconde no front. REGRA DURA: gateia OFERTAR/COBRAR, nunca o CONSUMO de
+ * crédito já vendido - um dono que faz downgrade não estorna quem já assinou (o crédito
+ * pago continua honrado; ver isSubscriptionActive da própria Membership).
+ *
+ * ponytail: gate por tier AO VIVO, igual hasWaitlist - alinhar a um snapshot
+ * (featServiceSubscriptions grandfathered) junto com a fila quando a matriz de features
+ * por plano virar problema. Reusa isSubscriptionActive - trial futuro herda de graça.
+ */
+export function hasServiceSubscriptions(sub: Subscription | null | undefined): boolean {
+  return isSubscriptionActive(sub) && !!sub && sub.planTier !== 'ESSENCIAL';
+}
+
 // --- Equipe: profissionais x recepcionistas ----------------------------------
 
 /** Profissionais (usuários com agenda própria) já cadastrados no tenant. */

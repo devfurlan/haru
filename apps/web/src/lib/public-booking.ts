@@ -18,7 +18,7 @@ import {
   type AvailableSlotWithProfessionals,
 } from '@haru/shared';
 
-import { hasWaitlist } from '@haru/billing';
+import { hasServiceSubscriptions, hasWaitlist } from '@haru/billing';
 
 import { loadPublicTenant } from '@/app/[slug]/_tenant';
 import { createAppointmentSeries } from '@/lib/appointment-series';
@@ -52,6 +52,22 @@ export type PublicTenantData = {
     professionalIds: string[];
   }[];
   professionals: { id: string; name: string | null; avatarUrl: string | null }[];
+  /**
+   * Planos do Clube (assinatura de serviços) ATIVOS, pra vitrine na página do
+   * estabelecimento. Vazio quando o dono não tem a feature (Time+) ou não criou plano - o
+   * bloco de assinatura só aparece com plano. Preço/crédito em snapshot da composição viva.
+   */
+  membershipPlans: {
+    id: string;
+    name: string;
+    description: string | null;
+    priceCents: number;
+    creditsPerCycle: number;
+    creditRollover: boolean;
+    rolloverCap: number | null;
+    /** Serviços cobertos pelo plano (pra casar com o serviço no agendamento). */
+    serviceIds: string[];
+  }[];
 };
 
 /** Dados públicos do tenant pro app (serviços ativos, profissionais, dias de expediente). */
@@ -81,6 +97,19 @@ export async function getPublicTenantData(slug: string): Promise<PublicTenantDat
       professionalIds: s.professionals.map((p) => p.professionalId),
     })),
     professionals: tenant.users.map((u) => ({ id: u.id, name: u.name, avatarUrl: u.avatarUrl })),
+    // Gate NÃO-BURLÁVEL: assinatura é feature Time+ do DONO. Downgrade some com a vitrine.
+    membershipPlans: hasServiceSubscriptions(tenant.subscription)
+      ? tenant.membershipPlans.map((p) => ({
+          id: p.id,
+          name: p.name,
+          description: p.description,
+          priceCents: p.priceCents,
+          creditsPerCycle: p.creditsPerCycle,
+          creditRollover: p.creditRollover,
+          rolloverCap: p.rolloverCap,
+          serviceIds: p.services.map((s) => s.serviceId),
+        }))
+      : [],
   };
 }
 
@@ -122,6 +151,10 @@ export type PublicBookingResult =
       summary: string;
       appointmentId: string;
       paymentAvailable: boolean;
+      /** Agendamento coberto por crédito de assinatura (não gera cobrança). */
+      coveredBySubscription: boolean;
+      /** Assinatura que cobriu (plano + saldo restante), pra tela de sucesso. null = avulso. */
+      membership: { planName: string; remainingCredits: number } | null;
     }
   | {
       ok: true;
@@ -342,7 +375,27 @@ export async function createSinglePublicBooking(input: {
   });
   if ('error' in created) return { error: created.error };
 
-  const paymentAvailable = service.priceCents > 0 && tenant.paymentProvider !== null;
+  // Coberto por crédito de assinatura => sem cobrança (suprime o "Pagar agora").
+  const paymentAvailable =
+    !created.coveredBySubscription && service.priceCents > 0 && tenant.paymentProvider !== null;
+
+  // Re-lê o plano+saldo da assinatura que cobriu (mesma ordem do consumo: currentPeriodEnd
+  // asc), pro app mostrar "usou 1 crédito, restam N no {plano}". Contido no lib mobile - não
+  // toca no createBookingCore compartilhado com o web.
+  let membership: { planName: string; remainingCredits: number } | null = null;
+  if (created.coveredBySubscription && input.account) {
+    const m = await prisma.membership.findFirst({
+      where: {
+        tenantId: tenant.id,
+        customerAccountId: input.account.id,
+        plan: { services: { some: { serviceId: service.id } } },
+        OR: [{ status: 'ACTIVE' }, { status: 'CANCELED', currentPeriodEnd: { gt: startsAt } }],
+      },
+      orderBy: { currentPeriodEnd: 'asc' },
+      select: { planName: true, creditBalance: true },
+    });
+    if (m) membership = { planName: m.planName, remainingCredits: m.creditBalance };
+  }
 
   return {
     ok: true,
@@ -350,5 +403,7 @@ export async function createSinglePublicBooking(input: {
     summary: `${service.name} · ${when}`,
     appointmentId: created.appointmentId,
     paymentAvailable,
+    coveredBySubscription: created.coveredBySubscription,
+    membership,
   };
 }

@@ -1,6 +1,8 @@
 import {
   type CreateChargeInput,
   type CreateChargeResult,
+  type CreateSubscriptionInput,
+  type CreateSubscriptionResult,
   type ParsedWebhook,
   type ParseWebhookArgs,
   type PaymentGateway,
@@ -21,6 +23,14 @@ export class PagBankGateway implements PaymentGateway {
   }
 
   parseWebhook(_args: ParseWebhookArgs): ParsedWebhook {
+    throw new GatewayNotImplementedError('PagBank');
+  }
+
+  createSubscription(_input: CreateSubscriptionInput): Promise<CreateSubscriptionResult> {
+    throw new GatewayNotImplementedError('PagBank');
+  }
+
+  cancelSubscription(_externalSubscriptionId: string): Promise<void> {
     throw new GatewayNotImplementedError('PagBank');
   }
 }

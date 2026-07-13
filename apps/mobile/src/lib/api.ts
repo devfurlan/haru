@@ -89,6 +89,18 @@ export type PublicService = {
   professionalIds: string[];
 };
 
+// Plano do Clube (assinatura de serviços) na vitrine do estabelecimento. Vazio = sem clube.
+export type MembershipPlanPublic = {
+  id: string;
+  name: string;
+  description: string | null;
+  priceCents: number;
+  creditsPerCycle: number;
+  creditRollover: boolean;
+  rolloverCap: number | null;
+  serviceIds: string[];
+};
+
 export type PublicTenant = {
   id: string;
   name: string;
@@ -101,6 +113,7 @@ export type PublicTenant = {
   openWeekdays: number[];
   services: PublicService[];
   professionals: { id: string; name: string | null; avatarUrl: string | null }[];
+  membershipPlans: MembershipPlanPublic[];
 };
 
 export type RecurrenceFrequency = 'WEEKLY' | 'BIWEEKLY' | 'MONTHLY';
@@ -112,6 +125,10 @@ export type BookingResult =
       summary: string;
       appointmentId: string;
       paymentAvailable: boolean;
+      /** Agendamento coberto por crédito do Clube (não cobra). */
+      coveredBySubscription: boolean;
+      /** Assinatura que cobriu (plano + saldo restante), pra tela de sucesso. */
+      membership: { planName: string; remainingCredits: number } | null;
     }
   | {
       ok: true;
@@ -164,6 +181,59 @@ export type LoyaltyCard = {
 export type LoyaltyVisit = { id: string; serviceName: string; whenLabel: string };
 
 export type LoyaltyCardDetail = LoyaltyCard & { timezone: string; visits: LoyaltyVisit[] };
+
+// --- Clube (assinatura de serviços). Espelha lib/memberships/customer.ts do web. ---
+// IMPORTANTE: crédito de assinatura (tickets que você GASTA) é coisa distinta do carimbo
+// de fidelidade (que ENCHE). Linguagem visual própria - ver components/credit-ticket.tsx.
+export type CustomerMembership = {
+  membershipId: string;
+  planId: string;
+  tenantSlug: string;
+  tenantName: string;
+  logoUrl: string | null;
+  planName: string;
+  serviceLabel: string;
+  coveredServiceIds: string[];
+  status: 'PENDING' | 'ACTIVE' | 'PAST_DUE' | 'CANCELED';
+  /** Status dá acesso a crédito (ativo, ou cancelado dentro do período pago). */
+  creditsUsable: boolean;
+  creditBalance: number;
+  creditsPerCycle: number;
+  creditsLabel: string;
+  rollover: boolean;
+  ruleShort: string;
+  ruleLong: string;
+  priceCents: number;
+  priceLabel: string;
+  renewsLabel: string | null;
+  nextChargeLabel: string | null;
+  periodEndLabel: string | null;
+  cardLabel: string | null;
+  creditsExpireLabel: string | null;
+  canCancel: boolean;
+  payFailed: boolean;
+  canceled: boolean;
+};
+
+export type MembershipChargeRow = {
+  dateLabel: string;
+  amountLabel: string;
+  statusLabel: string;
+  paid: boolean;
+};
+
+export type CustomerMembershipDetail = CustomerMembership & { history: MembershipChargeRow[] };
+
+// Checkout da assinatura. Mesma forma do PaymentResult (checkout hospedado / Pix), + o id.
+export type SubscribeResult =
+  | { error: string; needsDocument?: boolean }
+  | {
+      ok: true;
+      membershipId: string;
+      checkoutUrl: string | null;
+      pixQrCode: string | null;
+      pixCopyPaste: string | null;
+    };
 
 // --- Fila de espera. Espelha os tipos da engine (apps/web/src/lib/waitlist.ts). ---
 // Uma fila em que a conta está (GET /waitlist). offer presente = vaga aberta esperando.
@@ -328,6 +398,26 @@ export const api = {
     request<{ ok: true; prizeLabel: string; required: number }>(`/loyalty/${tenantId}/redeem`, {
       method: 'POST',
     }),
+
+  // --- Clube (assinatura de serviços) ---
+  // Assina um plano. Retorna o checkout hospedado (cartão) ou o Pix; a ativação e os
+  // créditos são webhook-driven. needsDocument = pede o CPF do pagador (o gateway exige).
+  subscribe: (
+    slug: string,
+    input: { planId: string; method: 'PIX' | 'CREDIT_CARD'; document?: string },
+  ) =>
+    request<SubscribeResult>(`/tenants/${slug}/subscribe`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
+  // "Meus créditos": as assinaturas da conta (vários estabelecimentos).
+  myMemberships: () => request<{ memberships: CustomerMembership[] }>('/memberships'),
+  // Uma assinatura + histórico de cobranças (tela "Gerenciar").
+  membershipDetail: (membershipId: string) =>
+    request<CustomerMembershipDetail>(`/memberships/${membershipId}`),
+  // Cancela (self-service). Créditos valem até o fim do período pago.
+  cancelMembership: (membershipId: string) =>
+    request<{ ok: true }>(`/memberships/${membershipId}/cancel`, { method: 'POST' }),
 
   // --- Fila de espera (dia lotado -> "me avisa se abrir") ---
   // Entra na fila do dia + profissional. Retorna a posição pra tela de sucesso.

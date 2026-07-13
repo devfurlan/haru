@@ -134,6 +134,19 @@ export interface PublicBookingProps {
   /** Volta pra fila depois de logar: retoma o passo dia/horário no mesmo contexto
    *  (serviço, profissional, dia) que o cliente tinha antes de ir pro login. */
   resume?: { serviceId: string; professionalId: string; dateStr: string } | null;
+  /** Assinaturas do cliente logado neste tenant que dão acesso a crédito (ACTIVE ou
+   *  CANCELED-dentro-do-período). Alimenta o aviso "vai usar 1 crédito" no agendamento -
+   *  o desconto em si é automático server-side (não depende disto). Saldo 0 = "sem créditos
+   *  este mês". Vazio quando o cliente não assina / não está logado. */
+  coverage?: BookingCoverage[];
+}
+
+/** Cobertura de assinatura pra UM serviço no agendamento (só informativo). */
+export interface BookingCoverage {
+  planName: string;
+  /** Serviços cobertos pelo plano (composição viva). */
+  serviceIds: string[];
+  creditBalance: number;
 }
 
 /**
@@ -388,6 +401,35 @@ function StickyFooter({ children }: { children: React.ReactNode }) {
   return (
     <div className="bg-background border-line sticky bottom-0 z-10 mt-5 flex items-center gap-3.5 border-t pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 shadow-[0_-10px_28px_-18px_rgba(10,51,36,0.45)]">
       {children}
+    </div>
+  );
+}
+
+/**
+ * Aviso de cobertura por assinatura no agendamento. Crédito é descontado AUTOMÁTICO (regra:
+ * sem pergunta) - isto só informa. Com saldo: "vai usar 1 crédito". Sem saldo (assina mas
+ * zerou no mês): "agenda pagando normal". null quando o serviço não é coberto.
+ */
+function CreditNote({ coverage }: { coverage: BookingCoverage }) {
+  if (coverage.creditBalance > 0) {
+    return (
+      <div className="border-green/25 bg-green/5 flex items-start gap-2 rounded-[12px] border px-3 py-2.5 text-[12.5px]">
+        <Sparkles className="text-green mt-px h-4 w-4 shrink-0" aria-hidden="true" />
+        <span className="text-foreground font-medium">
+          Coberto pelo seu <span className="font-semibold">{coverage.planName}</span> · usa 1
+          crédito
+          {coverage.creditBalance > 1 ? `, restam ${coverage.creditBalance - 1}` : ' (o último)'}
+        </span>
+      </div>
+    );
+  }
+  return (
+    <div className="bg-muted text-sub flex items-start gap-2 rounded-[12px] border px-3 py-2.5 text-[12.5px]">
+      <AlertTriangle className="mt-px h-4 w-4 shrink-0" aria-hidden="true" />
+      <span>
+        Você assina o {coverage.planName}, mas os créditos deste mês acabaram - agenda pagando
+        normal.
+      </span>
     </div>
   );
 }
@@ -896,6 +938,7 @@ function StepDiaHora({
   onOpenOptions,
   headingRef,
   queue,
+  creditNote,
 }: {
   tenantName: string;
   service: ServiceOption;
@@ -929,6 +972,8 @@ function StepDiaHora({
   headingRef: React.RefObject<HTMLHeadingElement | null>;
   /** Fila de espera no estado "sem horário": elegibilidade + handlers. null = sem fila. */
   queue: (Omit<QueueBookingContext, 'onSeeOtherDays'> & { onSeeOtherDays?: () => void }) | null;
+  /** Aviso de cobertura por assinatura (crédito). null quando o serviço não é coberto. */
+  creditNote: React.ReactNode;
 }) {
   // Rola o carrossel até o chip escolhido (ex.: quando vem do date-picker).
   const railRef = useRef<HTMLDivElement>(null);
@@ -977,6 +1022,8 @@ function StepDiaHora({
           </div>
           <span className="text-coral text-xs font-bold">Editar</span>
         </button>
+
+        {creditNote}
 
         {notice || error ? (
           <p
@@ -1523,6 +1570,7 @@ function StepConfirmar({
   accountCreated,
   onAccountCreated,
   customerName,
+  creditNote,
 }: {
   tenantName: string;
   slug: string;
@@ -1557,6 +1605,8 @@ function StepConfirmar({
   accountCreated: boolean;
   onAccountCreated: () => void;
   customerName: string | null;
+  /** Aviso de cobertura por assinatura (crédito). null quando o serviço não é coberto. */
+  creditNote: React.ReactNode;
 }) {
   const phoneOk = phone.length >= 10;
   const nameOk = name.trim().length >= 2;
@@ -1678,6 +1728,8 @@ function StepConfirmar({
           </div>
         </div>
       </dl>
+
+      {creditNote}
 
       {/* Recorrência é propriedade do próprio agendamento - fica junto do resumo.
           Pills rounded-full coral/paper espelhando o app mobile. */}
@@ -2104,6 +2156,8 @@ function SuccessScreen({
   paymentAvailable,
   phone,
   hasAccount,
+  covered,
+  membership,
 }: {
   confirmed: boolean;
   tenantName: string;
@@ -2117,6 +2171,9 @@ function SuccessScreen({
   phone: string;
   /** Já tem conta (logado ou criada no fluxo): não reoferecer "Criar conta". */
   hasAccount: boolean;
+  /** Coberto por crédito de assinatura: some com o preço avulso e explica o desconto. */
+  covered: boolean;
+  membership: { planName: string; remainingCredits: number } | null;
 }) {
   return (
     <div className="space-y-6">
@@ -2126,8 +2183,29 @@ function SuccessScreen({
         logoUrl={logoUrl}
         serviceLine={serviceLine}
         whenLine={whenLine}
-        priceLabel={priceLabel}
+        // Coberto: não mostra o preço avulso (o crédito já "pagou"); o bloco abaixo explica.
+        priceLabel={covered ? null : priceLabel}
       />
+
+      {covered ? (
+        <div className="border-green/30 bg-green/5 flex items-start gap-2.5 rounded-2xl border p-4">
+          <Sparkles className="text-green mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+          <div className="text-sm">
+            <p className="text-foreground font-medium">
+              Coberto pelo seu {membership?.planName ?? 'plano'}
+            </p>
+            <p className="text-sub">
+              Você usou 1 crédito
+              {membership
+                ? membership.remainingCredits > 0
+                  ? ` - restam ${membership.remainingCredits} este ciclo.`
+                  : ' - era o último deste ciclo.'
+                : '.'}{' '}
+              Sem cobrança avulsa.
+            </p>
+          </div>
+        </div>
+      ) : null}
 
       {paymentAvailable ? <PaymentBlock slug={slug} appointmentId={appointmentId} /> : null}
 
@@ -2432,6 +2510,7 @@ export function PublicBooking({
   initialServiceId = null,
   onRequestClose,
   resume = null,
+  coverage = [],
 }: PublicBookingProps) {
   const router = useRouter();
 
@@ -2585,6 +2664,14 @@ export function PublicBooking({
     ? (professionals.find((p) => p.id === professionalId)?.name ?? 'Profissional')
     : 'Qualquer prof.';
   const lowestPrice = services.length ? Math.min(...services.map((s) => s.priceCents)) : null;
+
+  // Cobertura de assinatura pro serviço escolhido (só aviso; o desconto é automático no
+  // server). Casa pela composição VIVA do plano. Passa pra StepDiaHora/StepConfirmar.
+  const coveredMembership = useMemo(
+    () => (serviceId ? (coverage.find((c) => c.serviceIds.includes(serviceId)) ?? null) : null),
+    [coverage, serviceId],
+  );
+  const creditNote = coveredMembership ? <CreditNote coverage={coveredMembership} /> : null;
 
   // Busca slots sempre que serviço + dia estiverem escolhidos. Reseta o slot
   // selecionado a cada mudança (trocar dia/serviço/prof. some com o horário expirado).
@@ -2885,6 +2972,7 @@ export function PublicBooking({
             onJoin: handleJoinQueue,
             onLeave: handleLeaveQueue,
           }}
+          creditNote={creditNote}
         />
       ) : null}
 
@@ -2929,6 +3017,7 @@ export function PublicBooking({
           accountCreated={accountCreated}
           onAccountCreated={handleAccountCreated}
           customerName={customerName}
+          creditNote={creditNote}
         />
       ) : null}
 
@@ -2961,6 +3050,8 @@ export function PublicBooking({
             paymentAvailable={state.paymentAvailable}
             phone={phone}
             hasAccount={hasAccount}
+            covered={state.coveredBySubscription}
+            membership={state.membership}
           />
         )
       ) : null}

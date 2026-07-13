@@ -24,7 +24,7 @@ import { createBookingCore } from '@/lib/appointment-mutations';
 import { createNotification } from '@/lib/comms/notifications';
 import { sendPlatformWhatsapp } from '@/lib/comms/whatsapp';
 import { appUrl } from '@/lib/email';
-import { sendExpoPush } from '@/lib/expo-push';
+import { sendPushSafe } from '@/lib/comms/push';
 import { getServiceDaySlots, loadDayAvailability } from '@/lib/professionals';
 import { resolvePublicContactId } from '@/lib/public-booking';
 import {
@@ -949,17 +949,6 @@ async function notifyOwnerRecovered(
     ctaLabel: 'Ver agenda',
     ctaHref: '/appointments',
   });
-}
-
-/** Envia push e limpa tokens mortos que a Expo reportar. */
-async function sendPushSafe(
-  tokens: string[],
-  msg: { title: string; body: string; data?: Record<string, unknown> },
-): Promise<void> {
-  const { invalidTokens } = await sendExpoPush(tokens.map((to) => ({ to, ...msg })));
-  if (invalidTokens.length > 0) {
-    await prisma.pushDevice.deleteMany({ where: { expoPushToken: { in: invalidTokens } } });
-  }
 }
 
 /** "sáb, 11/07 às 15:30" no fuso do tenant. */

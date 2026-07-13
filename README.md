@@ -262,6 +262,56 @@ Notas:
 
 > ⚠️ **Manutenção:** ao adicionar/alterar qualquer template (novo evento, mudança no número/ordem de parâmetros, no default do nome ou no corpo sugerido), **atualize esta seção na mesma alteração**.
 
+### Assinatura de serviços - "Clube" (templates da PLATAFORMA ao cliente)
+
+Enviados **pelo número da plataforma** Demandaê ao cliente final que assina um plano de serviços do estabelecimento (quem tem o app recebe por **push**; sem app cai no WhatsApp). Categoria `UTILITY` (transacional de cobrança/crédito - **sem** "aproveite/promoção"). Env-gated e fail-soft: sem `WHATSAPP_PLATFORM_PHONE_NUMBER_ID` / `WHATSAPP_PLATFORM_ACCESS_TOKEN` + o template do evento, vira no-op logado. Enviados em [apps/web/src/lib/comms/subscription-events.ts](apps/web/src/lib/comms/subscription-events.ts) via `sendPlatformWhatsapp`. O recibo de cobrança ("payment_ok") está **embutido** no de créditos renovados (uma mensagem por ciclo, não duas).
+
+#### Assinatura ativada
+
+- **Nome (env `WHATSAPP_TEMPLATE_CLUBSUB_ACTIVATED`):** sugestão `demandae_clubsub_activated` · **Idioma:** `pt_BR` · **Categoria Meta:** `UTILITY`
+- **Variáveis:** `{{1}}` cliente · `{{2}}` plano · `{{3}}` estabelecimento · `{{4}}` créditos por mês
+- **Corpo sugerido:**
+  > Oi, {{1}}! Seu {{2}} na {{3}} está ativo. Você tem {{4}} crédito(s) este mês - é só agendar que desconta sozinho.
+
+#### Créditos renovados (inclui recibo do mês)
+
+- **Nome (env `WHATSAPP_TEMPLATE_CLUBSUB_CREDITS_RENEWED`):** sugestão `demandae_clubsub_credits_renewed` · **Idioma:** `pt_BR` · **Categoria Meta:** `UTILITY`
+- **Variáveis:** `{{1}}` cliente · `{{2}}` créditos · `{{3}}` plano
+- **Corpo sugerido:**
+  > {{1}}, seus {{2}} crédito(s) do {{3}} chegaram. Bom pra mais um mês!
+
+#### Pagamento falhou (atualizar cartão)
+
+- **Nome (env `WHATSAPP_TEMPLATE_CLUBSUB_PAYMENT_FAILED`):** sugestão `demandae_clubsub_payment_failed` · **Idioma:** `pt_BR` · **Categoria Meta:** `UTILITY`
+- **Variáveis:** `{{1}}` cliente · `{{2}}` plano · `{{3}}` estabelecimento · `{{4}}` link p/ atualizar o cartão
+- **Corpo sugerido:**
+  > {{1}}, não conseguimos cobrar seu {{2}} na {{3}}. Seus créditos ficam pausados até regularizar. Atualize seu cartão: {{4}}
+
+#### Créditos acabando
+
+- **Nome (env `WHATSAPP_TEMPLATE_CLUBSUB_CREDITS_LOW`):** sugestão `demandae_clubsub_credits_low` · **Idioma:** `pt_BR` · **Categoria Meta:** `UTILITY`
+- **Variáveis:** `{{1}}` cliente · `{{2}}` créditos restantes · `{{3}}` plano
+- **Corpo sugerido:**
+  > {{1}}, resta {{2}} crédito(s) do seu {{3}} este mês. Eles renovam no próximo ciclo.
+
+#### Créditos vencendo (só planos sem acúmulo)
+
+- **Nome (env `WHATSAPP_TEMPLATE_CLUBSUB_CREDITS_EXPIRING`):** sugestão `demandae_clubsub_credits_expiring` · **Idioma:** `pt_BR` · **Categoria Meta:** `UTILITY`
+- **Variáveis:** `{{1}}` cliente · `{{2}}` créditos · `{{3}}` data de vencimento
+- **Corpo sugerido:**
+  > {{1}}, você tem {{2}} crédito(s) que vencem em {{3}}. Aproveite antes que o ciclo renove.
+
+#### Assinatura cancelada
+
+- **Nome (env `WHATSAPP_TEMPLATE_CLUBSUB_CANCELED`):** sugestão `demandae_clubsub_canceled` · **Idioma:** `pt_BR` · **Categoria Meta:** `UTILITY`
+- **Variáveis:** `{{1}}` cliente · `{{2}}` plano · `{{3}}` data fim do acesso
+- **Corpo sugerido:**
+  > {{1}}, cancelamos seu {{2}}. Seus créditos valem até {{3}} - dá pra usar o que sobrou. Volte quando quiser.
+
+O DONO é avisado dos eventos de assinante (novo assinante, cancelou, pagamento falhou) **só in-app** (sino do painel, model `Notification`) - sem WhatsApp por ora (reforço opt-in futuro, análogo aos alertas de uso).
+
+> ⚠️ **Manutenção:** mesma regra - alterou template/parâmetro/corpo, atualiza aqui na mesma mudança.
+
 ## Deploy
 
 - **web** → Vercel

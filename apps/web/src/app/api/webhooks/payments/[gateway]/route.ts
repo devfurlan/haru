@@ -1,6 +1,7 @@
 import { type PaymentProvider, type PaymentStatus, prisma } from '@haru/database';
 import { getGatewayForTenant, webhookTokenForTenant, PaymentConfigError } from '@haru/payments';
 
+import { applyMembershipEvent } from '@/lib/memberships/webhook-apply';
 import { notifyCustomerPaymentConfirmed, notifyPaymentConfirmed } from '@/lib/notify';
 
 export const runtime = 'nodejs';
@@ -50,14 +51,52 @@ export async function POST(req: Request, { params }: { params: Promise<{ gateway
   // achar o Payment (e portanto o tenant, dono do token de validação).
   let externalId: string | null = null;
   let externalReference: string | null = null;
+  let subscriptionExternalId: string | null = null;
   try {
     const body = JSON.parse(rawBody.toString('utf8')) as {
-      payment?: { id?: string; externalReference?: string };
+      payment?: { id?: string; externalReference?: string; subscription?: string };
     };
     externalId = body.payment?.id ?? null;
     externalReference = body.payment?.externalReference ?? null;
+    subscriptionExternalId = body.payment?.subscription ?? null;
   } catch {
     return new Response('Corpo inválido', { status: 400 });
+  }
+
+  // --- Assinatura de serviços (recorrente) ------------------------------------
+  // A cobrança de um CICLO traz `payment.subscription` e NÃO tem Payment local (o recibo é
+  // MembershipCharge). Roteia pro engine de assinatura ANTES do lookup de Payment avulso.
+  if (subscriptionExternalId) {
+    const membership = await prisma.membership.findUnique({
+      where: { gatewaySubscriptionId: subscriptionExternalId },
+      select: { id: true, tenant: true },
+    });
+    // Não achou: outro ambiente/sandbox. 200 pra não reenfileirar.
+    if (!membership) {
+      return new Response('OK', { status: 200 });
+    }
+    try {
+      const webhookToken = webhookTokenForTenant(membership.tenant);
+      if (!webhookToken) {
+        console.warn(
+          `[payments-webhook] 401 ${provider} membership=${membership.id}: sem webhook token configurado`,
+        );
+        return new Response('Unauthorized', { status: 401 });
+      }
+      const gw = getGatewayForTenant(membership.tenant);
+      const parsed = gw.parseWebhook({ rawBody, headers: req.headers, webhookToken });
+      await applyMembershipEvent(parsed);
+      return new Response('OK', { status: 200 });
+    } catch (err) {
+      if (err instanceof PaymentConfigError) {
+        console.warn(
+          `[payments-webhook] 401 ${provider} membership=${membership.id}: ${err.message}`,
+        );
+        return new Response('Unauthorized', { status: 401 });
+      }
+      console.error('[payments-webhook] erro (assinatura)', err);
+      return new Response('Erro', { status: 500 });
+    }
   }
 
   // Resolve o Payment por (provider, externalId); fallback por externalReference (nosso id).
