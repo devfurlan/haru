@@ -3,6 +3,12 @@
     "name": "Demandaê",
     "slug": "demandae",
     "version": "1.0.0",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/7010f884-2a4f-4aad-892e-f2a5fbe8aa11"
+    },
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "demandae",
