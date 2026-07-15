@@ -14,17 +14,17 @@ export function AiAddon() {
     // Faixa bege full-bleed (mesma cor da hairline do DS), entre a HowItWorks (paper) e a
     // Faq (cream): dá banda própria ao addon sem virar caixa centralizada. Literal como os
     // outros bands da home (#cfe7d5 na for-client/whats-inside).
-    <section id="addon" className="border-edge border-b border-t bg-[#f0e8d4]">
+    <section id="addon" className="border-edge bg-line border-b border-t">
       {/* Sidebar do Every Layout: texto manda no espaço livre (grow 999) e o card fica nos
           400px de base. Quando o texto não couber em 420px, os dois quebram pra 100% - por
           isso não precisa de media query. */}
       <div className="mx-auto flex max-w-[1200px] flex-wrap items-center gap-[clamp(32px,5vw,64px)] px-[clamp(16px,4vw,40px)] py-[clamp(56px,7vw,88px)]">
         <div className="min-w-[min(100%,420px)] flex-[999_1_0]">
-          <span className="border-edge bg-paper text-ink-70 mb-[20px] inline-flex items-center gap-[8px] rounded-full border px-[16px] py-[7px] font-sans text-[11px] font-bold uppercase leading-[normal] tracking-[.14em]">
-            <span className="bg-green-bright h-[6px] w-[6px] flex-none animate-[pulse-ring_2s_infinite] rounded-[50%]" />
+          <span className="border-edge bg-paper text-ink-70 mb-5 inline-flex items-center gap-2 rounded-full border px-4 py-2 font-sans text-[11px] font-bold uppercase leading-[normal] tracking-[.14em]">
+            <span className="bg-green-bright h-1.5 w-1.5 flex-none animate-[pulse-ring_2s_infinite] rounded-[50%]" />
             Em desenvolvimento
           </span>
-          <h2 className="text-green-deep mb-[14px] font-serif text-[clamp(30px,3.4vw,36px)] font-medium leading-[1.1] tracking-[-.02em]">
+          <h2 className="text-green-deep mb-3.5 font-serif text-[clamp(30px,3.4vw,36px)] font-medium leading-[1.1] tracking-[-.02em]">
             Addon: atendente IA <span className="font-normal italic">no WhatsApp</span>
           </h2>
           <p className="text-ink-70 max-w-[520px] font-sans text-[16px] font-normal leading-[1.6]">
@@ -34,17 +34,17 @@ export function AiAddon() {
           </p>
         </div>
 
-        <div className="border-edge bg-paper flex-[1_1_400px] rounded-[18px] border p-[28px]">
-          <div className="text-ink mb-[4px] font-serif text-[18.5px] font-semibold leading-[normal]">
+        <div className="border-edge bg-paper flex-[1_1_400px] rounded-[18px] border p-7">
+          <div className="text-ink mb-1 font-serif text-[18.5px] font-semibold leading-[normal]">
             Quer testar primeiro?
           </div>
-          <p className="text-ink-70 mb-[20px] font-sans text-[14.5px] font-normal leading-[1.5]">
+          <p className="text-ink-70 mb-5 font-sans text-[14.5px] font-normal leading-[1.5]">
             Entre na lista de espera e a gente te avisa assim que abrir.
           </p>
 
           {subscribed ? (
-            <div className="bg-chip flex items-center gap-[11px] rounded-[14px] border border-[rgba(15,126,65,.22)] p-[16px]">
-              <span className="bg-green-bright grid h-[26px] w-[26px] flex-none place-items-center rounded-[50%]">
+            <div className="bg-chip flex items-center gap-3 rounded-[14px] border border-[rgba(15,126,65,.22)] p-4">
+              <span className="bg-green-bright h-6.5 w-6.5 grid flex-none place-items-center rounded-[50%]">
                 <svg
                   width="14"
                   height="14"
@@ -64,7 +64,7 @@ export function AiAddon() {
             </div>
           ) : (
             <>
-              <div className="border-edge bg-cream mb-[10px] flex items-center gap-[10px] rounded-[14px] border px-[14px]">
+              <div className="border-edge bg-cream mb-2.5 flex items-center gap-2.5 rounded-[14px] border px-3.5">
                 <svg
                   width="17"
                   height="17"
@@ -85,19 +85,19 @@ export function AiAddon() {
                   type="email"
                   aria-label="Seu email"
                   placeholder="seu@email.com.br"
-                  className="text-ink caret-coral min-w-0 flex-1 bg-transparent py-[14px] font-sans text-[15px] font-semibold leading-[normal] outline-none"
+                  className="text-ink caret-coral min-w-0 flex-1 bg-transparent py-3.5 font-sans text-[15px] font-semibold leading-[normal] outline-none"
                 />
               </div>
               <button
                 onClick={onSubscribe}
-                className="dmd-btn bg-coral h-[48px] w-full cursor-pointer rounded-[14px] font-sans text-[16px] font-bold leading-[normal] text-white shadow-[var(--shadow-cta)]"
+                className="dmd-btn bg-coral h-12 w-full cursor-pointer rounded-[14px] font-sans text-[16px] font-bold leading-[normal] text-white shadow-[var(--shadow-cta)]"
               >
                 Entrar na lista de espera
               </button>
             </>
           )}
 
-          <div className="text-ink-30 mt-[12px] text-center font-sans text-[12px] font-medium leading-[normal]">
+          <div className="text-ink-30 mt-3 text-center font-sans text-[12px] font-medium leading-[normal]">
             Sem spam. Só o aviso do lançamento.
           </div>
         </div>

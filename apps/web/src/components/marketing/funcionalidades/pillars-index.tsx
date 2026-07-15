@@ -1,14 +1,14 @@
 export function PillarsIndex() {
   return (
     // width:100% conserta o colapso do grid auto-fit (section é flex item do layout)
-    <section className="mx-auto w-full max-w-[1200px] px-[clamp(16px,4vw,40px)] pb-[clamp(24px,4vw,44px)] pt-[14px]">
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(210px,1fr))] gap-[16px]">
+    <section className="mx-auto w-full max-w-[1200px] px-[clamp(16px,4vw,40px)] pb-[clamp(24px,4vw,44px)] pt-3.5">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(210px,1fr))] gap-4">
         <a
           href="#agenda"
-          className="hv-bd-green border-line bg-paper block rounded-[20px] border px-[20px] py-[22px] shadow-[var(--shadow-card)]"
+          className="hv-bd-green border-line bg-paper py-5.5 block rounded-[20px] border px-5 shadow-[var(--shadow-card)]"
         >
-          <div className="mb-[16px] flex items-center justify-between">
-            <span className="bg-chip flex h-[44px] w-[44px] items-center justify-center rounded-[var(--radius-icontile)]">
+          <div className="mb-4 flex items-center justify-between">
+            <span className="bg-chip flex h-11 w-11 items-center justify-center rounded-[var(--radius-icontile)]">
               <svg
                 width="22"
                 height="22"
@@ -32,16 +32,16 @@ export function PillarsIndex() {
           <div className="text-green-deep font-serif text-[19px] font-medium leading-[normal]">
             Agenda
           </div>
-          <div className="text-ink-50 mt-[6px] font-sans text-[13.5px] font-normal leading-[1.5]">
+          <div className="text-ink-50 mt-1.5 font-sans text-[13.5px] font-normal leading-[1.5]">
             Rápida, por profissional, com fila de espera.
           </div>
         </a>
         <a
           href="#cliente"
-          className="hv-bd-green border-line bg-paper block rounded-[20px] border px-[20px] py-[22px] shadow-[var(--shadow-card)]"
+          className="hv-bd-green border-line bg-paper py-5.5 block rounded-[20px] border px-5 shadow-[var(--shadow-card)]"
         >
-          <div className="mb-[16px] flex items-center justify-between">
-            <span className="bg-chip flex h-[44px] w-[44px] items-center justify-center rounded-[var(--radius-icontile)]">
+          <div className="mb-4 flex items-center justify-between">
+            <span className="bg-chip flex h-11 w-11 items-center justify-center rounded-[var(--radius-icontile)]">
               <svg
                 width="22"
                 height="22"
@@ -63,16 +63,16 @@ export function PillarsIndex() {
           <div className="text-green-deep font-serif text-[19px] font-medium leading-[normal]">
             Cliente
           </div>
-          <div className="text-ink-50 mt-[6px] font-sans text-[13.5px] font-normal leading-[1.5]">
+          <div className="text-ink-50 mt-1.5 font-sans text-[13.5px] font-normal leading-[1.5]">
             App e página com a sua marca. Sem marketplace.
           </div>
         </a>
         <a
           href="#dinheiro"
-          className="hv-bd-green border-line bg-paper block rounded-[20px] border px-[20px] py-[22px] shadow-[var(--shadow-card)]"
+          className="hv-bd-green border-line bg-paper py-5.5 block rounded-[20px] border px-5 shadow-[var(--shadow-card)]"
         >
-          <div className="mb-[16px] flex items-center justify-between">
-            <span className="bg-chip flex h-[44px] w-[44px] items-center justify-center rounded-[var(--radius-icontile)]">
+          <div className="mb-4 flex items-center justify-between">
+            <span className="bg-chip flex h-11 w-11 items-center justify-center rounded-[var(--radius-icontile)]">
               <svg
                 width="22"
                 height="22"
@@ -94,16 +94,16 @@ export function PillarsIndex() {
           <div className="text-green-deep font-serif text-[19px] font-medium leading-[normal]">
             Dinheiro
           </div>
-          <div className="text-ink-50 mt-[6px] font-sans text-[13.5px] font-normal leading-[1.5]">
+          <div className="text-ink-50 mt-1.5 font-sans text-[13.5px] font-normal leading-[1.5]">
             Assinatura, pacotes e pagamento antecipado.
           </div>
         </a>
         <a
           href="#gestao"
-          className="hv-bd-green border-line bg-paper block rounded-[20px] border px-[20px] py-[22px] shadow-[var(--shadow-card)]"
+          className="hv-bd-green border-line bg-paper py-5.5 block rounded-[20px] border px-5 shadow-[var(--shadow-card)]"
         >
-          <div className="mb-[16px] flex items-center justify-between">
-            <span className="bg-chip flex h-[44px] w-[44px] items-center justify-center rounded-[var(--radius-icontile)]">
+          <div className="mb-4 flex items-center justify-between">
+            <span className="bg-chip flex h-11 w-11 items-center justify-center rounded-[var(--radius-icontile)]">
               <svg
                 width="22"
                 height="22"
@@ -127,16 +127,16 @@ export function PillarsIndex() {
           <div className="text-green-deep font-serif text-[19px] font-medium leading-[normal]">
             Gestão
           </div>
-          <div className="text-ink-50 mt-[6px] font-sans text-[13.5px] font-normal leading-[1.5]">
+          <div className="text-ink-50 mt-1.5 font-sans text-[13.5px] font-normal leading-[1.5]">
             O negócio inteiro numa tela, no PC e no celular.
           </div>
         </a>
         <a
           href="#fidelidade"
-          className="hv-bd-green border-line bg-paper block rounded-[20px] border px-[20px] py-[22px] shadow-[var(--shadow-card)]"
+          className="hv-bd-green border-line bg-paper py-5.5 block rounded-[20px] border px-5 shadow-[var(--shadow-card)]"
         >
-          <div className="mb-[16px] flex items-center justify-between">
-            <span className="bg-chip flex h-[44px] w-[44px] items-center justify-center rounded-[var(--radius-icontile)]">
+          <div className="mb-4 flex items-center justify-between">
+            <span className="bg-chip flex h-11 w-11 items-center justify-center rounded-[var(--radius-icontile)]">
               <svg
                 width="22"
                 height="22"
@@ -158,7 +158,7 @@ export function PillarsIndex() {
           <div className="text-green-deep font-serif text-[19px] font-medium leading-[normal]">
             Fidelidade
           </div>
-          <div className="text-ink-50 mt-[6px] font-sans text-[13.5px] font-normal leading-[1.5]">
+          <div className="text-ink-50 mt-1.5 font-sans text-[13.5px] font-normal leading-[1.5]">
             Pontos, recompensas e retorno automático.
           </div>
         </a>

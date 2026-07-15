@@ -17,7 +17,7 @@ const Check = () => (
     strokeWidth="2.6"
     strokeLinecap="round"
     strokeLinejoin="round"
-    className="mt-[2px] flex-none"
+    className="mt-0.5 flex-none"
   >
     <polyline points="20 6 9 17 4 12" />
   </svg>
@@ -29,11 +29,11 @@ function Segmented({ annual, setAnnual }: { annual: boolean; setAnnual: (v: bool
       // `--radius-sm` só existe dentro do @theme inline (não é emitido como custom
       // property), então isto resolve para 0 - igual ao inline original. Não trocar por
       // `rounded-sm`: o utilitário inlina calc(var(--radius) - 4px) e arredondaria em 8px.
-      'flex-1 cursor-pointer rounded-[var(--radius-sm)] border px-[10px] py-[11px] text-center font-sans text-[13.5px] leading-[normal] font-semibold [transition:background_200ms_ease,color_200ms_ease]',
+      'flex-1 cursor-pointer rounded-[var(--radius-sm)] border px-2.5 py-3 text-center font-sans text-[13.5px] leading-[normal] font-semibold [transition:background_200ms_ease,color_200ms_ease]',
       active ? 'border-green-deep bg-green-deep text-cream' : 'border-edge bg-paper text-ink',
     );
   return (
-    <div className="flex w-[min(300px,100%)] gap-[8px]">
+    <div className="flex w-[min(300px,100%)] gap-2">
       <span className={seg(!annual)} onClick={() => setAnnual(false)}>
         Mensal
       </span>
@@ -51,16 +51,16 @@ function PlanCard({ card, annual }: { card: PrecosCard; annual: boolean }) {
   const c = f
     ? {
         bg: 'bg-green-deep',
-        border: 'border border-[rgba(143,191,164,.2)]',
+        border: 'border border-on-emerald-mut/20',
         radius: 'rounded-[26px]',
-        pad: 'pt-[42px] px-[26px] pb-[32px]',
+        pad: 'pt-10.5 px-6.5 pb-8',
         shadow: 'shadow-[var(--shadow-ondark)]',
         name: 'text-on-emerald',
         sub: 'text-on-emerald-mut',
         price: 'text-on-emerald',
         unit: 'text-on-emerald-mut',
         caption: 'text-on-emerald-mut',
-        divider: 'bg-[rgba(143,191,164,.22)]',
+        divider: 'bg-on-emerald-mut/22',
         feat: 'text-on-emerald',
         head: 'text-green-bright',
       }
@@ -68,7 +68,7 @@ function PlanCard({ card, annual }: { card: PrecosCard; annual: boolean }) {
         bg: 'bg-paper',
         border: 'border border-line',
         radius: 'rounded-[24px]',
-        pad: 'px-[24px] py-[32px]',
+        pad: 'px-6 py-8',
         shadow: 'shadow-[var(--shadow-card)]',
         name: 'text-green-deep',
         sub: 'text-ink-50',
@@ -92,19 +92,19 @@ function PlanCard({ card, annual }: { card: PrecosCard; annual: boolean }) {
       )}
     >
       {f && (
-        <div className="bg-coral absolute left-[50%] top-[-13px] whitespace-nowrap rounded-full px-[16px] py-[7px] font-sans text-[10px] font-bold uppercase leading-[normal] tracking-[.12em] text-[#fff] shadow-[0_8px_20px_-8px_rgba(255,90,54,.7)] [transform:translateX(-50%)]">
+        <div className="bg-coral absolute left-[50%] top-[-13px] whitespace-nowrap rounded-full px-4 py-2 font-sans text-[10px] font-bold uppercase leading-[normal] tracking-[.12em] text-[#fff] shadow-[0_8px_20px_-8px_rgba(255,90,54,.7)] [transform:translateX(-50%)]">
           Mais escolhido
         </div>
       )}
-      <div className="mb-[16px]">
+      <div className="mb-4">
         <div className={cn('font-serif text-[22px] font-medium leading-[1]', c.name)}>
           {card.name}
         </div>
       </div>
-      <div className={cn('mb-[18px] font-sans text-[13.5px] font-medium leading-[normal]', c.sub)}>
+      <div className={cn('mb-4.5 font-sans text-[13.5px] font-medium leading-[normal]', c.sub)}>
         {card.subtitle}
       </div>
-      <div className="flex items-baseline gap-[6px]">
+      <div className="flex items-baseline gap-1.5">
         <span
           className={cn(
             'whitespace-nowrap font-serif text-[clamp(34px,4.6vw,44px)] font-semibold leading-[1] tracking-[-.02em]',
@@ -119,27 +119,27 @@ function PlanCard({ card, annual }: { card: PrecosCard; annual: boolean }) {
       </div>
       <div
         className={cn(
-          'mb-[22px] mt-[9px] min-h-[16px] font-sans text-[12.5px] font-medium leading-[normal]',
+          'mb-5.5 mt-2 min-h-4 font-sans text-[12.5px] font-medium leading-[normal]',
           c.caption,
         )}
       >
         {caption}
       </div>
-      <div className={cn('mb-[20px] h-[1px]', c.divider)} />
+      <div className={cn('mb-5 h-[1px]', c.divider)} />
       <div className="flex-1">
         {card.feats.map((feat, i) =>
           feat.heading ? (
             <div
               key={i}
               className={cn(
-                'pb-[4px] pt-[12px] font-sans text-[12px] font-bold leading-[normal] tracking-[.02em]',
+                'pb-1 pt-3 font-sans text-[12px] font-bold leading-[normal] tracking-[.02em]',
                 c.head,
               )}
             >
               {feat.t}
             </div>
           ) : (
-            <div key={i} className="flex items-start gap-[11px] py-[6px]">
+            <div key={i} className="flex items-start gap-3 py-1.5">
               <Check />
               <span className={cn('font-sans text-[14px] font-normal leading-[1.5]', c.feat)}>
                 {feat.t}
@@ -148,7 +148,7 @@ function PlanCard({ card, annual }: { card: PrecosCard; annual: boolean }) {
           ),
         )}
       </div>
-      <div className="mt-[26px]">
+      <div className="mt-6.5">
         <Btn
           variant={f ? 'primary' : 'secondary'}
           full
@@ -167,11 +167,11 @@ export function PrecosPlans({ cards }: { cards: PrecosCard[] }) {
   return (
     <>
       {/* toggle de cobrança - continua o hero (centralizado) */}
-      <div className="mx-auto max-w-[1200px] px-[clamp(20px,5vw,40px)] pb-[34px] text-center">
-        <div className="flex flex-col items-center gap-[12px]">
-          <div className="flex flex-wrap items-center justify-center gap-[12px]">
+      <div className="pb-8.5 mx-auto max-w-[1200px] px-[clamp(20px,5vw,40px)] text-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="flex flex-wrap items-center justify-center gap-3">
             <Segmented annual={annual} setAnnual={setAnnual} />
-            <span className="bg-chip inline-flex items-center whitespace-nowrap rounded-full px-[13px] py-[8px] font-sans text-[11px] font-bold uppercase leading-[normal] tracking-[.06em] text-[#0C7E41]">
+            <span className="bg-chip inline-flex items-center whitespace-nowrap rounded-full px-3 py-2 font-sans text-[11px] font-bold uppercase leading-[normal] tracking-[.06em] text-[#0C7E41]">
               2 meses grátis
             </span>
           </div>
@@ -182,18 +182,18 @@ export function PrecosPlans({ cards }: { cards: PrecosCard[] }) {
       </div>
 
       {/* cards + enterprise */}
-      <section className="mx-auto w-full max-w-[1200px] px-[clamp(16px,4vw,40px)] pt-[16px]">
-        <div className="grid grid-cols-[repeat(auto-fit,minmax(250px,1fr))] items-stretch gap-[18px]">
+      <section className="mx-auto w-full max-w-[1200px] px-[clamp(16px,4vw,40px)] pt-4">
+        <div className="gap-4.5 grid grid-cols-[repeat(auto-fit,minmax(250px,1fr))] items-stretch">
           {cards.map((card) => (
             <PlanCard key={card.tier} card={card} annual={annual} />
           ))}
         </div>
 
         {/* Enterprise banner */}
-        <div className="border-line bg-paper relative mt-[24px] flex flex-wrap items-center gap-x-[36px] gap-y-[28px] overflow-hidden rounded-[24px] border px-[clamp(22px,3vw,34px)] py-[clamp(24px,3vw,32px)] shadow-[var(--shadow-card)]">
+        <div className="border-line bg-paper relative mt-6 flex flex-wrap items-center gap-x-9 gap-y-7 overflow-hidden rounded-[24px] border px-[clamp(22px,3vw,34px)] py-[clamp(24px,3vw,32px)] shadow-[var(--shadow-card)]">
           <div className="bg-green-deep absolute bottom-0 left-0 top-0 w-[5px]" />
-          <div className="flex flex-[1_1_240px] items-center gap-[16px]">
-            <span className="bg-green-deep flex h-[52px] w-[52px] flex-none items-center justify-center rounded-[var(--radius-icontile)]">
+          <div className="flex flex-[1_1_240px] items-center gap-4">
+            <span className="bg-green-deep h-13 w-13 flex flex-none items-center justify-center rounded-[var(--radius-icontile)]">
               <svg
                 width="26"
                 height="26"
@@ -213,15 +213,15 @@ export function PrecosPlans({ cards }: { cards: PrecosCard[] }) {
               <div className="text-green-deep font-serif text-[24px] font-medium leading-[1.1]">
                 Enterprise
               </div>
-              <div className="text-ink-50 mt-[5px] font-sans text-[13.5px] font-medium leading-[normal]">
+              <div className="text-ink-50 mt-1 font-sans text-[13.5px] font-medium leading-[normal]">
                 Redes, franquias e multi-unidade
               </div>
-              <div className="text-ink mt-[10px] font-serif text-[20px] font-semibold leading-[normal]">
+              <div className="text-ink mt-2.5 font-serif text-[20px] font-semibold leading-[normal]">
                 Sob consulta
               </div>
             </div>
           </div>
-          <div className="grid flex-[2_1_300px] grid-cols-[1fr_1fr] gap-x-[22px] gap-y-[8px]">
+          <div className="gap-x-5.5 grid flex-[2_1_300px] grid-cols-[1fr_1fr] gap-y-2">
             {[
               'Acima de 15 profissionais',
               'Multi-unidade',
@@ -229,7 +229,7 @@ export function PrecosPlans({ cards }: { cards: PrecosCard[] }) {
               'Lembretes sob medida',
               'Gerente de conta dedicado',
             ].map((t) => (
-              <div key={t} className="flex items-center gap-[10px]">
+              <div key={t} className="flex items-center gap-2.5">
                 <svg
                   width="16"
                   height="16"

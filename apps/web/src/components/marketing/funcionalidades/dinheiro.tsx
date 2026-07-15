@@ -2,27 +2,27 @@ export function Dinheiro() {
   return (
     <section
       id="dinheiro"
-      className="border-t-line border-b-line bg-paper scroll-mt-[78px] border-b border-t"
+      className="border-t-line border-b-line bg-paper scroll-mt-19.5 border-b border-t"
     >
       <div className="mx-auto max-w-[1200px] px-[clamp(20px,5vw,40px)] py-[clamp(40px,6vw,72px)]">
         <div className="grid grid-cols-[repeat(auto-fit,minmax(320px,1fr))] items-center gap-[clamp(30px,5vw,64px)]">
           <div>
-            <div className="mb-[14px] inline-flex items-center gap-[9px]">
-              <span className="bg-coral h-[2px] w-[20px] rounded-[2px]"></span>
+            <div className="mb-3.5 inline-flex items-center gap-2">
+              <span className="bg-coral h-0.5 w-5 rounded-[2px]"></span>
               <span className="font-sans text-[11px] font-bold uppercase leading-[normal] tracking-[.16em] text-[#0C7E41]">
                 Pilar 03 · Dinheiro
               </span>
             </div>
-            <h2 className="text-green-deep mb-[14px] max-w-[460px] font-serif text-[clamp(26px,3.6vw,38px)] font-normal leading-[1.12] tracking-[-.02em]">
+            <h2 className="text-green-deep mb-3.5 max-w-[460px] font-serif text-[clamp(26px,3.6vw,38px)] font-normal leading-[1.12] tracking-[-.02em]">
               Receita que entra mesmo com a{' '}
               <span className="italic text-[#0C7E41]">agenda vazia</span>.
             </h2>
-            <p className="text-ink-70 mb-[22px] max-w-[460px] font-sans text-[16.5px] font-normal leading-[1.6]">
+            <p className="text-ink-70 mb-5.5 max-w-[460px] font-sans text-[16.5px] font-normal leading-[1.6]">
               Clube de assinatura, pacotes e pagamento online. Cobre antes, reduza o no-show e crie
               receita recorrente todo mês.
             </p>
-            <div className="flex max-w-[440px] flex-col gap-[2px]">
-              <div className="flex items-start gap-[11px] py-[7px]">
+            <div className="flex max-w-[440px] flex-col gap-0.5">
+              <div className="flex items-start gap-3 py-2">
                 <svg
                   width="18"
                   height="18"
@@ -32,7 +32,7 @@ export function Dinheiro() {
                   strokeWidth="2.6"
                   strokeLinecap="round"
                   strokeLinejoin="round"
-                  className="mt-[2px] flex-none"
+                  className="mt-0.5 flex-none"
                 >
                   <polyline points="20 6 9 17 4 12" />
                 </svg>
@@ -40,7 +40,7 @@ export function Dinheiro() {
                   Clube de assinatura e pacotes de sessões
                 </span>
               </div>
-              <div className="flex items-start gap-[11px] py-[7px]">
+              <div className="flex items-start gap-3 py-2">
                 <svg
                   width="18"
                   height="18"
@@ -50,7 +50,7 @@ export function Dinheiro() {
                   strokeWidth="2.6"
                   strokeLinecap="round"
                   strokeLinejoin="round"
-                  className="mt-[2px] flex-none"
+                  className="mt-0.5 flex-none"
                 >
                   <polyline points="20 6 9 17 4 12" />
                 </svg>
@@ -58,7 +58,7 @@ export function Dinheiro() {
                   Pagamento online e PIX, antecipado
                 </span>
               </div>
-              <div className="flex items-start gap-[11px] py-[7px]">
+              <div className="flex items-start gap-3 py-2">
                 <svg
                   width="18"
                   height="18"
@@ -68,7 +68,7 @@ export function Dinheiro() {
                   strokeWidth="2.6"
                   strokeLinecap="round"
                   strokeLinejoin="round"
-                  className="mt-[2px] flex-none"
+                  className="mt-0.5 flex-none"
                 >
                   <polyline points="20 6 9 17 4 12" />
                 </svg>
@@ -76,7 +76,7 @@ export function Dinheiro() {
                   Menos no-show com cobrança na reserva
                 </span>
               </div>
-              <div className="flex items-start gap-[11px] py-[7px]">
+              <div className="flex items-start gap-3 py-2">
                 <svg
                   width="18"
                   height="18"
@@ -86,7 +86,7 @@ export function Dinheiro() {
                   strokeWidth="2.6"
                   strokeLinecap="round"
                   strokeLinejoin="round"
-                  className="mt-[2px] flex-none"
+                  className="mt-0.5 flex-none"
                 >
                   <polyline points="20 6 9 17 4 12" />
                 </svg>
@@ -96,11 +96,11 @@ export function Dinheiro() {
               </div>
             </div>
           </div>
-          <div className="mx-auto flex w-full max-w-[420px] flex-col gap-[12px]">
-            <div className="border-line bg-paper rounded-[18px] border p-[18px] shadow-[var(--shadow-card)]">
+          <div className="mx-auto flex w-full max-w-[420px] flex-col gap-3">
+            <div className="border-line bg-paper p-4.5 rounded-[18px] border shadow-[var(--shadow-card)]">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-[11px]">
-                  <span className="bg-chip grid h-[42px] w-[42px] place-items-center rounded-[13px]">
+                <div className="flex items-center gap-3">
+                  <span className="bg-chip h-10.5 w-10.5 grid place-items-center rounded-[13px]">
                     <svg
                       width="21"
                       height="21"
@@ -133,17 +133,17 @@ export function Dinheiro() {
                   </span>
                 </div>
               </div>
-              <div className="bg-line my-[14px] h-[1px]"></div>
+              <div className="bg-line my-3.5 h-[1px]"></div>
               <div className="flex items-center justify-between">
                 <span className="text-ink-70 font-sans text-[12.5px] font-medium leading-[normal]">
                   42 assinantes ativos
                 </span>
-                <span className="bg-chip text-green-deep rounded-full px-[10px] py-[5px] font-sans text-[10.5px] font-bold uppercase leading-[normal] tracking-[.04em]">
+                <span className="bg-chip text-green-deep rounded-full px-2.5 py-1 font-sans text-[10.5px] font-bold uppercase leading-[normal] tracking-[.04em]">
                   +8 este mês
                 </span>
               </div>
             </div>
-            <div className="border-line bg-paper rounded-[18px] border p-[18px] shadow-[var(--shadow-card)]">
+            <div className="border-line bg-paper p-4.5 rounded-[18px] border shadow-[var(--shadow-card)]">
               <div className="flex items-baseline justify-between">
                 <span className="text-ink-50 font-sans text-[11px] font-bold uppercase leading-[normal] tracking-[.1em]">
                   Receita recorrente
@@ -155,17 +155,17 @@ export function Dinheiro() {
                   </span>
                 </span>
               </div>
-              <div className="mt-[15px] flex h-[64px] items-end gap-[8px]">
-                <div className="h-[34px] flex-1 rounded-t-[6px] bg-[#cdeadb]"></div>
-                <div className="h-[42px] flex-1 rounded-t-[6px] bg-[#cdeadb]"></div>
-                <div className="h-[48px] flex-1 rounded-t-[6px] bg-[#a9dcc1]"></div>
-                <div className="h-[54px] flex-1 rounded-t-[6px] bg-[#a9dcc1]"></div>
-                <div className="h-[60px] flex-1 rounded-t-[6px] bg-[#7fcea6]"></div>
-                <div className="bg-green-bright h-[64px] flex-1 rounded-t-[6px]"></div>
+              <div className="mt-4 flex h-16 items-end gap-2">
+                <div className="h-8.5 flex-1 rounded-t-[6px] bg-[#cdeadb]"></div>
+                <div className="h-10.5 flex-1 rounded-t-[6px] bg-[#cdeadb]"></div>
+                <div className="h-12 flex-1 rounded-t-[6px] bg-[#a9dcc1]"></div>
+                <div className="h-13.5 flex-1 rounded-t-[6px] bg-[#a9dcc1]"></div>
+                <div className="h-15 flex-1 rounded-t-[6px] bg-[#7fcea6]"></div>
+                <div className="bg-green-bright h-16 flex-1 rounded-t-[6px]"></div>
               </div>
             </div>
-            <div className="border-line bg-paper flex items-center gap-[12px] rounded-[16px] border px-[15px] py-[13px] shadow-[var(--shadow-card)]">
-              <span className="bg-green-bright grid h-[34px] w-[34px] flex-none place-items-center rounded-[10px]">
+            <div className="border-line bg-paper flex items-center gap-3 rounded-[16px] border px-4 py-3 shadow-[var(--shadow-card)]">
+              <span className="bg-green-bright h-8.5 w-8.5 grid flex-none place-items-center rounded-[10px]">
                 <svg
                   width="18"
                   height="18"

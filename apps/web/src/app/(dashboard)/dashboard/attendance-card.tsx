@@ -21,7 +21,7 @@ export function AttendanceCard({
 
   return (
     <div className="border-line bg-paper shadow-soft overflow-hidden rounded-[18px] border">
-      <div className="flex flex-wrap items-center gap-2.5 px-[18px] pb-2 pt-4">
+      <div className="px-4.5 flex flex-wrap items-center gap-2.5 pb-2 pt-4">
         <div className="text-ink font-serif text-lg">Comparecimento</div>
         <div className="text-ink-50 text-xs font-medium">quem veio, quem faltou</div>
         <div className="bg-cream ml-auto flex gap-1 rounded-full p-0.5">
@@ -41,12 +41,12 @@ export function AttendanceCard({
       </div>
 
       {s.total === 0 ? (
-        <p className="text-ink-50 px-[18px] pb-4 text-[13px]">
+        <p className="text-ink-50 px-4.5 pb-4 text-[13px]">
           Nenhum atendimento fechado nesse período.
         </p>
       ) : (
         <>
-          <div className="flex flex-wrap items-end gap-x-8 gap-y-2 px-[18px] pb-1">
+          <div className="px-4.5 flex flex-wrap items-end gap-x-8 gap-y-2 pb-1">
             <div>
               <div className="text-green-emph font-serif text-[40px] leading-none">
                 {pct(s.attendanceRate)}
@@ -66,7 +66,7 @@ export function AttendanceCard({
           </div>
 
           {/* Confiança do dado: quanto você confirmou vs o sistema fechou sozinho. */}
-          <div className="text-ink-50 px-[18px] pt-1 text-[11px] font-medium">
+          <div className="text-ink-50 px-4.5 pt-1 text-[11px] font-medium">
             {s.confirmedShare >= 1
               ? '✓ Tudo confirmado por você'
               : `✓ ${pct(s.confirmedShare)} confirmado por você · o resto o sistema fechou automaticamente`}
@@ -77,7 +77,7 @@ export function AttendanceCard({
               {s.pros.map((p) => (
                 <div
                   key={p.professionalId}
-                  className="border-edge flex items-center gap-3 border-t border-dotted px-[18px] py-2 first:border-t-0"
+                  className="border-edge px-4.5 flex items-center gap-3 border-t border-dotted py-2 first:border-t-0"
                 >
                   <div className="text-ink min-w-0 flex-1 truncate text-[13px] font-semibold">
                     {(p.professionalName ?? 'Profissional').split(/\s+/)[0]}
@@ -89,10 +89,10 @@ export function AttendanceCard({
                       style={{ width: pct(p.attendanceRate) }}
                     />
                   </div>
-                  <div className="text-ink-70 w-[38px] flex-none text-right font-serif text-[13px]">
+                  <div className="text-ink-70 w-9.5 flex-none text-right font-serif text-[13px]">
                     {pct(p.attendanceRate)}
                   </div>
-                  <div className="text-ink-50 w-[52px] flex-none text-right text-[10.5px] font-medium">
+                  <div className="text-ink-50 w-13 flex-none text-right text-[10.5px] font-medium">
                     {p.noShow > 0 ? `${p.noShow} falta${p.noShow === 1 ? '' : 's'}` : 'sem falta'}
                   </div>
                 </div>

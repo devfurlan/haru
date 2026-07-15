@@ -18,6 +18,15 @@ export type ConsentState = {
   marketing: boolean;
 };
 
+// ID do container do GTM (tagmanager.google.com). Hardcoded de propósito: é público
+// - vai inlined no bundle do browser de qualquer jeito - e nunca muda. Como env
+// seria pior: esquecer de setar na Vercel não daria erro, só GTM que nunca carrega.
+// Vazio = GTM não monta.
+//
+// Não fire em localhost/preview: resolva com condição de hostname no trigger, DENTRO
+// do GTM. Lógica de ambiente mora lá, não aqui.
+export const GTM_ID = '';
+
 export const CONSENT_KEY = 'demandae-cookie-consent';
 
 // Bumpar SEMPRE que o texto do banner mudar de escopo: aceite dado sobre "só

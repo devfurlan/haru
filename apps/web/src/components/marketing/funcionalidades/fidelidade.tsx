@@ -15,7 +15,7 @@ const Check = ({ size = 18, w = '2.6' }: { size?: number; w?: string }) => (
     strokeWidth={w}
     strokeLinecap="round"
     strokeLinejoin="round"
-    className="mt-[2px] flex-none"
+    className="mt-0.5 flex-none"
   >
     <polyline points="20 6 9 17 4 12" />
   </svg>
@@ -23,27 +23,27 @@ const Check = ({ size = 18, w = '2.6' }: { size?: number; w?: string }) => (
 
 export function Fidelidade() {
   return (
-    <section id="fidelidade" className="border-line bg-paper scroll-mt-[78px] border-b border-t">
+    <section id="fidelidade" className="border-line bg-paper scroll-mt-19.5 border-b border-t">
       <div className="mx-auto max-w-[1200px] px-[clamp(20px,5vw,40px)] py-[clamp(40px,6vw,72px)]">
         <div className="grid grid-cols-[repeat(auto-fit,minmax(320px,1fr))] items-center gap-[clamp(30px,5vw,64px)]">
           {/* text */}
           <div>
-            <div className="mb-[14px] inline-flex items-center gap-[9px]">
-              <span className="bg-coral h-[2px] w-[20px] rounded-[2px]" />
+            <div className="mb-3.5 inline-flex items-center gap-2">
+              <span className="bg-coral h-0.5 w-5 rounded-[2px]" />
               <span className="font-sans text-[11px] font-bold uppercase leading-[normal] tracking-[.16em] text-[#0C7E41]">
                 Pilar 05 · Fidelidade
               </span>
             </div>
-            <h2 className="text-green-deep mb-[14px] max-w-[460px] font-serif text-[clamp(26px,3.6vw,38px)] font-normal leading-[1.12] tracking-[-.02em]">
+            <h2 className="text-green-deep mb-3.5 max-w-[460px] font-serif text-[clamp(26px,3.6vw,38px)] font-normal leading-[1.12] tracking-[-.02em]">
               O cliente <span className="italic text-[#0C7E41]">volta</span> sozinho.
             </h2>
-            <p className="text-ink-70 mb-[22px] max-w-[460px] font-sans text-[16.5px] font-normal leading-[1.6]">
+            <p className="text-ink-70 mb-5.5 max-w-[460px] font-sans text-[16.5px] font-normal leading-[1.6]">
               Pontos a cada visita, recompensas que fazem sentido e um empurrãozinho na hora certa.
               Roda no automático - o cliente volta sem você precisar cobrar.
             </p>
-            <div className="flex max-w-[440px] flex-col gap-[2px]">
+            <div className="flex max-w-[440px] flex-col gap-0.5">
               {FEATURES.map((t) => (
-                <div key={t} className="flex items-start gap-[11px] py-[7px]">
+                <div key={t} className="flex items-start gap-3 py-2">
                   <Check />
                   <span className="text-ink-70 font-sans text-[15.5px] font-normal leading-[1.5]">
                     {t}
@@ -54,12 +54,12 @@ export function Fidelidade() {
           </div>
 
           {/* loyalty cards */}
-          <div className="mx-auto flex w-full max-w-[420px] flex-col gap-[12px]">
+          <div className="mx-auto flex w-full max-w-[420px] flex-col gap-3">
             {/* stamp card */}
-            <div className="border-line bg-paper rounded-[18px] border p-[18px] shadow-[var(--shadow-card)]">
-              <div className="mb-[15px] flex items-center justify-between">
-                <div className="flex items-center gap-[11px]">
-                  <span className="bg-chip grid h-[42px] w-[42px] place-items-center rounded-[13px]">
+            <div className="border-line bg-paper p-4.5 rounded-[18px] border shadow-[var(--shadow-card)]">
+              <div className="mb-4 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <span className="bg-chip h-10.5 w-10.5 grid place-items-center rounded-[13px]">
                     <svg
                       width="21"
                       height="21"
@@ -83,11 +83,11 @@ export function Fidelidade() {
                     </div>
                   </div>
                 </div>
-                <span className="bg-chip text-green-deep rounded-full px-[10px] py-[5px] font-sans text-[10.5px] font-bold uppercase leading-[normal] tracking-[.04em]">
+                <span className="bg-chip text-green-deep rounded-full px-2.5 py-1 font-sans text-[10.5px] font-bold uppercase leading-[normal] tracking-[.04em]">
                   7 de 10
                 </span>
               </div>
-              <div className="grid grid-cols-[repeat(5,1fr)] gap-[9px]">
+              <div className="grid grid-cols-[repeat(5,1fr)] gap-2">
                 {Array.from({ length: 7 }).map((_, i) => (
                   <span
                     key={`f${i}`}
@@ -103,13 +103,13 @@ export function Fidelidade() {
                   />
                 ))}
               </div>
-              <div className="text-ink-70 mt-[14px] font-sans text-[13px] font-medium leading-[normal]">
+              <div className="text-ink-70 mt-3.5 font-sans text-[13px] font-medium leading-[normal]">
                 Faltam <span className="text-green-deep font-bold">3 cortes</span> pro próximo
                 grátis
               </div>
             </div>
             {/* retention metric */}
-            <div className="border-line bg-paper rounded-[18px] border p-[18px] shadow-[var(--shadow-card)]">
+            <div className="border-line bg-paper p-4.5 rounded-[18px] border shadow-[var(--shadow-card)]">
               <div className="flex items-baseline justify-between">
                 <span className="text-ink-50 font-sans text-[11px] font-bold uppercase leading-[normal] tracking-[.1em]">
                   Clientes que voltam
@@ -118,16 +118,16 @@ export function Fidelidade() {
                   68%
                 </span>
               </div>
-              <div className="bg-chip mt-[13px] h-[8px] overflow-hidden rounded-full">
+              <div className="bg-chip mt-3 h-2 overflow-hidden rounded-full">
                 <div className="bg-green-bright h-full w-[68%] rounded-full" />
               </div>
-              <div className="text-ink-50 mt-[9px] font-sans text-[11.5px] font-medium leading-[normal]">
+              <div className="text-ink-50 mt-2 font-sans text-[11.5px] font-medium leading-[normal]">
                 +12% desde que ativou a fidelidade
               </div>
             </div>
             {/* win-back strip */}
-            <div className="border-line bg-paper flex items-center gap-[12px] rounded-[16px] border px-[15px] py-[13px] shadow-[var(--shadow-card)]">
-              <span className="bg-chip grid h-[34px] w-[34px] flex-none place-items-center rounded-[10px]">
+            <div className="border-line bg-paper flex items-center gap-3 rounded-[16px] border px-4 py-3 shadow-[var(--shadow-card)]">
+              <span className="bg-chip h-8.5 w-8.5 grid flex-none place-items-center rounded-[10px]">
                 <svg
                   width="18"
                   height="18"
@@ -150,7 +150,7 @@ export function Fidelidade() {
                   Rafa · convite automático enviado
                 </div>
               </div>
-              <span className="bg-chip text-green-deep rounded-full px-[10px] py-[5px] font-sans text-[10.5px] font-bold uppercase leading-[normal] tracking-[.04em]">
+              <span className="bg-chip text-green-deep rounded-full px-2.5 py-1 font-sans text-[10.5px] font-bold uppercase leading-[normal] tracking-[.04em]">
                 reativado
               </span>
             </div>

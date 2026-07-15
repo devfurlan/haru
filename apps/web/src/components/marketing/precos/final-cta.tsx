@@ -7,14 +7,14 @@ export function FinalCta() {
         <div className="pointer-events-none absolute left-[18%] top-[-50px] h-[280px] w-[280px] bg-[radial-gradient(circle,rgba(47,211,122,.22),transparent_70%)]" />
         <div className="pointer-events-none absolute bottom-[-70px] right-[12%] h-[300px] w-[300px] bg-[radial-gradient(circle,rgba(255,90,54,.16),transparent_70%)]" />
         <div className="relative">
-          <h2 className="text-on-emerald mb-[14px] font-serif text-[clamp(28px,5vw,40px)] font-normal leading-[1.12] tracking-[-.02em]">
+          <h2 className="text-on-emerald mb-3.5 font-serif text-[clamp(28px,5vw,40px)] font-normal leading-[1.12] tracking-[-.02em]">
             Teste sem risco por <span className="text-green-bright italic">30 dias</span>.
           </h2>
-          <p className="text-on-emerald-mut mx-auto mb-[30px] max-w-[520px] font-sans text-[17px] font-normal leading-[1.55]">
+          <p className="text-on-emerald-mut mb-7.5 mx-auto max-w-[520px] font-sans text-[17px] font-normal leading-[1.55]">
             Contrate, use tudo, e se não for pra você devolvemos o valor integral. O fundador
             responde no WhatsApp.
           </p>
-          <div className="flex flex-wrap justify-center gap-[14px]">
+          <div className="flex flex-wrap justify-center gap-3.5">
             <Btn variant="primary" size="lg" href="/signup">
               Começar agora
             </Btn>

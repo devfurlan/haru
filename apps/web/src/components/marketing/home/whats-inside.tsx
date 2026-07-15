@@ -10,10 +10,10 @@ const card =
   'relative flex flex-col rounded-[20px] border border-line bg-paper p-[clamp(24px,2.4vw,30px)] shadow-[var(--shadow-card)]';
 
 const tile =
-  'grid h-[46px] w-[46px] place-items-center rounded-[var(--radius-icontile)] bg-green-deep mb-[18px]';
+  'grid h-11.5 w-11.5 place-items-center rounded-[var(--radius-icontile)] bg-green-deep mb-4.5';
 
 const badge =
-  'absolute top-[22px] right-[22px] rounded-full bg-chip px-[12px] py-[4px] font-sans text-[11px] leading-[normal] font-bold tracking-[.06em] text-green-deep uppercase';
+  'absolute top-5.5 right-5.5 rounded-full bg-chip px-3 py-1 font-sans text-[11px] leading-[normal] font-bold tracking-[.06em] text-green-deep uppercase';
 
 function Icon({ children }: { children: ReactNode }) {
   return (
@@ -48,7 +48,7 @@ type Card = {
 function SeeMore() {
   return (
     // mt-auto: gruda no rodapé quando o card estica pra altura da linha do bento.
-    <div className="text-green-deep mt-auto flex items-center gap-[6px] pt-[18px] font-sans text-[12px] font-bold leading-[normal]">
+    <div className="text-green-deep pt-4.5 mt-auto flex items-center gap-1.5 font-sans text-[12px] font-bold leading-[normal]">
       Ver mais
       <svg
         width="14"
@@ -69,8 +69,8 @@ function SeeMore() {
 }
 
 const LINK_CHIP = (
-  <div className="border-edge bg-cream mt-[8px] flex-none self-start rounded-[14px] border px-[18px] py-[14px]">
-    <div className="text-ink-30 mb-[4px] font-sans text-[10px] font-bold uppercase leading-[normal] tracking-[.12em]">
+  <div className="border-edge bg-cream px-4.5 mt-2 flex-none self-start rounded-[14px] border py-3.5">
+    <div className="text-ink-30 mb-1 font-sans text-[10px] font-bold uppercase leading-[normal] tracking-[.12em]">
       Seu link
     </div>
     <div className="text-green-deep font-sans text-[15px] font-semibold leading-[normal]">
@@ -220,11 +220,11 @@ const CARDS: Card[] = [
 
 export function WhatsInside() {
   return (
-    <section className="border-b border-t border-[rgba(10,51,36,.1)] bg-[#cfe7d5] py-[clamp(56px,7vw,80px)]">
+    <section className="border-green-deep/10 border-b border-t bg-[#cfe7d5] py-[clamp(56px,7vw,80px)]">
       <div className="mx-auto max-w-[1200px] px-[clamp(16px,4vw,40px)]">
         <div className="mx-auto mb-[clamp(30px,4vw,42px)] max-w-[660px] text-center">
-          <div className="mb-[14px] inline-flex items-center gap-[9px]">
-            <span className="bg-coral h-[2px] w-[20px] rounded-[2px]" />
+          <div className="mb-3.5 inline-flex items-center gap-2">
+            <span className="bg-coral h-0.5 w-5 rounded-[2px]" />
             <span className="font-sans text-[11px] font-bold uppercase leading-[normal] tracking-[.16em] text-[#0C7E41]">
               O que vem dentro
             </span>
@@ -238,12 +238,12 @@ export function WhatsInside() {
           {CARDS.map((c) => (
             <a key={c.title} href={c.href} className={cn('hv-bd-green', card)} data-span={c.span}>
               {c.time ? <span className={badge}>Time+</span> : null}
-              <div className="flex flex-wrap items-start justify-between gap-[24px]">
+              <div className="flex flex-wrap items-start justify-between gap-6">
                 <div className="min-w-0 flex-[1_1_240px]">
                   <span className={tile}>{c.icon}</span>
                   <div
                     className={cn(
-                      'text-green-deep mb-[7px] font-serif font-medium',
+                      'text-green-deep mb-2 font-serif font-medium',
                       c.span === 4 ? 'text-[18px]' : 'text-[20px]',
                       // depois do text-[..]: tailwind-merge trata font-size como
                       // conflitante com leading e descartaria o leading anterior.

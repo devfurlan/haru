@@ -42,10 +42,10 @@ const FAQS = [
 export function Faq() {
   const [open, setOpen] = useState(0);
   return (
-    <section className="mx-auto max-w-[820px] px-[clamp(20px,5vw,40px)] pb-[20px] pt-[clamp(56px,7vw,84px)]">
-      <div className="mb-[36px] text-center">
-        <div className="mb-[14px] inline-flex items-center gap-[9px]">
-          <span className="bg-coral h-[2px] w-[20px] rounded-[2px]" />
+    <section className="mx-auto max-w-[820px] px-[clamp(20px,5vw,40px)] pb-5 pt-[clamp(56px,7vw,84px)]">
+      <div className="mb-9 text-center">
+        <div className="mb-3.5 inline-flex items-center gap-2">
+          <span className="bg-coral h-0.5 w-5 rounded-[2px]" />
           <span className="font-sans text-[11px] font-bold uppercase leading-[normal] tracking-[.16em] text-[#0C7E41]">
             Dúvidas
           </span>
@@ -54,13 +54,13 @@ export function Faq() {
           Perguntas frequentes.
         </h2>
       </div>
-      <div className="flex flex-col gap-[12px]">
+      <div className="flex flex-col gap-3">
         {FAQS.map((f, i) => {
           const isOpen = open === i;
           return (
             <div key={i} className="bg-paper border-line overflow-hidden rounded-[16px] border">
               <div
-                className="flex cursor-pointer items-center justify-between gap-[16px] px-[24px] py-[20px]"
+                className="flex cursor-pointer items-center justify-between gap-4 px-6 py-5"
                 onClick={() => setOpen(isOpen ? -1 : i)}
               >
                 <span className="text-ink font-sans text-[16px] font-semibold leading-[normal]">
@@ -98,7 +98,7 @@ export function Faq() {
                 )}
               </div>
               {isOpen && (
-                <div className="text-ink-70 animate-[dmd-fade_.28s_ease] px-[24px] pb-[22px] font-sans text-[15px] font-normal leading-[1.6]">
+                <div className="text-ink-70 pb-5.5 animate-[dmd-fade_.28s_ease] px-6 font-sans text-[15px] font-normal leading-[1.6]">
                   {f.a}
                 </div>
               )}

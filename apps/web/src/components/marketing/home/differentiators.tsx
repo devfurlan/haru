@@ -49,19 +49,19 @@ export function Differentiators() {
   return (
     <section
       id="diferenciais"
-      className="bg-green-deep relative scroll-mt-[70px] overflow-hidden py-[clamp(64px,8vw,100px)]"
+      className="bg-green-deep scroll-mt-17.5 relative overflow-hidden py-[clamp(64px,8vw,100px)]"
     >
       <div className="pointer-events-none absolute left-[8%] top-[-90px] h-[400px] w-[400px] bg-[radial-gradient(circle,rgba(47,211,122,.16),transparent_70%)]" />
       <div className="pointer-events-none absolute bottom-[-110px] right-[5%] h-[460px] w-[460px] bg-[radial-gradient(circle,rgba(255,90,54,.11),transparent_70%)]" />
       <div className="relative mx-auto max-w-[1120px] px-[clamp(20px,5vw,40px)]">
         <div className="mb-[clamp(36px,5vw,52px)] max-w-[660px]">
-          <div className="mb-[16px] inline-flex items-center gap-[9px]">
-            <span className="bg-coral h-[2px] w-[20px] rounded-[2px]" />
+          <div className="mb-4 inline-flex items-center gap-2">
+            <span className="bg-coral h-0.5 w-5 rounded-[2px]" />
             <span className="text-green-bright font-sans text-[11px] font-bold uppercase leading-[normal] tracking-[.16em]">
               Por que Demandaê
             </span>
           </div>
-          <h2 className="text-on-emerald mb-[14px] font-serif text-[clamp(30px,5vw,46px)] font-normal leading-[1.08] tracking-[-.02em]">
+          <h2 className="text-on-emerald mb-3.5 font-serif text-[clamp(30px,5vw,46px)] font-normal leading-[1.08] tracking-[-.02em]">
             Feito por quem já <span className="text-green-bright italic">apanhou</span> de sistema
             ruim.
           </h2>
@@ -72,21 +72,21 @@ export function Differentiators() {
 
         {/* minmax(min(100%,...)): trava o auto-fit em 2 colunas no desktop (2x2) e
             empilha no mobile sem media query. */}
-        <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,400px),1fr))] gap-[18px]">
+        <div className="gap-4.5 grid grid-cols-[repeat(auto-fit,minmax(min(100%,400px),1fr))]">
           {ITEMS.map((it) => (
             <div
               key={it.title}
               className={cn(
                 'bg-green-card relative rounded-[20px] border p-[clamp(24px,2.6vw,30px)]',
-                it.flag ? 'border-[rgba(47,211,122,.34)]' : 'border-[rgba(143,191,164,.16)]',
+                it.flag ? 'border-green-bright/34' : 'border-on-emerald-mut/16',
               )}
             >
               {it.flag ? (
-                <span className="bg-coral-tint text-coral absolute right-[clamp(24px,2.6vw,30px)] top-[clamp(24px,2.6vw,30px)] rounded-full px-[12px] py-[6px] font-sans text-[10px] font-bold uppercase leading-[normal] tracking-[.12em]">
+                <span className="bg-coral-tint text-coral absolute right-[clamp(24px,2.6vw,30px)] top-[clamp(24px,2.6vw,30px)] rounded-full px-3 py-1.5 font-sans text-[10px] font-bold uppercase leading-[normal] tracking-[.12em]">
                   A dor nº 1
                 </span>
               ) : null}
-              <span className="mb-[16px] grid h-[48px] w-[48px] place-items-center rounded-[var(--radius-icontile)] bg-[rgba(47,211,122,.13)]">
+              <span className="bg-green-bright/13 mb-4 grid h-12 w-12 place-items-center rounded-[var(--radius-icontile)]">
                 <svg
                   width="24"
                   height="24"
@@ -101,7 +101,7 @@ export function Differentiators() {
                   {it.icon}
                 </svg>
               </span>
-              <div className="text-on-emerald mb-[8px] font-serif text-[20px] font-medium leading-[1.2]">
+              <div className="text-on-emerald mb-2 font-serif text-[20px] font-medium leading-[1.2]">
                 {it.title}
               </div>
               <p className="text-on-emerald-mut max-w-[380px] font-sans text-[14.5px] font-normal leading-[1.6]">

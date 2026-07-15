@@ -2,9 +2,9 @@ export function Selos() {
   return (
     // width:100% conserta o colapso do grid auto-fit (section é flex item do layout)
     <section className="mx-auto w-full max-w-[1200px] px-[clamp(16px,4vw,40px)] pb-[clamp(20px,3vw,32px)] pt-[clamp(40px,5vw,60px)]">
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(210px,1fr))] gap-[20px]">
-        <div className="flex items-start gap-[14px]">
-          <span className="bg-chip flex h-[40px] w-[40px] flex-none items-center justify-center rounded-[var(--radius-icontile)]">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(210px,1fr))] gap-5">
+        <div className="flex items-start gap-3.5">
+          <span className="bg-chip flex h-10 w-10 flex-none items-center justify-center rounded-[var(--radius-icontile)]">
             <svg
               width="20"
               height="20"
@@ -22,13 +22,13 @@ export function Selos() {
             <div className="text-ink font-sans text-[15px] font-semibold leading-[normal]">
               Sem taxa de setup
             </div>
-            <div className="text-ink-50 mt-[3px] font-sans text-[13px] font-normal leading-[1.4]">
+            <div className="text-ink-50 mt-1 font-sans text-[13px] font-normal leading-[1.4]">
               Pague a mensalidade e comece a usar.
             </div>
           </div>
         </div>
-        <div className="flex items-start gap-[14px]">
-          <span className="bg-chip flex h-[40px] w-[40px] flex-none items-center justify-center rounded-[var(--radius-icontile)]">
+        <div className="flex items-start gap-3.5">
+          <span className="bg-chip flex h-10 w-10 flex-none items-center justify-center rounded-[var(--radius-icontile)]">
             <svg
               width="20"
               height="20"
@@ -47,13 +47,13 @@ export function Selos() {
             <div className="text-ink font-sans text-[15px] font-semibold leading-[normal]">
               Garantia de 30 dias
             </div>
-            <div className="text-ink-50 mt-[3px] font-sans text-[13px] font-normal leading-[1.4]">
+            <div className="text-ink-50 mt-1 font-sans text-[13px] font-normal leading-[1.4]">
               Não gostou? Devolvemos o valor integral.
             </div>
           </div>
         </div>
-        <div className="flex items-start gap-[14px]">
-          <span className="bg-chip flex h-[40px] w-[40px] flex-none items-center justify-center rounded-[var(--radius-icontile)]">
+        <div className="flex items-start gap-3.5">
+          <span className="bg-chip flex h-10 w-10 flex-none items-center justify-center rounded-[var(--radius-icontile)]">
             <svg
               width="20"
               height="20"
@@ -72,13 +72,13 @@ export function Selos() {
             <div className="text-ink font-sans text-[15px] font-semibold leading-[normal]">
               Cancele quando quiser
             </div>
-            <div className="text-ink-50 mt-[3px] font-sans text-[13px] font-normal leading-[1.4]">
+            <div className="text-ink-50 mt-1 font-sans text-[13px] font-normal leading-[1.4]">
               Sem multa, sem fidelidade.
             </div>
           </div>
         </div>
-        <div className="flex items-start gap-[14px]">
-          <span className="bg-chip flex h-[40px] w-[40px] flex-none items-center justify-center rounded-[var(--radius-icontile)]">
+        <div className="flex items-start gap-3.5">
+          <span className="bg-chip flex h-10 w-10 flex-none items-center justify-center rounded-[var(--radius-icontile)]">
             <svg
               width="20"
               height="20"
@@ -98,7 +98,7 @@ export function Selos() {
             <div className="text-ink font-sans text-[15px] font-semibold leading-[normal]">
               Migração inclusa
             </div>
-            <div className="text-ink-50 mt-[3px] font-sans text-[13px] font-normal leading-[1.4]">
+            <div className="text-ink-50 mt-1 font-sans text-[13px] font-normal leading-[1.4]">
               Trazemos clientes, serviços e histórico.
             </div>
           </div>

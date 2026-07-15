@@ -39,11 +39,11 @@ const SEALS = [
 export function TrustSeals() {
   return (
     // width:100% pra o grid auto-fit não colapsar (section é flex item do layout)
-    <section className="mx-auto w-full max-w-[1200px] px-[clamp(16px,4vw,40px)] pb-[24px] pt-[52px]">
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(210px,1fr))] gap-[20px]">
+    <section className="pt-13 mx-auto w-full max-w-[1200px] px-[clamp(16px,4vw,40px)] pb-6">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(210px,1fr))] gap-5">
         {SEALS.map((s) => (
-          <div key={s.title} className="flex items-start gap-[14px]">
-            <span className="bg-chip flex h-[40px] w-[40px] flex-none items-center justify-center rounded-[var(--radius-icontile)]">
+          <div key={s.title} className="flex items-start gap-3.5">
+            <span className="bg-chip flex h-10 w-10 flex-none items-center justify-center rounded-[var(--radius-icontile)]">
               <svg
                 width="20"
                 height="20"
@@ -61,7 +61,7 @@ export function TrustSeals() {
               <div className="text-ink font-sans text-[15px] font-semibold leading-[normal]">
                 {s.title}
               </div>
-              <div className="text-ink-50 mt-[3px] font-sans text-[13px] font-normal leading-[1.4]">
+              <div className="text-ink-50 mt-1 font-sans text-[13px] font-normal leading-[1.4]">
                 {s.desc}
               </div>
             </div>

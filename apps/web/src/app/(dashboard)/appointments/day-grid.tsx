@@ -299,7 +299,7 @@ export function DayGrid({
               className="border-line/60 flex min-w-0 flex-1 items-center gap-2.5 border-l px-3.5 py-3"
             >
               <div
-                className="text-green-emph flex size-[30px] flex-none items-center justify-center rounded-[10px] bg-[var(--green-tint)] font-serif text-[11.5px] font-semibold"
+                className="text-green-emph size-7.5 flex flex-none items-center justify-center rounded-[10px] bg-[var(--green-tint)] font-serif text-[11.5px] font-semibold"
                 style={{ border: `2px solid ${c.color}` }}
               >
                 {initialsOf(c.name)}
@@ -410,7 +410,7 @@ export function DayGrid({
             style={{ left: GUTTER_PX }}
           >
             <div className="border-edge bg-paper shadow-soft max-w-[360px] rounded-[20px] border border-dashed px-7 py-8 text-center">
-              <div className="text-green-emph mx-auto mb-3 flex size-[50px] items-center justify-center rounded-[15px] bg-[var(--green-tint)]">
+              <div className="text-green-emph size-12.5 mx-auto mb-3 flex items-center justify-center rounded-[15px] bg-[var(--green-tint)]">
                 <svg
                   width="23"
                   height="23"
@@ -441,7 +441,7 @@ export function DayGrid({
             className="border-coral pointer-events-none absolute right-0 z-[5] border-t-2"
             style={{ left: GUTTER_PX, top: topOf(nowMin) }} // ponytail: runtime, Tailwind não gera
           >
-            <span className="bg-coral absolute -left-[58px] -top-[9px] rounded-full px-1.5 py-1 text-[10px] font-bold leading-none text-white">
+            <span className="bg-coral -left-14.5 absolute -top-[9px] rounded-full px-1.5 py-1 text-[10px] font-bold leading-none text-white">
               {minutesToLabel(nowMin)}
             </span>
             <span className="bg-coral absolute -left-[5px] -top-[5px] size-2 rounded-full" />

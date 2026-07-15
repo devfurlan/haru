@@ -253,7 +253,7 @@ export default async function DashboardPage() {
       <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
         {/* Agora e a seguir */}
         <div className="border-line bg-paper shadow-soft overflow-hidden rounded-[18px] border">
-          <div className="flex items-baseline gap-2.5 px-[18px] pb-2.5 pt-4">
+          <div className="px-4.5 flex items-baseline gap-2.5 pb-2.5 pt-4">
             <div className="text-ink font-serif text-lg">Agora e a seguir</div>
             <div className="text-ink-50 text-xs font-medium">seu dia, do começo ao fim</div>
             <Link
@@ -265,8 +265,8 @@ export default async function DashboardPage() {
           </div>
 
           {todayAppts.length === 0 ? (
-            <div className="border-edge m-[18px] mt-2 rounded-2xl border border-dashed px-6 py-9 text-center">
-              <div className="bg-chip text-green-emph mx-auto mb-3 flex size-[50px] items-center justify-center rounded-[15px]">
+            <div className="border-edge m-4.5 mt-2 rounded-2xl border border-dashed px-6 py-9 text-center">
+              <div className="bg-chip text-green-emph size-12.5 mx-auto mb-3 flex items-center justify-center rounded-[15px]">
                 <CalendarDays className="size-6" strokeWidth={2.1} />
               </div>
               <div className="text-ink font-serif text-xl">
@@ -285,9 +285,9 @@ export default async function DashboardPage() {
                 return (
                   <li
                     key={a.id}
-                    className="border-edge flex items-center gap-3 border-t border-dotted px-[18px] py-2.5"
+                    className="border-edge px-4.5 flex items-center gap-3 border-t border-dotted py-2.5"
                   >
-                    <div className="text-ink w-[52px] flex-none font-serif text-base">
+                    <div className="text-ink w-13 flex-none font-serif text-base">
                       {hm(a.startsAt, tz)}
                     </div>
                     <div className="flex w-[9px] flex-none justify-center">
@@ -303,7 +303,7 @@ export default async function DashboardPage() {
                         {a.service.name}
                       </div>
                     </div>
-                    <div className="text-ink-70 hidden w-[84px] flex-none items-center gap-1.5 text-xs font-medium sm:flex">
+                    <div className="text-ink-70 w-21 hidden flex-none items-center gap-1.5 text-xs font-medium sm:flex">
                       {/* ponytail: runtime, Tailwind nao gera */}
                       <span
                         className="size-[7px] flex-none rounded-full"
@@ -313,10 +313,10 @@ export default async function DashboardPage() {
                         {(a.professional.name ?? '').split(/\s+/)[0] || '—'}
                       </span>
                     </div>
-                    <div className="text-ink w-[56px] flex-none text-right font-serif text-[14.5px]">
+                    <div className="text-ink w-14 flex-none text-right font-serif text-[14.5px]">
                       {money(a.service.priceCents)}
                     </div>
-                    <div className="flex w-[88px] flex-none justify-end">
+                    <div className="w-22 flex flex-none justify-end">
                       {/* ponytail: runtime, Tailwind nao gera */}
                       <span
                         className="whitespace-nowrap rounded-full px-2.5 py-1 text-[10.5px] font-semibold"
@@ -335,7 +335,7 @@ export default async function DashboardPage() {
         {/* coluna direita */}
         <div className="flex flex-col gap-4">
           {/* Precisa de você */}
-          <div className="border-line bg-paper shadow-soft flex flex-col gap-3 rounded-[18px] border p-[18px]">
+          <div className="border-line bg-paper shadow-soft p-4.5 flex flex-col gap-3 rounded-[18px] border">
             <div className="text-ink flex items-center gap-2 font-serif text-[17px]">
               Precisa de você
               {pendingCount > 0 && (
@@ -386,7 +386,7 @@ export default async function DashboardPage() {
           </div>
 
           {/* Acontecendo agora */}
-          <div className="border-line bg-paper shadow-soft rounded-[18px] border p-[18px]">
+          <div className="border-line bg-paper shadow-soft p-4.5 rounded-[18px] border">
             <div className="text-ink mb-2.5 flex items-center gap-1.5 font-serif text-[17px]">
               <span className="bg-green-bright animate-pulse-ring size-2 rounded-full" />
               Acontecendo agora

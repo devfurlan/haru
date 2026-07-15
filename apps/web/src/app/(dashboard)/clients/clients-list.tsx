@@ -98,11 +98,11 @@ export function ClientsList({ clients }: { clients: ClientRow[] }) {
                 type="button"
                 onClick={() => setSelectedId(c.id)}
                 className={cn(
-                  'border-edge hover:bg-cream-2 flex w-full items-center gap-3.5 border-t border-dotted px-[18px] py-3 text-left first:border-0',
+                  'border-edge hover:bg-cream-2 px-4.5 flex w-full items-center gap-3.5 border-t border-dotted py-3 text-left first:border-0',
                   selectedId === c.id && 'bg-cream-2',
                 )}
               >
-                <div className="bg-chip text-green-emph flex size-[38px] flex-none items-center justify-center rounded-xl text-xs font-bold">
+                <div className="bg-chip text-green-emph size-9.5 flex flex-none items-center justify-center rounded-xl text-xs font-bold">
                   {initials(c)}
                 </div>
                 <div className="min-w-0 flex-1">
@@ -133,13 +133,13 @@ export function ClientsList({ clients }: { clients: ClientRow[] }) {
                 <Metric
                   value={c.lastVisitLabel ?? '-'}
                   label="última visita"
-                  className="hidden w-[90px] md:block"
+                  className="w-22.5 hidden md:block"
                   small
                 />
                 <Metric
                   value={c.totalLabel}
                   label="no total"
-                  className="w-[80px]"
+                  className="w-20"
                   valueClass="text-green-emph"
                 />
               </button>
@@ -148,7 +148,7 @@ export function ClientsList({ clients }: { clients: ClientRow[] }) {
         </div>
 
         {selected && (
-          <div className="bg-green-deep text-on-emerald shadow-soft w-[300px] flex-none rounded-[18px] p-[18px]">
+          <div className="bg-green-deep text-on-emerald shadow-soft p-4.5 w-[300px] flex-none rounded-[18px]">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
                 <div className="truncate font-serif text-[19px]">{displayName(selected)}</div>
@@ -157,18 +157,18 @@ export function ClientsList({ clients }: { clients: ClientRow[] }) {
               <button
                 type="button"
                 onClick={() => setSelectedId(null)}
-                className="text-on-emerald-mut rounded-lg px-2 py-1 hover:bg-[rgba(250,245,234,.1)]"
+                className="text-on-emerald-mut hover:bg-cream/10 rounded-lg px-2 py-1"
                 aria-label="Fechar"
               >
                 ✕
               </button>
             </div>
             {selected.tag && (
-              <span className="text-green-bright mt-2.5 inline-flex rounded-full bg-[rgba(47,211,122,.16)] px-2.5 py-1 text-[10.5px] font-semibold">
+              <span className="text-green-bright bg-green-bright/16 mt-2.5 inline-flex rounded-full px-2.5 py-1 text-[10.5px] font-semibold">
                 {selected.tag}
               </span>
             )}
-            <div className="my-3.5 border-t border-dashed border-[rgba(143,191,164,.4)]" />
+            <div className="border-on-emerald-mut/40 my-3.5 border-t border-dashed" />
             <div className="flex flex-col gap-2.5 text-[12.5px]">
               <RailStat label="Agendamentos" value={String(selected.count)} />
               <RailStat label="Última visita" value={selected.lastVisitLabel ?? '-'} />
@@ -179,7 +179,7 @@ export function ClientsList({ clients }: { clients: ClientRow[] }) {
               />
               {selected.fav && <RailStat label="Serviço de sempre" value={selected.fav} />}
             </div>
-            <div className="my-3.5 border-t border-dashed border-[rgba(143,191,164,.4)]" />
+            <div className="border-on-emerald-mut/40 my-3.5 border-t border-dashed" />
             <div className="flex flex-col gap-2">
               <Link
                 href="/appointments/new"
@@ -189,7 +189,7 @@ export function ClientsList({ clients }: { clients: ClientRow[] }) {
               </Link>
               <Link
                 href={`/clients/${selected.id}`}
-                className="text-on-emerald rounded-xl border border-[rgba(250,245,234,.25)] py-2.5 text-center text-[12.5px] font-semibold no-underline hover:bg-[rgba(250,245,234,.08)]"
+                className="text-on-emerald border-cream/25 hover:bg-cream/8 rounded-xl border py-2.5 text-center text-[12.5px] font-semibold no-underline"
               >
                 Ver histórico completo
               </Link>

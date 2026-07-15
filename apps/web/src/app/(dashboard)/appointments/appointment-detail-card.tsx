@@ -23,11 +23,11 @@ import type { CalendarAppointment } from './appointments-day-view';
 const BRL = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 
 const PILL: Record<AppointmentStatus, string> = {
-  PENDING: 'bg-[rgba(255,90,54,.22)] text-[#FFD9CE]',
-  CONFIRMED: 'bg-[rgba(47,211,122,.18)] text-green-bright',
+  PENDING: 'bg-coral/22 text-[#FFD9CE]',
+  CONFIRMED: 'bg-green-bright/18 text-green-bright',
   COMPLETED: 'bg-[rgba(250,245,234,.14)] text-on-emerald-mut',
   CANCELED: 'bg-[rgba(250,245,234,.14)] text-on-emerald-mut',
-  NO_SHOW: 'bg-[rgba(255,90,54,.18)] text-[#FFD9CE]',
+  NO_SHOW: 'bg-coral/18 text-[#FFD9CE]',
 };
 
 function formatTime(iso: string, tz: string): string {
@@ -90,7 +90,7 @@ export function AppointmentDetailCard({
   const isDone = status === 'COMPLETED' || status === 'NO_SHOW';
 
   return (
-    <div className="text-on-emerald shadow-soft rounded-[18px] bg-[var(--emerald)] p-[18px]">
+    <div className="text-on-emerald shadow-soft p-4.5 rounded-[18px] bg-[var(--emerald)]">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <div className="truncate font-serif text-[19px] leading-tight">{client}</div>
@@ -172,7 +172,7 @@ export function AppointmentDetailCard({
                 type="button"
                 disabled={pending}
                 onClick={() => act(() => completeAppointment(appointment.id))}
-                className="border-green/40 bg-green/[.16] text-green rounded-xl border p-[11px] text-center text-[13px] font-semibold transition active:scale-[.965] disabled:opacity-50"
+                className="border-green/40 bg-green/[.16] text-green rounded-xl border p-3 text-center text-[13px] font-semibold transition active:scale-[.965] disabled:opacity-50"
               >
                 ✓ Marcar como atendido
               </button>

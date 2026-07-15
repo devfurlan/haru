@@ -28,7 +28,7 @@ const Check = () => (
     strokeWidth="2.6"
     strokeLinecap="round"
     strokeLinejoin="round"
-    className="mt-[2px] flex-none"
+    className="mt-0.5 flex-none"
   >
     <polyline points="20 6 9 17 4 12" />
   </svg>
@@ -46,16 +46,16 @@ function PlanCard({ plan, annual }: { plan: PlanVM; annual: boolean }) {
   const c = f
     ? {
         bg: 'bg-green-deep',
-        border: 'border border-[rgba(143,191,164,.2)]',
+        border: 'border border-on-emerald-mut/20',
         radius: 'rounded-[24px]',
-        pad: 'pt-[38px] pr-[24px] pb-[28px] pl-[24px]',
+        pad: 'pt-9.5 pr-6 pb-7 pl-6',
         shadow: 'shadow-[var(--shadow-ondark)]',
         name: 'text-on-emerald',
         sub: 'text-on-emerald-mut',
         price: 'text-on-emerald',
         unit: 'text-on-emerald-mut',
         caption: 'text-on-emerald-mut',
-        divider: 'bg-[rgba(143,191,164,.22)]',
+        divider: 'bg-on-emerald-mut/22',
         feat: 'text-on-emerald',
         more: 'text-green-bright',
       }
@@ -63,7 +63,7 @@ function PlanCard({ plan, annual }: { plan: PlanVM; annual: boolean }) {
         bg: 'bg-paper',
         border: 'border border-line',
         radius: 'rounded-[22px]',
-        pad: 'py-[28px] px-[24px]',
+        pad: 'py-7 px-6',
         shadow: 'shadow-[var(--shadow-card)]',
         name: 'text-green-deep',
         sub: 'text-ink-50',
@@ -88,22 +88,17 @@ function PlanCard({ plan, annual }: { plan: PlanVM; annual: boolean }) {
       )}
     >
       {f && (
-        <div className="bg-coral absolute left-[50%] top-[-12px] whitespace-nowrap rounded-full px-[15px] py-[6px] font-sans text-[10px] font-bold uppercase leading-[normal] tracking-[.12em] text-[#fff] shadow-[0_8px_20px_-8px_rgba(255,90,54,.7)] [transform:translateX(-50%)]">
+        <div className="bg-coral absolute left-[50%] top-[-12px] whitespace-nowrap rounded-full px-4 py-1.5 font-sans text-[10px] font-bold uppercase leading-[normal] tracking-[.12em] text-[#fff] shadow-[0_8px_20px_-8px_rgba(255,90,54,.7)] [transform:translateX(-50%)]">
           Mais escolhido
         </div>
       )}
       <div className={cn('font-serif text-[20px] font-medium leading-[1]', c.name)}>
         {plan.name}
       </div>
-      <div
-        className={cn(
-          'mb-[16px] mt-[6px] font-sans text-[13px] font-medium leading-[normal]',
-          c.sub,
-        )}
-      >
+      <div className={cn('mb-4 mt-1.5 font-sans text-[13px] font-medium leading-[normal]', c.sub)}>
         {plan.subtitle}
       </div>
-      <div className="flex items-baseline gap-[5px]">
+      <div className="flex items-baseline gap-1">
         <span
           className={cn(
             'whitespace-nowrap font-serif text-[38px] font-semibold leading-[1] tracking-[-.02em]',
@@ -120,27 +115,27 @@ function PlanCard({ plan, annual }: { plan: PlanVM; annual: boolean }) {
       </div>
       <div
         className={cn(
-          'mt-[8px] min-h-[15px] font-sans text-[12px] font-medium leading-[normal]',
+          'mt-2 min-h-[15px] font-sans text-[12px] font-medium leading-[normal]',
           c.caption,
         )}
       >
         {caption}
       </div>
-      <div className={cn('my-[18px] h-[1px]', c.divider)} />
-      <div className="flex flex-1 flex-col gap-[10px]">
+      <div className={cn('my-4.5 h-[1px]', c.divider)} />
+      <div className="flex flex-1 flex-col gap-2.5">
         {plan.feats.map((feat, i) =>
           feat.strong ? (
             <div
               key={i}
               className={cn(
-                'pt-[3px] font-sans text-[11px] font-bold leading-[normal] tracking-[.03em]',
+                'pt-1 font-sans text-[11px] font-bold leading-[normal] tracking-[.03em]',
                 c.more,
               )}
             >
               {feat.text}
             </div>
           ) : (
-            <div key={i} className="flex items-start gap-[10px]">
+            <div key={i} className="flex items-start gap-2.5">
               <Check />
               <span className={cn('font-sans text-[13.5px] font-normal leading-[1.4]', c.feat)}>
                 {feat.text}
@@ -149,7 +144,7 @@ function PlanCard({ plan, annual }: { plan: PlanVM; annual: boolean }) {
           ),
         )}
       </div>
-      <div className="mt-[22px]">
+      <div className="mt-5.5">
         <Btn
           variant={f ? 'primary' : 'secondary'}
           full
@@ -170,11 +165,11 @@ export function PricingPreviewClient({ plans }: { plans: PlanVM[] }) {
     <>
       {/* billing toggle */}
       <div className="mb-[clamp(24px,3vw,34px)] flex justify-center">
-        <div className="border-line bg-paper inline-flex items-center gap-[4px] rounded-full border p-[4px] shadow-[var(--shadow-card)]">
+        <div className="border-line bg-paper inline-flex items-center gap-1 rounded-full border p-1 shadow-[var(--shadow-card)]">
           <span
             onClick={() => setAnnual(false)}
             className={cn(
-              'cursor-pointer px-[18px] py-[9px] font-sans text-[13px] font-bold leading-[normal]',
+              'px-4.5 cursor-pointer py-2 font-sans text-[13px] font-bold leading-[normal]',
               !annual ? 'bg-green-deep rounded-full text-[#fff]' : 'text-ink-50',
             )}
           >
@@ -183,15 +178,15 @@ export function PricingPreviewClient({ plans }: { plans: PlanVM[] }) {
           <span
             onClick={() => setAnnual(true)}
             className={cn(
-              'inline-flex cursor-pointer items-center gap-[7px] px-[16px] py-[9px] font-sans text-[13px] font-bold leading-[normal]',
+              'inline-flex cursor-pointer items-center gap-2 px-4 py-2 font-sans text-[13px] font-bold leading-[normal]',
               annual ? 'bg-green-deep rounded-full text-[#fff]' : 'text-ink-50',
             )}
           >
             Anual{' '}
             <span
               className={cn(
-                'rounded-full px-[7px] py-[2px] font-sans text-[9px] font-bold uppercase leading-[normal] tracking-[.05em]',
-                annual ? 'bg-green-bright text-[#083020]' : 'bg-chip text-[#0C7E41]',
+                'rounded-full px-2 py-0.5 font-sans text-[9px] font-bold uppercase leading-[normal] tracking-[.05em]',
+                annual ? 'bg-green-bright text-green-card' : 'bg-chip text-[#0C7E41]',
               )}
             >
               2 meses grátis
@@ -200,7 +195,7 @@ export function PricingPreviewClient({ plans }: { plans: PlanVM[] }) {
         </div>
       </div>
 
-      <div className="mx-auto grid max-w-[920px] grid-cols-[repeat(auto-fit,minmax(240px,1fr))] items-stretch gap-[16px]">
+      <div className="mx-auto grid max-w-[920px] grid-cols-[repeat(auto-fit,minmax(240px,1fr))] items-stretch gap-4">
         {plans.map((plan) => (
           <PlanCard key={plan.tier} plan={plan} annual={annual} />
         ))}

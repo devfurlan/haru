@@ -99,7 +99,7 @@ export function WaitlistView({
 function RecoveryCard({ metric }: { metric: RecoveryMetric }) {
   return (
     <div className="border-line shadow-soft flex flex-wrap items-center gap-4 rounded-[18px] border p-5 [background:radial-gradient(460px_200px_at_8%_-40%,rgba(47,211,122,.16),transparent_62%),var(--brand-paper)]">
-      <div className="bg-chip text-green-emph flex size-[46px] flex-none items-center justify-center rounded-[14px]">
+      <div className="bg-chip text-green-emph size-11.5 flex flex-none items-center justify-center rounded-[14px]">
         <Clock className="size-6" strokeWidth={2.1} />
       </div>
       <div className="min-w-0 flex-1">
@@ -223,7 +223,7 @@ function GroupCard({
         onClick={() => setOpen((v) => !v)}
         className="hover:bg-cream-2/40 flex w-full items-center gap-3 p-4 text-left"
       >
-        <div className="bg-chip text-green-emph flex size-[38px] flex-none items-center justify-center rounded-[11px] font-serif text-[12.5px] font-semibold">
+        <div className="bg-chip text-green-emph size-9.5 flex flex-none items-center justify-center rounded-[11px] font-serif text-[12.5px] font-semibold">
           {initials || <Users className="size-4" />}
         </div>
         <div className="min-w-0 flex-1">
@@ -247,11 +247,11 @@ function GroupCard({
             dia lotado · {group.count} na fila
           </div>
         </div>
-        <span className="bg-green-deep text-cream flex h-[22px] min-w-[22px] flex-none items-center justify-center rounded-full px-1.5 text-[12px] font-bold">
+        <span className="bg-green-deep text-cream h-5.5 min-w-5.5 flex flex-none items-center justify-center rounded-full px-1.5 text-[12px] font-bold">
           {group.count}
         </span>
         <ChevronRight
-          className={`text-ink-30 size-[18px] flex-none transition-transform ${open ? 'rotate-90' : ''}`}
+          className={`text-ink-30 size-4.5 flex-none transition-transform ${open ? 'rotate-90' : ''}`}
         />
       </button>
 
@@ -262,7 +262,7 @@ function GroupCard({
               key={p.entryId}
               className="border-edge flex flex-wrap items-center gap-3 border-t border-dotted p-3 px-4"
             >
-              <div className="bg-cream-2 text-ink-70 flex size-[26px] flex-none items-center justify-center rounded-full font-serif text-[12px] font-semibold">
+              <div className="bg-cream-2 text-ink-70 size-6.5 flex flex-none items-center justify-center rounded-full font-serif text-[12px] font-semibold">
                 {p.position}
               </div>
               <div className="min-w-[130px] flex-1">
@@ -386,7 +386,7 @@ function EmptyState() {
   ];
   return (
     <div className="border-edge bg-paper shadow-soft rounded-[20px] border border-dashed px-7 py-9 text-center">
-      <div className="bg-chip text-green-emph mx-auto mb-3.5 flex size-[54px] items-center justify-center rounded-[16px]">
+      <div className="bg-chip text-green-emph size-13.5 mx-auto mb-3.5 flex items-center justify-center rounded-[16px]">
         <Users className="size-6" strokeWidth={2} />
       </div>
       <div className="text-ink font-serif text-[22px]">
@@ -402,7 +402,7 @@ function EmptyState() {
             key={s.n}
             className="border-line min-w-[150px] flex-1 rounded-[14px] border bg-[#fbf7ec] px-3.5 py-3"
           >
-            <div className="border-edge bg-paper text-green-emph mb-2 flex size-[26px] items-center justify-center rounded-lg border font-serif text-[12px] font-semibold">
+            <div className="border-edge bg-paper text-green-emph size-6.5 mb-2 flex items-center justify-center rounded-lg border font-serif text-[12px] font-semibold">
               {s.n}
             </div>
             <div className="text-ink text-[12.5px] font-semibold">{s.t}</div>
@@ -417,7 +417,7 @@ function EmptyState() {
 function OffCard() {
   return (
     <div className="border-edge bg-paper shadow-soft rounded-[18px] border border-dashed px-6 py-8 text-center">
-      <div className="text-ink-50 mx-auto mb-3 flex size-[52px] items-center justify-center rounded-[16px] bg-[#f3edde]">
+      <div className="text-ink-50 size-13 mx-auto mb-3 flex items-center justify-center rounded-[16px] bg-[#f3edde]">
         <Clock className="size-6" strokeWidth={2.1} />
       </div>
       <div className="text-ink font-serif text-xl">

@@ -1,5 +1,5 @@
 const chip =
-  'inline-flex flex-none items-center gap-[9px] mr-[13px] py-[11px] px-[18px] bg-paper border border-line rounded-full';
+  'inline-flex flex-none items-center gap-2 mr-3 py-3 px-4.5 bg-paper border border-line rounded-full';
 const chipLabel =
   'font-sans text-[14.5px] leading-[normal] font-semibold text-ink-70 whitespace-nowrap';
 
@@ -7,12 +7,12 @@ export function Niches() {
   return (
     <section className="pb-[clamp(30px,4vw,46px)] pt-[clamp(6px,1.5vw,16px)]">
       <div className="mx-auto mb-[clamp(22px,3vw,30px)] max-w-[1120px] px-[clamp(20px,5vw,40px)] text-center">
-        <div className="mb-[13px] inline-flex items-center gap-[9px]">
-          <span className="bg-coral h-[2px] w-[20px] rounded-[2px]" />
+        <div className="mb-3 inline-flex items-center gap-2">
+          <span className="bg-coral h-0.5 w-5 rounded-[2px]" />
           <span className="font-sans text-[11px] font-bold uppercase leading-[normal] tracking-[.16em] text-[#0C7E41]">
             Todo tipo de negócio
           </span>
-          <span className="bg-coral h-[2px] w-[20px] rounded-[2px]" />
+          <span className="bg-coral h-0.5 w-5 rounded-[2px]" />
         </div>
         <p className="text-green-deep mx-auto max-w-[660px] font-serif text-[clamp(19px,2.6vw,24px)] font-normal leading-[1.35] tracking-[-.01em]">
           Se você trabalha com hora marcada, o Demanda

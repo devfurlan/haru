@@ -9,6 +9,7 @@ import {
   applyConsent,
   DENY_ALL,
   GRANT_ALL,
+  GTM_ID,
   OPEN_CONSENT_EVENT,
   readConsent,
   type ConsentState,
@@ -58,12 +59,11 @@ export function CookieConsent() {
     setCustomizing(false);
   }
 
-  const gtmId = process.env.NEXT_PUBLIC_GTM_ID;
   const loadGtm = ready && consent && (consent.analytics || consent.marketing);
 
   return (
     <>
-      {loadGtm && gtmId ? <GoogleTagManager gtmId={gtmId} /> : null}
+      {loadGtm && GTM_ID ? <GoogleTagManager gtmId={GTM_ID} /> : null}
 
       {ready && open ? (
         <div

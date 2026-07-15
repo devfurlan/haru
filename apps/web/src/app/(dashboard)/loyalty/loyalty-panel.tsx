@@ -173,12 +173,12 @@ function ActiveProgram({
           </div>
           <span
             className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1.5 text-[10.5px] font-semibold ${
-              paused
-                ? 'bg-[rgba(255,90,54,.18)] text-[#ffb3a0]'
-                : 'bg-[rgba(47,211,122,.16)] text-[#7fe0aa]'
+              paused ? 'bg-coral/18 text-[#ffb3a0]' : 'bg-green-bright/16 text-[#7fe0aa]'
             }`}
           >
-            <span className={`size-1.5 rounded-full ${paused ? 'bg-[#ff8a6e]' : 'bg-[#2FD37A]'}`} />
+            <span
+              className={`size-1.5 rounded-full ${paused ? 'bg-[#ff8a6e]' : 'bg-green-bright'}`}
+            />
             {paused ? 'Pausado' : 'Ativo'}
           </span>
         </div>

@@ -1192,7 +1192,7 @@ function PaymentMethodDialog({
             ) : (
               <div className="flex flex-col gap-3">
                 <div className="border-border-soft bg-cream flex items-center gap-3.5 rounded-2xl border p-3.5">
-                  <div className="border-border text-ink-30 flex size-[68px] shrink-0 items-center justify-center rounded-xl border border-dashed bg-white">
+                  <div className="border-border text-ink-30 size-17 flex shrink-0 items-center justify-center rounded-xl border border-dashed bg-white">
                     <QrCode className="size-7" aria-hidden />
                   </div>
                   <p className="text-ink-70 min-w-0 flex-1 text-[12.5px] leading-relaxed">

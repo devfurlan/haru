@@ -37,9 +37,9 @@ export function Faq() {
       id="faq"
       className="mx-auto max-w-[820px] px-[clamp(20px,5vw,40px)] py-[clamp(56px,7vw,88px)]"
     >
-      <div className="mb-[36px] text-center">
-        <div className="mb-[14px] inline-flex items-center gap-[9px]">
-          <span className="bg-coral h-[2px] w-[20px] rounded-[2px]" />
+      <div className="mb-9 text-center">
+        <div className="mb-3.5 inline-flex items-center gap-2">
+          <span className="bg-coral h-0.5 w-5 rounded-[2px]" />
           <span className="font-sans text-[11px] font-bold uppercase leading-[normal] tracking-[.16em] text-[#0C7E41]">
             Dúvidas
           </span>
@@ -48,11 +48,11 @@ export function Faq() {
           O que trava a decisão.
         </h2>
       </div>
-      <div className="flex flex-col gap-[12px]">
+      <div className="flex flex-col gap-3">
         {faqs.map((f, i) => (
           <div key={i} className="border-line bg-paper overflow-hidden rounded-[16px] border">
             <div
-              className="flex cursor-pointer items-center justify-between gap-[16px] px-[24px] py-[20px]"
+              className="flex cursor-pointer items-center justify-between gap-4 px-6 py-5"
               onClick={() => setOpen(open === i ? -1 : i)}
             >
               <span className="text-ink font-sans text-[16px] font-semibold leading-[normal]">
@@ -90,7 +90,7 @@ export function Faq() {
               )}
             </div>
             {open === i && (
-              <div className="text-ink-70 animate-[dmd-fade_.28s_ease] px-[24px] pb-[22px] font-sans text-[15px] font-normal leading-[1.6]">
+              <div className="text-ink-70 pb-5.5 animate-[dmd-fade_.28s_ease] px-6 font-sans text-[15px] font-normal leading-[1.6]">
                 {f.a}
               </div>
             )}

@@ -62,7 +62,7 @@ export async function PlanCard({ tenant }: { tenant: TenantWithSubscription }) {
       : null;
 
   return (
-    <div id="plano" className="border-line bg-paper shadow-soft rounded-[18px] border p-[18px]">
+    <div id="plano" className="border-line bg-paper shadow-soft p-4.5 rounded-[18px] border">
       <div className="flex items-center gap-2.5">
         <div className="flex-1">
           <div className="text-ink font-serif text-[16px] font-semibold">Seu plano</div>

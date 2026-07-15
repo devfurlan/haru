@@ -2,26 +2,26 @@ export function EmBreve() {
   return (
     <section
       id="em-breve"
-      className="mx-auto max-w-[1080px] scroll-mt-[78px] px-[clamp(20px,5vw,40px)] pb-[clamp(20px,3vw,32px)] pt-[clamp(44px,6vw,72px)]"
+      className="scroll-mt-19.5 mx-auto max-w-[1080px] px-[clamp(20px,5vw,40px)] pb-[clamp(20px,3vw,32px)] pt-[clamp(44px,6vw,72px)]"
     >
-      <div className="border-line bg-paper flex flex-wrap items-center gap-x-[40px] gap-y-[24px] rounded-[24px] border p-[clamp(24px,3vw,36px)] shadow-[var(--shadow-card)]">
+      <div className="border-line bg-paper flex flex-wrap items-center gap-x-10 gap-y-6 rounded-[24px] border p-[clamp(24px,3vw,36px)] shadow-[var(--shadow-card)]">
         <div className="flex-[1_1_240px]">
-          <div className="mb-[12px] inline-flex items-center gap-[9px]">
-            <span className="bg-coral h-[8px] w-[8px] animate-[dmd-pulse_1.8s_infinite] rounded-[50%]"></span>
+          <div className="mb-3 inline-flex items-center gap-2">
+            <span className="bg-coral h-2 w-2 animate-[dmd-pulse_1.8s_infinite] rounded-[50%]"></span>
             <span className="text-ink-50 font-sans text-[11px] font-bold uppercase leading-[normal] tracking-[.16em]">
               No forno
             </span>
           </div>
-          <h2 className="text-green-deep mb-[8px] font-serif text-[clamp(22px,3vw,30px)] font-normal leading-[1.15] tracking-[-.02em]">
+          <h2 className="text-green-deep mb-2 font-serif text-[clamp(22px,3vw,30px)] font-normal leading-[1.15] tracking-[-.02em]">
             O que vem por aí.
           </h2>
           <p className="text-ink-70 max-w-[400px] font-sans text-[15px] font-normal leading-[1.55]">
             Em desenvolvimento agora. Chega pra todos os planos, sem custo extra.
           </p>
         </div>
-        <div className="flex flex-[1_1_300px] flex-col gap-[10px]">
-          <div className="border-line bg-cream flex items-center gap-[13px] rounded-[14px] border px-[15px] py-[13px]">
-            <span className="bg-chip grid h-[38px] w-[38px] flex-none place-items-center rounded-[11px]">
+        <div className="flex flex-[1_1_300px] flex-col gap-2.5">
+          <div className="border-line bg-cream flex items-center gap-3 rounded-[14px] border px-4 py-3">
+            <span className="bg-chip h-9.5 w-9.5 grid flex-none place-items-center rounded-[11px]">
               <svg
                 width="19"
                 height="19"
@@ -44,8 +44,8 @@ export function EmBreve() {
               </div>
             </div>
           </div>
-          <div className="border-line bg-cream flex items-center gap-[13px] rounded-[14px] border px-[15px] py-[13px]">
-            <span className="bg-chip grid h-[38px] w-[38px] flex-none place-items-center rounded-[11px]">
+          <div className="border-line bg-cream flex items-center gap-3 rounded-[14px] border px-4 py-3">
+            <span className="bg-chip h-9.5 w-9.5 grid flex-none place-items-center rounded-[11px]">
               <svg
                 width="19"
                 height="19"
@@ -69,8 +69,8 @@ export function EmBreve() {
               </div>
             </div>
           </div>
-          <div className="border-line bg-cream flex items-center gap-[13px] rounded-[14px] border px-[15px] py-[13px]">
-            <span className="bg-chip grid h-[38px] w-[38px] flex-none place-items-center rounded-[11px]">
+          <div className="border-line bg-cream flex items-center gap-3 rounded-[14px] border px-4 py-3">
+            <span className="bg-chip h-9.5 w-9.5 grid flex-none place-items-center rounded-[11px]">
               <svg
                 width="19"
                 height="19"

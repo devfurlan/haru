@@ -40,10 +40,12 @@ function lembretes(n: number | null): string {
 function buildVM(plans: PlanRow[]): PlanVM[] {
   return plans.map((p, i) => {
     const custom = p.priceMonthlyCents <= 0;
-    const feats: PlanVM['feats'] = [{ text: profLabel(plans, i) }];
+    const feats: PlanVM['feats'] = [
+      { text: profLabel(plans, i) },
+      { text: lembretes(p.whatsappRemindersPerMonth) },
+    ];
     if (i > 0) feats.push({ text: `Tudo do ${plans[i - 1].name}, mais:`, strong: true });
     for (const t of FEATURES[p.tier] ?? []) feats.push({ text: t });
-    feats.push({ text: lembretes(p.whatsappRemindersPerMonth) });
 
     return {
       tier: p.tier,
@@ -66,13 +68,13 @@ export async function PricingPreview() {
     <section className="border-t-line border-b-line bg-chip border-b border-t pb-[clamp(48px,6vw,68px)] pt-[clamp(56px,7vw,88px)]">
       <div className="mx-auto max-w-[1120px] px-[clamp(16px,4vw,40px)]">
         <div className="mx-auto mb-[clamp(24px,3vw,32px)] max-w-[640px] text-center">
-          <div className="mb-[14px] inline-flex items-center gap-[9px]">
-            <span className="bg-coral h-[2px] w-[20px] rounded-[2px]" />
+          <div className="mb-3.5 inline-flex items-center gap-2">
+            <span className="bg-coral h-0.5 w-5 rounded-[2px]" />
             <span className="font-sans text-[11px] font-bold uppercase leading-[normal] tracking-[.16em] text-[#0C7E41]">
               Planos
             </span>
           </div>
-          <h2 className="text-green-deep mx-auto mb-[12px] font-serif text-[clamp(28px,4.6vw,40px)] font-normal leading-[1.1] tracking-[-.02em]">
+          <h2 className="text-green-deep mx-auto mb-3 font-serif text-[clamp(28px,4.6vw,40px)] font-normal leading-[1.1] tracking-[-.02em]">
             Um preço. <span className="italic text-[#0C7E41]">Tudo</span> incluso.
           </h2>
           <p className="text-ink-70 mx-auto max-w-[460px] font-sans text-[16.5px] font-normal leading-[1.55]">
@@ -87,18 +89,18 @@ export async function PricingPreview() {
             `.dmd-home .hv-*:hover` vivem FORA de @layer no globals.css, e regra sem layer
             vence @layer utilities. Sem o `!`, text-green-deep/border-edge são descartados e
             o link cai pro ink. O style inline original ganhava desses seletores por ser inline. */}
-        <div className="border-line bg-paper mx-auto mt-[24px] flex max-w-[920px] flex-wrap items-center gap-x-[24px] gap-y-[16px] rounded-[18px] border px-[22px] py-[20px] shadow-[var(--shadow-card)]">
+        <div className="border-line bg-paper px-5.5 mx-auto mt-6 flex max-w-[920px] flex-wrap items-center gap-x-6 gap-y-4 rounded-[18px] border py-5 shadow-[var(--shadow-card)]">
           <div className="min-w-[220px] flex-1">
             <div className="text-ink font-sans text-[15px] font-semibold leading-[normal]">
               Operação maior?
             </div>
-            <div className="text-ink-70 mt-[3px] font-sans text-[13.5px] font-normal leading-[1.5]">
+            <div className="text-ink-70 mt-1 font-sans text-[13.5px] font-normal leading-[1.5]">
               Rede, franquia ou fluxo próprio - a gente monta um Enterprise sob medida.
             </div>
           </div>
           <a
             href="/precos#enterprise"
-            className="hv-bd-emerald border-edge! bg-cream text-green-deep! inline-flex flex-none items-center gap-[8px] rounded-[14px] border px-[20px] py-[13px] font-sans text-[14px] font-bold leading-[normal]"
+            className="hv-bd-emerald border-edge! bg-cream text-green-deep! inline-flex flex-none items-center gap-2 rounded-[14px] border px-5 py-3 font-sans text-[14px] font-bold leading-[normal]"
           >
             Falar com a gente{' '}
             <svg
@@ -117,10 +119,10 @@ export async function PricingPreview() {
           </a>
         </div>
 
-        <div className="mt-[22px] text-center">
+        <div className="mt-5.5 text-center">
           <a
             href="/precos"
-            className="hv-coral text-green-deep! inline-flex items-center gap-[8px] font-sans text-[15px] font-bold leading-[normal]"
+            className="hv-coral text-green-deep! inline-flex items-center gap-2 font-sans text-[15px] font-bold leading-[normal]"
           >
             Ver todos os planos e o comparativo completo{' '}
             <svg

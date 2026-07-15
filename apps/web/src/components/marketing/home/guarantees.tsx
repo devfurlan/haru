@@ -84,18 +84,21 @@ const ITEMS: { title: string; body: string; icon: ReactNode }[] = [
 
 export function Guarantees() {
   return (
-    // minmax(190px) cabe exatamente 5 trilhas em 1120px e nenhuma a mais; abaixo disso
-    // degrada sozinho (3+2, 2+2+1, empilhado) sem media query.
-    <div className="mt-[clamp(26px,3.4vw,38px)] grid grid-cols-[repeat(auto-fit,minmax(190px,1fr))] gap-x-[18px] gap-y-[20px] border-t border-t-[color:rgba(10,51,36,.1)] pt-[clamp(24px,3vw,32px)]">
+    // minmax(180px) + gap-x-6 cabe exatamente 5 trilhas nos 1040px de conteúdo (max-w 1120
+    // menos 2x40 de padding) e nenhuma a mais; abaixo disso degrada sozinho (4+1, 3+2,
+    // 2+2+1, empilhado) sem media query. O minmax é quem segura isso: com flex os itens não
+    // quebram e estouram o viewport no mobile. Pra subir o gap-x, baixe o minmax junto -
+    // 5x190+4x24 = 1046 > 1040 e o 5º cai pra linha de baixo.
+    <div className="border-t-green-deep/10 mt-[clamp(26px,3.4vw,38px)] grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-x-6 gap-y-5 border-t pt-[clamp(24px,3vw,32px)]">
       {ITEMS.map((it) => (
         <div key={it.title}>
           {it.icon}
           {/* 2 linhas de título fixas: "Suporte de gente, em português" quebra e sem isso
               as 5 descrições desalinhavam entre si. */}
-          <div className="text-green-deep mt-[10px] min-h-[34px] font-sans text-[13px] font-semibold leading-[1.3]">
+          <div className="text-green-deep mt-2.5 min-h-[34px] font-sans text-[13px] font-semibold leading-[1.3]">
             {it.title}
           </div>
-          <div className="text-ink-70 mt-[3px] font-sans text-[12px] font-normal leading-[1.45]">
+          <div className="text-ink-70 mt-1 font-sans text-[12px] font-normal leading-[1.45]">
             {it.body}
           </div>
         </div>

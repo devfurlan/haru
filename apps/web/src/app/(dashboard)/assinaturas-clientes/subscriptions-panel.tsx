@@ -93,7 +93,7 @@ export function SubscriptionsPanel({
       {/* cabeçalho */}
       <div className="flex flex-wrap items-end gap-4">
         <div className="min-w-[260px] flex-1">
-          <div className="text-[10.5px] font-bold uppercase tracking-[0.14em] text-[#1b7a4b]">
+          <div className="text-green-emph text-[10.5px] font-bold uppercase tracking-[0.14em]">
             <span className="mr-1.5 inline-block size-1.5 rounded-full bg-[var(--brand-green-bright)] align-middle" />
             Receita recorrente
           </div>
@@ -254,7 +254,7 @@ export function SubscriptionsPanel({
                   >
                     {r.statusLabel}
                   </span>
-                  <span className="text-ink min-w-[72px] text-right font-serif text-[14px]">
+                  <span className="text-ink min-w-18 text-right font-serif text-[14px]">
                     {r.amountLabel}
                   </span>
                 </div>
@@ -271,7 +271,7 @@ export function SubscriptionsPanel({
 function EmptyState({ onCreate }: { onCreate: () => void }) {
   return (
     <div className="border-edge bg-paper shadow-soft rounded-[22px] border border-dashed px-7 py-10 text-center">
-      <div className="bg-chip text-green-emph mx-auto mb-3.5 flex size-[60px] items-center justify-center rounded-[17px]">
+      <div className="bg-chip text-green-emph size-15 mx-auto mb-3.5 flex items-center justify-center rounded-[17px]">
         <Repeat className="size-7" />
       </div>
       <div className="text-ink font-serif text-[26px] tracking-tight">
@@ -289,7 +289,7 @@ function EmptyState({ onCreate }: { onCreate: () => void }) {
           'Ele agenda usando os créditos - o desconto é automático, sem você fazer nada.',
         ].map((tx, i) => (
           <div key={i} className="text-ink-70 flex gap-2.5 text-[13px] leading-snug">
-            <span className="bg-chip text-green-emph flex size-[22px] flex-none items-center justify-center rounded-full text-[11px] font-bold">
+            <span className="bg-chip text-green-emph size-5.5 flex flex-none items-center justify-center rounded-full text-[11px] font-bold">
               {i + 1}
             </span>
             {tx}
@@ -313,7 +313,7 @@ function MrrHero({
 }) {
   const { metrics, delta } = overview;
   return (
-    <div className="bg-green-deep text-on-emerald relative overflow-hidden rounded-[20px] px-[26px] py-6 [background-image:radial-gradient(560px_280px_at_8%_-25%,rgba(47,211,122,.18),transparent_60%),radial-gradient(520px_320px_at_94%_135%,rgba(255,90,54,.12),transparent_60%)]">
+    <div className="bg-green-deep text-on-emerald px-6.5 relative overflow-hidden rounded-[20px] py-6 [background-image:radial-gradient(560px_280px_at_8%_-25%,rgba(47,211,122,.18),transparent_60%),radial-gradient(520px_320px_at_94%_135%,rgba(255,90,54,.12),transparent_60%)]">
       <div className="flex flex-wrap items-center gap-6">
         <div className="min-w-[250px] flex-1">
           <div className="text-on-emerald-mut text-[10.5px] font-bold uppercase tracking-[0.14em]">
@@ -351,7 +351,7 @@ function MrrHero({
           </p>
         </div>
         {variant === 'planos' && (
-          <div className="border-on-emerald/20 min-w-[216px] flex-[0_1_250px] rounded-2xl border bg-[rgba(47,211,122,.08)] px-[17px] py-[15px]">
+          <div className="border-on-emerald/20 bg-green-bright/8 min-w-[216px] flex-[0_1_250px] rounded-2xl border px-4 py-4">
             <div className="text-on-emerald-mut text-[10px] font-bold uppercase tracking-[0.13em]">
               Uso dos créditos
             </div>
@@ -380,9 +380,7 @@ function DeltaPill({ positive, text }: { positive: boolean; text: string }) {
   return (
     <span
       className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1.5 text-[11.5px] font-bold ${
-        positive
-          ? 'bg-[rgba(47,211,122,.16)] text-[#7fe0aa]'
-          : 'bg-[rgba(255,90,54,.18)] text-[#ffb3a0]'
+        positive ? 'bg-green-bright/16 text-[#7fe0aa]' : 'bg-coral/18 text-[#ffb3a0]'
       }`}
     >
       <ArrowUp className={`size-3 ${positive ? '' : 'rotate-180'}`} strokeWidth={2.6} />
@@ -410,11 +408,11 @@ function PlanosTab({
         {overview.plans.map((p) => (
           <div
             key={p.id}
-            className={`border-line bg-paper shadow-soft flex flex-wrap items-center gap-4 rounded-[18px] border px-[18px] py-4 ${
+            className={`border-line bg-paper shadow-soft px-4.5 flex flex-wrap items-center gap-4 rounded-[18px] border py-4 ${
               p.active ? 'opacity-100' : 'opacity-[0.62]'
             }`}
           >
-            <div className="bg-chip text-green-emph flex size-[46px] flex-none items-center justify-center rounded-[14px]">
+            <div className="bg-chip text-green-emph size-11.5 flex flex-none items-center justify-center rounded-[14px]">
               <Repeat className="size-5" />
             </div>
             <div className="min-w-[170px] flex-1">
@@ -464,7 +462,7 @@ function PlanosTab({
 
 function MiniStat({ value, label, accent }: { value: string; label: string; accent?: boolean }) {
   return (
-    <div className="min-w-[80px] flex-none text-right">
+    <div className="min-w-20 flex-none text-right">
       <div className={`font-serif text-[17px] ${accent ? 'text-green-emph' : 'text-ink'}`}>
         {value}
       </div>
@@ -517,8 +515,8 @@ function AssinantesTab({
           key={g.planId}
           className="border-line bg-paper shadow-soft overflow-hidden rounded-[18px] border"
         >
-          <div className="flex flex-wrap items-center gap-2.5 px-[18px] pb-2.5 pt-4">
-            <div className="bg-chip text-green-emph flex size-[34px] flex-none items-center justify-center rounded-[11px]">
+          <div className="px-4.5 flex flex-wrap items-center gap-2.5 pb-2.5 pt-4">
+            <div className="bg-chip text-green-emph size-8.5 flex flex-none items-center justify-center rounded-[11px]">
               <Repeat className="size-4" />
             </div>
             <span className="text-ink font-serif text-[16.5px]">{g.planName}</span>
@@ -530,11 +528,11 @@ function AssinantesTab({
           {g.rows.map((c) => (
             <div
               key={c.membershipId}
-              className={`border-edge flex items-center gap-3.5 border-t border-dotted px-[18px] py-3 ${
+              className={`border-edge px-4.5 flex items-center gap-3.5 border-t border-dotted py-3 ${
                 c.status === 'CANCELED' ? 'opacity-60' : 'opacity-100'
               }`}
             >
-              <div className="bg-green-deep text-on-emerald flex size-[38px] flex-none items-center justify-center rounded-xl text-[12px] font-bold">
+              <div className="bg-green-deep text-on-emerald size-9.5 flex flex-none items-center justify-center rounded-xl text-[12px] font-bold">
                 {c.initials}
               </div>
               <div className="min-w-0 flex-1">
@@ -543,7 +541,7 @@ function AssinantesTab({
                   <SubscriberPill status={c.status} />
                 </div>
               </div>
-              <div className="w-[92px] flex-none text-right">
+              <div className="w-23 flex-none text-right">
                 <div className="text-ink font-serif text-[15px]">{c.creditBalance}</div>
                 <div className="text-ink-50 text-[10px] font-medium">créditos no mês</div>
               </div>
@@ -567,7 +565,7 @@ function AssinantesTab({
                     onClick={() => onCancel(c)}
                     title="Cancelar assinatura"
                     aria-label={`Cancelar assinatura de ${c.name}`}
-                    className="text-ink-30 hover:bg-coral-tint rounded-[10px] p-2 transition-colors hover:text-[#c2401f]"
+                    className="text-ink-30 hover:bg-coral-tint hover:text-coral-deep rounded-[10px] p-2 transition-colors"
                   >
                     <X className="size-4" />
                   </button>
@@ -584,7 +582,7 @@ function AssinantesTab({
 function SubscriberPill({ status }: { status: SubscriberRow['status'] }) {
   const map = {
     ACTIVE: { label: 'Ativo', cls: 'bg-chip text-green-emph', dot: 'bg-green-bright' },
-    PAST_DUE: { label: 'Inadimplente', cls: 'bg-coral-tint text-coral-deep', dot: 'bg-[#c2401f]' },
+    PAST_DUE: { label: 'Inadimplente', cls: 'bg-coral-tint text-coral-deep', dot: 'bg-coral-deep' },
     CANCELED: { label: 'Cancelada', cls: 'bg-cream-2 text-ink-50', dot: 'bg-ink-50' },
   }[status];
   return (
@@ -609,7 +607,7 @@ function ReceitaTab({ overview }: { overview: SubscriptionsOverview }) {
 
       <div className="grid grid-cols-1 items-start gap-3.5 lg:grid-cols-2">
         {trend.show && (
-          <div className="border-line bg-paper shadow-soft rounded-[18px] border px-5 py-[18px]">
+          <div className="border-line bg-paper shadow-soft py-4.5 rounded-[18px] border px-5">
             <div className="text-ink font-serif text-base">Mês a mês, subindo</div>
             <p className="text-ink-50 mt-0.5 text-[12px]">
               Assinaturas recebidas nos últimos meses.
@@ -641,7 +639,7 @@ function ReceitaTab({ overview }: { overview: SubscriptionsOverview }) {
           </div>
         )}
 
-        <div className="border-line bg-paper shadow-soft rounded-[18px] border px-5 py-[18px]">
+        <div className="border-line bg-paper shadow-soft py-4.5 rounded-[18px] border px-5">
           <div className="text-ink font-serif text-base">De onde vem</div>
           <p className="text-ink-50 mt-0.5 text-[12px]">Quanto cada plano rende por mês.</p>
           {revenuePlans.length === 0 ? (
@@ -675,7 +673,7 @@ function ReceitaTab({ overview }: { overview: SubscriptionsOverview }) {
         </div>
       </div>
 
-      <div className="border-line bg-paper shadow-soft flex flex-wrap items-center gap-4 rounded-[18px] border px-5 py-[18px]">
+      <div className="border-line bg-paper shadow-soft py-4.5 flex flex-wrap items-center gap-4 rounded-[18px] border px-5">
         <div className="min-w-[220px] flex-1">
           <div className="text-ink flex items-center gap-2 font-serif text-base">
             <TrendingUp className="text-green-emph size-4" />

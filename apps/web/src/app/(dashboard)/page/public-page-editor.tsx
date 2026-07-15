@@ -146,7 +146,7 @@ export function PublicPageEditor(props: PublicPageEditorProps) {
         <div className="flex min-w-[340px] flex-1 flex-col gap-3.5">
           {/* Card único: dados + vitrine (tudo salva via updateTenant, que exige name+slug) */}
           <form action={saveTenant} className="flex flex-col gap-3.5">
-            <div className="border-line bg-paper shadow-soft flex flex-col gap-3 rounded-2xl border p-[18px]">
+            <div className="border-line bg-paper shadow-soft p-4.5 flex flex-col gap-3 rounded-2xl border">
               <div className="text-ink font-serif text-base">Endereço da página</div>
               <div className="flex items-center gap-2">
                 <code className="border-edge bg-cream text-ink flex-1 truncate rounded-xl border px-3.5 py-2.5 font-mono text-[13px]">
@@ -230,7 +230,7 @@ export function PublicPageEditor(props: PublicPageEditorProps) {
             </div>
 
             {/* Vitrine */}
-            <div className="border-line bg-paper shadow-soft flex flex-col gap-4 rounded-2xl border p-[18px]">
+            <div className="border-line bg-paper shadow-soft p-4.5 flex flex-col gap-4 rounded-2xl border">
               <div>
                 <div className="text-ink font-serif text-base">Capricha na vitrine</div>
                 <p className="text-ink-50 mt-0.5 text-xs">
@@ -283,7 +283,7 @@ export function PublicPageEditor(props: PublicPageEditorProps) {
           {/* Agendamento online (form separado - updatePublicBooking, não exige name/slug) */}
           <form
             action={saveBooking}
-            className="border-line bg-paper shadow-soft flex flex-col gap-3 rounded-2xl border p-[18px]"
+            className="border-line bg-paper shadow-soft p-4.5 flex flex-col gap-3 rounded-2xl border"
           >
             <div className="flex items-center gap-3">
               <div className="flex-1">
@@ -423,8 +423,8 @@ function PagePreview({
           )}
         </div>
         {/* header esmeralda */}
-        <div className="text-on-emerald px-[18px] py-5 [background:radial-gradient(420px_220px_at_20%_-10%,rgba(47,211,122,.14),transparent_60%),var(--emerald)]">
-          <div className="text-green-bright mb-2.5 flex size-[46px] items-center justify-center overflow-hidden rounded-xl bg-[rgba(47,211,122,.16)] font-serif text-base">
+        <div className="text-on-emerald px-4.5 py-5 [background:radial-gradient(420px_220px_at_20%_-10%,rgba(47,211,122,.14),transparent_60%),var(--emerald)]">
+          <div className="text-green-bright size-11.5 bg-green-bright/16 mb-2.5 flex items-center justify-center overflow-hidden rounded-xl font-serif text-base">
             {logoUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={logoUrl} alt="" className="size-full object-cover" />

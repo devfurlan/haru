@@ -15,13 +15,13 @@ export function MarketingNav() {
   return (
     <header
       id="topo"
-      className="border-b-line sticky top-0 z-[60] border-b bg-[rgba(250,245,234,.85)] backdrop-blur-[14px]"
+      className="border-b-line bg-cream/85 sticky top-0 z-[60] border-b backdrop-blur-[14px]"
     >
-      <div className="mx-auto flex max-w-[1200px] flex-wrap items-center gap-x-[28px] gap-y-[16px] px-[clamp(16px,4vw,40px)] py-[15px]">
+      <div className="mx-auto flex max-w-[1200px] flex-wrap items-center gap-x-7 gap-y-4 px-[clamp(16px,4vw,40px)] py-4">
         <Link href="/" aria-label="Demandaê" className="flex flex-none items-center">
           <Logo />
         </Link>
-        <nav className="ml-[10px] flex flex-wrap items-center gap-[26px]">
+        <nav className="gap-6.5 ml-2.5 flex flex-wrap items-center">
           {links.map((l) => (
             <Link
               key={l.href}
@@ -35,7 +35,7 @@ export function MarketingNav() {
             </Link>
           ))}
         </nav>
-        <div className="ml-auto flex items-center gap-[20px]">
+        <div className="ml-auto flex items-center gap-5">
           <Link
             href="/login"
             className="hv-coral text-ink-70! font-sans text-[14px] font-semibold leading-[normal]"

@@ -108,7 +108,7 @@ export function LapsedClientsCard({
               key={r.id}
               className="border-edge flex items-center gap-3 border-t border-dotted px-5 py-2.5"
             >
-              <div className="flex size-[38px] flex-none items-center justify-center rounded-xl bg-[#fdf0d5] text-xs font-bold text-[#8a6116]">
+              <div className="size-9.5 flex flex-none items-center justify-center rounded-xl bg-[#fdf0d5] text-xs font-bold text-[#8a6116]">
                 {initials(r)}
               </div>
               <div className="min-w-0 flex-1">
@@ -118,7 +118,7 @@ export function LapsedClientsCard({
                   {cadenceLabel(r.cadenceDays)}
                 </div>
               </div>
-              <div className="w-[92px] flex-none text-right">
+              <div className="w-23 flex-none text-right">
                 <div className="text-coral-deep text-[12.5px] font-semibold">
                   há {r.goneDays} dias
                 </div>
@@ -126,7 +126,7 @@ export function LapsedClientsCard({
                   última {dateFmt.format(r.lastVisit)}
                 </div>
               </div>
-              <div className="hidden w-[84px] flex-none text-right sm:block">
+              <div className="w-21 hidden flex-none text-right sm:block">
                 <div className="text-green-emph font-serif text-[15px] leading-none">
                   {money(r.monthlyCents)}
                 </div>

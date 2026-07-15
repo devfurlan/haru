@@ -31,7 +31,7 @@ const Dash = () => (
   </svg>
 );
 
-const cellBox = 'flex justify-center items-center py-[14px] px-[8px] border-t border-line';
+const cellBox = 'flex justify-center items-center py-3.5 px-2 border-t border-line';
 
 function CellView({ v }: { v: Cell }) {
   if (v === 'c')
@@ -88,9 +88,9 @@ export function CompareTable({
 
   return (
     <section className="mx-auto w-full max-w-[1080px] px-[clamp(20px,5vw,40px)] pt-[clamp(56px,7vw,80px)]">
-      <div className="mb-[28px] text-center">
-        <div className="mb-[14px] inline-flex items-center gap-[9px]">
-          <span className="bg-coral h-[2px] w-[20px] rounded-[2px]" />
+      <div className="mb-7 text-center">
+        <div className="mb-3.5 inline-flex items-center gap-2">
+          <span className="bg-coral h-0.5 w-5 rounded-[2px]" />
           <span className="font-sans text-[11px] font-bold uppercase leading-[normal] tracking-[.16em] text-[#0C7E41]">
             Detalhes
           </span>
@@ -103,33 +103,33 @@ export function CompareTable({
       <div className="bg-paper border-line overflow-x-auto rounded-[24px] border shadow-[var(--shadow-card)]">
         <div className="grid min-w-[680px] grid-cols-[1.9fr_1fr_1fr_1fr_1fr]">
           {/* header */}
-          <div className="flex items-end px-[24px] pb-[18px] pt-[22px]">
+          <div className="pb-4.5 pt-5.5 flex items-end px-6">
             <span className="text-ink-50 font-sans text-[11px] font-bold uppercase leading-[normal] tracking-[.12em]">
               Recurso
             </span>
           </div>
-          <div className="text-green-deep px-[8px] py-[22px] text-center font-serif text-[17px] font-medium leading-[normal]">
+          <div className="text-green-deep py-5.5 px-2 text-center font-serif text-[17px] font-medium leading-[normal]">
             Solo
           </div>
-          <div className="relative bg-[rgba(47,211,122,.08)] px-[8px] pb-[22px] pt-[16px] text-center">
-            <div className="text-coral mb-[3px] font-sans text-[8px] font-bold leading-[normal] tracking-[.1em]">
+          <div className="bg-green-bright/8 pb-5.5 relative px-2 pt-4 text-center">
+            <div className="text-coral mb-1 font-sans text-[8px] font-bold leading-[normal] tracking-[.1em]">
               POPULAR
             </div>
             <div className="text-green-deep font-serif text-[17px] font-medium leading-[normal]">
               Time
             </div>
           </div>
-          <div className="text-green-deep px-[8px] py-[22px] text-center font-serif text-[17px] font-medium leading-[normal]">
+          <div className="text-green-deep py-5.5 px-2 text-center font-serif text-[17px] font-medium leading-[normal]">
             Multi
           </div>
-          <div className="text-green-deep px-[8px] py-[22px] text-center font-serif text-[17px] font-medium leading-[normal]">
+          <div className="text-green-deep py-5.5 px-2 text-center font-serif text-[17px] font-medium leading-[normal]">
             Enterprise
           </div>
 
           {/* rows */}
           {rows.map((row) => (
             <div key={row.label} className="contents">
-              <div className="text-ink-70 border-line border-t px-[24px] py-[14px] font-sans text-[14px] font-medium leading-[normal]">
+              <div className="text-ink-70 border-line border-t px-6 py-3.5 font-sans text-[14px] font-medium leading-[normal]">
                 {row.label}
               </div>
               {row.cells.map((cell, i) => (

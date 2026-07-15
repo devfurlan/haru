@@ -102,7 +102,7 @@ export function DashboardShell({
   return (
     <div className="bg-cream flex h-screen overflow-hidden">
       {/* ══ SIDEBAR (desktop, lg+) ══ */}
-      <aside className="text-on-emerald hidden w-[242px] flex-none flex-col px-3.5 pb-4 pt-[22px] [background:radial-gradient(560px_320px_at_18%_-8%,rgba(47,211,122,.13),transparent_62%),radial-gradient(480px_380px_at_85%_112%,rgba(255,90,54,.10),transparent_60%),var(--emerald)] lg:flex">
+      <aside className="text-on-emerald pt-5.5 hidden w-[242px] flex-none flex-col px-3.5 pb-4 [background:radial-gradient(560px_320px_at_18%_-8%,rgba(47,211,122,.13),transparent_62%),radial-gradient(480px_380px_at_85%_112%,rgba(255,90,54,.10),transparent_60%),var(--emerald)] lg:flex">
         <Link
           href="/dashboard"
           aria-label="Demandaê"
@@ -112,11 +112,11 @@ export function DashboardShell({
         </Link>
 
         {/* estabelecimento */}
-        <div className="bg-green-card mb-4 flex items-center gap-3 rounded-2xl border border-[rgba(47,211,122,.18)] p-3">
+        <div className="bg-green-card border-green-bright/18 mb-4 flex items-center gap-3 rounded-2xl border p-3">
           <Avatar
             src={tenantLogoUrl}
             initials={tenantInitials}
-            className="text-green-bright flex size-10 flex-none items-center justify-center rounded-xl bg-[rgba(47,211,122,.16)] font-serif text-[15px]"
+            className="text-green-bright bg-green-bright/16 flex size-10 flex-none items-center justify-center rounded-xl font-serif text-[15px]"
           />
           <div className="min-w-0 flex-1">
             <div className="text-on-emerald truncate font-serif text-[14.5px] font-semibold leading-tight">
@@ -151,16 +151,16 @@ export function DashboardShell({
         </nav>
 
         {/* usuário */}
-        <div className="mt-3 flex items-center gap-2.5 border-t border-[rgba(250,245,234,.12)] pt-3">
+        <div className="border-cream/12 mt-3 flex items-center gap-2.5 border-t pt-3">
           <Link
             href="/account"
             title="Minha conta"
-            className="-m-1 flex min-w-0 flex-1 items-center gap-2.5 rounded-xl p-1 no-underline hover:bg-[rgba(250,245,234,.08)]"
+            className="hover:bg-cream/8 -m-1 flex min-w-0 flex-1 items-center gap-2.5 rounded-xl p-1 no-underline"
           >
             <Avatar
               src={userAvatarUrl}
               initials={userInitial}
-              className="bg-coral flex size-[34px] flex-none items-center justify-center rounded-full text-[13px] font-bold text-white"
+              className="bg-coral size-8.5 flex flex-none items-center justify-center rounded-full text-[13px] font-bold text-white"
             />
             <div className="min-w-0 flex-1">
               <div className="text-on-emerald truncate text-[13px] font-semibold">
@@ -175,7 +175,7 @@ export function DashboardShell({
             <button
               type="submit"
               title="Sair"
-              className="text-on-emerald-mut hover:text-on-emerald rounded-[10px] p-1.5 hover:bg-[rgba(250,245,234,.09)]"
+              className="text-on-emerald-mut hover:text-on-emerald hover:bg-cream/9 rounded-[10px] p-1.5"
             >
               <LogOut className="size-[17px]" />
             </button>
@@ -184,7 +184,7 @@ export function DashboardShell({
       </aside>
 
       {/* ══ RAIL (tablet, md..lg) ══ */}
-      <aside className="text-on-emerald hidden w-[72px] flex-none flex-col items-center gap-1 py-[18px] [background:radial-gradient(300px_260px_at_30%_-8%,rgba(47,211,122,.13),transparent_62%),var(--emerald)] md:flex lg:hidden">
+      <aside className="text-on-emerald w-18 py-4.5 hidden flex-none flex-col items-center gap-1 [background:radial-gradient(300px_260px_at_30%_-8%,rgba(47,211,122,.13),transparent_62%),var(--emerald)] md:flex lg:hidden">
         <Link
           href="/dashboard"
           aria-label="Início"
@@ -205,7 +205,7 @@ export function DashboardShell({
           <button
             type="submit"
             title="Sair"
-            className="text-on-emerald-mut hover:text-on-emerald flex size-11 items-center justify-center rounded-[13px] hover:bg-[rgba(250,245,234,.09)]"
+            className="text-on-emerald-mut hover:text-on-emerald hover:bg-cream/9 flex size-11 items-center justify-center rounded-[13px]"
           >
             <LogOut className="size-[19px]" />
           </button>
@@ -235,14 +235,14 @@ export function DashboardShell({
         <Link
           href="/account"
           aria-label="Minha conta"
-          className="bg-coral flex size-[30px] items-center justify-center rounded-full text-xs font-bold text-white no-underline"
+          className="bg-coral size-7.5 flex items-center justify-center rounded-full text-xs font-bold text-white no-underline"
         >
           {userInitial}
         </Link>
       </header>
 
       {/* ══ CONTEÚDO ══ */}
-      <main className="min-w-0 flex-1 overflow-y-auto pb-[76px] pt-14 md:pb-0 md:pt-0">
+      <main className="pb-19 min-w-0 flex-1 overflow-y-auto pt-14 md:pb-0 md:pt-0">
         {banners}
         {/* p-6 mantém parity com o layout antigo; páginas redesenhadas vivem dentro
             deste padding (trazem só max-width + ritmo vertical). */}
@@ -263,7 +263,7 @@ export function DashboardShell({
           type="button"
           onClick={() => setMoreOpen(true)}
           className={cn(
-            'flex flex-1 flex-col items-center gap-[3px] py-[5px]',
+            'flex flex-1 flex-col items-center gap-1 py-1',
             moreItems.some((i) => isActive(i.href)) ? 'text-green-deep' : 'text-ink-30',
           )}
         >
@@ -279,9 +279,9 @@ export function DashboardShell({
             type="button"
             aria-label="Fechar"
             onClick={() => setMoreOpen(false)}
-            className="absolute inset-0 bg-[rgba(10,51,36,.45)]"
+            className="bg-green-deep/45 absolute inset-0"
           />
-          <div className="bg-paper absolute inset-x-0 bottom-0 rounded-t-[28px] px-[18px] pb-[calc(18px+env(safe-area-inset-bottom))] pt-2.5 shadow-[0_-14px_40px_rgba(10,51,36,.3)]">
+          <div className="bg-paper px-4.5 absolute inset-x-0 bottom-0 rounded-t-[28px] pb-[calc(18px+env(safe-area-inset-bottom))] pt-2.5 shadow-[0_-14px_40px_rgba(10,51,36,.3)]">
             <div className="bg-edge mx-auto mb-3 mt-1.5 h-1 w-10 rounded-full" />
             <div className="text-ink px-1 pb-2 font-serif text-[17px]">Seu negócio</div>
             {moreItems.map((item) => (
@@ -329,12 +329,10 @@ function SidebarLink({
       href={item.href}
       className={cn(
         'flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-semibold no-underline transition-colors',
-        active
-          ? 'text-on-emerald bg-[rgba(47,211,122,.15)]'
-          : 'text-on-emerald-mut hover:bg-[rgba(250,245,234,.09)]',
+        active ? 'text-on-emerald bg-green-bright/15' : 'text-on-emerald-mut hover:bg-cream/9',
       )}
     >
-      <Icon className="size-[18px] flex-none" strokeWidth={2.1} />
+      <Icon className="size-4.5 flex-none" strokeWidth={2.1} />
       {item.label}
       {item.badge === 'handoff' && <Badge count={handoffCount} />}
     </Link>
@@ -357,9 +355,7 @@ function RailLink({
       title={item.label}
       className={cn(
         'relative flex size-11 items-center justify-center rounded-[13px] no-underline transition-colors',
-        active
-          ? 'text-on-emerald bg-[rgba(47,211,122,.15)]'
-          : 'text-on-emerald-mut hover:bg-[rgba(250,245,234,.09)]',
+        active ? 'text-on-emerald bg-green-bright/15' : 'text-on-emerald-mut hover:bg-cream/9',
       )}
     >
       <Icon className="size-5" strokeWidth={2.1} />
@@ -384,7 +380,7 @@ function BottomLink({
     <Link
       href={item.href}
       className={cn(
-        'relative flex flex-1 flex-col items-center gap-[3px] py-[5px] no-underline',
+        'relative flex flex-1 flex-col items-center gap-1 py-1 no-underline',
         active ? 'text-green-deep' : 'text-ink-30',
       )}
     >

@@ -68,18 +68,18 @@ const CARDS = [
 
 export function WhatsIncluded() {
   return (
-    <section id="recursos" className="bg-green-deep relative mt-[60px] overflow-hidden py-[88px]">
+    <section id="recursos" className="bg-green-deep mt-15 py-22 relative overflow-hidden">
       <div className="pointer-events-none absolute left-[12%] top-[-80px] h-[360px] w-[360px] bg-[radial-gradient(circle,rgba(47,211,122,.16),transparent_70%)]" />
       <div className="pointer-events-none absolute bottom-[-100px] right-[8%] h-[420px] w-[420px] bg-[radial-gradient(circle,rgba(255,90,54,.1),transparent_70%)]" />
       <div className="relative mx-auto max-w-[1120px] px-[clamp(20px,5vw,40px)]">
-        <div className="mb-[52px] text-center">
-          <div className="mb-[14px] inline-flex items-center gap-[9px]">
-            <span className="bg-coral h-[2px] w-[20px] rounded-[2px]" />
+        <div className="mb-13 text-center">
+          <div className="mb-3.5 inline-flex items-center gap-2">
+            <span className="bg-coral h-0.5 w-5 rounded-[2px]" />
             <span className="text-green-bright font-sans text-[11px] font-bold uppercase leading-[normal] tracking-[.16em]">
               O que vem junto
             </span>
           </div>
-          <h2 className="text-on-emerald mx-auto mb-[14px] max-w-[720px] font-serif text-[clamp(28px,5vw,42px)] font-normal leading-[1.1] tracking-[-.02em]">
+          <h2 className="text-on-emerald mx-auto mb-3.5 max-w-[720px] font-serif text-[clamp(28px,5vw,42px)] font-normal leading-[1.1] tracking-[-.02em]">
             Não é só agenda. É a <span className="text-green-bright italic">operação inteira</span>.
           </h2>
           <p className="text-on-emerald-mut mx-auto max-w-[620px] font-sans text-[17px] font-normal leading-[1.55]">
@@ -87,13 +87,13 @@ export function WhatsIncluded() {
           </p>
         </div>
 
-        <div className="grid grid-cols-[repeat(auto-fit,minmax(250px,1fr))] gap-[20px]">
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(250px,1fr))] gap-5">
           {CARDS.map((c) => (
             <div
               key={c.title}
-              className="bg-green-card rounded-[22px] border border-[rgba(143,191,164,.16)] px-[28px] py-[30px]"
+              className="bg-green-card border-on-emerald-mut/16 py-7.5 rounded-[22px] border px-7"
             >
-              <span className="mb-[18px] flex h-[50px] w-[50px] items-center justify-center rounded-[var(--radius-icontile)] bg-[rgba(47,211,122,.14)]">
+              <span className="mb-4.5 h-12.5 w-12.5 flex items-center justify-center rounded-[var(--radius-icontile)] bg-[rgba(47,211,122,.14)]">
                 <svg
                   width="26"
                   height="26"
@@ -107,7 +107,7 @@ export function WhatsIncluded() {
                   {c.icon}
                 </svg>
               </span>
-              <div className="text-on-emerald mb-[9px] font-serif text-[20px] font-medium leading-[1.2]">
+              <div className="text-on-emerald mb-2 font-serif text-[20px] font-medium leading-[1.2]">
                 {c.title}
               </div>
               <div className="text-on-emerald-mut font-sans text-[14.5px] font-normal leading-[1.6]">

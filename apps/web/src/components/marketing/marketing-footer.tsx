@@ -36,8 +36,8 @@ const columns = [
 export function MarketingFooter() {
   return (
     <footer className="bg-[#04120c]">
-      <div className="mx-auto max-w-[1200px] px-[clamp(20px,5vw,40px)] pb-[40px] pt-[clamp(48px,6vw,64px)]">
-        <div className="flex flex-wrap justify-between gap-[48px] border-b border-b-[color:rgba(143,191,164,.15)] pb-[48px]">
+      <div className="mx-auto max-w-[1200px] px-[clamp(20px,5vw,40px)] pb-10 pt-[clamp(48px,6vw,64px)]">
+        <div className="border-b-on-emerald-mut/15 flex flex-wrap justify-between gap-12 border-b pb-12">
           <div className="max-w-[280px]">
             {/* color="coral" = bolinha E "ê" em coral (o prop controla os dois). Não usar
                 "cream" aqui: o wordmark já é creme, então o acento da marca sumiria. */}
@@ -47,10 +47,10 @@ export function MarketingFooter() {
               serviço.
             </p>
           </div>
-          <div className="flex flex-wrap gap-x-[64px] gap-y-[32px]">
+          <div className="flex flex-wrap gap-x-16 gap-y-8">
             {columns.map((col) => (
-              <div key={col.title} className="flex flex-col gap-[10px]">
-                <div className="text-on-emerald-faint mb-[4px] font-sans text-[11px] font-bold uppercase leading-[normal] tracking-[.14em]">
+              <div key={col.title} className="flex flex-col gap-2.5">
+                <div className="text-on-emerald-faint mb-1 font-sans text-[11px] font-bold uppercase leading-[normal] tracking-[.14em]">
                   {col.title}
                 </div>
                 {col.links.map((l) => (
@@ -70,7 +70,7 @@ export function MarketingFooter() {
             ))}
           </div>
         </div>
-        <div className="text-on-emerald-faint flex flex-wrap justify-between gap-x-[24px] gap-y-[8px] pt-[24px] font-sans text-[12.5px] font-normal leading-[normal]">
+        <div className="text-on-emerald-faint flex flex-wrap justify-between gap-x-6 gap-y-2 pt-6 font-sans text-[12.5px] font-normal leading-[normal]">
           <span>© {new Date().getFullYear()} Demandaê · Sua agenda, sem enrolação.</span>
           <span>Feito no Brasil · Dados protegidos pela LGPD · Infraestrutura em nuvem</span>
         </div>
