@@ -35,7 +35,7 @@ export function Faq() {
   return (
     <section
       id="faq"
-      className="mx-auto max-w-[820px] pb-[clamp(20px,3vw,28px)] pl-[clamp(20px,5vw,40px)] pr-[clamp(20px,5vw,40px)] pt-[clamp(56px,7vw,88px)]"
+      className="mx-auto max-w-[820px] px-[clamp(20px,5vw,40px)] py-[clamp(56px,7vw,88px)]"
     >
       <div className="mb-[36px] text-center">
         <div className="mb-[14px] inline-flex items-center gap-[9px]">
