@@ -150,6 +150,7 @@ function UsageBar({ label, m }: { label: string; m: UsageView }) {
       <div className="bg-muted h-2 w-full overflow-hidden rounded-full">
         <div
           className={`h-full rounded-full transition-all ${barColor(m.pct)}`}
+          // ponytail: runtime, Tailwind nao gera
           style={{ width: `${width}%` }}
         />
       </div>
@@ -201,7 +202,9 @@ export function BillingDashboard(props: BillingDashboardProps) {
   // Cancelada mas ainda com acesso até o fim do período pago: a pill vira âmbar
   // "Cancelada · ativa até X" e a linha de cobrança avisa "sem novas cobranças".
   const canceledWithAccess =
-    status === 'CANCELED' && nextChargeISO != null && new Date(nextChargeISO).getTime() > Date.now();
+    status === 'CANCELED' &&
+    nextChargeISO != null &&
+    new Date(nextChargeISO).getTime() > Date.now();
   const isActive = status === 'ACTIVE';
   const statusPill = canceledWithAccess
     ? {
@@ -374,151 +377,155 @@ export function BillingDashboard(props: BillingDashboardProps) {
 
       {isActive && (
         <>
-      {/* 3a. Trocar de plano */}
-      <section className="bg-card space-y-4 rounded-2xl border p-6">
-        <div>
-          <h2 className="font-medium">Trocar de plano</h2>
-          <p className="text-muted-foreground text-sm">
-            Upgrade vale na hora. Downgrade respeita o período já pago e passa a valer no próximo
-            ciclo.
-          </p>
-        </div>
-
-        <div className="flex gap-2">
-          {(['MONTHLY', 'ANNUAL'] as Cycle[]).map((c) => (
-            <button
-              type="button"
-              key={c}
-              onClick={() => setCycle(c)}
-              className={`rounded-full border px-3 py-1.5 text-sm transition-colors ${
-                cycle === c ? 'bg-foreground text-background border-foreground' : 'bg-background'
-              }`}
-            >
-              {c === 'MONTHLY' ? 'Mensal' : 'Anual (2 meses grátis)'}
-            </button>
-          ))}
-        </div>
-
-        <div className="space-y-2">
-          {plans.map((p) => {
-            const price = cycle === 'ANNUAL' ? p.priceAnnualCents : p.priceMonthlyCents;
-            const isCurrentPlan = p.tier === currentTier;
-            return (
-              <label
-                key={p.tier}
-                className={`flex cursor-pointer items-center justify-between rounded-xl border p-3.5 transition-colors ${
-                  tier === p.tier
-                    ? 'border-foreground ring-foreground ring-1'
-                    : 'hover:border-foreground/40'
-                }`}
-              >
-                <span className="flex items-center gap-2.5">
-                  <input
-                    type="radio"
-                    name="planRadio"
-                    checked={tier === p.tier}
-                    onChange={() => setTier(p.tier)}
-                    className="accent-coral"
-                  />
-                  <span className="font-medium">{p.name}</span>
-                  {isCurrentPlan && <span className="text-muted-foreground text-xs">(atual)</span>}
-                </span>
-                <span className="text-sm tabular-nums">
-                  {formatBRL(price)}
-                  <span className="text-muted-foreground">
-                    /{cycle === 'ANNUAL' ? 'ano' : 'mês'}
-                  </span>
-                </span>
-              </label>
-            );
-          })}
-        </div>
-
-        {changeError && <p className="text-sm text-red-600">{changeError}</p>}
-
-        <Button
-          type="button"
-          onClick={() => setConfirmOpen(true)}
-          disabled={isSame}
-          variant={isDowngrade ? 'outline' : 'default'}
-        >
-          {isSame ? 'Plano atual' : isDowngrade ? 'Agendar downgrade' : 'Revisar troca'}
-        </Button>
-      </section>
-
-      {/* 3b. Addon Atendente IA */}
-      <section className="bg-card space-y-4 rounded-2xl border p-6">
-        <div className="flex items-center gap-2">
-          <Sparkles className="text-coral size-4" aria-hidden />
-          <h2 className="font-medium">Atendente IA no WhatsApp</h2>
-        </div>
-
-        {addonActive ? (
-          <div className="space-y-3 text-sm">
-            <p className="text-muted-foreground">
-              Ativo{addonName ? ` · ${addonName}` : ''}. O uso de conversas aparece no bloco de uso
-              acima.
-            </p>
-            {addonDeactivateScheduled ? (
-              <p className="rounded-lg bg-amber-50 p-3 text-amber-900">
-                Desativação agendada - o bot atende até o fim do ciclo pago
-                {nextCharge ? ` (${nextCharge})` : ''} e não é renovado.
+          {/* 3a. Trocar de plano */}
+          <section className="bg-card space-y-4 rounded-2xl border p-6">
+            <div>
+              <h2 className="font-medium">Trocar de plano</h2>
+              <p className="text-muted-foreground text-sm">
+                Upgrade vale na hora. Downgrade respeita o período já pago e passa a valer no
+                próximo ciclo.
               </p>
-            ) : (
-              <DeactivateAddonButton onDone={() => router.refresh()} />
-            )}
-          </div>
-        ) : addonPending === 'verification' ? (
-          <div className="space-y-3 text-sm">
-            <p className="flex items-start gap-2 rounded-lg bg-amber-50 p-3 text-amber-900">
-              <Clock className="mt-0.5 size-4 shrink-0" aria-hidden />
-              Setup pago! Estamos configurando sua conta oficial no WhatsApp. Assim que estiver no
-              ar, avisamos você - e só então a mensalidade começa.
-            </p>
-            <Button asChild variant="outline">
-              <Link href="/assinatura/atendente-ia">Ver status e conectar WhatsApp</Link>
-            </Button>
-          </div>
-        ) : addonPending === 'setup_payment' ? (
-          <div className="space-y-3 text-sm">
-            <p className="rounded-lg bg-amber-50 p-3 text-amber-900">
-              Falta pagar o setup para começarmos a configuração do seu número.
-            </p>
-            <Button asChild variant="coral">
-              <Link href="/assinatura/atendente-ia">Continuar ativação</Link>
-            </Button>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            <p className="text-muted-foreground text-sm">
-              Um atendente de IA que conversa, tira dúvidas e agenda pelo WhatsApp. Soma em cima do
-              seu plano, com teto próprio de conversas.
-            </p>
-            <div className="grid gap-3 sm:grid-cols-3">
-              {addonOffer.map((a) => (
-                <div key={a.name} className="rounded-xl border p-4">
-                  <p className="text-sm font-semibold">{a.name}</p>
-                  <p className="mt-1 font-serif text-lg font-semibold tabular-nums">
-                    +{formatBRL(a.priceMonthlyCents)}
-                    <span className="text-muted-foreground text-xs font-normal">/mês</span>
-                  </p>
-                  <p className="text-muted-foreground mt-1 flex items-center gap-1 text-xs">
-                    <Check
-                      className="text-green-bright size-3.5 shrink-0"
-                      strokeWidth={3}
-                      aria-hidden
-                    />
-                    {a.conversationsPerMonth
-                      ? `Até ${a.conversationsPerMonth.toLocaleString('pt-BR')} conversas/mês`
-                      : 'Conversas ilimitadas'}
-                  </p>
-                </div>
+            </div>
+
+            <div className="flex gap-2">
+              {(['MONTHLY', 'ANNUAL'] as Cycle[]).map((c) => (
+                <button
+                  type="button"
+                  key={c}
+                  onClick={() => setCycle(c)}
+                  className={`rounded-full border px-3 py-1.5 text-sm transition-colors ${
+                    cycle === c
+                      ? 'bg-foreground text-background border-foreground'
+                      : 'bg-background'
+                  }`}
+                >
+                  {c === 'MONTHLY' ? 'Mensal' : 'Anual (2 meses grátis)'}
+                </button>
               ))}
             </div>
-            <ActivateAddonCta setupFeeCents={addonOffer[0]?.setupFeeCents ?? null} />
-          </div>
-        )}
-      </section>
+
+            <div className="space-y-2">
+              {plans.map((p) => {
+                const price = cycle === 'ANNUAL' ? p.priceAnnualCents : p.priceMonthlyCents;
+                const isCurrentPlan = p.tier === currentTier;
+                return (
+                  <label
+                    key={p.tier}
+                    className={`flex cursor-pointer items-center justify-between rounded-xl border p-3.5 transition-colors ${
+                      tier === p.tier
+                        ? 'border-foreground ring-foreground ring-1'
+                        : 'hover:border-foreground/40'
+                    }`}
+                  >
+                    <span className="flex items-center gap-2.5">
+                      <input
+                        type="radio"
+                        name="planRadio"
+                        checked={tier === p.tier}
+                        onChange={() => setTier(p.tier)}
+                        className="accent-coral"
+                      />
+                      <span className="font-medium">{p.name}</span>
+                      {isCurrentPlan && (
+                        <span className="text-muted-foreground text-xs">(atual)</span>
+                      )}
+                    </span>
+                    <span className="text-sm tabular-nums">
+                      {formatBRL(price)}
+                      <span className="text-muted-foreground">
+                        /{cycle === 'ANNUAL' ? 'ano' : 'mês'}
+                      </span>
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+
+            {changeError && <p className="text-sm text-red-600">{changeError}</p>}
+
+            <Button
+              type="button"
+              onClick={() => setConfirmOpen(true)}
+              disabled={isSame}
+              variant={isDowngrade ? 'outline' : 'default'}
+            >
+              {isSame ? 'Plano atual' : isDowngrade ? 'Agendar downgrade' : 'Revisar troca'}
+            </Button>
+          </section>
+
+          {/* 3b. Addon Atendente IA */}
+          <section className="bg-card space-y-4 rounded-2xl border p-6">
+            <div className="flex items-center gap-2">
+              <Sparkles className="text-coral size-4" aria-hidden />
+              <h2 className="font-medium">Atendente IA no WhatsApp</h2>
+            </div>
+
+            {addonActive ? (
+              <div className="space-y-3 text-sm">
+                <p className="text-muted-foreground">
+                  Ativo{addonName ? ` · ${addonName}` : ''}. O uso de conversas aparece no bloco de
+                  uso acima.
+                </p>
+                {addonDeactivateScheduled ? (
+                  <p className="rounded-lg bg-amber-50 p-3 text-amber-900">
+                    Desativação agendada - o bot atende até o fim do ciclo pago
+                    {nextCharge ? ` (${nextCharge})` : ''} e não é renovado.
+                  </p>
+                ) : (
+                  <DeactivateAddonButton onDone={() => router.refresh()} />
+                )}
+              </div>
+            ) : addonPending === 'verification' ? (
+              <div className="space-y-3 text-sm">
+                <p className="flex items-start gap-2 rounded-lg bg-amber-50 p-3 text-amber-900">
+                  <Clock className="mt-0.5 size-4 shrink-0" aria-hidden />
+                  Setup pago! Estamos configurando sua conta oficial no WhatsApp. Assim que estiver
+                  no ar, avisamos você - e só então a mensalidade começa.
+                </p>
+                <Button asChild variant="outline">
+                  <Link href="/assinatura/atendente-ia">Ver status e conectar WhatsApp</Link>
+                </Button>
+              </div>
+            ) : addonPending === 'setup_payment' ? (
+              <div className="space-y-3 text-sm">
+                <p className="rounded-lg bg-amber-50 p-3 text-amber-900">
+                  Falta pagar o setup para começarmos a configuração do seu número.
+                </p>
+                <Button asChild variant="coral">
+                  <Link href="/assinatura/atendente-ia">Continuar ativação</Link>
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <p className="text-muted-foreground text-sm">
+                  Um atendente de IA que conversa, tira dúvidas e agenda pelo WhatsApp. Soma em cima
+                  do seu plano, com teto próprio de conversas.
+                </p>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  {addonOffer.map((a) => (
+                    <div key={a.name} className="rounded-xl border p-4">
+                      <p className="text-sm font-semibold">{a.name}</p>
+                      <p className="mt-1 font-serif text-lg font-semibold tabular-nums">
+                        +{formatBRL(a.priceMonthlyCents)}
+                        <span className="text-muted-foreground text-xs font-normal">/mês</span>
+                      </p>
+                      <p className="text-muted-foreground mt-1 flex items-center gap-1 text-xs">
+                        <Check
+                          className="text-green-bright size-3.5 shrink-0"
+                          strokeWidth={3}
+                          aria-hidden
+                        />
+                        {a.conversationsPerMonth
+                          ? `Até ${a.conversationsPerMonth.toLocaleString('pt-BR')} conversas/mês`
+                          : 'Conversas ilimitadas'}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+                <ActivateAddonCta setupFeeCents={addonOffer[0]?.setupFeeCents ?? null} />
+              </div>
+            )}
+          </section>
         </>
       )}
 
@@ -547,7 +554,7 @@ export function BillingDashboard(props: BillingDashboardProps) {
             <button
               type="button"
               onClick={() => setPayOpen(true)}
-              className="text-green-deep hover:bg-chip shrink-0 rounded-lg px-2.5 py-2 text-xs font-semibold whitespace-nowrap"
+              className="text-green-deep hover:bg-chip shrink-0 whitespace-nowrap rounded-lg px-2.5 py-2 text-xs font-semibold"
             >
               Trocar
             </button>
@@ -806,7 +813,7 @@ function CancelDialog({
           <>
             <DialogHeader>
               <DialogTitle className="font-serif text-[22px] font-medium tracking-tight">
-                Já vai <em className="italic text-green-deep">embora</em>?
+                Já vai <em className="text-green-deep italic">embora</em>?
               </DialogTitle>
               <DialogDescription>
                 Antes de cancelar, conta pra gente o que pesou - de verdade, isso ajuda.
@@ -822,7 +829,9 @@ function CancelDialog({
                     type="button"
                     onClick={() => setReason(r)}
                     className={`flex items-center gap-2.5 rounded-xl border p-3 text-left text-[13px] font-semibold transition-colors ${
-                      on ? 'border-green-bright bg-chip' : 'border-border hover:border-green-bright/50'
+                      on
+                        ? 'border-green-bright bg-chip'
+                        : 'border-border hover:border-green-bright/50'
                     }`}
                   >
                     <span
@@ -841,8 +850,9 @@ function CancelDialog({
             <div className="rounded-xl border border-amber-200 bg-amber-50 p-3.5 text-[12.5px] leading-relaxed text-amber-900">
               {withinGuarantee ? (
                 <>
-                  Você está nos <strong>30 dias de garantia</strong>: ao cancelar, fazemos o reembolso
-                  integral automático e o acesso encerra agora. Seus dados ficam guardados por 90 dias.
+                  Você está nos <strong>30 dias de garantia</strong>: ao cancelar, fazemos o
+                  reembolso integral automático e o acesso encerra agora. Seus dados ficam guardados
+                  por 90 dias.
                 </>
               ) : (
                 <>
@@ -870,10 +880,8 @@ function CancelDialog({
                     }
                   });
                 }}
-                className={`rounded-full px-3.5 py-2.5 text-xs font-semibold whitespace-nowrap transition-colors ${
-                  reason
-                    ? 'text-coral-deep hover:bg-coral-tint'
-                    : 'text-ink-30 cursor-not-allowed'
+                className={`whitespace-nowrap rounded-full px-3.5 py-2.5 text-xs font-semibold transition-colors ${
+                  reason ? 'text-coral-deep hover:bg-coral-tint' : 'text-ink-30 cursor-not-allowed'
                 }`}
               >
                 {!reason
@@ -892,11 +900,11 @@ function CancelDialog({
           </>
         ) : (
           <div className="px-1 py-2 text-center">
-            <div className="border-border mx-auto mb-4 flex size-16 items-center justify-center rounded-full border bg-[#f6f1e4] text-ink-50">
+            <div className="border-border text-ink-50 mx-auto mb-4 flex size-16 items-center justify-center rounded-full border bg-[#f6f1e4]">
               <BellOff className="size-6" aria-hidden />
             </div>
             <DialogTitle className="font-serif text-2xl font-medium tracking-tight">
-              Assinatura <em className="italic text-ink-50">cancelada</em>
+              Assinatura <em className="text-ink-50 italic">cancelada</em>
             </DialogTitle>
             <p className="text-ink-70 mx-auto mt-2.5 max-w-sm text-[13px] leading-relaxed">
               {withinGuarantee
@@ -1013,7 +1021,7 @@ function PaymentMethodDialog({
       <DialogContent dismissable={false}>
         <DialogHeader>
           <DialogTitle className="font-serif text-[22px] font-medium tracking-tight">
-            Forma de <em className="italic text-green-deep">pagamento</em>
+            Forma de <em className="text-green-deep italic">pagamento</em>
           </DialogTitle>
           <DialogDescription>
             Vale a partir da próxima cobrança{nextCharge ? `, ${nextCharge}` : ''}.
@@ -1040,7 +1048,7 @@ function PaymentMethodDialog({
                     /* clipboard indisponível - o usuário copia manualmente */
                   }
                 }}
-                className="border-border text-ink-70 hover:bg-cream-2 shrink-0 rounded-xl border px-3.5 py-3 text-xs font-semibold whitespace-nowrap"
+                className="border-border text-ink-70 hover:bg-cream-2 shrink-0 whitespace-nowrap rounded-xl border px-3.5 py-3 text-xs font-semibold"
               >
                 {copied ? 'Copiado!' : 'Copiar código'}
               </button>
@@ -1057,8 +1065,8 @@ function PaymentMethodDialog({
               <Check className="text-green-deep size-6" strokeWidth={2.4} aria-hidden />
             </div>
             <p className="text-ink-70 max-w-sm text-sm leading-relaxed">
-              Pix ativado. O próximo Pix de <strong className="text-ink">{priceLabel}</strong> é gerado
-              na renovação{nextCharge ? `, ${nextCharge}` : ''}.
+              Pix ativado. O próximo Pix de <strong className="text-ink">{priceLabel}</strong> é
+              gerado na renovação{nextCharge ? `, ${nextCharge}` : ''}.
             </p>
             <Button type="button" variant="coral" onClick={close}>
               Fechar
@@ -1175,7 +1183,10 @@ function PaymentMethodDialog({
                 </div>
                 <p className="text-ink-50 text-[11.5px] leading-relaxed">
                   O cartão é processado com segurança pelo Asaas - guardamos só os últimos 4 dígitos
-                  {card.number.replace(/\D/g, '').length >= 4 ? ` (•••• ${extractLast4(card.number)})` : ''}.
+                  {card.number.replace(/\D/g, '').length >= 4
+                    ? ` (•••• ${extractLast4(card.number)})`
+                    : ''}
+                  .
                 </p>
               </div>
             ) : (
@@ -1185,9 +1196,10 @@ function PaymentMethodDialog({
                     <QrCode className="size-7" aria-hidden />
                   </div>
                   <p className="text-ink-70 min-w-0 flex-1 text-[12.5px] leading-relaxed">
-                    Ao ativar, a recorrência passa a ser por <strong className="text-ink">Pix</strong>:
-                    a cada renovação geramos um Pix de <strong className="text-ink">{priceLabel}</strong>{' '}
-                    pra você pagar. Sem cartão, sem boleto.
+                    Ao ativar, a recorrência passa a ser por{' '}
+                    <strong className="text-ink">Pix</strong>: a cada renovação geramos um Pix de{' '}
+                    <strong className="text-ink">{priceLabel}</strong> pra você pagar. Sem cartão,
+                    sem boleto.
                   </p>
                 </div>
                 <p className="text-ink-50 text-[11.5px] leading-relaxed">
@@ -1205,7 +1217,12 @@ function PaymentMethodDialog({
                 </Button>
               </DialogClose>
               {tab === 'card' ? (
-                <Button type="button" variant="coral" disabled={!cardOk || pending} onClick={submitCard}>
+                <Button
+                  type="button"
+                  variant="coral"
+                  disabled={!cardOk || pending}
+                  onClick={submitCard}
+                >
                   {pending ? 'Salvando…' : 'Salvar cartão'}
                 </Button>
               ) : (

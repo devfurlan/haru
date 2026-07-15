@@ -172,17 +172,13 @@ function ActiveProgram({
             </div>
           </div>
           <span
-            className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1.5 text-[10.5px] font-semibold"
-            style={
+            className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1.5 text-[10.5px] font-semibold ${
               paused
-                ? { background: 'rgba(255,90,54,.18)', color: '#ffb3a0' }
-                : { background: 'rgba(47,211,122,.16)', color: '#7fe0aa' }
-            }
+                ? 'bg-[rgba(255,90,54,.18)] text-[#ffb3a0]'
+                : 'bg-[rgba(47,211,122,.16)] text-[#7fe0aa]'
+            }`}
           >
-            <span
-              className="size-1.5 rounded-full"
-              style={{ background: paused ? '#ff8a6e' : '#2FD37A' }}
-            />
+            <span className={`size-1.5 rounded-full ${paused ? 'bg-[#ff8a6e]' : 'bg-[#2FD37A]'}`} />
             {paused ? 'Pausado' : 'Ativo'}
           </span>
         </div>
@@ -240,11 +236,9 @@ function ActiveProgram({
                     <div className="mt-1.5 flex items-center gap-2.5">
                       <div className="bg-cream-2 h-1.5 max-w-[180px] flex-1 overflow-hidden rounded-full">
                         <div
-                          className="h-full rounded-full transition-[width] duration-500"
-                          style={{
-                            width: `${pct}%`,
-                            background: c.won ? 'var(--coral)' : 'var(--brand-green-bright)',
-                          }}
+                          className={`h-full rounded-full transition-[width] duration-500 ${c.won ? 'bg-coral' : 'bg-green-bright'}`}
+                          // ponytail: runtime, Tailwind nao gera
+                          style={{ width: `${pct}%` }}
                         />
                       </div>
                       <span className="text-ink-50 whitespace-nowrap text-xs font-semibold">

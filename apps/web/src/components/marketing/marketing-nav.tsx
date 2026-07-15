@@ -15,59 +15,30 @@ export function MarketingNav() {
   return (
     <header
       id="topo"
-      style={{
-        position: 'sticky',
-        top: 0,
-        zIndex: 60,
-        background: 'rgba(250,245,234,.85)',
-        backdropFilter: 'blur(14px)',
-        WebkitBackdropFilter: 'blur(14px)',
-        borderBottom: '1px solid var(--border-soft)',
-      }}
+      className="border-b-line sticky top-0 z-[60] border-b bg-[rgba(250,245,234,.85)] backdrop-blur-[14px]"
     >
-      <div
-        style={{
-          maxWidth: 1200,
-          margin: '0 auto',
-          padding: '15px clamp(16px,4vw,40px)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '16px 28px',
-          flexWrap: 'wrap',
-        }}
-      >
-        <Link
-          href="/"
-          aria-label="Demandaê"
-          style={{ display: 'flex', alignItems: 'center', flex: 'none' }}
-        >
+      <div className="mx-auto flex max-w-[1200px] flex-wrap items-center gap-x-[28px] gap-y-[16px] px-[clamp(16px,4vw,40px)] py-[15px]">
+        <Link href="/" aria-label="Demandaê" className="flex flex-none items-center">
           <Logo />
         </Link>
-        <nav
-          style={{
-            display: 'flex',
-            gap: 26,
-            alignItems: 'center',
-            marginLeft: 10,
-            flexWrap: 'wrap',
-          }}
-        >
+        <nav className="ml-[10px] flex flex-wrap items-center gap-[26px]">
           {links.map((l) => (
             <Link
               key={l.href}
               href={l.href}
-              className="hv-emerald"
-              style={{ font: '600 14px var(--font-ui)', color: 'var(--ink-50)' }}
+              // `text-ink-50!`: `.dmd-home a { color: inherit }` mora fora de @layer no
+              // globals.css, e regra sem layer vence qualquer utilitário (que fica em
+              // @layer utilities). Sem o `!` o link herdaria --ink e mudaria de cor.
+              className="hv-emerald text-ink-50! font-sans text-[14px] font-semibold leading-[normal]"
             >
               {l.label}
             </Link>
           ))}
         </nav>
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 20 }}>
+        <div className="ml-auto flex items-center gap-[20px]">
           <Link
             href="/login"
-            className="hv-coral"
-            style={{ font: '600 14px var(--font-ui)', color: 'var(--ink-70)' }}
+            className="hv-coral text-ink-70! font-sans text-[14px] font-semibold leading-[normal]"
           >
             Entrar
           </Link>

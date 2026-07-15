@@ -3,8 +3,12 @@
 // Wizard de importação - fiel ao protótipo Claude Design "Importar Dados" (v2: planilha
 // CSV/Excel, self-service, sem toque humano). 5 passos: Planilha/upload -> Conferir campos
 // (abas por entidade) -> Revisar (duplicados + conflitos) -> Importando -> Pronto.
-// Ligado aos endpoints reais /api/import/{parse,analyze,commit}. Estilos inline portados
-// do design (famílias trocadas por var(--font-serif/sans), que é como o next/font expõe).
+// Ligado aos endpoints reais /api/import/{parse,analyze,commit}.
+// Tipografia pelas utilities font-sans/font-serif - não por `var(--font-serif)` num style
+// inline: os tokens vivem em `@theme inline` (globals.css) e essa variável NÃO chega ao
+// :root (medido no browser; só --font-sans chega, porque alimenta --default-font-family).
+// Num shorthand `font:` uma família que não resolve derruba a declaração INTEIRA - tamanho,
+// peso e leading junto.
 
 import Link from 'next/link';
 import { useMemo, useRef, useState } from 'react';
@@ -21,19 +25,12 @@ import {
   type Mapping,
   type Row,
 } from '@/lib/import/mapping';
+import { cn } from '@/lib/utils';
 
 // ─── tokens de estilo ────────────────────────────────────────────────────────────────
-const serif = (spec: string) => `${spec} var(--font-serif)`;
-const sans = (spec: string) => `${spec} var(--font-sans)`;
 const GREEN = '#1b7a4b';
 const CORAL = '#c2401f';
-const PANEL = '#fbf7ec';
-const card: React.CSSProperties = {
-  background: 'var(--paper)',
-  border: '1px solid var(--border-soft)',
-  borderRadius: 18,
-  boxShadow: '0 2px 10px rgba(10,51,36,.05)',
-};
+const card = 'rounded-[18px] border border-line bg-paper shadow-[0_2px_10px_rgba(10,51,36,.05)]';
 
 function Ic({
   size = 18,
@@ -58,7 +55,7 @@ function Ic({
       strokeWidth={sw}
       strokeLinecap="round"
       strokeLinejoin="round"
-      style={{ flex: 'none' }}
+      className="flex-none"
     >
       {children}
     </svg>
@@ -302,54 +299,21 @@ export function ImportWizard() {
   const idx = STEP_NAMES.findIndex(([s]) => s === step);
 
   return (
-    <div
-      style={{
-        maxWidth: 900,
-        boxSizing: 'border-box',
-        width: '100%',
-        margin: '0 auto',
-        padding: '30px 40px 80px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 24,
-      }}
-    >
+    <div className="mx-auto box-border flex w-full max-w-[900px] flex-col gap-[24px] px-[40px] pb-[80px] pt-[30px]">
       <style>{`@keyframes dm-pulse{0%{box-shadow:0 0 0 0 rgba(47,211,122,.5)}70%{box-shadow:0 0 0 8px rgba(47,211,122,0)}100%{box-shadow:0 0 0 0 rgba(47,211,122,0)}}@keyframes dm-spring{0%{transform:scale(0)}62%{transform:scale(1.14)}100%{transform:scale(1)}}`}</style>
       {/* top bar */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+      <div className="flex items-center gap-[12px]">
         <div
           onClick={reset}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 6,
-            font: sans('600 12.5px/1'),
-            color: 'var(--ink-50)',
-            cursor: 'pointer',
-            padding: '8px 10px',
-            margin: '-8px -10px',
-            borderRadius: 10,
-          }}
+          className="text-ink-50 mx-[-10px] my-[-8px] inline-flex cursor-pointer items-center gap-[6px] rounded-[10px] px-[10px] py-[8px] font-sans text-[12.5px] font-semibold leading-[1]"
         >
           <Ic size={15} sw={2.3}>
             <path d="M19 12H5M11 6l-6 6 6 6" />
           </Ic>
           Importar
         </div>
-        <div style={{ flex: 1 }} />
-        <div
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 7,
-            font: sans('600 11.5px/1'),
-            color: 'var(--ink-50)',
-            padding: '7px 12px',
-            borderRadius: 99,
-            background: 'var(--paper)',
-            border: '1px solid var(--border)',
-          }}
-        >
+        <div className="flex-1" />
+        <div className="border-border bg-paper text-ink-50 inline-flex items-center gap-[7px] rounded-[99px] border px-[12px] py-[7px] font-sans text-[11.5px] font-semibold leading-[1]">
           <Ic size={13}>
             <rect x={3} y={3} width={18} height={18} rx={3} />
             <path d="M3 9h18M9 3v18" />
@@ -362,19 +326,7 @@ export function ImportWizard() {
       <Stepper current={idx} />
 
       {error && (
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'flex-start',
-            gap: 9,
-            padding: '12px 15px',
-            borderRadius: 13,
-            border: `1px solid ${CORAL}55`,
-            background: 'var(--coral-tint)',
-            font: sans('500 13px/1.45'),
-            color: CORAL,
-          }}
-        >
+        <div className="bg-coral-tint flex items-start gap-[9px] rounded-[13px] border border-[#c2401f55] px-[15px] py-[12px] font-sans text-[13px] font-medium leading-[1.45] text-[#c2401f]">
           <Ic size={16} sw={2.2} stroke={CORAL}>
             <path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" />
           </Ic>
@@ -450,7 +402,7 @@ export function ImportWizard() {
 // ─── Stepper ─────────────────────────────────────────────────────────────────────────
 function Stepper({ current }: { current: number }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
+    <div className="flex items-center gap-0">
       {STEP_NAMES.map(([, label], i) => {
         const done = i < current;
         const cur = i === current;
@@ -458,31 +410,19 @@ function Stepper({ current }: { current: number }) {
         return (
           <div
             key={label}
-            style={{ display: 'flex', alignItems: 'center', flex: last ? 'none' : 1, minWidth: 0 }}
+            className={cn('flex min-w-0 items-center', last ? 'flex-none' : 'flex-1')}
           >
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: 6,
-                flex: 'none',
-              }}
-            >
+            <div className="flex flex-none flex-col items-center gap-[6px]">
               <div
-                style={{
-                  width: 30,
-                  height: 30,
-                  borderRadius: '50%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  boxSizing: 'border-box',
-                  background: done ? 'var(--emerald)' : cur ? 'var(--coral)' : 'var(--paper)',
-                  border: `2px solid ${done ? 'var(--emerald)' : cur ? 'var(--coral)' : 'var(--border)'}`,
-                  color: done || cur ? '#fff' : 'var(--ink-30)',
-                  font: sans('700 12px/1'),
-                }}
+                className={cn(
+                  'box-border flex h-[30px] w-[30px] items-center justify-center rounded-[50%] border-2 font-sans text-[12px] font-bold leading-[1]',
+                  done
+                    ? 'border-green-deep bg-green-deep'
+                    : cur
+                      ? 'border-coral bg-coral'
+                      : 'border-border bg-paper',
+                  done || cur ? 'text-white' : 'text-ink-30',
+                )}
               >
                 {done ? (
                   <Ic size={15} sw={3}>
@@ -493,26 +433,20 @@ function Stepper({ current }: { current: number }) {
                 )}
               </div>
               <div
-                style={{
-                  font: sans('600 10.5px/1.1'),
-                  color: cur ? 'var(--ink)' : 'var(--ink-50)',
-                  whiteSpace: 'nowrap',
-                }}
+                className={cn(
+                  'whitespace-nowrap font-sans text-[10.5px] font-semibold leading-[1.1]',
+                  cur ? 'text-ink' : 'text-ink-50',
+                )}
               >
                 {label}
               </div>
             </div>
             {!last && (
               <div
-                style={{
-                  flex: 1,
-                  height: 2,
-                  margin: '0 8px',
-                  borderRadius: 2,
-                  background: i < current ? 'var(--emerald)' : 'var(--border)',
-                  alignSelf: 'flex-start',
-                  marginTop: 14,
-                }}
+                className={cn(
+                  'mx-[8px] mt-[14px] h-[2px] flex-1 self-start rounded-[2px]',
+                  i < current ? 'bg-green-deep' : 'bg-border',
+                )}
               />
             )}
           </div>
@@ -549,26 +483,19 @@ function SourceStep({
   fileRef: React.RefObject<HTMLInputElement | null>;
 }) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+    <div className="flex flex-col gap-[18px]">
       <div>
         <Overline>Passo 1 · Sua planilha</Overline>
-        <h1 style={{ margin: '6px 0 0', font: serif('500 32px/1.05'), letterSpacing: '-.02em' }}>
-          Sobe sua <em style={{ fontStyle: 'italic', color: GREEN }}>planilha</em>
+        <h1 className="mt-[6px] font-serif text-[32px] font-medium leading-[1.05] tracking-[-.02em]">
+          Sobe sua <em className="italic text-[#1b7a4b]">planilha</em>
         </h1>
-        <div
-          style={{
-            font: sans('500 14px/1.55'),
-            color: 'var(--ink-70)',
-            marginTop: 8,
-            maxWidth: '60ch',
-          }}
-        >
+        <div className="text-ink-70 mt-[8px] max-w-[60ch] font-sans text-[14px] font-medium leading-[1.55]">
           CSV ou Excel, de qualquer sistema. A gente lê, adivinha as colunas e te mostra tudo antes
           de salvar - sem digitar cliente por cliente, em minutos.
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+      <div className="flex flex-wrap gap-[10px]">
         <Pill tone="green">
           <Ic size={15} sw={2.4}>
             <CheckPath />
@@ -590,30 +517,18 @@ function SourceStep({
         </Pill>
       </div>
 
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'flex-start',
-          gap: 11,
-          padding: '15px 17px',
-          border: '1px solid var(--border-soft)',
-          borderRadius: 16,
-          background: PANEL,
-        }}
-      >
-        <div style={{ ...tileBase, background: 'var(--green-tint)', color: GREEN }}>
+      <div className="border-line flex items-start gap-[11px] rounded-[16px] border bg-[#fbf7ec] px-[17px] py-[15px]">
+        <div className={cn(tileBase, 'bg-chip text-[#1b7a4b]')}>
           <Ic size={17}>
             <path d="M12 3 4 6v6c0 4 3.4 7.4 8 9 4.6-1.6 8-5 8-9V6l-8-3z" />
             <path d="M9 12l2 2 4-4" />
           </Ic>
         </div>
-        <div style={{ font: sans('500 13px/1.55'), color: 'var(--ink-70)' }}>
-          <strong style={{ fontWeight: 700, color: 'var(--ink)' }}>Manda do jeito que tá.</strong>{' '}
-          Colunas fora de ordem, com nomes diferentes, colunas a mais, linhas em branco - a gente
-          entende e você confirma no próximo passo. Só uma coluna de{' '}
-          <strong style={{ fontWeight: 700, color: 'var(--ink)' }}>nome</strong> e uma de{' '}
-          <strong style={{ fontWeight: 700, color: 'var(--ink)' }}>telefone</strong> já bastam pra
-          começar.
+        <div className="text-ink-70 font-sans text-[13px] font-medium leading-[1.55]">
+          <strong className={sb}>Manda do jeito que tá.</strong> Colunas fora de ordem, com nomes
+          diferentes, colunas a mais, linhas em branco - a gente entende e você confirma no próximo
+          passo. Só uma coluna de <strong className={sb}>nome</strong> e uma de{' '}
+          <strong className={sb}>telefone</strong> já bastam pra começar.
         </div>
       </div>
 
@@ -622,138 +537,76 @@ function SourceStep({
         type="file"
         accept=".csv,.xlsx,.xls"
         multiple
-        style={{ display: 'none' }}
+        className="hidden"
         onChange={(e) => onChange(e.target.files)}
       />
 
       {!uploaded ? (
         <div
           onClick={loading ? undefined : onPick}
-          style={{
-            border: '2px dashed var(--border)',
-            borderRadius: 20,
-            padding: '40px 24px',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: 12,
-            textAlign: 'center',
-            cursor: loading ? 'wait' : 'pointer',
-            background: PANEL,
-          }}
+          className={cn(
+            'border-border flex flex-col items-center gap-[12px] rounded-[20px] border-2 border-dashed bg-[#fbf7ec] px-[24px] py-[40px] text-center',
+            loading ? 'cursor-wait' : 'cursor-pointer',
+          )}
         >
-          <div
-            style={{
-              width: 56,
-              height: 56,
-              borderRadius: 16,
-              background: 'var(--paper)',
-              border: '1px solid var(--border-soft)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: GREEN,
-            }}
-          >
+          <div className="border-line bg-paper flex h-[56px] w-[56px] items-center justify-center rounded-[16px] border text-[#1b7a4b]">
             <Ic size={26} sw={2}>
               <path d="M12 16V4M7 9l5-5 5 5" />
               <path d="M20 16v2a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-2" />
             </Ic>
           </div>
-          <div style={{ font: sans('600 15px/1.3'), color: 'var(--ink)' }}>
+          <div className="text-ink font-sans text-[15px] font-semibold leading-[1.3]">
             {loading ? 'Lendo sua planilha…' : 'Arraste sua planilha aqui, ou clique pra escolher'}
           </div>
-          <div style={{ font: sans('500 12px/1.4'), color: 'var(--ink-50)', maxWidth: '44ch' }}>
+          <div className="text-ink-50 max-w-[44ch] font-sans text-[12px] font-medium leading-[1.4]">
             CSV, XLSX ou XLS · pode ser mais de um arquivo · seus dados só saem do navegador quando
             você confirmar.
           </div>
         </div>
       ) : (
         <>
-          <div style={{ ...card, padding: '18px 20px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 13 }}>
+          <div className={cn(card, 'px-[20px] py-[18px]')}>
+            <div className="flex items-center gap-[13px]">
               <div
-                style={{
-                  ...tileBase,
-                  width: 42,
-                  height: 42,
-                  borderRadius: 12,
-                  background: 'var(--green-tint)',
-                  color: GREEN,
-                }}
+                className={cn(tileBase, 'bg-chip h-[42px] w-[42px] rounded-[12px] text-[#1b7a4b]')}
               >
                 <Ic size={20} sw={2.2}>
                   <CheckPath />
                 </Ic>
               </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div
-                  style={{
-                    font: sans('600 14px/1.25'),
-                    color: 'var(--ink)',
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                  }}
-                >
+              <div className="min-w-0 flex-1">
+                <div className="text-ink overflow-hidden text-ellipsis whitespace-nowrap font-sans text-[14px] font-semibold leading-[1.25]">
                   {fileName}
                 </div>
-                <div style={{ font: sans('500 12px/1.35'), color: 'var(--ink-50)' }}>
+                <div className="text-ink-50 font-sans text-[12px] font-medium leading-[1.35]">
                   Planilha lida - nada foi salvo ainda
                 </div>
               </div>
               <div
                 onClick={onReplace}
-                style={{
-                  flex: 'none',
-                  font: sans('600 12px/1'),
-                  color: 'var(--ink-50)',
-                  cursor: 'pointer',
-                  padding: '8px 10px',
-                  borderRadius: 10,
-                }}
+                className="text-ink-50 flex-none cursor-pointer rounded-[10px] px-[10px] py-[8px] font-sans text-[12px] font-semibold leading-[1]"
               >
                 Trocar
               </div>
             </div>
-            <div style={{ borderTop: '1px dashed var(--border)', margin: '15px 0', height: 0 }} />
+            <div className="border-border my-[15px] h-0 border-t border-dashed" />
             <Overline mb={10}>Li o seguinte na sua planilha</Overline>
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))',
-                gap: 10,
-              }}
-            >
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-[10px]">
               {entities.map((i) => (
                 <div
                   key={i.entity}
-                  style={{
-                    background: PANEL,
-                    border: '1px solid var(--border-soft)',
-                    borderRadius: 14,
-                    padding: '12px 14px',
-                  }}
+                  className="border-line rounded-[14px] border bg-[#fbf7ec] px-[14px] py-[12px]"
                 >
-                  <div style={{ font: serif('500 24px/1') }}>{i.count.toLocaleString('pt-BR')}</div>
-                  <div
-                    style={{ font: sans('500 11.5px/1.3'), color: 'var(--ink-50)', marginTop: 3 }}
-                  >
+                  <div className="font-serif text-[24px] font-medium leading-[1]">
+                    {i.count.toLocaleString('pt-BR')}
+                  </div>
+                  <div className="text-ink-50 mt-[3px] font-sans text-[11.5px] font-medium leading-[1.3]">
                     {ENTITY_LABEL[i.entity].toLowerCase()}
                   </div>
                 </div>
               ))}
             </div>
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                marginTop: 14,
-                font: sans('500 12px/1.45'),
-                color: 'var(--ink-50)',
-              }}
-            >
+            <div className="text-ink-50 mt-[14px] flex items-center gap-[8px] font-sans text-[12px] font-medium leading-[1.45]">
               <Ic size={15}>
                 <circle cx={12} cy={12} r={9} />
                 <path d="M12 16v-4M12 8h.01" />
@@ -762,7 +615,7 @@ function SourceStep({
               ver.
             </div>
           </div>
-          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <div className="flex justify-end">
             <Button onClick={onNext} disabled={loading}>
               Conferir os campos
             </Button>
@@ -771,20 +624,10 @@ function SourceStep({
       )}
 
       {/* help (self-service, sem WhatsApp) */}
-      <div style={{ borderTop: '1px dashed var(--border)', paddingTop: 14 }}>
+      <div className="border-border border-t border-dashed pt-[14px]">
         <div
           onClick={onToggleHelp}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 8,
-            font: sans('600 12.5px/1'),
-            color: 'var(--ink-70)',
-            cursor: 'pointer',
-            padding: '6px 8px',
-            margin: '-6px -8px',
-            borderRadius: 10,
-          }}
+          className="text-ink-70 mx-[-8px] my-[-6px] inline-flex cursor-pointer items-center gap-[8px] rounded-[10px] px-[8px] py-[6px] font-sans text-[12.5px] font-semibold leading-[1]"
         >
           <Ic size={16}>
             <circle cx={12} cy={12} r={9} />
@@ -793,11 +636,10 @@ function SourceStep({
           </Ic>
           Vim de outro sistema - e agora?
           <span
-            style={{
-              transform: `rotate(${helpOpen ? 180 : 0}deg)`,
-              transition: 'transform .2s',
-              display: 'inline-flex',
-            }}
+            className={cn(
+              'inline-flex [transition:transform_.2s]',
+              helpOpen ? '[transform:rotate(180deg)]' : '[transform:rotate(0deg)]',
+            )}
           >
             <Ic size={15} sw={2.3}>
               <path d="M6 9l6 6 6-6" />
@@ -805,29 +647,31 @@ function SourceStep({
           </span>
         </div>
         {helpOpen && (
-          <div style={{ ...card, marginTop: 12, padding: '18px 20px' }}>
-            <div style={{ font: sans('500 13px/1.55'), color: 'var(--ink-70)', marginBottom: 12 }}>
+          <div className={cn(card, 'mt-[12px] px-[20px] py-[18px]')}>
+            <div className="text-ink-70 mb-[12px] font-sans text-[13px] font-medium leading-[1.55]">
               Qualquer planilha serve. Se o seu sistema atual não exporta bonito, dá pra montar do
               zero - é mais rápido do que parece.
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
+            <div className="flex flex-col gap-[11px]">
               {[
                 <>
-                  No sistema antigo, procure <strong style={sb}>Exportar</strong> ou{' '}
-                  <strong style={sb}>Relatórios</strong> e salve em CSV ou Excel.
+                  No sistema antigo, procure <strong className={sb}>Exportar</strong> ou{' '}
+                  <strong className={sb}>Relatórios</strong> e salve em CSV ou Excel.
                 </>,
                 <>
                   Não tem exportação? Copie os clientes do painel antigo pra uma planilha -{' '}
-                  <strong style={sb}>uma linha por pessoa</strong>.
+                  <strong className={sb}>uma linha por pessoa</strong>.
                 </>,
                 <>
-                  O que não pode faltar: uma coluna de <strong style={sb}>nome</strong> e uma de{' '}
-                  <strong style={sb}>telefone</strong>. Preço, serviço e datas são bônus.
+                  O que não pode faltar: uma coluna de <strong className={sb}>nome</strong> e uma de{' '}
+                  <strong className={sb}>telefone</strong>. Preço, serviço e datas são bônus.
                 </>,
               ].map((txt, n) => (
-                <div key={n} style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-                  <div style={{ ...stepNum }}>{n + 1}</div>
-                  <div style={{ font: sans('500 13px/1.5'), color: 'var(--ink-70)' }}>{txt}</div>
+                <div key={n} className="flex items-start gap-[12px]">
+                  <div className={stepNum}>{n + 1}</div>
+                  <div className="text-ink-70 font-sans text-[13px] font-medium leading-[1.5]">
+                    {txt}
+                  </div>
                 </div>
               ))}
             </div>
@@ -865,31 +709,19 @@ function MapStep({
   const blocked = entities.some((i) => criticalMissing(i.entity, mappings[i.entity]));
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <div className="flex flex-col gap-[16px]">
       <div>
         <Overline>Passo 2 · Conferir campos</Overline>
-        <h1 style={{ margin: '6px 0 0', font: serif('500 28px/1.08'), letterSpacing: '-.02em' }}>
-          Adivinhei as colunas <em style={{ fontStyle: 'italic', color: GREEN }}>pra você</em>
+        <h1 className="mt-[6px] font-serif text-[28px] font-medium leading-[1.08] tracking-[-.02em]">
+          Adivinhei as colunas <em className="italic text-[#1b7a4b]">pra você</em>
         </h1>
-        <div style={{ font: sans('500 13px/1.5'), color: 'var(--ink-50)', marginTop: 4 }}>
+        <div className="text-ink-50 mt-[4px] font-sans text-[13px] font-medium leading-[1.5]">
           Li o cabeçalho e associei cada coluna a um campo. Confere e corrige o que eu errei - cada
           coluna vira um campo, ou fica de fora.
         </div>
       </div>
 
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 9,
-          padding: '12px 15px',
-          border: '1px solid var(--border-soft)',
-          borderRadius: 13,
-          background: PANEL,
-          font: sans('500 12px/1.45'),
-          color: 'var(--ink-70)',
-        }}
-      >
+      <div className="border-line text-ink-70 flex items-center gap-[9px] rounded-[13px] border bg-[#fbf7ec] px-[15px] py-[12px] font-sans text-[12px] font-medium leading-[1.45]">
         <Ic size={16} sw={2.2} stroke={GREEN}>
           <CheckPath />
         </Ic>
@@ -897,7 +729,7 @@ function MapStep({
       </div>
 
       {/* tabs por entidade */}
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+      <div className="flex flex-wrap gap-[8px]">
         {entities.map((i) => {
           const on = i.entity === mapEntity;
           const warn = !!criticalMissing(i.entity, mappings[i.entity]);
@@ -905,63 +737,31 @@ function MapStep({
             <div
               key={i.entity}
               onClick={() => setMapEntity(i.entity)}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 8,
-                padding: '9px 14px',
-                borderRadius: 99,
-                cursor: 'pointer',
-                font: sans('600 12.5px/1'),
-                background: on ? 'var(--emerald)' : 'var(--paper)',
-                color: on ? 'var(--on-emerald)' : 'var(--ink-70)',
-                border: `1.5px solid ${on ? 'var(--emerald)' : 'var(--border)'}`,
-              }}
+              className={cn(
+                'inline-flex cursor-pointer items-center gap-[8px] rounded-[99px] border-[1.5px] px-[14px] py-[9px] font-sans text-[12.5px] font-semibold leading-[1]',
+                on
+                  ? 'border-green-deep bg-green-deep text-on-emerald'
+                  : 'border-border bg-paper text-ink-70',
+              )}
             >
               {ENTITY_LABEL[i.entity]}
-              <span style={{ font: sans('600 11px/1'), opacity: 0.7 }}>
+              <span className="font-sans text-[11px] font-semibold leading-[1] opacity-70">
                 {i.count.toLocaleString('pt-BR')}
               </span>
-              {warn && (
-                <span
-                  style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--coral)' }}
-                />
-              )}
+              {warn && <span className="bg-coral h-[7px] w-[7px] rounded-[50%]" />}
             </div>
           );
         })}
       </div>
 
       {/* tabela de-para */}
-      <div style={{ ...card, overflow: 'hidden' }}>
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: '1fr 24px 1fr',
-            padding: '11px 18px',
-            background: PANEL,
-            borderBottom: '1px solid var(--border-soft)',
-          }}
-        >
-          <div
-            style={{
-              font: sans('700 10px/1.2'),
-              letterSpacing: '.1em',
-              textTransform: 'uppercase',
-              color: 'var(--ink-50)',
-            }}
-          >
+      <div className={cn(card, 'overflow-hidden')}>
+        <div className="border-line grid grid-cols-[1fr_24px_1fr] border-b bg-[#fbf7ec] px-[18px] py-[11px]">
+          <div className="text-ink-50 font-sans text-[10px] font-bold uppercase leading-[1.2] tracking-[.1em]">
             Coluna na sua planilha
           </div>
           <div />
-          <div
-            style={{
-              font: sans('700 10px/1.2'),
-              letterSpacing: '.1em',
-              textTransform: 'uppercase',
-              color: 'var(--ink-50)',
-            }}
-          >
+          <div className="text-ink-50 font-sans text-[10px] font-bold uppercase leading-[1.2] tracking-[.1em]">
             Campo no Demandaê
           </div>
         </div>
@@ -976,68 +776,38 @@ function MapStep({
           return (
             <div
               key={h}
-              style={{
-                display: 'grid',
-                gridTemplateColumns: '1fr 24px 1fr',
-                alignItems: 'center',
-                padding: '11px 18px',
-                borderTop: '1px dotted var(--border)',
-              }}
+              className="border-border grid grid-cols-[1fr_24px_1fr] items-center border-t border-dotted px-[18px] py-[11px]"
             >
-              <div style={{ minWidth: 0 }}>
-                <div
-                  style={{
-                    font: sans('600 13.5px/1.25'),
-                    color: 'var(--ink)',
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                  }}
-                >
+              <div className="min-w-0">
+                <div className="text-ink overflow-hidden text-ellipsis whitespace-nowrap font-sans text-[13.5px] font-semibold leading-[1.25]">
                   {h}
                 </div>
                 {samples && (
-                  <div
-                    style={{
-                      font: sans('500 11.5px/1.3'),
-                      color: 'var(--ink-30)',
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                    }}
-                  >
+                  <div className="text-ink-30 overflow-hidden text-ellipsis whitespace-nowrap font-sans text-[11.5px] font-medium leading-[1.3]">
                     ex: {samples}
                   </div>
                 )}
               </div>
-              <div style={{ display: 'flex', justifyContent: 'center', color: 'var(--ink-30)' }}>
+              <div className="text-ink-30 flex justify-center">
                 <Ic size={16} sw={2.2}>
                   <path d="M5 12h14M13 6l6 6-6 6" />
                 </Ic>
               </div>
-              <div style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div className="flex min-w-0 items-center gap-[8px]">
                 {target ? (
                   <Ic size={15} sw={2.4} stroke={GREEN}>
                     <CheckPath />
                   </Ic>
                 ) : (
-                  <span style={{ width: 15, flex: 'none' }} />
+                  <span className="w-[15px] flex-none" />
                 )}
                 <select
                   value={target}
                   onChange={(e) => setColumnTarget(mapEntity, h, e.target.value || null)}
-                  style={{
-                    flex: 1,
-                    minWidth: 0,
-                    height: 38,
-                    borderRadius: 10,
-                    border: '1px solid var(--border)',
-                    background: target ? 'var(--paper)' : PANEL,
-                    padding: '0 10px',
-                    font: sans('600 13px/1'),
-                    color: target ? 'var(--ink)' : 'var(--ink-50)',
-                    outline: 'none',
-                  }}
+                  className={cn(
+                    'border-border h-[38px] min-w-0 flex-1 rounded-[10px] border px-[10px] font-sans text-[13px] font-semibold leading-[1] outline-none',
+                    target ? 'bg-paper text-ink' : 'text-ink-50 bg-[#fbf7ec]',
+                  )}
                 >
                   <option value="">Ignorar esta coluna</option>
                   {fields.map((f) => (
@@ -1052,14 +822,12 @@ function MapStep({
         })}
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+      <div className="flex flex-wrap items-center gap-[12px]">
         <div
-          style={{
-            flex: 1,
-            minWidth: 200,
-            font: sans('500 12px/1.45'),
-            color: blocked ? CORAL : 'var(--ink-50)',
-          }}
+          className={cn(
+            'min-w-[200px] flex-1 font-sans text-[12px] font-medium leading-[1.45]',
+            blocked ? 'text-[#c2401f]' : 'text-ink-50',
+          )}
         >
           {blocked
             ? 'Uma entidade ainda tem campo obrigatório sem destino (bolinha coral na aba).'
@@ -1067,13 +835,7 @@ function MapStep({
         </div>
         <div
           onClick={onBack}
-          style={{
-            font: sans('600 12.5px/1'),
-            color: 'var(--ink-70)',
-            padding: '12px 16px',
-            borderRadius: 99,
-            cursor: 'pointer',
-          }}
+          className="text-ink-70 cursor-pointer rounded-[99px] px-[16px] py-[12px] font-sans text-[12.5px] font-semibold leading-[1]"
         >
           Voltar
         </div>
@@ -1116,54 +878,40 @@ function DedupStep({
     return s + (c ? c.create + c.update : 0);
   }, 0);
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <div className="flex flex-col gap-[16px]">
       <div>
         <Overline>Passo 3 · Revisar</Overline>
-        <h1 style={{ margin: '6px 0 0', font: serif('500 28px/1.08'), letterSpacing: '-.02em' }}>
-          Conferi cada linha <em style={{ fontStyle: 'italic', color: GREEN }}>pra você</em>
+        <h1 className="mt-[6px] font-serif text-[28px] font-medium leading-[1.08] tracking-[-.02em]">
+          Conferi cada linha <em className="italic text-[#1b7a4b]">pra você</em>
         </h1>
       </div>
 
-      <div
-        style={{
-          background: 'var(--emerald)',
-          color: 'var(--on-emerald)',
-          borderRadius: 16,
-          padding: '16px 18px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 13,
-        }}
-      >
+      <div className="bg-green-deep text-on-emerald flex items-center gap-[13px] rounded-[16px] px-[18px] py-[16px]">
         <div
-          style={{
-            ...tileBase,
-            width: 38,
-            height: 38,
-            borderRadius: 11,
-            background: 'rgba(47,211,122,.18)',
-            color: 'var(--green)',
-          }}
+          className={cn(
+            tileBase,
+            'text-green-bright h-[38px] w-[38px] rounded-[11px] bg-[rgba(47,211,122,.18)]',
+          )}
         >
           <Ic size={20} sw={2.2}>
             <CheckPath />
           </Ic>
         </div>
-        <div style={{ font: sans('500 13.5px/1.5'), color: 'var(--on-emerald)' }}>
-          <strong style={{ fontWeight: 700 }}>{checked.toLocaleString('pt-BR')} registros</strong>{' '}
-          foram conferidos.{' '}
+        <div className="text-on-emerald font-sans text-[13.5px] font-medium leading-[1.5]">
+          <strong className="font-bold">{checked.toLocaleString('pt-BR')} registros</strong> foram
+          conferidos.{' '}
           {pairs.length > 0 || conflicts.length > 0 ? (
             <>
               Achei{' '}
               {pairs.length > 0 && (
-                <strong style={{ fontWeight: 700, color: 'var(--green)' }}>
+                <strong className="text-green-bright font-bold">
                   {pairs.length}{' '}
                   {pairs.length === 1 ? 'possível duplicado' : 'possíveis duplicados'}
                 </strong>
               )}
               {pairs.length > 0 && conflicts.length > 0 && ' e '}
               {conflicts.length > 0 && (
-                <strong style={{ fontWeight: 700, color: 'var(--green)' }}>
+                <strong className="text-green-bright font-bold">
                   {conflicts.length}{' '}
                   {conflicts.length === 1 ? 'conflito de horário' : 'conflitos de horário'}
                 </strong>
@@ -1182,17 +930,15 @@ function DedupStep({
           {pairs.map((d) => {
             const cur = dups[d.id] ?? 'merge';
             return (
-              <div key={d.id} style={{ ...card, padding: '18px 20px' }}>
-                <div
-                  style={{ font: sans('500 12px/1.4'), color: 'var(--ink-50)', marginBottom: 12 }}
-                >
+              <div key={d.id} className={cn(card, 'px-[20px] py-[18px]')}>
+                <div className="text-ink-50 mb-[12px] font-sans text-[12px] font-medium leading-[1.4]">
                   {d.reason}
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div className="grid grid-cols-[1fr_1fr] gap-[12px]">
                   <DupSide tag={d.leftTag} name={d.leftName} meta={d.leftMeta} />
                   <DupSide tag={d.rightTag} name={d.rightName} meta={d.rightMeta} />
                 </div>
-                <div style={{ display: 'flex', gap: 8, marginTop: 13, flexWrap: 'wrap' }}>
+                <div className="mt-[13px] flex flex-wrap gap-[8px]">
                   <ChoiceChip
                     on={cur === 'merge'}
                     onClick={() => setDup(d.id, 'merge')}
@@ -1218,31 +964,27 @@ function DedupStep({
             return (
               <div
                 key={c.id}
-                style={{
-                  ...card,
-                  border: '1px solid var(--coral)',
-                  padding: '18px 20px',
-                  boxShadow: '0 2px 10px rgba(255,90,54,.08)',
-                }}
+                className={cn(
+                  card,
+                  'border-coral border px-[20px] py-[18px] shadow-[0_2px_10px_rgba(255,90,54,.08)]',
+                )}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 11 }}>
+                <div className="mb-[11px] flex items-center gap-[9px]">
                   <div
-                    style={{
-                      ...tileBase,
-                      width: 30,
-                      height: 30,
-                      borderRadius: 9,
-                      background: 'var(--coral-tint)',
-                      color: CORAL,
-                    }}
+                    className={cn(
+                      tileBase,
+                      'bg-coral-tint h-[30px] w-[30px] rounded-[9px] text-[#c2401f]',
+                    )}
                   >
                     <Ic size={16} sw={2.3}>
                       <path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" />
                     </Ic>
                   </div>
-                  <div style={{ font: sans('600 14.5px/1.2'), color: 'var(--ink)' }}>{c.when}</div>
+                  <div className="text-ink font-sans text-[14.5px] font-semibold leading-[1.2]">
+                    {c.when}
+                  </div>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div className="grid grid-cols-[1fr_1fr] gap-[12px]">
                   <DupSide tag="Na planilha" name={c.incomingLabel} meta={c.incomingMeta} bold />
                   <DupSide
                     tag="Já na sua agenda"
@@ -1251,10 +993,10 @@ function DedupStep({
                     bold
                   />
                 </div>
-                <div style={{ font: sans('500 12px/1.45'), color: 'var(--ink-50)', marginTop: 11 }}>
+                <div className="text-ink-50 mt-[11px] font-sans text-[12px] font-medium leading-[1.45]">
                   A gente não marca dois no mesmo horário. Como resolve?
                 </div>
-                <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+                <div className="mt-[10px] flex flex-wrap gap-[8px]">
                   <ChoiceChip
                     on={cur === 'skip'}
                     onClick={() => setConflict(c.id, 'skip')}
@@ -1276,20 +1018,14 @@ function DedupStep({
         </>
       )}
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 6 }}>
+      <div className="mt-[6px] flex items-center gap-[12px]">
         <div
           onClick={onBack}
-          style={{
-            font: sans('600 12.5px/1'),
-            color: 'var(--ink-70)',
-            padding: '12px 16px',
-            borderRadius: 99,
-            cursor: 'pointer',
-          }}
+          className="text-ink-70 cursor-pointer rounded-[99px] px-[16px] py-[12px] font-sans text-[12.5px] font-semibold leading-[1]"
         >
           Voltar
         </div>
-        <div style={{ flex: 1 }} />
+        <div className="flex-1" />
         <Button onClick={onImport}>Importar {total.toLocaleString('pt-BR')} registros</Button>
       </div>
     </div>
@@ -1308,27 +1044,22 @@ function DupSide({
   bold?: boolean;
 }) {
   return (
-    <div
-      style={{
-        border: '1px solid var(--border-soft)',
-        borderRadius: 14,
-        padding: '13px 15px',
-        background: PANEL,
-      }}
-    >
-      <div
-        style={{
-          font: sans('700 9.5px/1'),
-          letterSpacing: '.1em',
-          textTransform: 'uppercase',
-          color: 'var(--ink-50)',
-          marginBottom: 7,
-        }}
-      >
+    <div className="border-line rounded-[14px] border bg-[#fbf7ec] px-[15px] py-[13px]">
+      <div className="text-ink-50 mb-[7px] font-sans text-[9.5px] font-bold uppercase leading-[1] tracking-[.1em]">
         {tag}
       </div>
-      <div style={{ font: bold ? sans('600 14px/1.2') : serif('600 15px/1.2') }}>{name}</div>
-      <div style={{ font: sans('500 12px/1.4'), color: 'var(--ink-50)', marginTop: 3 }}>{meta}</div>
+      <div
+        className={
+          bold
+            ? 'font-sans text-[14px] font-semibold leading-[1.2]'
+            : 'font-serif text-[15px] font-semibold leading-[1.2]'
+        }
+      >
+        {name}
+      </div>
+      <div className="text-ink-50 mt-[3px] font-sans text-[12px] font-medium leading-[1.4]">
+        {meta}
+      </div>
     </div>
   );
 }
@@ -1352,36 +1083,9 @@ function ImportingStep({
         ? `Trazendo ${ENTITY_LABEL[importing].toLowerCase()}…`
         : 'Lendo sua planilha com cuidado…';
   return (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 20,
-        alignItems: 'center',
-        textAlign: 'center',
-        paddingTop: 12,
-      }}
-    >
-      <div
-        style={{
-          width: 64,
-          height: 64,
-          borderRadius: 20,
-          background: 'var(--emerald)',
-          color: 'var(--green)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          boxShadow: '0 12px 30px rgba(10,51,36,.22)',
-        }}
-      >
-        <span
-          style={{
-            animation: 'dm-pulse 1.8s infinite',
-            borderRadius: '50%',
-            display: 'inline-flex',
-          }}
-        >
+    <div className="flex flex-col items-center gap-[20px] pt-[12px] text-center">
+      <div className="bg-green-deep text-green-bright flex h-[64px] w-[64px] items-center justify-center rounded-[20px] shadow-[0_12px_30px_rgba(10,51,36,.22)]">
+        <span className="inline-flex animate-[dm-pulse_1.8s_infinite] rounded-[50%]">
           <Ic size={30} sw={2}>
             <path d="M12 3v12M7 10l5 5 5-5" />
             <path d="M4 21h16" />
@@ -1389,28 +1093,14 @@ function ImportingStep({
         </span>
       </div>
       <div>
-        <div style={{ font: serif('500 26px/1.1'), letterSpacing: '-.02em' }}>{line}</div>
-        <div
-          style={{
-            font: serif('400 14px/1.4'),
-            fontStyle: 'italic',
-            color: 'var(--ink-50)',
-            marginTop: 6,
-          }}
-        >
+        <div className="font-serif text-[26px] font-medium leading-[1.1] tracking-[-.02em]">
+          {line}
+        </div>
+        <div className="text-ink-50 mt-[6px] font-serif text-[14px] font-normal italic leading-[1.4]">
           só um instante - guardando tudo com cuidado
         </div>
       </div>
-      <div
-        style={{
-          width: '100%',
-          maxWidth: 520,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 14,
-          marginTop: 4,
-        }}
-      >
+      <div className="mt-[4px] flex w-full max-w-[520px] flex-col gap-[14px]">
         {order.map((e) => {
           const info = entities.find((i) => i.entity === e)!;
           const done = barsDone[e];
@@ -1419,43 +1109,15 @@ function ImportingStep({
           return (
             <div
               key={e}
-              style={{
-                ...card,
-                padding: '14px 16px',
-                boxShadow: '0 2px 8px rgba(10,51,36,.04)',
-                textAlign: 'left',
-              }}
+              className={cn(
+                card,
+                'px-[16px] py-[14px] text-left shadow-[0_2px_8px_rgba(10,51,36,.04)]',
+              )}
             >
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  marginBottom: 9,
-                }}
-              >
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8,
-                    font: sans('600 13px/1.2'),
-                    color: 'var(--ink)',
-                  }}
-                >
+              <div className="mb-[9px] flex items-center justify-between">
+                <div className="text-ink flex items-center gap-[8px] font-sans text-[13px] font-semibold leading-[1.2]">
                   {done && (
-                    <span
-                      style={{
-                        width: 16,
-                        height: 16,
-                        borderRadius: '50%',
-                        background: 'var(--green-tint)',
-                        color: GREEN,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}
-                    >
+                    <span className="bg-chip flex h-[16px] w-[16px] items-center justify-center rounded-[50%] text-[#1b7a4b]">
                       <Ic size={10} sw={3.2}>
                         <CheckPath />
                       </Ic>
@@ -1463,7 +1125,7 @@ function ImportingStep({
                   )}
                   {ENTITY_LABEL[e]}
                 </div>
-                <div style={{ font: sans('600 12px/1'), color: 'var(--ink-50)' }}>
+                <div className="text-ink-50 font-sans text-[12px] font-semibold leading-[1]">
                   {done
                     ? `${info.count.toLocaleString('pt-BR')} / ${info.count.toLocaleString('pt-BR')}`
                     : active
@@ -1471,17 +1133,11 @@ function ImportingStep({
                       : `0 / ${info.count.toLocaleString('pt-BR')}`}
                 </div>
               </div>
-              <div
-                style={{ height: 8, borderRadius: 99, background: '#efe9d8', overflow: 'hidden' }}
-              >
+              <div className="h-[8px] overflow-hidden rounded-[99px] bg-[#efe9d8]">
                 <div
-                  style={{
-                    height: '100%',
-                    width: `${pct}%`,
-                    borderRadius: 99,
-                    background: `linear-gradient(90deg,${GREEN},var(--green))`,
-                    transition: 'width .3s ease',
-                  }}
+                  className="h-full rounded-[99px] bg-[linear-gradient(90deg,#1b7a4b,var(--green))] [transition:width_.3s_ease]"
+                  // ponytail: runtime, Tailwind nao gera
+                  style={{ width: `${pct}%` }}
                 />
               </div>
             </div>
@@ -1516,44 +1172,23 @@ function DoneStep({
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          textAlign: 'center',
-          gap: 12,
-          paddingTop: 6,
-        }}
-      >
-        <div
-          style={{
-            width: 72,
-            height: 72,
-            borderRadius: '50%',
-            background: 'var(--green)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: '0 12px 30px rgba(47,211,122,.35)',
-            animation: 'dm-spring .6s cubic-bezier(.34,1.56,.64,1)',
-          }}
-        >
+    <div className="flex flex-col gap-[18px]">
+      <div className="flex flex-col items-center gap-[12px] pt-[6px] text-center">
+        <div className="bg-green-bright flex h-[72px] w-[72px] animate-[dm-spring_.6s_cubic-bezier(.34,1.56,.64,1)] items-center justify-center rounded-[50%] shadow-[0_12px_30px_rgba(47,211,122,.35)]">
           <Ic size={36} sw={2.6} stroke="var(--emerald)">
             <CheckPath />
           </Ic>
         </div>
-        <h1 style={{ margin: '6px 0 0', font: serif('500 32px/1.06'), letterSpacing: '-.02em' }}>
-          Tá tudo <em style={{ fontStyle: 'italic', color: GREEN }}>aqui</em>
+        <h1 className="mt-[6px] font-serif text-[32px] font-medium leading-[1.06] tracking-[-.02em]">
+          Tá tudo <em className="italic text-[#1b7a4b]">aqui</em>
         </h1>
-        <div style={{ font: sans('500 14px/1.5'), color: 'var(--ink-70)', maxWidth: '50ch' }}>
+        <div className="text-ink-70 max-w-[50ch] font-sans text-[14px] font-medium leading-[1.5]">
           Conferi cada linha. {total.toLocaleString('pt-BR')} registros do seu sistema antigo agora
           são seus, aqui no Demandaê.
         </div>
       </div>
 
-      <div style={{ ...card, overflow: 'hidden' }}>
+      <div className={cn(card, 'overflow-hidden')}>
         {order.map((e) => {
           const c = counts[e] ?? { create: 0, update: 0, skip: 0, error: 0 };
           const errCount = errors[e]?.length ?? 0;
@@ -1566,49 +1201,33 @@ function DoneStep({
           return (
             <div
               key={e}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 13,
-                padding: '14px 18px',
-                borderTop: '1px dotted var(--border)',
-              }}
+              className="border-border flex items-center gap-[13px] border-t border-dotted px-[18px] py-[14px]"
             >
               <div
-                style={{
-                  ...tileBase,
-                  width: 34,
-                  height: 34,
-                  borderRadius: 10,
-                  background: ok ? 'var(--green-tint)' : 'var(--coral-tint)',
-                  color: ok ? GREEN : CORAL,
-                }}
+                className={cn(
+                  tileBase,
+                  'h-[34px] w-[34px] rounded-[10px]',
+                  ok ? 'bg-chip text-[#1b7a4b]' : 'bg-coral-tint text-[#c2401f]',
+                )}
               >
                 {entityIcon[e]}
               </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ font: sans('600 14px/1.25'), color: 'var(--ink)' }}>
+              <div className="min-w-0 flex-1">
+                <div className="text-ink font-sans text-[14px] font-semibold leading-[1.25]">
                   {ENTITY_LABEL[e]}
                 </div>
-                <div style={{ font: sans('500 12.5px/1.4'), color: ok ? 'var(--ink-50)' : CORAL }}>
+                <div
+                  className={cn(
+                    'font-sans text-[12.5px] font-medium leading-[1.4]',
+                    ok ? 'text-ink-50' : 'text-[#c2401f]',
+                  )}
+                >
                   {parts.join(' · ')}
                   {errCount > 0 && ` · ${errCount} de fora`}
                 </div>
               </div>
               {ok ? (
-                <span
-                  style={{
-                    flex: 'none',
-                    width: 22,
-                    height: 22,
-                    borderRadius: '50%',
-                    background: 'var(--green-tint)',
-                    color: GREEN,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
+                <span className="bg-chip flex h-[22px] w-[22px] flex-none items-center justify-center rounded-[50%] text-[#1b7a4b]">
                   <Ic size={13} sw={3}>
                     <CheckPath />
                   </Ic>
@@ -1621,13 +1240,7 @@ function DoneStep({
 
       <div>
         <Overline mb={10}>Bora deixar redondo</Overline>
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))',
-            gap: 12,
-          }}
-        >
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-[12px]">
           {order
             .filter((e) => dest[e])
             .map((e) => {
@@ -1635,25 +1248,20 @@ function DoneStep({
               const c = counts[e];
               const n = c ? c.create + c.update : 0;
               return (
-                <Link key={e} href={d.href} style={{ textDecoration: 'none', color: 'inherit' }}>
-                  <div style={{ ...card, padding: 16, cursor: 'pointer' }}>
+                <Link key={e} href={d.href} className="text-inherit no-underline">
+                  <div className={cn(card, 'cursor-pointer p-[16px]')}>
                     <div
-                      style={{
-                        ...tileBase,
-                        width: 36,
-                        height: 36,
-                        borderRadius: 11,
-                        background: 'var(--green-tint)',
-                        color: GREEN,
-                        marginBottom: 10,
-                      }}
+                      className={cn(
+                        tileBase,
+                        'bg-chip mb-[10px] h-[36px] w-[36px] rounded-[11px] text-[#1b7a4b]',
+                      )}
                     >
                       {entityIcon[e]}
                     </div>
-                    <div style={{ font: sans('600 14px/1.2'), color: 'var(--ink)' }}>{d.label}</div>
-                    <div
-                      style={{ font: sans('500 12px/1.4'), color: 'var(--ink-50)', marginTop: 2 }}
-                    >
+                    <div className="text-ink font-sans text-[14px] font-semibold leading-[1.2]">
+                      {d.label}
+                    </div>
+                    <div className="text-ink-50 mt-[2px] font-sans text-[12px] font-medium leading-[1.4]">
                       {n.toLocaleString('pt-BR')} {d.meta}
                     </div>
                   </div>
@@ -1663,19 +1271,7 @@ function DoneStep({
         </div>
       </div>
 
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 10,
-          padding: '14px 16px',
-          border: '1px solid var(--border-soft)',
-          borderRadius: 14,
-          background: PANEL,
-          font: sans('500 12.5px/1.5'),
-          color: 'var(--ink-70)',
-        }}
-      >
+      <div className="border-line text-ink-70 flex items-center gap-[10px] rounded-[14px] border bg-[#fbf7ec] px-[16px] py-[14px] font-sans text-[12.5px] font-medium leading-[1.5]">
         <Ic size={17} stroke={GREEN}>
           <path d="M12 3 4 6v6c0 4 3.4 7.4 8 9 4.6-1.6 8-5 8-9V6l-8-3z" />
           <path d="M9 12l2 2 4-4" />
@@ -1683,16 +1279,10 @@ function DoneStep({
         Nada foi salvo em cima do que você já tinha. Quiser importar outra planilha, é só começar de
         novo.
       </div>
-      <div style={{ display: 'flex', justifyContent: 'center' }}>
+      <div className="flex justify-center">
         <div
           onClick={onRestart}
-          style={{
-            font: sans('600 12.5px/1'),
-            color: 'var(--ink-50)',
-            padding: '12px 18px',
-            borderRadius: 99,
-            cursor: 'pointer',
-          }}
+          className="text-ink-50 cursor-pointer rounded-[99px] px-[18px] py-[12px] font-sans text-[12.5px] font-semibold leading-[1]"
         >
           Importar outra planilha
         </div>
@@ -1702,40 +1292,17 @@ function DoneStep({
 }
 
 // ─── helpers de UI ──────────────────────────────────────────────────────────────────────
-const sb: React.CSSProperties = { fontWeight: 700, color: 'var(--ink)' };
-const tileBase: React.CSSProperties = {
-  width: 32,
-  height: 32,
-  flex: 'none',
-  borderRadius: 10,
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-};
-const stepNum: React.CSSProperties = {
-  width: 24,
-  height: 24,
-  flex: 'none',
-  borderRadius: '50%',
-  background: 'var(--green-tint)',
-  color: GREEN,
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  font: sans('700 11px/1'),
-};
+const sb = 'font-bold text-ink';
+const tileBase = 'flex h-[32px] w-[32px] flex-none items-center justify-center rounded-[10px]';
+const stepNum =
+  'flex h-[24px] w-[24px] flex-none items-center justify-center rounded-[50%] bg-chip font-sans text-[11px] leading-[1] font-bold text-[#1b7a4b]';
 
 function Overline({ children, mt, mb }: { children: React.ReactNode; mt?: number; mb?: number }) {
   return (
     <div
-      style={{
-        font: sans('700 11px/1.3'),
-        letterSpacing: '.14em',
-        textTransform: 'uppercase',
-        color: 'var(--ink-50)',
-        marginTop: mt,
-        marginBottom: mb,
-      }}
+      className="text-ink-50 font-sans text-[11px] font-bold uppercase leading-[1.3] tracking-[.14em]"
+      // ponytail: runtime, Tailwind nao gera
+      style={{ marginTop: mt, marginBottom: mb }}
     >
       {children}
     </div>
@@ -1745,17 +1312,10 @@ function Overline({ children, mt, mb }: { children: React.ReactNode; mt?: number
 function Pill({ children, tone }: { children: React.ReactNode; tone?: 'green' }) {
   return (
     <div
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 8,
-        padding: '9px 14px',
-        borderRadius: 99,
-        font: sans('600 12.5px/1'),
-        background: tone === 'green' ? 'var(--green-tint)' : 'var(--paper)',
-        color: tone === 'green' ? '#14513a' : 'var(--ink-70)',
-        border: tone === 'green' ? 'none' : '1px solid var(--border)',
-      }}
+      className={cn(
+        'inline-flex items-center gap-[8px] rounded-[99px] px-[14px] py-[9px] font-sans text-[12.5px] font-semibold leading-[1]',
+        tone === 'green' ? 'bg-chip text-[#14513a]' : 'border-border bg-paper text-ink-70 border',
+      )}
     >
       {children}
     </div>
@@ -1775,28 +1335,23 @@ function ChoiceChip({
   hint?: string;
   onClick: () => void;
 }) {
-  const bg = on ? (danger ? 'var(--coral-tint)' : 'var(--green-tint)') : 'var(--paper)';
-  const fg = on ? (danger ? CORAL : '#14513a') : 'var(--ink-70)';
-  const bd = on ? (danger ? 'var(--coral)' : 'var(--emerald)') : 'var(--border)';
+  const tone = on
+    ? danger
+      ? 'border-coral bg-coral-tint text-[#c2401f]'
+      : 'border-green-deep bg-chip text-[#14513a]'
+    : 'border-border bg-paper text-ink-70';
   return (
     <div
       onClick={onClick}
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 7,
-        whiteSpace: 'nowrap',
-        font: sans('600 12px/1'),
-        padding: '10px 14px',
-        borderRadius: 99,
-        cursor: 'pointer',
-        background: bg,
-        color: fg,
-        border: `1.5px solid ${bd}`,
-      }}
+      className={cn(
+        'inline-flex cursor-pointer items-center gap-[7px] whitespace-nowrap rounded-[99px] border-[1.5px] px-[14px] py-[10px] font-sans text-[12px] font-semibold leading-[1]',
+        tone,
+      )}
     >
       {children}
-      {hint && <span style={{ font: sans('600 10px/1'), opacity: 0.7 }}>· {hint}</span>}
+      {hint && (
+        <span className="font-sans text-[10px] font-semibold leading-[1] opacity-70">· {hint}</span>
+      )}
     </div>
   );
 }

@@ -79,7 +79,7 @@ Middleware ([apps/web/src/middleware.ts](apps/web/src/middleware.ts)) refreshes 
 3. In-memory `processedMessages` Set deduplicates Meta retries (bounded at 1000 entries).
 4. Active flow stored in Redis (`getConversation` / `setConversation`); flows currently implemented: `menu`, `scheduling`.
 5. Messages inside an active flow are debounced 6 s in Redis ([apps/bot/src/lib/messageDebouncer.ts](apps/bot/src/lib/messageDebouncer.ts)) so rapid bursts ("oi"·"tudo bem?"·"queria agendar") are joined with `\n` and sent to the LLM as one turn. The buffer survives process restarts (Upstash Redis); the timer does not.
-6. Media types (audio/image/video/document/sticker) are currently dropped - see `// TODO: ingestão de mídia`.
+6. **Audio is ingested**: downloaded from Meta, uploaded to the `bot-media` bucket (fire-and-forget), transcribed via `whisper-1` (`transcribeAudio`) and continues through the pipeline as text (saved inbound with a `🎤` prefix). Image/video/document/sticker are still dropped - see `// TODO: ingestão de imagem/PDF/etc. (OCR/visão)`.
 
 OpenAI calls go through `apps/bot/src/lib/openai/responses.ts` (Responses API, chained with `previous_response_id`); prompts live in `apps/bot/src/lib/openai/prompts/`.
 

@@ -1,5 +1,6 @@
 import { brl0, brl2, getActivePlans, type PlanRow } from '../plan-catalog';
 
+import { Guarantees } from './guarantees';
 import { PricingPreviewClient, type PlanVM } from './pricing-preview-client';
 
 // Preços da vitrine lidos do catálogo dinâmico (tabela Plan, mesma fonte da /precos).
@@ -62,63 +63,19 @@ export async function PricingPreview() {
   const vm = buildVM(await getActivePlans());
 
   return (
-    <section
-      style={{
-        background: 'var(--green-tint)',
-        borderTop: '1px solid var(--border-soft)',
-        borderBottom: '1px solid var(--border-soft)',
-        padding: 'clamp(56px,7vw,88px) 0 clamp(48px,6vw,68px)',
-      }}
-    >
-      <div style={{ maxWidth: '1120px', margin: '0 auto', padding: '0 clamp(16px,4vw,40px)' }}>
-        <div
-          style={{ textAlign: 'center', maxWidth: '640px', margin: '0 auto clamp(24px,3vw,32px)' }}
-        >
-          <div
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '9px',
-              marginBottom: '14px',
-            }}
-          >
-            <span
-              style={{
-                width: '20px',
-                height: '2px',
-                background: 'var(--coral)',
-                borderRadius: '2px',
-              }}
-            />
-            <span
-              style={{
-                font: '700 11px var(--font-ui)',
-                letterSpacing: '.16em',
-                textTransform: 'uppercase',
-                color: '#0C7E41',
-              }}
-            >
+    <section className="border-t-line border-b-line bg-chip border-b border-t pb-[clamp(48px,6vw,68px)] pt-[clamp(56px,7vw,88px)]">
+      <div className="mx-auto max-w-[1120px] px-[clamp(16px,4vw,40px)]">
+        <div className="mx-auto mb-[clamp(24px,3vw,32px)] max-w-[640px] text-center">
+          <div className="mb-[14px] inline-flex items-center gap-[9px]">
+            <span className="bg-coral h-[2px] w-[20px] rounded-[2px]" />
+            <span className="font-sans text-[11px] font-bold uppercase leading-[normal] tracking-[.16em] text-[#0C7E41]">
               Planos
             </span>
           </div>
-          <h2
-            style={{
-              font: '400 clamp(28px,4.6vw,40px)/1.1 var(--font-display)',
-              color: 'var(--emerald)',
-              letterSpacing: '-.02em',
-              margin: '0 auto 12px',
-            }}
-          >
-            Um preço. <span style={{ fontStyle: 'italic', color: '#0C7E41' }}>Tudo</span> incluso.
+          <h2 className="text-green-deep mx-auto mb-[12px] font-serif text-[clamp(28px,4.6vw,40px)] font-normal leading-[1.1] tracking-[-.02em]">
+            Um preço. <span className="italic text-[#0C7E41]">Tudo</span> incluso.
           </h2>
-          <p
-            style={{
-              font: '400 16.5px/1.55 var(--font-ui)',
-              color: 'var(--ink-70)',
-              margin: '0 auto',
-              maxWidth: '460px',
-            }}
-          >
+          <p className="text-ink-70 mx-auto max-w-[460px] font-sans text-[16.5px] font-normal leading-[1.55]">
             Agendamentos ilimitados em todos. Sem taxa de setup, sem cobrança por uso.
           </p>
         </div>
@@ -126,50 +83,22 @@ export async function PricingPreview() {
         <PricingPreviewClient plans={vm} />
 
         {/* enterprise */}
-        <div
-          style={{
-            maxWidth: '920px',
-            margin: '24px auto 0',
-            background: 'var(--paper)',
-            border: '1px solid var(--border-soft)',
-            borderRadius: '18px',
-            padding: '20px 22px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '16px 24px',
-            flexWrap: 'wrap',
-            boxShadow: 'var(--shadow-card)',
-          }}
-        >
-          <div style={{ flex: 1, minWidth: '220px' }}>
-            <div style={{ font: '600 15px var(--font-ui)', color: 'var(--ink)' }}>
+        {/* Os `!` nos <a> abaixo não são estilo: `.dmd-home a { color: inherit }` e os
+            `.dmd-home .hv-*:hover` vivem FORA de @layer no globals.css, e regra sem layer
+            vence @layer utilities. Sem o `!`, text-green-deep/border-edge são descartados e
+            o link cai pro ink. O style inline original ganhava desses seletores por ser inline. */}
+        <div className="border-line bg-paper mx-auto mt-[24px] flex max-w-[920px] flex-wrap items-center gap-x-[24px] gap-y-[16px] rounded-[18px] border px-[22px] py-[20px] shadow-[var(--shadow-card)]">
+          <div className="min-w-[220px] flex-1">
+            <div className="text-ink font-sans text-[15px] font-semibold leading-[normal]">
               Operação maior?
             </div>
-            <div
-              style={{
-                font: '400 13.5px/1.5 var(--font-ui)',
-                color: 'var(--ink-70)',
-                marginTop: '3px',
-              }}
-            >
+            <div className="text-ink-70 mt-[3px] font-sans text-[13.5px] font-normal leading-[1.5]">
               Rede, franquia ou fluxo próprio - a gente monta um Enterprise sob medida.
             </div>
           </div>
           <a
             href="/precos#enterprise"
-            className="hv-bd-emerald"
-            style={{
-              flex: 'none',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '8px',
-              background: 'var(--cream)',
-              color: 'var(--emerald)',
-              border: '1px solid var(--border)',
-              borderRadius: '14px',
-              padding: '13px 20px',
-              font: '700 14px var(--font-ui)',
-            }}
+            className="hv-bd-emerald border-edge! bg-cream text-green-deep! inline-flex flex-none items-center gap-[8px] rounded-[14px] border px-[20px] py-[13px] font-sans text-[14px] font-bold leading-[normal]"
           >
             Falar com a gente{' '}
             <svg
@@ -188,17 +117,10 @@ export async function PricingPreview() {
           </a>
         </div>
 
-        <div style={{ textAlign: 'center', marginTop: '22px' }}>
+        <div className="mt-[22px] text-center">
           <a
             href="/precos"
-            className="hv-coral"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '8px',
-              font: '700 15px var(--font-ui)',
-              color: 'var(--emerald)',
-            }}
+            className="hv-coral text-green-deep! inline-flex items-center gap-[8px] font-sans text-[15px] font-bold leading-[normal]"
           >
             Ver todos os planos e o comparativo completo{' '}
             <svg
@@ -216,6 +138,9 @@ export async function PricingPreview() {
             </svg>
           </a>
         </div>
+
+        {/* Garantias fecham a seção de preços: são gancho de conversão, não seção própria. */}
+        <Guarantees />
       </div>
     </section>
   );

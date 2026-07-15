@@ -321,12 +321,12 @@ export function DayGrid({
         {hours.map((h) => (
           <div key={h}>
             <div
-              className="border-line/60 absolute border-t"
-              style={{ top: topOf(h * 60), left: GUTTER_PX, right: 0 }}
+              className="border-line/60 absolute right-0 border-t"
+              style={{ top: topOf(h * 60), left: GUTTER_PX }} // ponytail: runtime, Tailwind não gera
             />
             <span
-              className="text-ink-30 absolute w-14 pr-2 text-right text-[11px] font-semibold tabular-nums leading-none"
-              style={{ top: topOf(h * 60) - 4, left: 0 }}
+              className="text-ink-30 absolute left-0 w-14 pr-2 text-right text-[11px] font-semibold tabular-nums leading-none"
+              style={{ top: topOf(h * 60) - 4 }} // ponytail: runtime, Tailwind não gera
             >
               {String(h).padStart(2, '0')}:00
             </span>
@@ -334,14 +334,14 @@ export function DayGrid({
         ))}
 
         {/* bloqueios globais (estabelecimento) — faixa em todas as colunas */}
-        <div className="absolute" style={{ left: GUTTER_PX, right: 0, top: 0, bottom: 0 }}>
+        <div className="absolute inset-y-0 right-0" style={{ left: GUTTER_PX }}>
           {globalExceptions.map((p) => (
             <ExceptionBand key={p.ex.id} p={p} />
           ))}
         </div>
 
         {/* colunas */}
-        <div className="absolute flex" style={{ left: GUTTER_PX, right: 0, top: 0, bottom: 0 }}>
+        <div className="absolute inset-y-0 right-0 flex" style={{ left: GUTTER_PX }}>
           {cols.map((c) => {
             const colAppts = apptsByCol.get(c.id) ?? [];
             const lanes = computeLanes(colAppts);
@@ -370,7 +370,9 @@ export function DayGrid({
                       className={cn(
                         'absolute overflow-hidden rounded-[10px] px-2 py-1 text-left transition hover:brightness-[.98]',
                         s.muted && 'opacity-70',
+                        selected && 'shadow-[0_0_0_2px_var(--color-green-deep)]',
                       )}
+                      // ponytail: runtime, Tailwind não gera
                       style={{
                         top: topOf(p.start),
                         height: blockH,
@@ -378,7 +380,6 @@ export function DayGrid({
                         width: `calc(${widthPct}% - 10px)`,
                         background: s.bg,
                         borderLeft: `3px solid ${s.bar}`,
-                        boxShadow: selected ? '0 0 0 2px var(--emerald)' : undefined,
                       }}
                     >
                       <div className="flex items-baseline gap-1.5">
@@ -405,14 +406,8 @@ export function DayGrid({
         {/* estado vazio */}
         {dayEmpty && (
           <div
-            className="absolute z-[6] flex items-start justify-center pt-[120px]"
-            style={{
-              left: GUTTER_PX,
-              right: 0,
-              top: 0,
-              bottom: 0,
-              background: 'rgba(250,245,234,.55)',
-            }}
+            className="absolute inset-y-0 right-0 z-[6] flex items-start justify-center bg-[rgba(250,245,234,.55)] pt-[120px]"
+            style={{ left: GUTTER_PX }}
           >
             <div className="border-edge bg-paper shadow-soft max-w-[360px] rounded-[20px] border border-dashed px-7 py-8 text-center">
               <div className="text-green-emph mx-auto mb-3 flex size-[50px] items-center justify-center rounded-[15px] bg-[var(--green-tint)]">
@@ -443,8 +438,8 @@ export function DayGrid({
         {/* linha do agora */}
         {showNow && nowMin !== null && (
           <div
-            className="border-coral pointer-events-none absolute z-[5] border-t-2"
-            style={{ left: GUTTER_PX, right: 0, top: topOf(nowMin) }}
+            className="border-coral pointer-events-none absolute right-0 z-[5] border-t-2"
+            style={{ left: GUTTER_PX, top: topOf(nowMin) }} // ponytail: runtime, Tailwind não gera
           >
             <span className="bg-coral absolute -left-[58px] -top-[9px] rounded-full px-1.5 py-1 text-[10px] font-bold leading-none text-white">
               {minutesToLabel(nowMin)}

@@ -114,7 +114,9 @@ export function SubscriptionsPanel({
             <span className="size-1.5 rounded-full bg-[var(--brand-green-bright)]" />
             Recebendo por {providerLabel ?? 'sua conta'}
           </span>
-          <span>A cobrança é feita pelo Demandaê usando a sua conta - o dinheiro cai direto na sua.</span>
+          <span>
+            A cobrança é feita pelo Demandaê usando a sua conta - o dinheiro cai direto na sua.
+          </span>
         </div>
       ) : (
         <div className="border-coral/30 bg-coral-tint/50 flex flex-wrap items-center gap-3 rounded-2xl border px-4 py-3">
@@ -135,7 +137,12 @@ export function SubscriptionsPanel({
       ) : (
         <>
           <div className="flex">
-            <SegmentedControl options={TABS} value={tab} onChange={setTab} aria-label="Seções de assinaturas" />
+            <SegmentedControl
+              options={TABS}
+              value={tab}
+              onChange={setTab}
+              aria-label="Seções de assinaturas"
+            />
           </div>
 
           {tab === 'planos' && (
@@ -160,7 +167,10 @@ export function SubscriptionsPanel({
 
       {/* modal criar/editar plano */}
       <Dialog open={formOpen} onOpenChange={setFormOpen}>
-        <DialogContent dismissable={false} className="max-h-[calc(100vh-40px)] max-w-[560px] overflow-y-auto">
+        <DialogContent
+          dismissable={false}
+          className="max-h-[calc(100vh-40px)] max-w-[560px] overflow-y-auto"
+        >
           <DialogHeader>
             <DialogTitle className="font-serif text-[22px]">
               {formPlan ? 'Editar' : 'Novo'} plano de{' '}
@@ -303,13 +313,7 @@ function MrrHero({
 }) {
   const { metrics, delta } = overview;
   return (
-    <div
-      className="bg-green-deep text-on-emerald relative overflow-hidden rounded-[20px] px-[26px] py-6"
-      style={{
-        backgroundImage:
-          'radial-gradient(560px 280px at 8% -25%, rgba(47,211,122,.18), transparent 60%), radial-gradient(520px 320px at 94% 135%, rgba(255,90,54,.12), transparent 60%)',
-      }}
-    >
+    <div className="bg-green-deep text-on-emerald relative overflow-hidden rounded-[20px] px-[26px] py-6 [background-image:radial-gradient(560px_280px_at_8%_-25%,rgba(47,211,122,.18),transparent_60%),radial-gradient(520px_320px_at_94%_135%,rgba(255,90,54,.12),transparent_60%)]">
       <div className="flex flex-wrap items-center gap-6">
         <div className="min-w-[250px] flex-1">
           <div className="text-on-emerald-mut text-[10.5px] font-bold uppercase tracking-[0.14em]">
@@ -318,16 +322,18 @@ function MrrHero({
               : 'Receita recorrente mensal · MRR'}
           </div>
           <div className="mt-2 flex flex-wrap items-baseline gap-2.5">
-            <div
-              className="font-serif text-[48px] leading-[0.88] tracking-tight"
-              style={{ color: 'var(--brand-green-bright)' }}
-            >
+            <div className="text-green-bright font-serif text-[48px] leading-[0.88] tracking-tight">
               {metrics.mrrLabel}
             </div>
             <div className="text-on-emerald-mut text-[17px]">
               /mês{variant === 'receita' ? ` · ${metrics.subsLabel}` : ''}
             </div>
-            {delta.show && <DeltaPill positive={delta.positive} text={`${delta.mrrLabel} vs. ${delta.prevMonthLabel}`} />}
+            {delta.show && (
+              <DeltaPill
+                positive={delta.positive}
+                text={`${delta.mrrLabel} vs. ${delta.prevMonthLabel}`}
+              />
+            )}
           </div>
           <p className="text-on-emerald-mut mt-2.5 max-w-[440px] text-[13.5px] leading-snug">
             {variant === 'planos' ? (
@@ -356,6 +362,7 @@ function MrrHero({
             <div className="mt-3 h-[7px] overflow-hidden rounded-full bg-[rgba(250,245,234,.14)]">
               <div
                 className="h-full rounded-full bg-[var(--brand-green-bright)] transition-[width] duration-500"
+                // ponytail: runtime, Tailwind nao gera
                 style={{ width: `${metrics.creditPct ?? 0}%` }}
               />
             </div>
@@ -372,12 +379,11 @@ function MrrHero({
 function DeltaPill({ positive, text }: { positive: boolean; text: string }) {
   return (
     <span
-      className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1.5 text-[11.5px] font-bold"
-      style={
+      className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1.5 text-[11.5px] font-bold ${
         positive
-          ? { background: 'rgba(47,211,122,.16)', color: '#7fe0aa' }
-          : { background: 'rgba(255,90,54,.18)', color: '#ffb3a0' }
-      }
+          ? 'bg-[rgba(47,211,122,.16)] text-[#7fe0aa]'
+          : 'bg-[rgba(255,90,54,.18)] text-[#ffb3a0]'
+      }`}
     >
       <ArrowUp className={`size-3 ${positive ? '' : 'rotate-180'}`} strokeWidth={2.6} />
       {text}
@@ -404,15 +410,18 @@ function PlanosTab({
         {overview.plans.map((p) => (
           <div
             key={p.id}
-            className="border-line bg-paper shadow-soft flex flex-wrap items-center gap-4 rounded-[18px] border px-[18px] py-4"
-            style={{ opacity: p.active ? 1 : 0.62 }}
+            className={`border-line bg-paper shadow-soft flex flex-wrap items-center gap-4 rounded-[18px] border px-[18px] py-4 ${
+              p.active ? 'opacity-100' : 'opacity-[0.62]'
+            }`}
           >
             <div className="bg-chip text-green-emph flex size-[46px] flex-none items-center justify-center rounded-[14px]">
               <Repeat className="size-5" />
             </div>
             <div className="min-w-[170px] flex-1">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="text-ink whitespace-nowrap font-serif text-[17.5px]">{p.name}</span>
+                <span className="text-ink whitespace-nowrap font-serif text-[17.5px]">
+                  {p.name}
+                </span>
                 <StatusPill active={p.active} />
               </div>
               <div className="text-ink-50 mt-1 text-[12px] font-medium">{p.servicesLabel}</div>
@@ -456,10 +465,7 @@ function PlanosTab({
 function MiniStat({ value, label, accent }: { value: string; label: string; accent?: boolean }) {
   return (
     <div className="min-w-[80px] flex-none text-right">
-      <div
-        className={`font-serif text-[17px] ${accent ? 'text-green-emph' : 'text-ink'}`}
-        style={accent ? { color: '#1b7a4b' } : undefined}
-      >
+      <div className={`font-serif text-[17px] ${accent ? 'text-green-emph' : 'text-ink'}`}>
         {value}
       </div>
       <div className="text-ink-50 text-[10.5px] font-medium">{label}</div>
@@ -524,8 +530,9 @@ function AssinantesTab({
           {g.rows.map((c) => (
             <div
               key={c.membershipId}
-              className="border-edge flex items-center gap-3.5 border-t border-dotted px-[18px] py-3"
-              style={{ opacity: c.status === 'CANCELED' ? 0.6 : 1 }}
+              className={`border-edge flex items-center gap-3.5 border-t border-dotted px-[18px] py-3 ${
+                c.status === 'CANCELED' ? 'opacity-60' : 'opacity-100'
+              }`}
             >
               <div className="bg-green-deep text-on-emerald flex size-[38px] flex-none items-center justify-center rounded-xl text-[12px] font-bold">
                 {c.initials}
@@ -576,15 +583,15 @@ function AssinantesTab({
 
 function SubscriberPill({ status }: { status: SubscriberRow['status'] }) {
   const map = {
-    ACTIVE: { label: 'Ativo', cls: 'bg-chip text-green-emph', dot: 'var(--brand-green-bright)' },
-    PAST_DUE: { label: 'Inadimplente', cls: 'bg-coral-tint text-coral-deep', dot: '#c2401f' },
-    CANCELED: { label: 'Cancelada', cls: 'bg-cream-2 text-ink-50', dot: 'var(--brand-sub)' },
+    ACTIVE: { label: 'Ativo', cls: 'bg-chip text-green-emph', dot: 'bg-green-bright' },
+    PAST_DUE: { label: 'Inadimplente', cls: 'bg-coral-tint text-coral-deep', dot: 'bg-[#c2401f]' },
+    CANCELED: { label: 'Cancelada', cls: 'bg-cream-2 text-ink-50', dot: 'bg-ink-50' },
   }[status];
   return (
     <span
       className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2 py-1 text-[10px] font-semibold ${map.cls}`}
     >
-      <span className="size-1.5 rounded-full" style={{ background: map.dot }} />
+      <span className={`size-1.5 rounded-full ${map.dot}`} />
       {map.label}
     </span>
   );
@@ -604,16 +611,23 @@ function ReceitaTab({ overview }: { overview: SubscriptionsOverview }) {
         {trend.show && (
           <div className="border-line bg-paper shadow-soft rounded-[18px] border px-5 py-[18px]">
             <div className="text-ink font-serif text-base">Mês a mês, subindo</div>
-            <p className="text-ink-50 mt-0.5 text-[12px]">Assinaturas recebidas nos últimos meses.</p>
+            <p className="text-ink-50 mt-0.5 text-[12px]">
+              Assinaturas recebidas nos últimos meses.
+            </p>
             <div className="mt-4 flex h-[150px] items-end gap-2.5">
               {trend.points.map((t, i) => (
-                <div key={i} className="flex h-full flex-1 flex-col items-center justify-end gap-1.5">
+                <div
+                  key={i}
+                  className="flex h-full flex-1 flex-col items-center justify-end gap-1.5"
+                >
                   <div className="text-ink-50 text-[10.5px] font-semibold">{brl0(t.cents)}</div>
                   <div
-                    className="w-full rounded-t-lg transition-[height] duration-500"
+                    className={`w-full rounded-t-lg transition-[height] duration-500 ${
+                      t.isCurrent ? 'bg-green-bright' : 'bg-[#cfe8d6]'
+                    }`}
+                    // ponytail: runtime, Tailwind nao gera
                     style={{
                       height: `${Math.max(4, Math.round((t.cents / trend.maxCents) * 100))}%`,
-                      background: t.isCurrent ? 'var(--brand-green-bright)' : '#cfe8d6',
                     }}
                   />
                   <div
@@ -643,15 +657,15 @@ function ReceitaTab({ overview }: { overview: SubscriptionsOverview }) {
                     <span className="text-ink-50 text-[11.5px] font-medium">
                       {p.activeCount} {p.activeCount === 1 ? 'assinante' : 'assinantes'}
                     </span>
-                    <span className="text-green-emph ml-auto font-serif text-[14px]">{p.mrrLabel}</span>
+                    <span className="text-green-emph ml-auto font-serif text-[14px]">
+                      {p.mrrLabel}
+                    </span>
                   </div>
                   <div className="h-2 overflow-hidden rounded-full bg-[#efe9d8]">
                     <div
-                      className="h-full rounded-full transition-[width] duration-500"
-                      style={{
-                        width: `${Math.round((p.mrrCents / maxPlanMrr) * 100)}%`,
-                        background: 'var(--brand-green-bright)',
-                      }}
+                      className="bg-green-bright h-full rounded-full transition-[width] duration-500"
+                      // ponytail: runtime, Tailwind nao gera
+                      style={{ width: `${Math.round((p.mrrCents / maxPlanMrr) * 100)}%` }}
                     />
                   </div>
                 </div>
@@ -665,7 +679,8 @@ function ReceitaTab({ overview }: { overview: SubscriptionsOverview }) {
         <div className="min-w-[220px] flex-1">
           <div className="text-ink flex items-center gap-2 font-serif text-base">
             <TrendingUp className="text-green-emph size-4" />
-            Seus assinantes usaram <em className="text-green-emph not-italic">{metrics.creditUsedLabel}</em> dos créditos
+            Seus assinantes usaram{' '}
+            <em className="text-green-emph not-italic">{metrics.creditUsedLabel}</em> dos créditos
           </div>
           <p className="text-ink-70 mt-1 max-w-[440px] text-[12.5px] leading-snug">
             Uso alto é ótimo sinal: cliente que aproveita o plano volta sempre e quase não cancela.
@@ -680,6 +695,7 @@ function ReceitaTab({ overview }: { overview: SubscriptionsOverview }) {
           <div className="mt-2.5 h-2 overflow-hidden rounded-full bg-[#efe9d8]">
             <div
               className="h-full rounded-full bg-[var(--brand-green-bright)]"
+              // ponytail: runtime, Tailwind nao gera
               style={{ width: `${metrics.creditPct ?? 0}%` }}
             />
           </div>

@@ -2,43 +2,77 @@ import Link from 'next/link';
 
 import { Logo } from '@/components/logo';
 
-const links = [
-  { href: '/funcionalidades', label: 'Funcionalidades' },
-  { href: '/precos', label: 'Preços' },
-  { href: '/termos', label: 'Termos' },
+// Rodapé em 3 colunas (layout da home antiga). Os destinos NÃO são os do rodapé antigo:
+// ele apontava pra âncoras da home velha que não existem mais (#cliente, #recursos,
+// #planos), então "Recursos"/"Planos" vão pras páginas reais e as duas âncoras que
+// sobraram (#como-funciona, #faq) têm id declarado nas seções correspondentes.
+const columns = [
+  {
+    title: 'Produto',
+    links: [
+      { href: '/#como-funciona', label: 'Como funciona' },
+      { href: '/funcionalidades', label: 'Recursos' },
+      { href: '/precos', label: 'Planos' },
+    ],
+  },
+  {
+    title: 'Conta',
+    links: [
+      { href: '/login', label: 'Entrar' },
+      { href: '/signup', label: 'Criar conta' },
+      { href: '/#faq', label: 'Dúvidas frequentes' },
+    ],
+  },
+  {
+    title: 'Legal',
+    links: [
+      { href: '/termos', label: 'Termos de uso' },
+      { href: '/privacidade', label: 'Privacidade' },
+      { href: '/cookies', label: 'Cookies' },
+    ],
+  },
 ];
 
 export function MarketingFooter() {
   return (
-    <footer style={{ background: 'var(--emerald)', padding: '38px 0' }}>
-      <div
-        style={{
-          maxWidth: 1200,
-          margin: '0 auto',
-          padding: '0 clamp(16px,4vw,40px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: '16px 24px',
-          flexWrap: 'wrap',
-        }}
-      >
-        <Logo color="coral" className="text-cream" />
-        <div style={{ font: '400 13px var(--font-ui)', color: 'var(--on-emerald-mut)' }}>
-          A operação inteira para quem trabalha com hora marcada · © {new Date().getFullYear()}{' '}
-          Demandaê
+    <footer className="bg-[#04120c]">
+      <div className="mx-auto max-w-[1200px] px-[clamp(20px,5vw,40px)] pb-[40px] pt-[clamp(48px,6vw,64px)]">
+        <div className="flex flex-wrap justify-between gap-[48px] border-b border-b-[color:rgba(143,191,164,.15)] pb-[48px]">
+          <div className="max-w-[280px]">
+            {/* color="coral" = bolinha E "ê" em coral (o prop controla os dois). Não usar
+                "cream" aqui: o wordmark já é creme, então o acento da marca sumiria. */}
+            <Logo color="coral" className="text-cream mb-3.5 text-xl" />
+            <p className="text-on-emerald-faint font-sans text-[14px] font-normal leading-[1.5]">
+              Sua agenda, sem enrolação. Plataforma brasileira de agendamento pra negócios de
+              serviço.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-x-[64px] gap-y-[32px]">
+            {columns.map((col) => (
+              <div key={col.title} className="flex flex-col gap-[10px]">
+                <div className="text-on-emerald-faint mb-[4px] font-sans text-[11px] font-bold uppercase leading-[normal] tracking-[.14em]">
+                  {col.title}
+                </div>
+                {col.links.map((l) => (
+                  <Link
+                    key={l.href}
+                    href={l.href}
+                    // `!` obrigatório: `.dmd-home a { color: inherit }` (globals.css) é regra
+                    // SEM camada e vence qualquer `@layer utilities`, independente de
+                    // especificidade. Sem o `!` o link herda o ink do body e some no fundo
+                    // escuro. Idem `dmd-btn` em home/btn.tsx.
+                    className="hv-green text-on-emerald! font-sans text-[14px] font-medium leading-[normal]"
+                  >
+                    {l.label}
+                  </Link>
+                ))}
+              </div>
+            ))}
+          </div>
         </div>
-        <div style={{ display: 'flex', gap: 22, flexWrap: 'wrap' }}>
-          {links.map((l) => (
-            <Link
-              key={l.href}
-              href={l.href}
-              className="hv-onem"
-              style={{ font: '500 13px var(--font-ui)', color: 'var(--on-emerald-mut)' }}
-            >
-              {l.label}
-            </Link>
-          ))}
+        <div className="text-on-emerald-faint flex flex-wrap justify-between gap-x-[24px] gap-y-[8px] pt-[24px] font-sans text-[12.5px] font-normal leading-[normal]">
+          <span>© {new Date().getFullYear()} Demandaê · Sua agenda, sem enrolação.</span>
+          <span>Feito no Brasil · Dados protegidos pela LGPD · Infraestrutura em nuvem</span>
         </div>
       </div>
     </footer>

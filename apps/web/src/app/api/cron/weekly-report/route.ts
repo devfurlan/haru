@@ -1,3 +1,5 @@
+import * as Sentry from '@sentry/nextjs';
+
 import { prisma } from '@haru/database';
 
 import { onWeeklyReport } from '@/lib/comms/events';
@@ -67,7 +69,12 @@ export async function GET(req: Request) {
       });
       sent++;
     } catch (err) {
+      // Este catch ENGOLE o erro de propósito (um tenant quebrado não pode parar a fila),
+      // então o cron devolve 200 e o onRequestError não vê nada - precisa capturar aqui.
       console.error('[cron-weekly-report] falhou p/ tenant', t.id, err);
+      Sentry.captureException(err, {
+        tags: { component: 'cron-weekly-report', tenantId: t.id },
+      });
     }
   }
 

@@ -42,72 +42,30 @@ const FAQS = [
 export function Faq() {
   const [open, setOpen] = useState(0);
   return (
-    <section
-      style={{
-        maxWidth: '820px',
-        margin: '0 auto',
-        padding: 'clamp(56px,7vw,84px) clamp(20px,5vw,40px) 20px',
-      }}
-    >
-      <div style={{ textAlign: 'center', marginBottom: '36px' }}>
-        <div
-          style={{ display: 'inline-flex', alignItems: 'center', gap: '9px', marginBottom: '14px' }}
-        >
-          <span
-            style={{
-              width: '20px',
-              height: '2px',
-              background: 'var(--coral)',
-              borderRadius: '2px',
-            }}
-          />
-          <span
-            style={{
-              font: '700 11px var(--font-ui)',
-              letterSpacing: '.16em',
-              textTransform: 'uppercase',
-              color: '#0C7E41',
-            }}
-          >
+    <section className="mx-auto max-w-[820px] px-[clamp(20px,5vw,40px)] pb-[20px] pt-[clamp(56px,7vw,84px)]">
+      <div className="mb-[36px] text-center">
+        <div className="mb-[14px] inline-flex items-center gap-[9px]">
+          <span className="bg-coral h-[2px] w-[20px] rounded-[2px]" />
+          <span className="font-sans text-[11px] font-bold uppercase leading-[normal] tracking-[.16em] text-[#0C7E41]">
             Dúvidas
           </span>
         </div>
-        <h2
-          style={{
-            font: '400 clamp(28px,4.6vw,38px) var(--font-display)',
-            color: 'var(--emerald)',
-            letterSpacing: '-.02em',
-            margin: 0,
-          }}
-        >
+        <h2 className="text-green-deep font-serif text-[clamp(28px,4.6vw,38px)] font-normal leading-[normal] tracking-[-.02em]">
           Perguntas frequentes.
         </h2>
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+      <div className="flex flex-col gap-[12px]">
         {FAQS.map((f, i) => {
           const isOpen = open === i;
           return (
-            <div
-              key={i}
-              style={{
-                background: 'var(--paper)',
-                border: '1px solid var(--border-soft)',
-                borderRadius: '16px',
-                overflow: 'hidden',
-              }}
-            >
+            <div key={i} className="bg-paper border-line overflow-hidden rounded-[16px] border">
               <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: '16px',
-                  padding: '20px 24px',
-                  cursor: 'pointer',
-                }}
+                className="flex cursor-pointer items-center justify-between gap-[16px] px-[24px] py-[20px]"
                 onClick={() => setOpen(isOpen ? -1 : i)}
               >
-                <span style={{ font: '600 16px var(--font-ui)', color: 'var(--ink)' }}>{f.q}</span>
+                <span className="text-ink font-sans text-[16px] font-semibold leading-[normal]">
+                  {f.q}
+                </span>
                 {isOpen ? (
                   <svg
                     width="20"
@@ -118,7 +76,7 @@ export function Faq() {
                     strokeWidth="2.4"
                     strokeLinecap="round"
                     strokeLinejoin="round"
-                    style={{ flex: 'none' }}
+                    className="flex-none"
                   >
                     <line x1="5" y1="12" x2="19" y2="12" />
                   </svg>
@@ -132,7 +90,7 @@ export function Faq() {
                     strokeWidth="2.4"
                     strokeLinecap="round"
                     strokeLinejoin="round"
-                    style={{ flex: 'none' }}
+                    className="flex-none"
                   >
                     <line x1="12" y1="5" x2="12" y2="19" />
                     <line x1="5" y1="12" x2="19" y2="12" />
@@ -140,14 +98,7 @@ export function Faq() {
                 )}
               </div>
               {isOpen && (
-                <div
-                  style={{
-                    padding: '0 24px 22px',
-                    font: '400 15px/1.6 var(--font-ui)',
-                    color: 'var(--ink-70)',
-                    animation: 'dmd-fade .28s ease',
-                  }}
-                >
+                <div className="text-ink-70 animate-[dmd-fade_.28s_ease] px-[24px] pb-[22px] font-sans text-[15px] font-normal leading-[1.6]">
                   {f.a}
                 </div>
               )}

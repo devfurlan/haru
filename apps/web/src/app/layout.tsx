@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Fraunces, Hanken_Grotesk } from 'next/font/google';
 
 import { CookieConsent } from '@/components/cookie-consent';
+import { CONSENT_BOOTSTRAP_SCRIPT } from '@/lib/consent';
 
 import './globals.css';
 
@@ -44,6 +45,14 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="pt-BR" className={`${fraunces.variable} ${hanken.variable}`}>
+      <head>
+        {/* Estado de consentimento ANTES de qualquer tag do Google. Script cru, não
+            next/script: `beforeInteractive` + dangerouslySetInnerHTML é bug conhecido
+            e não roda (vercel/next.js#31275), e o resto das estratégias roda tarde
+            demais. Aqui é síncrono no HTML do servidor, então sempre ganha do GTM
+            (que o @next/third-parties injeta como afterInteractive). */}
+        <script dangerouslySetInnerHTML={{ __html: CONSENT_BOOTSTRAP_SCRIPT }} />
+      </head>
       <body>
         {children}
         <CookieConsent />

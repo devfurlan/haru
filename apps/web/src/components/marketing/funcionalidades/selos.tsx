@@ -1,34 +1,10 @@
 export function Selos() {
   return (
-    <section
-      style={{
-        // width:100% conserta o colapso do grid auto-fit (section é flex item do layout)
-        width: '100%',
-        maxWidth: '1200px',
-        margin: '0 auto',
-        padding: 'clamp(40px,5vw,60px) clamp(16px,4vw,40px) clamp(20px,3vw,32px)',
-      }}
-    >
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit,minmax(210px,1fr))',
-          gap: '20px',
-        }}
-      >
-        <div style={{ display: 'flex', gap: '14px', alignItems: 'flex-start' }}>
-          <span
-            style={{
-              width: '40px',
-              height: '40px',
-              borderRadius: 'var(--radius-icontile)',
-              background: 'var(--green-tint)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flex: 'none',
-            }}
-          >
+    // width:100% conserta o colapso do grid auto-fit (section é flex item do layout)
+    <section className="mx-auto w-full max-w-[1200px] px-[clamp(16px,4vw,40px)] pb-[clamp(20px,3vw,32px)] pt-[clamp(40px,5vw,60px)]">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(210px,1fr))] gap-[20px]">
+        <div className="flex items-start gap-[14px]">
+          <span className="bg-chip flex h-[40px] w-[40px] flex-none items-center justify-center rounded-[var(--radius-icontile)]">
             <svg
               width="20"
               height="20"
@@ -43,33 +19,16 @@ export function Selos() {
             </svg>
           </span>
           <div>
-            <div style={{ font: '600 15px var(--font-ui)', color: 'var(--ink)' }}>
+            <div className="text-ink font-sans text-[15px] font-semibold leading-[normal]">
               Sem taxa de setup
             </div>
-            <div
-              style={{
-                font: '400 13px/1.4 var(--font-ui)',
-                color: 'var(--ink-50)',
-                marginTop: '3px',
-              }}
-            >
+            <div className="text-ink-50 mt-[3px] font-sans text-[13px] font-normal leading-[1.4]">
               Pague a mensalidade e comece a usar.
             </div>
           </div>
         </div>
-        <div style={{ display: 'flex', gap: '14px', alignItems: 'flex-start' }}>
-          <span
-            style={{
-              width: '40px',
-              height: '40px',
-              borderRadius: 'var(--radius-icontile)',
-              background: 'var(--green-tint)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flex: 'none',
-            }}
-          >
+        <div className="flex items-start gap-[14px]">
+          <span className="bg-chip flex h-[40px] w-[40px] flex-none items-center justify-center rounded-[var(--radius-icontile)]">
             <svg
               width="20"
               height="20"
@@ -85,33 +44,16 @@ export function Selos() {
             </svg>
           </span>
           <div>
-            <div style={{ font: '600 15px var(--font-ui)', color: 'var(--ink)' }}>
+            <div className="text-ink font-sans text-[15px] font-semibold leading-[normal]">
               Garantia de 30 dias
             </div>
-            <div
-              style={{
-                font: '400 13px/1.4 var(--font-ui)',
-                color: 'var(--ink-50)',
-                marginTop: '3px',
-              }}
-            >
+            <div className="text-ink-50 mt-[3px] font-sans text-[13px] font-normal leading-[1.4]">
               Não gostou? Devolvemos o valor integral.
             </div>
           </div>
         </div>
-        <div style={{ display: 'flex', gap: '14px', alignItems: 'flex-start' }}>
-          <span
-            style={{
-              width: '40px',
-              height: '40px',
-              borderRadius: 'var(--radius-icontile)',
-              background: 'var(--green-tint)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flex: 'none',
-            }}
-          >
+        <div className="flex items-start gap-[14px]">
+          <span className="bg-chip flex h-[40px] w-[40px] flex-none items-center justify-center rounded-[var(--radius-icontile)]">
             <svg
               width="20"
               height="20"
@@ -127,33 +69,16 @@ export function Selos() {
             </svg>
           </span>
           <div>
-            <div style={{ font: '600 15px var(--font-ui)', color: 'var(--ink)' }}>
+            <div className="text-ink font-sans text-[15px] font-semibold leading-[normal]">
               Cancele quando quiser
             </div>
-            <div
-              style={{
-                font: '400 13px/1.4 var(--font-ui)',
-                color: 'var(--ink-50)',
-                marginTop: '3px',
-              }}
-            >
+            <div className="text-ink-50 mt-[3px] font-sans text-[13px] font-normal leading-[1.4]">
               Sem multa, sem fidelidade.
             </div>
           </div>
         </div>
-        <div style={{ display: 'flex', gap: '14px', alignItems: 'flex-start' }}>
-          <span
-            style={{
-              width: '40px',
-              height: '40px',
-              borderRadius: 'var(--radius-icontile)',
-              background: 'var(--green-tint)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flex: 'none',
-            }}
-          >
+        <div className="flex items-start gap-[14px]">
+          <span className="bg-chip flex h-[40px] w-[40px] flex-none items-center justify-center rounded-[var(--radius-icontile)]">
             <svg
               width="20"
               height="20"
@@ -170,16 +95,10 @@ export function Selos() {
             </svg>
           </span>
           <div>
-            <div style={{ font: '600 15px var(--font-ui)', color: 'var(--ink)' }}>
+            <div className="text-ink font-sans text-[15px] font-semibold leading-[normal]">
               Migração inclusa
             </div>
-            <div
-              style={{
-                font: '400 13px/1.4 var(--font-ui)',
-                color: 'var(--ink-50)',
-                marginTop: '3px',
-              }}
-            >
+            <div className="text-ink-50 mt-[3px] font-sans text-[13px] font-normal leading-[1.4]">
               Trazemos clientes, serviços e histórico.
             </div>
           </div>

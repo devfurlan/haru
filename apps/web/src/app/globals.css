@@ -324,6 +324,10 @@
 .dmd-home .hv-onem:hover {
   color: var(--on-emerald);
 }
+/* Link creme sobre fundo escuro que acende no verde (links do rodapé). */
+.dmd-home .hv-green:hover {
+  color: var(--green);
+}
 .dmd-home .hv-bd-green:hover {
   border-color: var(--green);
 }
@@ -332,6 +336,59 @@
 }
 .dmd-home .hv-pause:hover {
   animation-play-state: paused;
+}
+
+/* Bilhete de transição da seção "Pro seu cliente" (for-client.tsx): duas metades
+   separadas por uma serrilha. Empilha no mobile (serrilha horizontal); no desktop
+   deita e tomba 1° como um bilhete largado na mesa (serrilha vertical).
+   É a única media query do escopo: o resto da home resolve responsivo com
+   clamp()/auto-fit, mas trocar a direção da serrilha estilo inline não faz. */
+.dmd-home .dmd-ticket {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+.dmd-home .dmd-ticket > * + * {
+  border-top: 1px dashed var(--border);
+}
+@media (min-width: 640px) {
+  .dmd-home .dmd-ticket {
+    flex-direction: row;
+    transform: rotate(-1deg);
+  }
+  .dmd-home .dmd-ticket > * + * {
+    border-top: 0;
+    border-left: 1px dashed var(--border);
+  }
+}
+
+/* Bento da seção "O que vem dentro" (whats-inside.tsx): grid de 12 colunas com spans
+   mistos (5/7, 7/5, 4/4/4) - os 4 pilares do produto ganham slot largo, o resto vai em
+   terços. Media query porque span por breakpoint estilo inline não faz. Empilha em 1
+   coluna no mobile e 2 no tablet. */
+.dmd-home .dmd-bento {
+  display: grid;
+  gap: 20px;
+  grid-template-columns: 1fr;
+}
+@media (min-width: 640px) {
+  .dmd-home .dmd-bento {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (min-width: 1024px) {
+  .dmd-home .dmd-bento {
+    grid-template-columns: repeat(12, 1fr);
+  }
+  .dmd-home .dmd-bento > [data-span='4'] {
+    grid-column: span 4;
+  }
+  .dmd-home .dmd-bento > [data-span='5'] {
+    grid-column: span 5;
+  }
+  .dmd-home .dmd-bento > [data-span='7'] {
+    grid-column: span 7;
+  }
 }
 
 /* Keyframes do protótipo (prefixo dmd- pra não colidir com o `pulse` do Tailwind). */

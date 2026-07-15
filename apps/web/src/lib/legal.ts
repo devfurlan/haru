@@ -6,4 +6,4 @@
  * página) - é o que gravamos em User.termsVersion como prova de qual versão o
  * usuário aceitou.
  */
-export const TERMS_VERSION = '2026-07-02';
+export const TERMS_VERSION = '2026-07-15';

@@ -2,99 +2,26 @@ export function EmBreve() {
   return (
     <section
       id="em-breve"
-      style={{
-        scrollMarginTop: '78px',
-        maxWidth: '1080px',
-        margin: '0 auto',
-        padding: 'clamp(44px,6vw,72px) clamp(20px,5vw,40px) clamp(20px,3vw,32px)',
-      }}
+      className="mx-auto max-w-[1080px] scroll-mt-[78px] px-[clamp(20px,5vw,40px)] pb-[clamp(20px,3vw,32px)] pt-[clamp(44px,6vw,72px)]"
     >
-      <div
-        style={{
-          background: 'var(--paper)',
-          border: '1px solid var(--border-soft)',
-          borderRadius: '24px',
-          padding: 'clamp(24px,3vw,36px)',
-          boxShadow: 'var(--shadow-card)',
-          display: 'flex',
-          flexWrap: 'wrap',
-          gap: '24px 40px',
-          alignItems: 'center',
-        }}
-      >
-        <div style={{ flex: '1 1 240px' }}>
-          <div
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '9px',
-              marginBottom: '12px',
-            }}
-          >
-            <span
-              style={{
-                width: '8px',
-                height: '8px',
-                borderRadius: '50%',
-                background: 'var(--coral)',
-                animation: 'dmd-pulse 1.8s infinite',
-              }}
-            ></span>
-            <span
-              style={{
-                font: '700 11px var(--font-ui)',
-                letterSpacing: '.16em',
-                textTransform: 'uppercase',
-                color: 'var(--ink-50)',
-              }}
-            >
+      <div className="border-line bg-paper flex flex-wrap items-center gap-x-[40px] gap-y-[24px] rounded-[24px] border p-[clamp(24px,3vw,36px)] shadow-[var(--shadow-card)]">
+        <div className="flex-[1_1_240px]">
+          <div className="mb-[12px] inline-flex items-center gap-[9px]">
+            <span className="bg-coral h-[8px] w-[8px] animate-[dmd-pulse_1.8s_infinite] rounded-[50%]"></span>
+            <span className="text-ink-50 font-sans text-[11px] font-bold uppercase leading-[normal] tracking-[.16em]">
               No forno
             </span>
           </div>
-          <h2
-            style={{
-              font: '400 clamp(22px,3vw,30px)/1.15 var(--font-display)',
-              color: 'var(--emerald)',
-              letterSpacing: '-.02em',
-              margin: '0 0 8px',
-            }}
-          >
+          <h2 className="text-green-deep mb-[8px] font-serif text-[clamp(22px,3vw,30px)] font-normal leading-[1.15] tracking-[-.02em]">
             O que vem por aí.
           </h2>
-          <p
-            style={{
-              font: '400 15px/1.55 var(--font-ui)',
-              color: 'var(--ink-70)',
-              margin: 0,
-              maxWidth: '400px',
-            }}
-          >
+          <p className="text-ink-70 max-w-[400px] font-sans text-[15px] font-normal leading-[1.55]">
             Em desenvolvimento agora. Chega pra todos os planos, sem custo extra.
           </p>
         </div>
-        <div style={{ flex: '1 1 300px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '13px',
-              background: 'var(--cream)',
-              border: '1px solid var(--border-soft)',
-              borderRadius: '14px',
-              padding: '13px 15px',
-            }}
-          >
-            <span
-              style={{
-                width: '38px',
-                height: '38px',
-                borderRadius: '11px',
-                background: 'var(--green-tint)',
-                display: 'grid',
-                placeItems: 'center',
-                flex: 'none',
-              }}
-            >
+        <div className="flex flex-[1_1_300px] flex-col gap-[10px]">
+          <div className="border-line bg-cream flex items-center gap-[13px] rounded-[14px] border px-[15px] py-[13px]">
+            <span className="bg-chip grid h-[38px] w-[38px] flex-none place-items-center rounded-[11px]">
               <svg
                 width="19"
                 height="19"
@@ -108,37 +35,17 @@ export function EmBreve() {
                 <path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5c-1.6 0-3.1-.4-4.4-1.2L3 20l1.2-5.1A8.5 8.5 0 1 1 21 11.5z" />
               </svg>
             </span>
-            <div style={{ flex: 1 }}>
-              <div style={{ font: '600 14.5px var(--font-ui)', color: 'var(--ink)' }}>
+            <div className="flex-1">
+              <div className="text-ink font-sans text-[14.5px] font-semibold leading-[normal]">
                 Atendente de IA no WhatsApp
               </div>
-              <div style={{ font: '500 12px var(--font-ui)', color: 'var(--ink-50)' }}>
+              <div className="text-ink-50 font-sans text-[12px] font-medium leading-[normal]">
                 responde e agenda sozinho, 24h
               </div>
             </div>
           </div>
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '13px',
-              background: 'var(--cream)',
-              border: '1px solid var(--border-soft)',
-              borderRadius: '14px',
-              padding: '13px 15px',
-            }}
-          >
-            <span
-              style={{
-                width: '38px',
-                height: '38px',
-                borderRadius: '11px',
-                background: 'var(--green-tint)',
-                display: 'grid',
-                placeItems: 'center',
-                flex: 'none',
-              }}
-            >
+          <div className="border-line bg-cream flex items-center gap-[13px] rounded-[14px] border px-[15px] py-[13px]">
+            <span className="bg-chip grid h-[38px] w-[38px] flex-none place-items-center rounded-[11px]">
               <svg
                 width="19"
                 height="19"
@@ -153,37 +60,17 @@ export function EmBreve() {
                 <line x1="10" y1="18.5" x2="14" y2="18.5" />
               </svg>
             </span>
-            <div style={{ flex: 1 }}>
-              <div style={{ font: '600 14.5px var(--font-ui)', color: 'var(--ink)' }}>
+            <div className="flex-1">
+              <div className="text-ink font-sans text-[14.5px] font-semibold leading-[normal]">
                 App white-label
               </div>
-              <div style={{ font: '500 12px var(--font-ui)', color: 'var(--ink-50)' }}>
+              <div className="text-ink-50 font-sans text-[12px] font-medium leading-[normal]">
                 seu app na loja, com o seu nome
               </div>
             </div>
           </div>
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '13px',
-              background: 'var(--cream)',
-              border: '1px solid var(--border-soft)',
-              borderRadius: '14px',
-              padding: '13px 15px',
-            }}
-          >
-            <span
-              style={{
-                width: '38px',
-                height: '38px',
-                borderRadius: '11px',
-                background: 'var(--green-tint)',
-                display: 'grid',
-                placeItems: 'center',
-                flex: 'none',
-              }}
-            >
+          <div className="border-line bg-cream flex items-center gap-[13px] rounded-[14px] border px-[15px] py-[13px]">
+            <span className="bg-chip grid h-[38px] w-[38px] flex-none place-items-center rounded-[11px]">
               <svg
                 width="19"
                 height="19"
@@ -198,11 +85,11 @@ export function EmBreve() {
                 <path d="m7 14 3-3 3 3 5-5" />
               </svg>
             </span>
-            <div style={{ flex: 1 }}>
-              <div style={{ font: '600 14.5px var(--font-ui)', color: 'var(--ink)' }}>
+            <div className="flex-1">
+              <div className="text-ink font-sans text-[14.5px] font-semibold leading-[normal]">
                 Relatórios com IA
               </div>
-              <div style={{ font: '500 12px var(--font-ui)', color: 'var(--ink-50)' }}>
+              <div className="text-ink-50 font-sans text-[12px] font-medium leading-[normal]">
                 o que puxar mais faturamento, explicado
               </div>
             </div>

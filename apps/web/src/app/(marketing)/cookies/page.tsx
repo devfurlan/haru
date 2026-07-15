@@ -7,20 +7,20 @@ export const metadata: Metadata = {
     'O que são cookies, quais o Demandaê utiliza e como você pode gerenciá-los na plataforma de agendamento e pagamentos do Demandaê - app do cliente, página pública e painel.',
 };
 
-const LAST_UPDATED = '2 de julho de 2026';
+const LAST_UPDATED = '15 de julho de 2026';
 
 export default function CookiePolicyPage() {
   return (
     <main className="mx-auto max-w-3xl px-6 py-12">
       <h1 className="text-3xl font-bold tracking-tight">Política de Cookies</h1>
-      <p className="mt-2 text-sm text-muted-foreground">Última atualização: {LAST_UPDATED}</p>
+      <p className="text-muted-foreground mt-2 text-sm">Última atualização: {LAST_UPDATED}</p>
 
-      <div className="mt-8 space-y-8 text-sm leading-relaxed text-foreground">
+      <div className="text-foreground mt-8 space-y-8 text-sm leading-relaxed">
         <section className="space-y-3">
           <p>
-            Esta Política de Cookies explica o que são cookies, como o Demandaê (&ldquo;Demandaê&rdquo;,
-            &ldquo;nós&rdquo;) os utiliza e quais opções você tem para gerenciá-los. Ela complementa
-            a nossa{' '}
+            Esta Política de Cookies explica o que são cookies, como o Demandaê
+            (&ldquo;Demandaê&rdquo;, &ldquo;nós&rdquo;) os utiliza e quais opções você tem para
+            gerenciá-los. Ela complementa a nossa{' '}
             <Link href="/privacidade" className="font-medium underline underline-offset-4">
               Política de Privacidade
             </Link>
@@ -78,36 +78,71 @@ export default function CookiePolicyPage() {
           <p>
             O nome exato do cookie de sessão inclui a referência do projeto de autenticação e pode
             variar conforme a configuração do provedor. Atualmente não utilizamos cookies de
-            publicidade ou de rastreamento para fins de marketing. As únicas tecnologias
-            complementares presentes no site são a meta tag de verificação de domínio do Facebook e o
-            fluxo de cadastro incorporado (Embedded Signup) do WhatsApp, que não são pixels de
-            anúncios nem rastreiam a sua navegação para publicidade.
+            publicidade ou de rastreamento para fins de marketing, nem ferramentas de analytics. As
+            únicas tecnologias complementares presentes no site são a meta tag de verificação de
+            domínio do Facebook e o fluxo de cadastro incorporado (Embedded Signup) do WhatsApp, que
+            não são pixels de anúncios nem rastreiam a sua navegação para publicidade.
           </p>
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-xl font-semibold">4. Armazenamento local no aplicativo</h2>
+          <h2 className="text-xl font-semibold">4. Conteúdo de terceiros carregado nas páginas</h2>
+          <p>
+            Além dos cookies, algumas páginas carregam conteúdo hospedado por terceiros. Nesses
+            casos, mesmo sem cookies, o seu <strong>endereço IP</strong> e informações básicas do
+            seu navegador tornam-se conhecidos por esse terceiro, porque é o seu dispositivo que faz
+            a requisição:
+          </p>
+          <ul className="list-disc space-y-2 pl-6">
+            <li>
+              <strong>Mapas (OpenStreetMap).</strong> A miniatura de mapa exibida na página pública
+              do estabelecimento e na tela do agendamento é montada com imagens baixadas diretamente
+              dos servidores do OpenStreetMap pelo seu navegador ou aplicativo. Ocorre mesmo sem
+              login e não depende da permissão de localização do seu dispositivo: o que é enviado é
+              o seu IP e a área do mapa exibida, que corresponde ao endereço do estabelecimento, não
+              ao seu.
+            </li>
+            <li>
+              <strong>Sugestões de endereço (Photon/komoot).</strong> Apenas no painel do
+              estabelecimento, ao digitar o endereço do negócio, as sugestões são buscadas pelo
+              navegador de quem preenche o cadastro diretamente no serviço Photon, na Alemanha.
+            </li>
+          </ul>
+          <p>
+            Esses terceiros tratam os dados conforme as políticas de privacidade deles. Para mais
+            detalhes sobre esse compartilhamento e a base legal aplicável, consulte as seções 10, 12
+            e 17 da{' '}
+            <Link href="/privacidade" className="font-medium underline underline-offset-4">
+              Política de Privacidade
+            </Link>
+            .
+          </p>
+        </section>
+
+        <section className="space-y-3">
+          <h2 className="text-xl font-semibold">5. Armazenamento local no aplicativo</h2>
           <p>
             No aplicativo móvel do Demandaê não utilizamos cookies de navegador, mas empregamos o
             armazenamento local do dispositivo para finalidades equivalentes: manter a sua sessão
-            autenticada, guardar a sua preferência de notificações (ligadas ou desligadas) e
-            armazenar o token de notificações (push). Esses dados são necessários ao funcionamento
-            do aplicativo.
+            autenticada, guardar a sua preferência de notificações (ligadas ou desligadas),
+            armazenar o token de notificações (push) e lembrar o que você já viu no seu cartão de
+            fidelidade, para destacar novidades. Esses dados são necessários ao funcionamento do
+            aplicativo e ficam no seu aparelho.
           </p>
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-xl font-semibold">5. Cookies de terceiros</h2>
+          <h2 className="text-xl font-semibold">6. Cookies de terceiros</h2>
           <p>
             Alguns serviços que integram a plataforma (como provedores de autenticação,
-            infraestrutura e pagamentos) podem definir seus próprios cookies, sujeitos às respectivas
-            políticas de privacidade. Recomendamos consultar as políticas desses terceiros para mais
-            detalhes.
+            infraestrutura e pagamentos) podem definir seus próprios cookies, sujeitos às
+            respectivas políticas de privacidade. Recomendamos consultar as políticas desses
+            terceiros para mais detalhes.
           </p>
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-xl font-semibold">6. Como gerenciar cookies</h2>
+          <h2 className="text-xl font-semibold">7. Como gerenciar cookies</h2>
           <p>
             Você pode configurar o seu navegador para bloquear ou apagar cookies. No entanto, ao
             desativar cookies essenciais, partes da plataforma - incluindo o login - podem deixar de
@@ -117,7 +152,7 @@ export default function CookiePolicyPage() {
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-xl font-semibold">7. Alterações desta política</h2>
+          <h2 className="text-xl font-semibold">8. Alterações desta política</h2>
           <p>
             Podemos atualizar esta Política de Cookies periodicamente. A versão vigente será sempre
             publicada nesta página, com a data de última atualização indicada no topo.
@@ -125,7 +160,7 @@ export default function CookiePolicyPage() {
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-xl font-semibold">8. Contato</h2>
+          <h2 className="text-xl font-semibold">9. Contato</h2>
           <p>
             Em caso de dúvidas sobre o uso de cookies, entre em contato pelo e-mail{' '}
             <strong>contato@demandae.com</strong>.

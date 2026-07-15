@@ -1,5 +1,3 @@
-import type { CSSProperties } from 'react';
-
 // Tabela de comparação. Só as linhas "Profissionais" e "Lembretes por WhatsApp/mês" são
 // dinâmicas (vêm do BD via props); o resto é copy/feature-flags da vitrine.
 
@@ -33,37 +31,24 @@ const Dash = () => (
   </svg>
 );
 
-const cellBox: CSSProperties = {
-  display: 'flex',
-  justifyContent: 'center',
-  alignItems: 'center',
-  padding: '14px 8px',
-  borderTop: '1px solid var(--border-soft)',
-};
+const cellBox = 'flex justify-center items-center py-[14px] px-[8px] border-t border-line';
 
 function CellView({ v }: { v: Cell }) {
   if (v === 'c')
     return (
-      <div style={cellBox}>
+      <div className={cellBox}>
         <Check />
       </div>
     );
   if (v === 'd')
     return (
-      <div style={cellBox}>
+      <div className={cellBox}>
         <Dash />
       </div>
     );
   return (
-    <div style={cellBox}>
-      <span
-        style={{
-          font: '600 14px var(--font-display)',
-          color: 'var(--ink)',
-          whiteSpace: 'nowrap',
-          textAlign: 'center',
-        }}
-      >
+    <div className={cellBox}>
+      <span className="text-ink whitespace-nowrap text-center font-serif text-[14px] font-semibold leading-[normal]">
         {v}
       </span>
     </div>
@@ -102,142 +87,49 @@ export function CompareTable({
   ];
 
   return (
-    <section
-      style={{
-        width: '100%',
-        maxWidth: '1080px',
-        margin: '0 auto',
-        padding: 'clamp(56px,7vw,80px) clamp(20px,5vw,40px) 0',
-      }}
-    >
-      <div style={{ textAlign: 'center', marginBottom: '28px' }}>
-        <div
-          style={{ display: 'inline-flex', alignItems: 'center', gap: '9px', marginBottom: '14px' }}
-        >
-          <span
-            style={{
-              width: '20px',
-              height: '2px',
-              background: 'var(--coral)',
-              borderRadius: '2px',
-            }}
-          />
-          <span
-            style={{
-              font: '700 11px var(--font-ui)',
-              letterSpacing: '.16em',
-              textTransform: 'uppercase',
-              color: '#0C7E41',
-            }}
-          >
+    <section className="mx-auto w-full max-w-[1080px] px-[clamp(20px,5vw,40px)] pt-[clamp(56px,7vw,80px)]">
+      <div className="mb-[28px] text-center">
+        <div className="mb-[14px] inline-flex items-center gap-[9px]">
+          <span className="bg-coral h-[2px] w-[20px] rounded-[2px]" />
+          <span className="font-sans text-[11px] font-bold uppercase leading-[normal] tracking-[.16em] text-[#0C7E41]">
             Detalhes
           </span>
         </div>
-        <h2
-          style={{
-            font: '400 clamp(24px,4vw,34px) var(--font-display)',
-            color: 'var(--emerald)',
-            letterSpacing: '-.02em',
-            margin: 0,
-          }}
-        >
+        <h2 className="text-green-deep font-serif text-[clamp(24px,4vw,34px)] font-normal leading-[normal] tracking-[-.02em]">
           Compare os planos.
         </h2>
       </div>
 
-      <div
-        style={{
-          background: 'var(--paper)',
-          border: '1px solid var(--border-soft)',
-          borderRadius: '24px',
-          overflowX: 'auto',
-          boxShadow: 'var(--shadow-card)',
-        }}
-      >
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: '1.9fr 1fr 1fr 1fr 1fr',
-            minWidth: '680px',
-          }}
-        >
+      <div className="bg-paper border-line overflow-x-auto rounded-[24px] border shadow-[var(--shadow-card)]">
+        <div className="grid min-w-[680px] grid-cols-[1.9fr_1fr_1fr_1fr_1fr]">
           {/* header */}
-          <div style={{ padding: '22px 24px 18px', display: 'flex', alignItems: 'flex-end' }}>
-            <span
-              style={{
-                font: '700 11px var(--font-ui)',
-                letterSpacing: '.12em',
-                textTransform: 'uppercase',
-                color: 'var(--ink-50)',
-              }}
-            >
+          <div className="flex items-end px-[24px] pb-[18px] pt-[22px]">
+            <span className="text-ink-50 font-sans text-[11px] font-bold uppercase leading-[normal] tracking-[.12em]">
               Recurso
             </span>
           </div>
-          <div
-            style={{
-              padding: '22px 8px',
-              textAlign: 'center',
-              font: '500 17px var(--font-display)',
-              color: 'var(--emerald)',
-            }}
-          >
+          <div className="text-green-deep px-[8px] py-[22px] text-center font-serif text-[17px] font-medium leading-[normal]">
             Solo
           </div>
-          <div
-            style={{
-              padding: '16px 8px 22px',
-              textAlign: 'center',
-              background: 'rgba(47,211,122,.08)',
-              position: 'relative',
-            }}
-          >
-            <div
-              style={{
-                font: '700 8px var(--font-ui)',
-                letterSpacing: '.1em',
-                color: 'var(--coral)',
-                marginBottom: '3px',
-              }}
-            >
+          <div className="relative bg-[rgba(47,211,122,.08)] px-[8px] pb-[22px] pt-[16px] text-center">
+            <div className="text-coral mb-[3px] font-sans text-[8px] font-bold leading-[normal] tracking-[.1em]">
               POPULAR
             </div>
-            <div style={{ font: '500 17px var(--font-display)', color: 'var(--emerald)' }}>
+            <div className="text-green-deep font-serif text-[17px] font-medium leading-[normal]">
               Time
             </div>
           </div>
-          <div
-            style={{
-              padding: '22px 8px',
-              textAlign: 'center',
-              font: '500 17px var(--font-display)',
-              color: 'var(--emerald)',
-            }}
-          >
+          <div className="text-green-deep px-[8px] py-[22px] text-center font-serif text-[17px] font-medium leading-[normal]">
             Multi
           </div>
-          <div
-            style={{
-              padding: '22px 8px',
-              textAlign: 'center',
-              font: '500 17px var(--font-display)',
-              color: 'var(--emerald)',
-            }}
-          >
+          <div className="text-green-deep px-[8px] py-[22px] text-center font-serif text-[17px] font-medium leading-[normal]">
             Enterprise
           </div>
 
           {/* rows */}
           {rows.map((row) => (
-            <div key={row.label} style={{ display: 'contents' }}>
-              <div
-                style={{
-                  padding: '14px 24px',
-                  font: '500 14px var(--font-ui)',
-                  color: 'var(--ink-70)',
-                  borderTop: '1px solid var(--border-soft)',
-                }}
-              >
+            <div key={row.label} className="contents">
+              <div className="text-ink-70 border-line border-t px-[24px] py-[14px] font-sans text-[14px] font-medium leading-[normal]">
                 {row.label}
               </div>
               {row.cells.map((cell, i) => (

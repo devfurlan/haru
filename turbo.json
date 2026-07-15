@@ -19,10 +19,16 @@
     "BOT_INTERNAL_TOKEN",
     "SENTRY_DSN",
     "SENTRY_ENV",
+    "SENTRY_ORG",
+    "SENTRY_PROJECT",
+    "NEXT_PUBLIC_SENTRY_DSN",
+    "NEXT_PUBLIC_SENTRY_ENV",
+    "NEXT_PUBLIC_GTM_ID",
     "HEALTHCHECKS_URL",
     "PORT",
     "WEB_URL"
   ],
+  "globalPassThroughEnv": ["SENTRY_AUTH_TOKEN"],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],

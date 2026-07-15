@@ -1,8 +1,13 @@
+import * as Sentry from '@sentry/react-native';
 import type { Session } from '@supabase/supabase-js';
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 
 import { unregisterPush } from './push';
 import { supabase } from './supabase';
+
+// Só o id: nada de e-mail/telefone/nome no Sentry (LGPD, sendDefaultPii=false).
+const trackUser = (session: Session | null) =>
+  Sentry.setUser(session ? { id: session.user.id } : null);
 
 type AuthState = { session: Session | null; loading: boolean };
 
@@ -19,6 +24,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
     const { data: sub } = supabase.auth.onAuthStateChange((_event, next) => {
       setSession(next);
+      // Cobre login, logout (SIGNED_OUT -> next=null) e refresh de token.
+      trackUser(next);
     });
     return () => sub.subscription.unsubscribe();
   }, []);

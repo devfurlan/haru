@@ -1,6 +1,7 @@
 // Cliente da API mobile (/api/mobile/v1/*). Anexa o Bearer token da sessão Supabase
 // em cada request. Os tipos espelham o JSON dos route handlers (datas viram string ISO).
 import type { AvailableSlot, SeriesPreview } from '@haru/shared';
+import * as Sentry from '@sentry/react-native';
 
 import { supabase } from './supabase';
 
@@ -295,7 +296,12 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       body && typeof body === 'object' && 'error' in body
         ? String((body as { error: unknown }).error)
         : `Erro ${res.status} do servidor.`;
-    throw new ApiError(res.status, message);
+    const err = new ApiError(res.status, message);
+    // Só 5xx: as telas tratam o ApiError e mostram na UI, então o Sentry nunca veria
+    // um backend quebrado. 4xx é esperado (validação, sessão expirada) e viraria ruído.
+    // A URL/status já vêm no breadcrumb de fetch - não precisa de tag.
+    if (res.status >= 500) Sentry.captureException(err);
+    throw err;
   }
   // 2xx sem JSON = o servidor da API não está servindo /api/mobile (dev server
   // desatualizado, HTML de 404, etc.). Vira erro claro em vez de quebrar a tela.

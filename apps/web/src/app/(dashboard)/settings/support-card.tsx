@@ -4,13 +4,7 @@
  *  evento global - o widget vive no layout do dashboard. */
 export function SupportCard() {
   return (
-    <div
-      className="text-on-emerald flex flex-wrap items-center gap-3.5 rounded-[18px] p-[18px]"
-      style={{
-        background:
-          'radial-gradient(420px 220px at 15% -20%, rgba(47,211,122,.14), transparent 60%), var(--emerald)',
-      }}
-    >
+    <div className="bg-green-deep text-on-emerald flex flex-wrap items-center gap-3.5 rounded-[18px] bg-[radial-gradient(420px_220px_at_15%_-20%,rgba(47,211,122,.14),transparent_60%)] p-[18px]">
       <div className="min-w-[220px] flex-1">
         <div className="font-serif text-[17px] font-semibold">
           Precisa de uma <em className="text-green-bright">mão</em>?

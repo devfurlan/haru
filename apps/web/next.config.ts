@@ -1,3 +1,4 @@
+import { withSentryConfig } from '@sentry/nextjs';
 import type { NextConfig } from 'next';
 
 // Headers de segurança em todas as respostas. Conservador de propósito (sem CSP, que exigiria
@@ -18,4 +19,12 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+// Upload de sourcemap só acontece com SENTRY_AUTH_TOKEN no ambiente (o plugin lê a env
+// sozinho - não precisa passar authToken aqui). Sem token, o build segue normal.
+// ponytail: sem tunnelRoute - na Vercel todo evento viraria invocação de function (custo).
+export default withSentryConfig(nextConfig, {
+  org: process.env.SENTRY_ORG ?? 'demandae',
+  project: process.env.SENTRY_PROJECT ?? 'demandae-web',
+  silent: !process.env.CI,
+  widenClientFileUpload: true,
+});

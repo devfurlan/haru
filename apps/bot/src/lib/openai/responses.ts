@@ -4,6 +4,7 @@ import type {
   ResponseInputItem,
 } from 'openai/resources/responses/responses';
 
+import { Sentry } from '../../instrument.js';
 import { openai } from './client.js';
 import { BOT_MODEL } from './prompts/index.js';
 import { executeTool, type ToolContext } from './tools.js';
@@ -205,6 +206,10 @@ async function runToolCalls(
       });
     } catch (err) {
       console.error(`[tool] ${call.name} falhou:`, err);
+      Sentry.captureException(err, {
+        tags: { component: 'openai', phase: 'tool', tool: call.name },
+        extra: { tenantId: ctx.tenantId, conversationId: ctx.conversationId },
+      });
       outputs.push({
         type: 'function_call_output',
         call_id: call.call_id,
@@ -253,6 +258,17 @@ export async function askBot(opts: AskBotOptions): Promise<BotResponseResult> {
     };
   } catch (err) {
     console.error('Erro ao chamar Responses API:', err);
+    // O fallback silencia a falha pro cliente; sem isso, o erro só existia no log.
+    // Sem conteúdo da mensagem no payload (é PII: nome, telefone, saúde).
+    Sentry.captureException(err, {
+      tags: { component: 'openai', phase: 'responses', model: BOT_MODEL },
+      extra: {
+        tenantId: opts.toolContext?.tenantId,
+        conversationId: opts.toolContext?.conversationId,
+        hasPreviousResponseId: Boolean(opts.previousResponseId),
+        requests: usage.requests,
+      },
+    });
     return {
       reply: FALLBACK_REPLY,
       responseId: opts.previousResponseId ?? '',

@@ -1,5 +1,7 @@
 import 'server-only';
 
+import * as Sentry from '@sentry/nextjs';
+
 import { prisma } from '@haru/database';
 import type { BillingCycle, PaymentMethod } from '@haru/database';
 import { getPublicPlan, snapshotPlan } from '@haru/billing';
@@ -40,6 +42,25 @@ function planChargeKind(sub: { addonActivatedAt: Date | null; addonCanceledAt: D
  * é upsert; e-mail deduplica por lastBilledPaymentId; status já ACTIVE vira no-op).
  */
 export async function applyBillingEvent(parsed: ParsedBillingEvent): Promise<void> {
+  try {
+    await applyEvent(parsed);
+  } catch (err) {
+    // Ponto cego mais caro do app: é aqui que assinatura paga vira ACTIVE. Instrumentado na
+    // função (não no route handler) porque a reconciliação (lib/billing/reconcile.ts) chama
+    // o mesmo caminho e não passa por HTTP.
+    Sentry.captureException(err, {
+      tags: {
+        component: 'billing-webhook',
+        billingEvent: parsed.event ?? 'unknown',
+        effect: parsed.effect ?? 'none',
+      },
+    });
+    // RETHROW: o Asaas precisa de não-200 pra reenviar. Engolir aqui perderia o pagamento.
+    throw err;
+  }
+}
+
+async function applyEvent(parsed: ParsedBillingEvent): Promise<void> {
   // Nota fiscal (NFS-e via Asaas): eventos INVOICE_* fecham o estado da NF de uma cobrança.
   // A emissão é agendada no gancho (recordCharge → emitInvoiceForCharge); a autorização pela
   // prefeitura é assíncrona e chega aqui. Reconcilia por asaasInvoiceId, com fallback pelo

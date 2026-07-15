@@ -22,12 +22,12 @@ import type { CalendarAppointment } from './appointments-day-view';
 
 const BRL = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 
-const PILL: Record<AppointmentStatus, { bg: string; fg: string }> = {
-  PENDING: { bg: 'rgba(255,90,54,.22)', fg: '#FFD9CE' },
-  CONFIRMED: { bg: 'rgba(47,211,122,.18)', fg: 'var(--green)' },
-  COMPLETED: { bg: 'rgba(250,245,234,.14)', fg: 'var(--on-emerald-mut)' },
-  CANCELED: { bg: 'rgba(250,245,234,.14)', fg: 'var(--on-emerald-mut)' },
-  NO_SHOW: { bg: 'rgba(255,90,54,.18)', fg: '#FFD9CE' },
+const PILL: Record<AppointmentStatus, string> = {
+  PENDING: 'bg-[rgba(255,90,54,.22)] text-[#FFD9CE]',
+  CONFIRMED: 'bg-[rgba(47,211,122,.18)] text-green-bright',
+  COMPLETED: 'bg-[rgba(250,245,234,.14)] text-on-emerald-mut',
+  CANCELED: 'bg-[rgba(250,245,234,.14)] text-on-emerald-mut',
+  NO_SHOW: 'bg-[rgba(255,90,54,.18)] text-[#FFD9CE]',
 };
 
 function formatTime(iso: string, tz: string): string {
@@ -109,8 +109,7 @@ export function AppointmentDetailCard({
       </div>
 
       <span
-        className="mt-2.5 inline-flex rounded-full px-2.5 py-1 text-[10.5px] font-semibold"
-        style={{ background: pill.bg, color: pill.fg }}
+        className={`mt-2.5 inline-flex rounded-full px-2.5 py-1 text-[10.5px] font-semibold ${pill}`}
       >
         {STATUS_LABEL[status] ?? status}
       </span>

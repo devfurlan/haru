@@ -12,11 +12,7 @@ export function RecoveryBanner({ metric }: { metric: RecoveryMetric }) {
   return (
     <Link
       href="/appointments"
-      className="border-line shadow-soft flex flex-wrap items-center gap-4 rounded-[18px] border p-5 transition-shadow hover:shadow-md"
-      style={{
-        background:
-          'radial-gradient(460px 200px at 8% -40%, rgba(47,211,122,.16), transparent 62%), var(--brand-paper)',
-      }}
+      className="border-line shadow-soft flex flex-wrap items-center gap-4 rounded-[18px] border p-5 transition-shadow [background:radial-gradient(460px_200px_at_8%_-40%,rgba(47,211,122,.16),transparent_62%),var(--brand-paper)] hover:shadow-md"
     >
       <div className="bg-chip text-green-emph flex size-[46px] flex-none items-center justify-center rounded-[14px]">
         <Wallet className="size-6" strokeWidth={2.1} />

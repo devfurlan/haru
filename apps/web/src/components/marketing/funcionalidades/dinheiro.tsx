@@ -2,90 +2,27 @@ export function Dinheiro() {
   return (
     <section
       id="dinheiro"
-      style={{
-        scrollMarginTop: '78px',
-        background: 'var(--paper)',
-        borderTop: '1px solid var(--border-soft)',
-        borderBottom: '1px solid var(--border-soft)',
-      }}
+      className="border-t-line border-b-line bg-paper scroll-mt-[78px] border-b border-t"
     >
-      <div
-        style={{
-          maxWidth: '1200px',
-          margin: '0 auto',
-          padding: 'clamp(40px,6vw,72px) clamp(20px,5vw,40px)',
-        }}
-      >
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit,minmax(320px,1fr))',
-            gap: 'clamp(30px,5vw,64px)',
-            alignItems: 'center',
-          }}
-        >
+      <div className="mx-auto max-w-[1200px] px-[clamp(20px,5vw,40px)] py-[clamp(40px,6vw,72px)]">
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(320px,1fr))] items-center gap-[clamp(30px,5vw,64px)]">
           <div>
-            <div
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '9px',
-                marginBottom: '14px',
-              }}
-            >
-              <span
-                style={{
-                  width: '20px',
-                  height: '2px',
-                  background: 'var(--coral)',
-                  borderRadius: '2px',
-                }}
-              ></span>
-              <span
-                style={{
-                  font: '700 11px var(--font-ui)',
-                  letterSpacing: '.16em',
-                  textTransform: 'uppercase',
-                  color: '#0C7E41',
-                }}
-              >
+            <div className="mb-[14px] inline-flex items-center gap-[9px]">
+              <span className="bg-coral h-[2px] w-[20px] rounded-[2px]"></span>
+              <span className="font-sans text-[11px] font-bold uppercase leading-[normal] tracking-[.16em] text-[#0C7E41]">
                 Pilar 03 · Dinheiro
               </span>
             </div>
-            <h2
-              style={{
-                font: '400 clamp(26px,3.6vw,38px)/1.12 var(--font-display)',
-                color: 'var(--emerald)',
-                letterSpacing: '-.02em',
-                margin: '0 0 14px',
-                maxWidth: '460px',
-              }}
-            >
+            <h2 className="text-green-deep mb-[14px] max-w-[460px] font-serif text-[clamp(26px,3.6vw,38px)] font-normal leading-[1.12] tracking-[-.02em]">
               Receita que entra mesmo com a{' '}
-              <span style={{ fontStyle: 'italic', color: '#0C7E41' }}>agenda vazia</span>.
+              <span className="italic text-[#0C7E41]">agenda vazia</span>.
             </h2>
-            <p
-              style={{
-                font: '400 16.5px/1.6 var(--font-ui)',
-                color: 'var(--ink-70)',
-                margin: '0 0 22px',
-                maxWidth: '460px',
-              }}
-            >
+            <p className="text-ink-70 mb-[22px] max-w-[460px] font-sans text-[16.5px] font-normal leading-[1.6]">
               Clube de assinatura, pacotes e pagamento online. Cobre antes, reduza o no-show e crie
               receita recorrente todo mês.
             </p>
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '2px',
-                maxWidth: '440px',
-              }}
-            >
-              <div
-                style={{ display: 'flex', gap: '11px', alignItems: 'flex-start', padding: '7px 0' }}
-              >
+            <div className="flex max-w-[440px] flex-col gap-[2px]">
+              <div className="flex items-start gap-[11px] py-[7px]">
                 <svg
                   width="18"
                   height="18"
@@ -95,17 +32,15 @@ export function Dinheiro() {
                   strokeWidth="2.6"
                   strokeLinecap="round"
                   strokeLinejoin="round"
-                  style={{ flex: 'none', marginTop: '2px' }}
+                  className="mt-[2px] flex-none"
                 >
                   <polyline points="20 6 9 17 4 12" />
                 </svg>
-                <span style={{ font: '400 15.5px/1.5 var(--font-ui)', color: 'var(--ink-70)' }}>
+                <span className="text-ink-70 font-sans text-[15.5px] font-normal leading-[1.5]">
                   Clube de assinatura e pacotes de sessões
                 </span>
               </div>
-              <div
-                style={{ display: 'flex', gap: '11px', alignItems: 'flex-start', padding: '7px 0' }}
-              >
+              <div className="flex items-start gap-[11px] py-[7px]">
                 <svg
                   width="18"
                   height="18"
@@ -115,17 +50,15 @@ export function Dinheiro() {
                   strokeWidth="2.6"
                   strokeLinecap="round"
                   strokeLinejoin="round"
-                  style={{ flex: 'none', marginTop: '2px' }}
+                  className="mt-[2px] flex-none"
                 >
                   <polyline points="20 6 9 17 4 12" />
                 </svg>
-                <span style={{ font: '400 15.5px/1.5 var(--font-ui)', color: 'var(--ink-70)' }}>
+                <span className="text-ink-70 font-sans text-[15.5px] font-normal leading-[1.5]">
                   Pagamento online e PIX, antecipado
                 </span>
               </div>
-              <div
-                style={{ display: 'flex', gap: '11px', alignItems: 'flex-start', padding: '7px 0' }}
-              >
+              <div className="flex items-start gap-[11px] py-[7px]">
                 <svg
                   width="18"
                   height="18"
@@ -135,17 +68,15 @@ export function Dinheiro() {
                   strokeWidth="2.6"
                   strokeLinecap="round"
                   strokeLinejoin="round"
-                  style={{ flex: 'none', marginTop: '2px' }}
+                  className="mt-[2px] flex-none"
                 >
                   <polyline points="20 6 9 17 4 12" />
                 </svg>
-                <span style={{ font: '400 15.5px/1.5 var(--font-ui)', color: 'var(--ink-70)' }}>
+                <span className="text-ink-70 font-sans text-[15.5px] font-normal leading-[1.5]">
                   Menos no-show com cobrança na reserva
                 </span>
               </div>
-              <div
-                style={{ display: 'flex', gap: '11px', alignItems: 'flex-start', padding: '7px 0' }}
-              >
+              <div className="flex items-start gap-[11px] py-[7px]">
                 <svg
                   width="18"
                   height="18"
@@ -155,49 +86,21 @@ export function Dinheiro() {
                   strokeWidth="2.6"
                   strokeLinecap="round"
                   strokeLinejoin="round"
-                  style={{ flex: 'none', marginTop: '2px' }}
+                  className="mt-[2px] flex-none"
                 >
                   <polyline points="20 6 9 17 4 12" />
                 </svg>
-                <span style={{ font: '400 15.5px/1.5 var(--font-ui)', color: 'var(--ink-70)' }}>
+                <span className="text-ink-70 font-sans text-[15.5px] font-normal leading-[1.5]">
                   Comissão por profissional calculada sozinha
                 </span>
               </div>
             </div>
           </div>
-          <div
-            style={{
-              width: '100%',
-              maxWidth: '420px',
-              margin: '0 auto',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '12px',
-            }}
-          >
-            <div
-              style={{
-                background: 'var(--paper)',
-                border: '1px solid var(--border-soft)',
-                borderRadius: '18px',
-                padding: '18px',
-                boxShadow: 'var(--shadow-card)',
-              }}
-            >
-              <div
-                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '11px' }}>
-                  <span
-                    style={{
-                      width: '42px',
-                      height: '42px',
-                      borderRadius: '13px',
-                      background: 'var(--green-tint)',
-                      display: 'grid',
-                      placeItems: 'center',
-                    }}
-                  >
+          <div className="mx-auto flex w-full max-w-[420px] flex-col gap-[12px]">
+            <div className="border-line bg-paper rounded-[18px] border p-[18px] shadow-[var(--shadow-card)]">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-[11px]">
+                  <span className="bg-chip grid h-[42px] w-[42px] place-items-center rounded-[13px]">
                     <svg
                       width="21"
                       height="21"
@@ -215,169 +118,54 @@ export function Dinheiro() {
                     </svg>
                   </span>
                   <div>
-                    <div style={{ font: '500 16px var(--font-display)', color: 'var(--emerald)' }}>
+                    <div className="text-green-deep font-serif text-[16px] font-medium leading-[normal]">
                       Clube de assinatura
                     </div>
-                    <div style={{ font: '500 11.5px var(--font-ui)', color: 'var(--ink-50)' }}>
+                    <div className="text-ink-50 font-sans text-[11.5px] font-medium leading-[normal]">
                       Corte Ilimitado
                     </div>
                   </div>
                 </div>
-                <div
-                  style={{
-                    textAlign: 'right',
-                    font: '600 20px var(--font-display)',
-                    color: 'var(--ink)',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
+                <div className="text-ink whitespace-nowrap text-right font-serif text-[20px] font-semibold leading-[normal]">
                   R$ 99
-                  <span style={{ font: '500 12px var(--font-ui)', color: 'var(--ink-50)' }}>
+                  <span className="text-ink-50 font-sans text-[12px] font-medium leading-[normal]">
                     /mês
                   </span>
                 </div>
               </div>
-              <div
-                style={{ height: '1px', background: 'var(--border-soft)', margin: '14px 0' }}
-              ></div>
-              <div
-                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
-              >
-                <span style={{ font: '500 12.5px var(--font-ui)', color: 'var(--ink-70)' }}>
+              <div className="bg-line my-[14px] h-[1px]"></div>
+              <div className="flex items-center justify-between">
+                <span className="text-ink-70 font-sans text-[12.5px] font-medium leading-[normal]">
                   42 assinantes ativos
                 </span>
-                <span
-                  style={{
-                    font: '700 10.5px var(--font-ui)',
-                    letterSpacing: '.04em',
-                    textTransform: 'uppercase',
-                    color: 'var(--emerald)',
-                    background: 'var(--green-tint)',
-                    borderRadius: '999px',
-                    padding: '5px 10px',
-                  }}
-                >
+                <span className="bg-chip text-green-deep rounded-full px-[10px] py-[5px] font-sans text-[10.5px] font-bold uppercase leading-[normal] tracking-[.04em]">
                   +8 este mês
                 </span>
               </div>
             </div>
-            <div
-              style={{
-                background: 'var(--paper)',
-                border: '1px solid var(--border-soft)',
-                borderRadius: '18px',
-                padding: '18px',
-                boxShadow: 'var(--shadow-card)',
-              }}
-            >
-              <div
-                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}
-              >
-                <span
-                  style={{
-                    font: '700 11px var(--font-ui)',
-                    letterSpacing: '.1em',
-                    textTransform: 'uppercase',
-                    color: 'var(--ink-50)',
-                  }}
-                >
+            <div className="border-line bg-paper rounded-[18px] border p-[18px] shadow-[var(--shadow-card)]">
+              <div className="flex items-baseline justify-between">
+                <span className="text-ink-50 font-sans text-[11px] font-bold uppercase leading-[normal] tracking-[.1em]">
                   Receita recorrente
                 </span>
-                <span
-                  style={{
-                    font: '600 18px var(--font-display)',
-                    color: 'var(--emerald)',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
+                <span className="text-green-deep whitespace-nowrap font-serif text-[18px] font-semibold leading-[normal]">
                   R$ 4.158
-                  <span style={{ font: '500 11px var(--font-ui)', color: 'var(--ink-50)' }}>
+                  <span className="text-ink-50 font-sans text-[11px] font-medium leading-[normal]">
                     /mês
                   </span>
                 </span>
               </div>
-              <div
-                style={{
-                  marginTop: '15px',
-                  display: 'flex',
-                  alignItems: 'flex-end',
-                  gap: '8px',
-                  height: '64px',
-                }}
-              >
-                <div
-                  style={{
-                    flex: '1',
-                    height: '34px',
-                    background: '#cdeadb',
-                    borderRadius: '6px 6px 0 0',
-                  }}
-                ></div>
-                <div
-                  style={{
-                    flex: '1',
-                    height: '42px',
-                    background: '#cdeadb',
-                    borderRadius: '6px 6px 0 0',
-                  }}
-                ></div>
-                <div
-                  style={{
-                    flex: '1',
-                    height: '48px',
-                    background: '#a9dcc1',
-                    borderRadius: '6px 6px 0 0',
-                  }}
-                ></div>
-                <div
-                  style={{
-                    flex: '1',
-                    height: '54px',
-                    background: '#a9dcc1',
-                    borderRadius: '6px 6px 0 0',
-                  }}
-                ></div>
-                <div
-                  style={{
-                    flex: '1',
-                    height: '60px',
-                    background: '#7fcea6',
-                    borderRadius: '6px 6px 0 0',
-                  }}
-                ></div>
-                <div
-                  style={{
-                    flex: '1',
-                    height: '64px',
-                    background: 'var(--green)',
-                    borderRadius: '6px 6px 0 0',
-                  }}
-                ></div>
+              <div className="mt-[15px] flex h-[64px] items-end gap-[8px]">
+                <div className="h-[34px] flex-1 rounded-t-[6px] bg-[#cdeadb]"></div>
+                <div className="h-[42px] flex-1 rounded-t-[6px] bg-[#cdeadb]"></div>
+                <div className="h-[48px] flex-1 rounded-t-[6px] bg-[#a9dcc1]"></div>
+                <div className="h-[54px] flex-1 rounded-t-[6px] bg-[#a9dcc1]"></div>
+                <div className="h-[60px] flex-1 rounded-t-[6px] bg-[#7fcea6]"></div>
+                <div className="bg-green-bright h-[64px] flex-1 rounded-t-[6px]"></div>
               </div>
             </div>
-            <div
-              style={{
-                background: 'var(--paper)',
-                border: '1px solid var(--border-soft)',
-                borderRadius: '16px',
-                padding: '13px 15px',
-                boxShadow: 'var(--shadow-card)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px',
-              }}
-            >
-              <span
-                style={{
-                  width: '34px',
-                  height: '34px',
-                  borderRadius: '10px',
-                  background: 'var(--green)',
-                  display: 'grid',
-                  placeItems: 'center',
-                  flex: 'none',
-                }}
-              >
+            <div className="border-line bg-paper flex items-center gap-[12px] rounded-[16px] border px-[15px] py-[13px] shadow-[var(--shadow-card)]">
+              <span className="bg-green-bright grid h-[34px] w-[34px] flex-none place-items-center rounded-[10px]">
                 <svg
                   width="18"
                   height="18"
@@ -391,15 +179,15 @@ export function Dinheiro() {
                   <polyline points="20 6 9 17 4 12" />
                 </svg>
               </span>
-              <div style={{ flex: '1', minWidth: '0' }}>
-                <div style={{ font: '600 13.5px var(--font-ui)', color: 'var(--ink)' }}>
+              <div className="min-w-0 flex-1">
+                <div className="text-ink font-sans text-[13.5px] font-semibold leading-[normal]">
                   Pagamento confirmado
                 </div>
-                <div style={{ font: '500 11.5px var(--font-ui)', color: 'var(--ink-50)' }}>
+                <div className="text-ink-50 font-sans text-[11.5px] font-medium leading-[normal]">
                   PIX · Corte masculino
                 </div>
               </div>
-              <span style={{ font: '600 15px var(--font-display)', color: 'var(--emerald)' }}>
+              <span className="text-green-deep font-serif text-[15px] font-semibold leading-[normal]">
                 R$ 45
               </span>
             </div>

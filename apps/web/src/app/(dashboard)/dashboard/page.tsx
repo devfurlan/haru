@@ -233,6 +233,7 @@ export default async function DashboardPage() {
           </div>
           <div className="text-ink mb-2 mt-1.5 font-serif text-3xl">{ocupacao}%</div>
           <div className="bg-line h-1.5 overflow-hidden rounded-full">
+            {/* ponytail: runtime, Tailwind nao gera */}
             <div
               className="bg-green-bright h-full rounded-full"
               style={{ width: `${ocupacao}%` }}
@@ -303,6 +304,7 @@ export default async function DashboardPage() {
                       </div>
                     </div>
                     <div className="text-ink-70 hidden w-[84px] flex-none items-center gap-1.5 text-xs font-medium sm:flex">
+                      {/* ponytail: runtime, Tailwind nao gera */}
                       <span
                         className="size-[7px] flex-none rounded-full"
                         style={{ background: proColor(a.professionalId) }}
@@ -315,6 +317,7 @@ export default async function DashboardPage() {
                       {money(a.service.priceCents)}
                     </div>
                     <div className="flex w-[88px] flex-none justify-end">
+                      {/* ponytail: runtime, Tailwind nao gera */}
                       <span
                         className="whitespace-nowrap rounded-full px-2.5 py-1 text-[10.5px] font-semibold"
                         style={{ background: pill.bg, color: pill.fg }}
@@ -345,8 +348,7 @@ export default async function DashboardPage() {
             {!whatsappConnected && (
               <Link
                 href="/settings"
-                className="border-coral-tint bg-coral-tint block rounded-2xl border p-3.5 no-underline"
-                style={{ borderColor: '#ffd6c9' }}
+                className="bg-coral-tint block rounded-2xl border border-[#ffd6c9] p-3.5 no-underline"
               >
                 <div className="text-ink text-[13px] font-semibold">WhatsApp não conectado</div>
                 <div className="text-ink-50 mt-0.5 text-[11.5px]">

@@ -35,6 +35,7 @@ function UsageBar({ label, metric }: { label: string; metric: UsageMetric }) {
       </div>
       {pct !== null && (
         <div className="bg-line h-1.5 overflow-hidden rounded-full">
+          {/* ponytail: runtime, Tailwind nao gera */}
           <div className="bg-green-bright h-full rounded-full" style={{ width: `${pct}%` }} />
         </div>
       )}

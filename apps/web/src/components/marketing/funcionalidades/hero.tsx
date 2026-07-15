@@ -2,82 +2,25 @@ import { Btn } from '../home/btn';
 
 export function Hero() {
   return (
-    <section
-      style={{
-        // width:100% conserta o colapso do grid auto-fit (section é flex item do layout)
-        width: '100%',
-        maxWidth: '1200px',
-        margin: '0 auto',
-        padding: 'clamp(44px,6vw,72px) clamp(20px,5vw,40px) clamp(30px,4vw,48px)',
-      }}
-    >
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit,minmax(320px,1fr))',
-          gap: 'clamp(30px,5vw,64px)',
-          alignItems: 'center',
-        }}
-      >
+    // width:100% (w-full) conserta o colapso do grid auto-fit (section é flex item do layout)
+    <section className="mx-auto w-full max-w-[1200px] px-[clamp(20px,5vw,40px)] pb-[clamp(30px,4vw,48px)] pt-[clamp(44px,6vw,72px)]">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(320px,1fr))] items-center gap-[clamp(30px,5vw,64px)]">
         <div>
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '9px',
-              marginBottom: '18px',
-            }}
-          >
-            <span
-              style={{
-                width: '20px',
-                height: '2px',
-                background: 'var(--coral)',
-                borderRadius: '2px',
-              }}
-            ></span>
-            <span
-              style={{
-                font: '700 11px var(--font-ui)',
-                letterSpacing: '.16em',
-                textTransform: 'uppercase',
-                color: '#0C7E41',
-              }}
-            >
+          <div className="mb-[18px] flex items-center gap-[9px]">
+            <span className="bg-coral h-[2px] w-[20px] rounded-[2px]"></span>
+            <span className="font-sans text-[11px] font-bold uppercase leading-[normal] tracking-[.16em] text-[#0C7E41]">
               Funcionalidades
             </span>
           </div>
-          <h1
-            style={{
-              font: '400 clamp(32px,5.4vw,52px)/1.06 var(--font-display)',
-              color: 'var(--emerald)',
-              letterSpacing: '-.025em',
-              margin: '0 0 18px',
-              maxWidth: '560px',
-            }}
-          >
-            Tudo que a sua agenda precisa.{' '}
-            <span style={{ fontStyle: 'italic', color: '#0C7E41' }}>Nada</span> que ela não precisa.
+          <h1 className="text-green-deep mb-[18px] max-w-[560px] font-serif text-[clamp(32px,5.4vw,52px)] font-normal leading-[1.06] tracking-[-.025em]">
+            Tudo que a sua agenda precisa. <span className="italic text-[#0C7E41]">Nada</span> que
+            ela não precisa.
           </h1>
-          <p
-            style={{
-              font: '400 18px/1.55 var(--font-ui)',
-              color: 'var(--ink-70)',
-              margin: '0 0 26px',
-              maxWidth: '500px',
-            }}
-          >
+          <p className="text-ink-70 mb-[26px] max-w-[500px] font-sans text-[18px] font-normal leading-[1.55]">
             Do primeiro toque do cliente ao fechamento do caixa: agendamento, app com a sua marca,
             pagamento e gestão - no mesmo lugar, sem gambiarra.
           </p>
-          <div
-            style={{
-              display: 'flex',
-              gap: '13px',
-              flexWrap: 'wrap',
-              alignItems: 'center',
-            }}
-          >
+          <div className="flex flex-wrap items-center gap-[13px]">
             <Btn variant="primary" size="lg" href="/signup">
               Começar agora
             </Btn>
@@ -85,113 +28,30 @@ export function Hero() {
               Ver planos
             </Btn>
           </div>
-          <div
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '9px',
-              marginTop: '26px',
-              background: 'var(--paper)',
-              border: '1px solid var(--border-soft)',
-              borderRadius: '999px',
-              padding: '8px 15px 8px 11px',
-              boxShadow: 'var(--shadow-card)',
-            }}
-          >
-            <span
-              style={{
-                width: '8px',
-                height: '8px',
-                borderRadius: '50%',
-                background: 'var(--green)',
-                animation: 'dmd-pulse 1.8s ease-in-out infinite',
-              }}
-            ></span>
-            <span
-              style={{
-                font: '600 13px var(--font-ui)',
-                color: 'var(--ink-70)',
-              }}
-            >
+          <div className="border-line bg-paper mt-[26px] inline-flex items-center gap-[9px] rounded-full border py-[8px] pl-[11px] pr-[15px] shadow-[var(--shadow-card)]">
+            <span className="bg-green-bright h-[8px] w-[8px] animate-[dmd-pulse_1.8s_ease-in-out_infinite] rounded-[50%]"></span>
+            <span className="text-ink-70 font-sans text-[13px] font-semibold leading-[normal]">
               Agendamentos ilimitados em todos os planos
             </span>
           </div>
         </div>
-        <div style={{ display: 'flex', justifyContent: 'center' }}>
-          <div style={{ position: 'relative' }}>
-            <div
-              style={{
-                width: '300px',
-                background: '#0F1F18',
-                borderRadius: '42px',
-                padding: '6px',
-                boxShadow: '0 44px 90px -38px rgba(10,51,36,.6),0 10px 26px rgba(10,51,36,.16)',
-              }}
-            >
-              <div
-                style={{
-                  borderRadius: '36px',
-                  overflow: 'hidden',
-                  background: 'var(--cream)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                }}
-              >
-                <div
-                  style={{
-                    position: 'relative',
-                    background: 'var(--emerald)',
-                    padding: '20px 18px 22px',
-                  }}
-                >
-                  <div
-                    style={{
-                      position: 'absolute',
-                      inset: 0,
-                      background:
-                        'radial-gradient(180px 130px at 85% 4%,rgba(47,211,122,.2),transparent),radial-gradient(160px 120px at 6% 60%,rgba(255,90,54,.12),transparent)',
-                    }}
-                  ></div>
-                  <div
-                    style={{
-                      position: 'relative',
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'flex-start',
-                    }}
-                  >
+        <div className="flex justify-center">
+          <div className="relative">
+            <div className="w-[300px] rounded-[42px] bg-[#0F1F18] p-[6px] shadow-[0_44px_90px_-38px_rgba(10,51,36,.6),0_10px_26px_rgba(10,51,36,.16)]">
+              <div className="bg-cream flex flex-col overflow-hidden rounded-[36px]">
+                <div className="bg-green-deep relative px-[18px] pb-[22px] pt-[20px]">
+                  <div className="absolute inset-0 [background:radial-gradient(180px_130px_at_85%_4%,rgba(47,211,122,.2),transparent),radial-gradient(160px_120px_at_6%_60%,rgba(255,90,54,.12),transparent)]"></div>
+                  <div className="relative flex items-start justify-between">
                     <div>
-                      <div
-                        style={{
-                          font: '500 12px var(--font-ui)',
-                          color: 'var(--on-emerald-mut)',
-                        }}
-                      >
+                      <div className="text-on-emerald-mut font-sans text-[12px] font-medium leading-[normal]">
                         Boa tarde,
                       </div>
-                      <div
-                        style={{
-                          font: '600 21px/1 var(--font-display)',
-                          color: 'var(--on-emerald)',
-                          marginTop: '3px',
-                        }}
-                      >
+                      <div className="text-on-emerald mt-[3px] font-serif text-[21px] font-semibold leading-[1]">
                         Marina Alves
                       </div>
                     </div>
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      <div
-                        style={{
-                          width: '34px',
-                          height: '34px',
-                          borderRadius: '11px',
-                          background: 'rgba(255,253,248,.1)',
-                          border: '1px solid rgba(143,191,164,.3)',
-                          display: 'grid',
-                          placeItems: 'center',
-                          position: 'relative',
-                        }}
-                      >
+                    <div className="flex gap-[8px]">
+                      <div className="relative grid h-[34px] w-[34px] place-items-center rounded-[11px] border border-[rgba(143,191,164,.3)] bg-[rgba(255,253,248,.1)]">
                         <svg
                           width="16"
                           height="16"
@@ -205,195 +65,57 @@ export function Hero() {
                           <path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9Z" />
                           <path d="M13.7 21a2 2 0 0 1-3.4 0" />
                         </svg>
-                        <span
-                          style={{
-                            position: 'absolute',
-                            top: '7px',
-                            right: '8px',
-                            width: '7px',
-                            height: '7px',
-                            borderRadius: '50%',
-                            background: 'var(--coral)',
-                            border: '2px solid var(--emerald)',
-                          }}
-                        ></span>
+                        <span className="border-green-deep bg-coral absolute right-[8px] top-[7px] h-[7px] w-[7px] rounded-[50%] border-2"></span>
                       </div>
-                      <div
-                        style={{
-                          width: '34px',
-                          height: '34px',
-                          borderRadius: '11px',
-                          background: 'var(--green)',
-                          color: 'var(--emerald)',
-                          display: 'grid',
-                          placeItems: 'center',
-                          font: '600 14px var(--font-display)',
-                        }}
-                      >
+                      <div className="bg-green-bright text-green-deep grid h-[34px] w-[34px] place-items-center rounded-[11px] font-serif text-[14px] font-semibold leading-[normal]">
                         M
                       </div>
                     </div>
                   </div>
-                  <div style={{ position: 'relative', marginTop: '18px' }}>
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        marginBottom: '10px',
-                      }}
-                    >
-                      <span
-                        style={{
-                          width: '7px',
-                          height: '7px',
-                          borderRadius: '50%',
-                          background: 'var(--green)',
-                          animation: 'dmd-pulse 2s infinite',
-                        }}
-                      ></span>
-                      <span
-                        style={{
-                          font: '700 9.5px var(--font-ui)',
-                          letterSpacing: '.13em',
-                          textTransform: 'uppercase',
-                          color: 'var(--green)',
-                        }}
-                      >
+                  <div className="relative mt-[18px]">
+                    <div className="mb-[10px] flex items-center gap-[6px]">
+                      <span className="bg-green-bright h-[7px] w-[7px] animate-[dmd-pulse_2s_infinite] rounded-[50%]"></span>
+                      <span className="text-green-bright font-sans text-[9.5px] font-bold uppercase leading-[normal] tracking-[.13em]">
                         Próximo · em 2 dias
                       </span>
                     </div>
-                    <div
-                      style={{
-                        background: 'var(--surface-emerald-card)',
-                        border: '1px solid rgba(47,211,122,.3)',
-                        borderRadius: '18px',
-                        padding: '13px',
-                      }}
-                    >
-                      <div
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '10px',
-                        }}
-                      >
-                        <div
-                          style={{
-                            width: '42px',
-                            height: '42px',
-                            borderRadius: '13px',
-                            background: 'linear-gradient(135deg,#2FD37A,#1c9a5a)',
-                            display: 'grid',
-                            placeItems: 'center',
-                            font: '600 18px var(--font-display)',
-                            color: 'var(--emerald)',
-                          }}
-                        >
+                    <div className="bg-green-card rounded-[18px] border border-[rgba(47,211,122,.3)] p-[13px]">
+                      <div className="flex items-center gap-[10px]">
+                        <div className="text-green-deep grid h-[42px] w-[42px] place-items-center rounded-[13px] font-serif text-[18px] font-semibold leading-[normal] [background:linear-gradient(135deg,#2FD37A,#1c9a5a)]">
                           T
                         </div>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div
-                            style={{
-                              font: '600 14px var(--font-display)',
-                              color: '#FFFDF8',
-                            }}
-                          >
+                        <div className="min-w-0 flex-1">
+                          <div className="font-serif text-[14px] font-semibold leading-[normal] text-[#FFFDF8]">
                             Barbearia do Téo
                           </div>
-                          <div
-                            style={{
-                              font: '500 11px var(--font-ui)',
-                              color: 'var(--on-emerald-mut)',
-                            }}
-                          >
+                          <div className="text-on-emerald-mut font-sans text-[11px] font-medium leading-[normal]">
                             Corte · com Téo
                           </div>
                         </div>
-                        <div style={{ textAlign: 'right' }}>
-                          <div
-                            style={{
-                              font: '700 13px var(--font-ui)',
-                              color: 'var(--on-emerald)',
-                            }}
-                          >
+                        <div className="text-right">
+                          <div className="text-on-emerald font-sans text-[13px] font-bold leading-[normal]">
                             15h30
                           </div>
-                          <div
-                            style={{
-                              font: '500 11px var(--font-ui)',
-                              color: 'var(--on-emerald-mut)',
-                            }}
-                          >
+                          <div className="text-on-emerald-mut font-sans text-[11px] font-medium leading-[normal]">
                             Sáb
                           </div>
                         </div>
                       </div>
-                      <div
-                        style={{
-                          height: '1px',
-                          background:
-                            'repeating-linear-gradient(90deg,rgba(143,191,164,.4) 0 6px,transparent 6px 12px)',
-                          margin: '12px 0',
-                        }}
-                      ></div>
-                      <div style={{ display: 'flex', gap: '7px' }}>
-                        <span
-                          style={{
-                            flex: 1,
-                            textAlign: 'center',
-                            background: 'var(--coral)',
-                            color: '#fff',
-                            font: '700 12px var(--font-ui)',
-                            padding: '9px',
-                            borderRadius: '11px',
-                          }}
-                        >
+                      <div className="my-[12px] h-[1px] [background:repeating-linear-gradient(90deg,rgba(143,191,164,.4)_0_6px,transparent_6px_12px)]"></div>
+                      <div className="flex gap-[7px]">
+                        <span className="bg-coral flex-1 rounded-[11px] p-[9px] text-center font-sans text-[12px] font-bold leading-[normal] text-[#fff]">
                           Ver detalhes
                         </span>
-                        <span
-                          style={{
-                            flex: 1,
-                            textAlign: 'center',
-                            border: '1px solid rgba(250,245,234,.26)',
-                            color: 'var(--on-emerald)',
-                            font: '700 12px var(--font-ui)',
-                            padding: '9px',
-                            borderRadius: '11px',
-                          }}
-                        >
+                        <span className="text-on-emerald flex-1 rounded-[11px] border border-[rgba(250,245,234,.26)] p-[9px] text-center font-sans text-[12px] font-bold leading-[normal]">
                           Remarcar
                         </span>
                       </div>
                     </div>
                   </div>
                 </div>
-                <div
-                  style={{
-                    padding: '15px 15px 0',
-                    display: 'flex',
-                    gap: '9px',
-                  }}
-                >
-                  <div
-                    style={{
-                      flex: 1,
-                      background: 'var(--paper)',
-                      border: '1px solid var(--border-soft)',
-                      borderRadius: '15px',
-                      padding: '12px',
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: '32px',
-                        height: '32px',
-                        borderRadius: '10px',
-                        background: 'var(--green-tint)',
-                        display: 'grid',
-                        placeItems: 'center',
-                      }}
-                    >
+                <div className="flex gap-[9px] px-[15px] pt-[15px]">
+                  <div className="border-line bg-paper flex-1 rounded-[15px] border p-[12px]">
+                    <div className="bg-chip grid h-[32px] w-[32px] place-items-center rounded-[10px]">
                       <svg
                         width="17"
                         height="17"
@@ -408,43 +130,15 @@ export function Hero() {
                         <path d="m20 20-3.5-3.5" />
                       </svg>
                     </div>
-                    <div
-                      style={{
-                        font: '600 13px var(--font-ui)',
-                        color: 'var(--ink)',
-                        marginTop: '9px',
-                      }}
-                    >
+                    <div className="text-ink mt-[9px] font-sans text-[13px] font-semibold leading-[normal]">
                       Buscar perto
                     </div>
-                    <div
-                      style={{
-                        font: '500 10.5px var(--font-ui)',
-                        color: 'var(--ink-50)',
-                      }}
-                    >
+                    <div className="text-ink-50 font-sans text-[10.5px] font-medium leading-[normal]">
                       barbearias, salões…
                     </div>
                   </div>
-                  <div
-                    style={{
-                      flex: 1,
-                      background: 'var(--paper)',
-                      border: '1px solid var(--border-soft)',
-                      borderRadius: '15px',
-                      padding: '12px',
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: '32px',
-                        height: '32px',
-                        borderRadius: '10px',
-                        background: 'var(--coral-tint)',
-                        display: 'grid',
-                        placeItems: 'center',
-                      }}
-                    >
+                  <div className="border-line bg-paper flex-1 rounded-[15px] border p-[12px]">
+                    <div className="bg-coral-tint grid h-[32px] w-[32px] place-items-center rounded-[10px]">
                       <svg
                         width="17"
                         height="17"
@@ -461,172 +155,54 @@ export function Hero() {
                         />
                       </svg>
                     </div>
-                    <div
-                      style={{
-                        font: '600 13px var(--font-ui)',
-                        color: 'var(--ink)',
-                        marginTop: '9px',
-                      }}
-                    >
+                    <div className="text-ink mt-[9px] font-sans text-[13px] font-semibold leading-[normal]">
                       Favoritos
                     </div>
-                    <div
-                      style={{
-                        font: '500 10.5px var(--font-ui)',
-                        color: 'var(--ink-50)',
-                      }}
-                    >
+                    <div className="text-ink-50 font-sans text-[10.5px] font-medium leading-[normal]">
                       6 lugares
                     </div>
                   </div>
                 </div>
-                <div
-                  style={{
-                    padding: '15px 15px 0',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'baseline',
-                  }}
-                >
-                  <span
-                    style={{
-                      font: '600 15px var(--font-display)',
-                      color: 'var(--ink)',
-                    }}
-                  >
+                <div className="flex items-baseline justify-between px-[15px] pt-[15px]">
+                  <span className="text-ink font-serif text-[15px] font-semibold leading-[normal]">
                     Volte pra…
                   </span>
-                  <span
-                    style={{
-                      font: '600 11.5px var(--font-ui)',
-                      color: 'var(--coral)',
-                    }}
-                  >
+                  <span className="text-coral font-sans text-[11.5px] font-semibold leading-[normal]">
                     ver tudo
                   </span>
                 </div>
-                <div
-                  style={{
-                    padding: '10px 0 20px 15px',
-                    display: 'flex',
-                    gap: '10px',
-                    overflow: 'hidden',
-                  }}
-                >
-                  <div style={{ flex: 'none', width: '132px' }}>
-                    <div
-                      style={{
-                        height: '84px',
-                        borderRadius: '15px',
-                        background: 'linear-gradient(135deg,#e7c9a6,#c98f63)',
-                        position: 'relative',
-                      }}
-                    >
-                      <span
-                        style={{
-                          position: 'absolute',
-                          top: '7px',
-                          left: '7px',
-                          background: 'var(--paper)',
-                          borderRadius: '999px',
-                          padding: '3px 7px',
-                          font: '700 10px var(--font-ui)',
-                          color: 'var(--emerald)',
-                        }}
-                      >
+                <div className="flex gap-[10px] overflow-hidden pb-[20px] pl-[15px] pt-[10px]">
+                  <div className="w-[132px] flex-none">
+                    <div className="relative h-[84px] rounded-[15px] [background:linear-gradient(135deg,#e7c9a6,#c98f63)]">
+                      <span className="bg-paper text-green-deep absolute left-[7px] top-[7px] rounded-full px-[7px] py-[3px] font-sans text-[10px] font-bold leading-[normal]">
                         ★ 4,9
                       </span>
                     </div>
-                    <div
-                      style={{
-                        font: '600 12.5px var(--font-ui)',
-                        color: 'var(--ink)',
-                        marginTop: '7px',
-                      }}
-                    >
+                    <div className="text-ink mt-[7px] font-sans text-[12.5px] font-semibold leading-[normal]">
                       Studio Lâmina
                     </div>
-                    <div
-                      style={{
-                        font: '500 10.5px var(--font-ui)',
-                        color: 'var(--ink-50)',
-                      }}
-                    >
+                    <div className="text-ink-50 font-sans text-[10.5px] font-medium leading-[normal]">
                       Barbearia · 900 m
                     </div>
                   </div>
-                  <div style={{ flex: 'none', width: '132px' }}>
-                    <div
-                      style={{
-                        height: '84px',
-                        borderRadius: '15px',
-                        background: 'linear-gradient(135deg,#b9d8c4,#5a9c7a)',
-                        position: 'relative',
-                      }}
-                    >
-                      <span
-                        style={{
-                          position: 'absolute',
-                          top: '7px',
-                          left: '7px',
-                          background: 'var(--paper)',
-                          borderRadius: '999px',
-                          padding: '3px 7px',
-                          font: '700 10px var(--font-ui)',
-                          color: 'var(--emerald)',
-                        }}
-                      >
+                  <div className="w-[132px] flex-none">
+                    <div className="relative h-[84px] rounded-[15px] [background:linear-gradient(135deg,#b9d8c4,#5a9c7a)]">
+                      <span className="bg-paper text-green-deep absolute left-[7px] top-[7px] rounded-full px-[7px] py-[3px] font-sans text-[10px] font-bold leading-[normal]">
                         ★ 4,8
                       </span>
                     </div>
-                    <div
-                      style={{
-                        font: '600 12.5px var(--font-ui)',
-                        color: 'var(--ink)',
-                        marginTop: '7px',
-                      }}
-                    >
+                    <div className="text-ink mt-[7px] font-sans text-[12.5px] font-semibold leading-[normal]">
                       Bella Unhas
                     </div>
-                    <div
-                      style={{
-                        font: '500 10.5px var(--font-ui)',
-                        color: 'var(--ink-50)',
-                      }}
-                    >
+                    <div className="text-ink-50 font-sans text-[10.5px] font-medium leading-[normal]">
                       Salão · 2,1 km
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            <div
-              style={{
-                position: 'absolute',
-                WebkitBackdropFilter: 'blur(6px)',
-                backdropFilter: 'blur(6px)',
-                left: '-24px',
-                top: '372px',
-                background: 'var(--paper)',
-                border: '1px solid var(--border-soft)',
-                borderRadius: '15px',
-                padding: '11px 13px',
-                boxShadow: '0 20px 40px -18px rgba(10,51,36,.4)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '9px',
-              }}
-            >
-              <span
-                style={{
-                  width: '30px',
-                  height: '30px',
-                  borderRadius: '9px',
-                  background: 'var(--green)',
-                  display: 'grid',
-                  placeItems: 'center',
-                }}
-              >
+            <div className="border-line bg-paper absolute left-[-24px] top-[372px] flex items-center gap-[9px] rounded-[15px] border px-[13px] py-[11px] shadow-[0_20px_40px_-18px_rgba(10,51,36,.4)] backdrop-blur-[6px]">
+              <span className="bg-green-bright grid h-[30px] w-[30px] place-items-center rounded-[9px]">
                 <svg
                   width="16"
                   height="16"
@@ -641,20 +217,10 @@ export function Hero() {
                 </svg>
               </span>
               <div>
-                <div
-                  style={{
-                    font: '600 12px var(--font-ui)',
-                    color: 'var(--ink)',
-                  }}
-                >
+                <div className="text-ink font-sans text-[12px] font-semibold leading-[normal]">
                   Agendado!
                 </div>
-                <div
-                  style={{
-                    font: '500 10.5px var(--font-ui)',
-                    color: 'var(--ink-50)',
-                  }}
-                >
+                <div className="text-ink-50 font-sans text-[10.5px] font-medium leading-[normal]">
                   confirmação enviada
                 </div>
               </div>

@@ -1,14 +1,16 @@
 // Metro configurado para o monorepo pnpm + Turborepo.
 // Sem isto, o Metro não acha os pacotes do workspace (@haru/shared) nem as deps
 // hoistadas na raiz - é a causa nº 1 de "unable to resolve module" em Expo+monorepo.
-const { getDefaultConfig } = require('expo/metro-config');
+// getSentryExpoConfig = getDefaultConfig + geração/upload de sourcemap do Sentry.
+// Ele produz o config base; o NativeWind envolve por fora (ver final do arquivo).
+const { getSentryExpoConfig } = require('@sentry/react-native/metro');
 const { withNativeWind } = require('nativewind/metro');
 const path = require('path');
 
 const projectRoot = __dirname;
 const monorepoRoot = path.resolve(projectRoot, '../..');
 
-const config = getDefaultConfig(projectRoot);
+const config = getSentryExpoConfig(projectRoot);
 
 // 1. Observa o monorepo inteiro (pra ver mudanças em packages/shared).
 config.watchFolders = [monorepoRoot];

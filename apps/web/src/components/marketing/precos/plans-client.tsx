@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 
+import { cn } from '@/lib/utils';
+
 import { Btn } from '../home/btn';
 import type { PrecosCard } from './plans-data';
 
@@ -15,31 +17,27 @@ const Check = () => (
     strokeWidth="2.6"
     strokeLinecap="round"
     strokeLinejoin="round"
-    style={{ flex: 'none', marginTop: '2px' }}
+    className="mt-[2px] flex-none"
   >
     <polyline points="20 6 9 17 4 12" />
   </svg>
 );
 
 function Segmented({ annual, setAnnual }: { annual: boolean; setAnnual: (v: boolean) => void }) {
-  const seg = (active: boolean): React.CSSProperties => ({
-    flex: 1,
-    textAlign: 'center',
-    padding: '11px 10px',
-    borderRadius: 'var(--radius-sm)',
-    font: '600 13.5px var(--font-ui)',
-    cursor: 'pointer',
-    transition: 'background 200ms ease, color 200ms ease',
-    background: active ? 'var(--emerald)' : 'var(--paper)',
-    color: active ? 'var(--cream)' : 'var(--ink)',
-    border: active ? '1px solid var(--emerald)' : '1px solid var(--border)',
-  });
+  const seg = (active: boolean) =>
+    cn(
+      // `--radius-sm` só existe dentro do @theme inline (não é emitido como custom
+      // property), então isto resolve para 0 - igual ao inline original. Não trocar por
+      // `rounded-sm`: o utilitário inlina calc(var(--radius) - 4px) e arredondaria em 8px.
+      'flex-1 cursor-pointer rounded-[var(--radius-sm)] border px-[10px] py-[11px] text-center font-sans text-[13.5px] leading-[normal] font-semibold [transition:background_200ms_ease,color_200ms_ease]',
+      active ? 'border-green-deep bg-green-deep text-cream' : 'border-edge bg-paper text-ink',
+    );
   return (
-    <div style={{ display: 'flex', gap: '8px', width: 'min(300px,100%)' }}>
-      <span style={seg(!annual)} onClick={() => setAnnual(false)}>
+    <div className="flex w-[min(300px,100%)] gap-[8px]">
+      <span className={seg(!annual)} onClick={() => setAnnual(false)}>
         Mensal
       </span>
-      <span style={seg(annual)} onClick={() => setAnnual(true)}>
+      <span className={seg(annual)} onClick={() => setAnnual(true)}>
         Anual
       </span>
     </div>
@@ -52,128 +50,105 @@ function PlanCard({ card, annual }: { card: PrecosCard; annual: boolean }) {
   const caption = annual ? `${card.annualTotal} por ano · 2 meses grátis` : 'cobrado mensalmente';
   const c = f
     ? {
-        bg: 'var(--emerald)',
-        border: '1px solid rgba(143,191,164,.2)',
-        radius: '26px',
-        pad: '42px 26px 32px',
-        shadow: 'var(--shadow-ondark)',
-        name: 'var(--on-emerald)',
-        sub: 'var(--on-emerald-mut)',
-        price: 'var(--on-emerald)',
-        unit: 'var(--on-emerald-mut)',
-        caption: 'var(--on-emerald-mut)',
-        divider: 'rgba(143,191,164,.22)',
-        feat: 'var(--on-emerald)',
-        head: 'var(--green)',
+        bg: 'bg-green-deep',
+        border: 'border border-[rgba(143,191,164,.2)]',
+        radius: 'rounded-[26px]',
+        pad: 'pt-[42px] px-[26px] pb-[32px]',
+        shadow: 'shadow-[var(--shadow-ondark)]',
+        name: 'text-on-emerald',
+        sub: 'text-on-emerald-mut',
+        price: 'text-on-emerald',
+        unit: 'text-on-emerald-mut',
+        caption: 'text-on-emerald-mut',
+        divider: 'bg-[rgba(143,191,164,.22)]',
+        feat: 'text-on-emerald',
+        head: 'text-green-bright',
       }
     : {
-        bg: 'var(--paper)',
-        border: '1px solid var(--border-soft)',
-        radius: '24px',
-        pad: '32px 24px',
-        shadow: 'var(--shadow-card)',
-        name: 'var(--emerald)',
-        sub: 'var(--ink-50)',
-        price: 'var(--ink)',
-        unit: 'var(--ink-50)',
-        caption: 'var(--ink-50)',
-        divider: 'var(--border-soft)',
-        feat: 'var(--ink-70)',
-        head: 'var(--ink)',
+        bg: 'bg-paper',
+        border: 'border border-line',
+        radius: 'rounded-[24px]',
+        pad: 'px-[24px] py-[32px]',
+        shadow: 'shadow-[var(--shadow-card)]',
+        name: 'text-green-deep',
+        sub: 'text-ink-50',
+        price: 'text-ink',
+        unit: 'text-ink-50',
+        caption: 'text-ink-50',
+        divider: 'bg-line',
+        feat: 'text-ink-70',
+        head: 'text-ink',
       };
   return (
     <div
-      style={{
-        position: 'relative',
-        background: c.bg,
-        border: c.border,
-        borderRadius: c.radius,
-        padding: c.pad,
-        display: 'flex',
-        flexDirection: 'column',
-        boxShadow: c.shadow,
-        ...(f ? { zIndex: 2 } : null),
-      }}
+      className={cn(
+        'relative flex flex-col',
+        c.bg,
+        c.border,
+        c.radius,
+        c.pad,
+        c.shadow,
+        f && 'z-[2]',
+      )}
     >
       {f && (
-        <div
-          style={{
-            position: 'absolute',
-            top: '-13px',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            background: 'var(--coral)',
-            color: '#fff',
-            font: '700 10px var(--font-ui)',
-            letterSpacing: '.12em',
-            textTransform: 'uppercase',
-            padding: '7px 16px',
-            borderRadius: '999px',
-            boxShadow: '0 8px 20px -8px rgba(255,90,54,.7)',
-            whiteSpace: 'nowrap',
-          }}
-        >
+        <div className="bg-coral absolute left-[50%] top-[-13px] whitespace-nowrap rounded-full px-[16px] py-[7px] font-sans text-[10px] font-bold uppercase leading-[normal] tracking-[.12em] text-[#fff] shadow-[0_8px_20px_-8px_rgba(255,90,54,.7)] [transform:translateX(-50%)]">
           Mais escolhido
         </div>
       )}
-      <div style={{ marginBottom: '16px' }}>
-        <div style={{ font: '500 22px var(--font-display)', color: c.name, lineHeight: 1 }}>
+      <div className="mb-[16px]">
+        <div className={cn('font-serif text-[22px] font-medium leading-[1]', c.name)}>
           {card.name}
         </div>
       </div>
-      <div style={{ font: '500 13.5px var(--font-ui)', color: c.sub, marginBottom: '18px' }}>
+      <div className={cn('mb-[18px] font-sans text-[13.5px] font-medium leading-[normal]', c.sub)}>
         {card.subtitle}
       </div>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
+      <div className="flex items-baseline gap-[6px]">
         <span
-          style={{
-            font: '600 clamp(34px,4.6vw,44px)/1 var(--font-display)',
-            color: c.price,
-            letterSpacing: '-.02em',
-            whiteSpace: 'nowrap',
-          }}
+          className={cn(
+            'whitespace-nowrap font-serif text-[clamp(34px,4.6vw,44px)] font-semibold leading-[1] tracking-[-.02em]',
+            c.price,
+          )}
         >
           {price}
         </span>
-        <span style={{ font: '500 16px var(--font-ui)', color: c.unit }}>/mês</span>
+        <span className={cn('font-sans text-[16px] font-medium leading-[normal]', c.unit)}>
+          /mês
+        </span>
       </div>
       <div
-        style={{
-          font: '500 12.5px var(--font-ui)',
-          color: c.caption,
-          margin: '9px 0 22px',
-          minHeight: '16px',
-        }}
+        className={cn(
+          'mb-[22px] mt-[9px] min-h-[16px] font-sans text-[12.5px] font-medium leading-[normal]',
+          c.caption,
+        )}
       >
         {caption}
       </div>
-      <div style={{ height: '1px', background: c.divider, marginBottom: '20px' }} />
-      <div style={{ flex: 1 }}>
+      <div className={cn('mb-[20px] h-[1px]', c.divider)} />
+      <div className="flex-1">
         {card.feats.map((feat, i) =>
           feat.heading ? (
             <div
               key={i}
-              style={{
-                font: '700 12px var(--font-ui)',
-                letterSpacing: '.02em',
-                color: c.head,
-                padding: '12px 0 4px',
-              }}
+              className={cn(
+                'pb-[4px] pt-[12px] font-sans text-[12px] font-bold leading-[normal] tracking-[.02em]',
+                c.head,
+              )}
             >
               {feat.t}
             </div>
           ) : (
-            <div
-              key={i}
-              style={{ display: 'flex', gap: '11px', alignItems: 'flex-start', padding: '6px 0' }}
-            >
+            <div key={i} className="flex items-start gap-[11px] py-[6px]">
               <Check />
-              <span style={{ font: '400 14px/1.5 var(--font-ui)', color: c.feat }}>{feat.t}</span>
+              <span className={cn('font-sans text-[14px] font-normal leading-[1.5]', c.feat)}>
+                {feat.t}
+              </span>
             </div>
           ),
         )}
       </div>
-      <div style={{ marginTop: '26px' }}>
+      <div className="mt-[26px]">
         <Btn
           variant={f ? 'primary' : 'secondary'}
           full
@@ -187,116 +162,38 @@ function PlanCard({ card, annual }: { card: PrecosCard; annual: boolean }) {
 }
 
 export function PrecosPlans({ cards }: { cards: PrecosCard[] }) {
-  const [annual, setAnnual] = useState(false);
+  // Anual é o padrão: é o preço que a gente quer que apareça primeiro (2 meses grátis).
+  const [annual, setAnnual] = useState(true);
   return (
     <>
       {/* toggle de cobrança - continua o hero (centralizado) */}
-      <div
-        style={{
-          maxWidth: '1200px',
-          margin: '0 auto',
-          padding: '0 clamp(20px,5vw,40px) 34px',
-          textAlign: 'center',
-        }}
-      >
-        <div
-          style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}
-        >
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              flexWrap: 'wrap',
-              justifyContent: 'center',
-            }}
-          >
+      <div className="mx-auto max-w-[1200px] px-[clamp(20px,5vw,40px)] pb-[34px] text-center">
+        <div className="flex flex-col items-center gap-[12px]">
+          <div className="flex flex-wrap items-center justify-center gap-[12px]">
             <Segmented annual={annual} setAnnual={setAnnual} />
-            <span
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                font: '700 11px var(--font-ui)',
-                letterSpacing: '.06em',
-                textTransform: 'uppercase',
-                color: '#0C7E41',
-                background: 'var(--green-tint)',
-                borderRadius: '999px',
-                padding: '8px 13px',
-                whiteSpace: 'nowrap',
-              }}
-            >
+            <span className="bg-chip inline-flex items-center whitespace-nowrap rounded-full px-[13px] py-[8px] font-sans text-[11px] font-bold uppercase leading-[normal] tracking-[.06em] text-[#0C7E41]">
               2 meses grátis
             </span>
           </div>
-          <span style={{ font: '500 13px var(--font-ui)', color: 'var(--ink-50)' }}>
+          <span className="text-ink-50 font-sans text-[13px] font-medium leading-[normal]">
             No anual você paga 10 meses e usa 12.
           </span>
         </div>
       </div>
 
       {/* cards + enterprise */}
-      <section
-        style={{
-          width: '100%',
-          maxWidth: '1200px',
-          margin: '0 auto',
-          padding: '16px clamp(16px,4vw,40px) 0',
-        }}
-      >
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit,minmax(250px,1fr))',
-            gap: '18px',
-            alignItems: 'stretch',
-          }}
-        >
+      <section className="mx-auto w-full max-w-[1200px] px-[clamp(16px,4vw,40px)] pt-[16px]">
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(250px,1fr))] items-stretch gap-[18px]">
           {cards.map((card) => (
             <PlanCard key={card.tier} card={card} annual={annual} />
           ))}
         </div>
 
         {/* Enterprise banner */}
-        <div
-          style={{
-            marginTop: '24px',
-            background: 'var(--paper)',
-            border: '1px solid var(--border-soft)',
-            borderRadius: '24px',
-            padding: 'clamp(24px,3vw,32px) clamp(22px,3vw,34px)',
-            display: 'flex',
-            flexWrap: 'wrap',
-            gap: '28px 36px',
-            alignItems: 'center',
-            boxShadow: 'var(--shadow-card)',
-            position: 'relative',
-            overflow: 'hidden',
-          }}
-        >
-          <div
-            style={{
-              position: 'absolute',
-              left: 0,
-              top: 0,
-              bottom: 0,
-              width: '5px',
-              background: 'var(--emerald)',
-            }}
-          />
-          <div style={{ flex: '1 1 240px', display: 'flex', alignItems: 'center', gap: '16px' }}>
-            <span
-              style={{
-                width: '52px',
-                height: '52px',
-                borderRadius: 'var(--radius-icontile)',
-                background: 'var(--emerald)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flex: 'none',
-              }}
-            >
+        <div className="border-line bg-paper relative mt-[24px] flex flex-wrap items-center gap-x-[36px] gap-y-[28px] overflow-hidden rounded-[24px] border px-[clamp(22px,3vw,34px)] py-[clamp(24px,3vw,32px)] shadow-[var(--shadow-card)]">
+          <div className="bg-green-deep absolute bottom-0 left-0 top-0 w-[5px]" />
+          <div className="flex flex-[1_1_240px] items-center gap-[16px]">
+            <span className="bg-green-deep flex h-[52px] w-[52px] flex-none items-center justify-center rounded-[var(--radius-icontile)]">
               <svg
                 width="26"
                 height="26"
@@ -313,43 +210,18 @@ export function PrecosPlans({ cards }: { cards: PrecosCard[] }) {
               </svg>
             </span>
             <div>
-              <div
-                style={{
-                  font: '500 24px var(--font-display)',
-                  color: 'var(--emerald)',
-                  lineHeight: 1.1,
-                }}
-              >
+              <div className="text-green-deep font-serif text-[24px] font-medium leading-[1.1]">
                 Enterprise
               </div>
-              <div
-                style={{
-                  font: '500 13.5px var(--font-ui)',
-                  color: 'var(--ink-50)',
-                  marginTop: '5px',
-                }}
-              >
+              <div className="text-ink-50 mt-[5px] font-sans text-[13.5px] font-medium leading-[normal]">
                 Redes, franquias e multi-unidade
               </div>
-              <div
-                style={{
-                  font: '600 20px var(--font-display)',
-                  color: 'var(--ink)',
-                  marginTop: '10px',
-                }}
-              >
+              <div className="text-ink mt-[10px] font-serif text-[20px] font-semibold leading-[normal]">
                 Sob consulta
               </div>
             </div>
           </div>
-          <div
-            style={{
-              flex: '2 1 300px',
-              display: 'grid',
-              gridTemplateColumns: '1fr 1fr',
-              gap: '8px 22px',
-            }}
-          >
+          <div className="grid flex-[2_1_300px] grid-cols-[1fr_1fr] gap-x-[22px] gap-y-[8px]">
             {[
               'Acima de 15 profissionais',
               'Multi-unidade',
@@ -357,7 +229,7 @@ export function PrecosPlans({ cards }: { cards: PrecosCard[] }) {
               'Lembretes sob medida',
               'Gerente de conta dedicado',
             ].map((t) => (
-              <div key={t} style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+              <div key={t} className="flex items-center gap-[10px]">
                 <svg
                   width="16"
                   height="16"
@@ -367,15 +239,17 @@ export function PrecosPlans({ cards }: { cards: PrecosCard[] }) {
                   strokeWidth="2.6"
                   strokeLinecap="round"
                   strokeLinejoin="round"
-                  style={{ flex: 'none' }}
+                  className="flex-none"
                 >
                   <polyline points="20 6 9 17 4 12" />
                 </svg>
-                <span style={{ font: '400 14px var(--font-ui)', color: 'var(--ink-70)' }}>{t}</span>
+                <span className="text-ink-70 font-sans text-[14px] font-normal leading-[normal]">
+                  {t}
+                </span>
               </div>
             ))}
           </div>
-          <div style={{ flex: 'none' }}>
+          <div className="flex-none">
             <Btn variant="secondary" size="lg" href="/signup">
               Falar com o time
             </Btn>

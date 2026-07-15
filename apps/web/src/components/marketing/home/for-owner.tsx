@@ -1,121 +1,32 @@
 export function ForOwner() {
   return (
-    <section
-      style={{
-        background: 'var(--paper)',
-        borderTop: '1px solid var(--border-soft)',
-        borderBottom: '1px solid var(--border-soft)',
-        padding: 'clamp(56px,7vw,88px) 0',
-      }}
-    >
-      <div style={{ maxWidth: '1160px', margin: '0 auto', padding: '0 clamp(16px,4vw,40px)' }}>
-        <div
-          style={{
-            textAlign: 'center',
-            maxWidth: '700px',
-            margin: '0 auto clamp(32px,4vw,44px)',
-          }}
-        >
-          <div
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '9px',
-              marginBottom: '14px',
-            }}
-          >
-            <span
-              style={{
-                width: '20px',
-                height: '2px',
-                background: 'var(--coral)',
-                borderRadius: '2px',
-              }}
-            />
-            <span
-              style={{
-                font: '700 11px var(--font-ui)',
-                letterSpacing: '.16em',
-                textTransform: 'uppercase',
-                color: '#0C7E41',
-              }}
-            >
+    <section className="border-line bg-paper border-b border-t py-[clamp(56px,7vw,88px)]">
+      <div className="mx-auto max-w-[1160px] px-[clamp(16px,4vw,40px)]">
+        <div className="mx-auto mb-[clamp(32px,4vw,44px)] max-w-[700px] text-center">
+          <div className="mb-[14px] inline-flex items-center gap-[9px]">
+            <span className="bg-coral h-[2px] w-[20px] rounded-[2px]" />
+            <span className="font-sans text-[11px] font-bold uppercase leading-[normal] tracking-[.16em] text-[#0C7E41]">
               Pro dono
             </span>
           </div>
-          <h2
-            style={{
-              font: '400 clamp(28px,4.6vw,42px)/1.08 var(--font-display)',
-              color: 'var(--emerald)',
-              letterSpacing: '-.02em',
-              margin: '0 auto 14px',
-              maxWidth: '620px',
-            }}
-          >
+          <h2 className="text-green-deep mx-auto mb-[14px] max-w-[620px] font-serif text-[clamp(28px,4.6vw,42px)] font-normal leading-[1.08] tracking-[-.02em]">
             Agendou em qualquer canal, entra tudo{' '}
-            <span style={{ fontStyle: 'italic', color: 'rgb(12, 126, 65)' }}>aqui</span>.
+            <span className="italic text-[rgb(12,126,65)]">aqui</span>.
           </h2>
-          <p
-            style={{
-              font: '400 17px/1.55 var(--font-ui)',
-              color: 'var(--ink-70)',
-              margin: '0 auto',
-              maxWidth: '560px',
-            }}
-          >
+          <p className="text-ink-70 mx-auto max-w-[560px] font-sans text-[17px] font-normal leading-[1.55]">
             Um painel só pra ver o dia, cadastrar serviços, cuidar da equipe e receber. Sem
             planilha, sem caderninho, sem "me manda um zap".
           </p>
         </div>
 
         {/* THE daily panel */}
-        <div
-          style={{
-            maxWidth: '1000px',
-            margin: '0 auto',
-            background: 'var(--cream)',
-            border: '1px solid var(--border-soft)',
-            borderRadius: '20px',
-            overflow: 'hidden',
-            boxShadow: '0 54px 104px -46px rgba(10,51,36,.6),0 14px 32px rgba(10,51,36,.11)',
-          }}
-        >
+        <div className="border-line bg-cream mx-auto max-w-[1000px] overflow-hidden rounded-[20px] border shadow-[0_54px_104px_-46px_rgba(10,51,36,.6),0_14px_32px_rgba(10,51,36,.11)]">
           {/* window bar */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '12px 16px',
-              background: '#f2ebda',
-              borderBottom: '1px solid var(--border-soft)',
-            }}
-          >
-            <span
-              style={{ width: '11px', height: '11px', borderRadius: '50%', background: '#e08a7a' }}
-            />
-            <span
-              style={{ width: '11px', height: '11px', borderRadius: '50%', background: '#e6c15c' }}
-            />
-            <span
-              style={{ width: '11px', height: '11px', borderRadius: '50%', background: '#7bbf8f' }}
-            />
-            <div
-              style={{
-                flex: '1',
-                maxWidth: '320px',
-                marginLeft: '8px',
-                background: 'var(--paper)',
-                border: '1px solid var(--border)',
-                borderRadius: '8px',
-                padding: '6px 11px',
-                font: '500 11px var(--font-ui)',
-                color: 'var(--ink-50)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '7px',
-              }}
-            >
+          <div className="border-line flex items-center gap-[8px] border-b bg-[#f2ebda] px-[16px] py-[12px]">
+            <span className="h-[11px] w-[11px] rounded-[50%] bg-[#e08a7a]" />
+            <span className="h-[11px] w-[11px] rounded-[50%] bg-[#e6c15c]" />
+            <span className="h-[11px] w-[11px] rounded-[50%] bg-[#7bbf8f]" />
+            <div className="border-edge bg-paper text-ink-50 ml-[8px] flex max-w-[320px] flex-1 items-center gap-[7px] rounded-[8px] border px-[11px] py-[6px] font-sans text-[11px] font-medium leading-[normal]">
               <svg
                 width="11"
                 height="11"
@@ -133,43 +44,15 @@ export function ForOwner() {
             </div>
           </div>
           {/* rail + main */}
-          <div style={{ display: 'flex' }}>
+          <div className="flex">
             {/* icon rail */}
-            <div
-              style={{
-                width: '60px',
-                flex: 'none',
-                background: 'var(--emerald)',
-                padding: '16px 0',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: '6px',
-              }}
-            >
-              <span
-                style={{
-                  width: '30px',
-                  height: '30px',
-                  borderRadius: '9px',
-                  background: 'var(--coral)',
-                  display: 'grid',
-                  placeItems: 'center',
-                  marginBottom: '8px',
-                }}
-              >
-                <span style={{ font: '600 15px var(--font-display)', color: '#fff' }}>D</span>
+            <div className="bg-green-deep flex w-[60px] flex-none flex-col items-center gap-[6px] py-[16px]">
+              <span className="bg-coral mb-[8px] grid h-[30px] w-[30px] place-items-center rounded-[9px]">
+                <span className="font-serif text-[15px] font-semibold leading-[normal] text-[#fff]">
+                  D
+                </span>
               </span>
-              <span
-                style={{
-                  width: '38px',
-                  height: '38px',
-                  borderRadius: '11px',
-                  background: 'rgba(47,211,122,.16)',
-                  display: 'grid',
-                  placeItems: 'center',
-                }}
-              >
+              <span className="grid h-[38px] w-[38px] place-items-center rounded-[11px] bg-[rgba(47,211,122,.16)]">
                 <svg
                   width="19"
                   height="19"
@@ -186,15 +69,7 @@ export function ForOwner() {
                   <line x1="3" y1="10" x2="21" y2="10" />
                 </svg>
               </span>
-              <span
-                style={{
-                  width: '38px',
-                  height: '38px',
-                  borderRadius: '11px',
-                  display: 'grid',
-                  placeItems: 'center',
-                }}
-              >
+              <span className="grid h-[38px] w-[38px] place-items-center rounded-[11px]">
                 <svg
                   width="19"
                   height="19"
@@ -210,15 +85,7 @@ export function ForOwner() {
                   <circle cx="17.5" cy="9" r="2.4" />
                 </svg>
               </span>
-              <span
-                style={{
-                  width: '38px',
-                  height: '38px',
-                  borderRadius: '11px',
-                  display: 'grid',
-                  placeItems: 'center',
-                }}
-              >
+              <span className="grid h-[38px] w-[38px] place-items-center rounded-[11px]">
                 <svg
                   width="19"
                   height="19"
@@ -233,15 +100,7 @@ export function ForOwner() {
                   <line x1="2" y1="10" x2="22" y2="10" />
                 </svg>
               </span>
-              <span
-                style={{
-                  width: '38px',
-                  height: '38px',
-                  borderRadius: '11px',
-                  display: 'grid',
-                  placeItems: 'center',
-                }}
-              >
+              <span className="grid h-[38px] w-[38px] place-items-center rounded-[11px]">
                 <svg
                   width="19"
                   height="19"
@@ -257,270 +116,87 @@ export function ForOwner() {
               </span>
             </div>
             {/* main */}
-            <div style={{ flex: '1', minWidth: '0', padding: 'clamp(16px,2.4vw,26px)' }}>
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'flex-start',
-                  justifyContent: 'space-between',
-                  gap: '12px',
-                  flexWrap: 'wrap',
-                  marginBottom: '16px',
-                }}
-              >
+            <div className="min-w-0 flex-1 p-[clamp(16px,2.4vw,26px)]">
+              <div className="mb-[16px] flex flex-wrap items-start justify-between gap-[12px]">
                 <div>
-                  <div
-                    style={{
-                      font: '500 clamp(20px,2.4vw,26px) var(--font-display)',
-                      color: 'var(--ink)',
-                      lineHeight: '1.02',
-                    }}
-                  >
+                  <div className="text-ink font-serif text-[clamp(20px,2.4vw,26px)] font-medium leading-[1.02]">
                     Hoje, quarta
                   </div>
-                  <div
-                    style={{
-                      font: '500 12.5px var(--font-ui)',
-                      color: 'var(--ink-50)',
-                      marginTop: '5px',
-                    }}
-                  >
+                  <div className="text-ink-50 mt-[5px] font-sans text-[12.5px] font-medium leading-[normal]">
                     9 de julho · 8 agendamentos
                   </div>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <div
-                    style={{
-                      display: 'flex',
-                      background: 'var(--paper)',
-                      border: '1px solid var(--border-soft)',
-                      borderRadius: '999px',
-                      padding: '3px',
-                    }}
-                  >
-                    <span
-                      style={{
-                        font: '700 10.5px var(--font-ui)',
-                        color: '#fff',
-                        background: 'var(--emerald)',
-                        borderRadius: '999px',
-                        padding: '6px 13px',
-                      }}
-                    >
+                <div className="flex items-center gap-[10px]">
+                  <div className="border-line bg-paper flex rounded-full border p-[3px]">
+                    <span className="bg-green-deep rounded-full px-[13px] py-[6px] font-sans text-[10.5px] font-bold leading-[normal] text-[#fff]">
                       Dia
                     </span>
-                    <span
-                      style={{
-                        font: '700 10.5px var(--font-ui)',
-                        color: 'var(--ink-50)',
-                        padding: '6px 12px',
-                      }}
-                    >
+                    <span className="text-ink-50 px-[12px] py-[6px] font-sans text-[10.5px] font-bold leading-[normal]">
                       Semana
                     </span>
-                    <span
-                      style={{
-                        font: '700 10.5px var(--font-ui)',
-                        color: 'var(--ink-50)',
-                        padding: '6px 11px',
-                      }}
-                    >
+                    <span className="text-ink-50 px-[11px] py-[6px] font-sans text-[10.5px] font-bold leading-[normal]">
                       Mês
                     </span>
                   </div>
-                  <span
-                    style={{
-                      width: '34px',
-                      height: '34px',
-                      borderRadius: '50%',
-                      background: 'var(--green-tint)',
-                      display: 'grid',
-                      placeItems: 'center',
-                      flex: 'none',
-                      font: '600 13px var(--font-display)',
-                      color: 'var(--emerald)',
-                    }}
-                  >
+                  <span className="bg-chip text-green-deep grid h-[34px] w-[34px] flex-none place-items-center rounded-[50%] font-serif text-[13px] font-semibold leading-[normal]">
                     V
                   </span>
                 </div>
               </div>
               {/* stat cards */}
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(3,1fr)',
-                  gap: '10px',
-                  marginBottom: '16px',
-                }}
-              >
-                <div
-                  style={{
-                    background: 'var(--paper)',
-                    border: '1px solid var(--border-soft)',
-                    borderRadius: '14px',
-                    padding: '13px 15px',
-                  }}
-                >
-                  <div
-                    style={{
-                      font: '700 8.5px var(--font-ui)',
-                      letterSpacing: '.09em',
-                      textTransform: 'uppercase',
-                      color: 'var(--ink-50)',
-                    }}
-                  >
+              <div className="mb-[16px] grid grid-cols-[repeat(3,1fr)] gap-[10px]">
+                <div className="border-line bg-paper rounded-[14px] border px-[15px] py-[13px]">
+                  <div className="text-ink-50 font-sans text-[8.5px] font-bold uppercase leading-[normal] tracking-[.09em]">
                     Faturamento hoje
                   </div>
-                  <div
-                    style={{
-                      font: '600 clamp(20px,2.4vw,26px) var(--font-display)',
-                      color: 'var(--ink)',
-                      marginTop: '4px',
-                    }}
-                  >
+                  <div className="text-ink mt-[4px] font-serif text-[clamp(20px,2.4vw,26px)] font-semibold leading-[normal]">
                     R$ 560
                   </div>
-                  <div
-                    style={{ font: '600 10px var(--font-ui)', color: '#0C7E41', marginTop: '2px' }}
-                  >
+                  <div className="mt-[2px] font-sans text-[10px] font-semibold leading-[normal] text-[#0C7E41]">
                     recebido no app
                   </div>
                 </div>
-                <div
-                  style={{
-                    background: 'var(--paper)',
-                    border: '1px solid var(--border-soft)',
-                    borderRadius: '14px',
-                    padding: '13px 15px',
-                  }}
-                >
-                  <div
-                    style={{
-                      font: '700 8.5px var(--font-ui)',
-                      letterSpacing: '.09em',
-                      textTransform: 'uppercase',
-                      color: 'var(--ink-50)',
-                    }}
-                  >
+                <div className="border-line bg-paper rounded-[14px] border px-[15px] py-[13px]">
+                  <div className="text-ink-50 font-sans text-[8.5px] font-bold uppercase leading-[normal] tracking-[.09em]">
                     Confirmados
                   </div>
-                  <div
-                    style={{
-                      font: '600 clamp(20px,2.4vw,26px) var(--font-display)',
-                      color: 'var(--ink)',
-                      marginTop: '4px',
-                    }}
-                  >
+                  <div className="text-ink mt-[4px] font-serif text-[clamp(20px,2.4vw,26px)] font-semibold leading-[normal]">
                     7 de 8
                   </div>
-                  <div
-                    style={{
-                      font: '600 10px var(--font-ui)',
-                      color: 'var(--ink-50)',
-                      marginTop: '2px',
-                    }}
-                  >
+                  <div className="text-ink-50 mt-[2px] font-sans text-[10px] font-semibold leading-[normal]">
                     1 aguardando
                   </div>
                 </div>
-                <div
-                  style={{
-                    background: 'var(--paper)',
-                    border: '1px solid var(--border-soft)',
-                    borderRadius: '14px',
-                    padding: '13px 15px',
-                  }}
-                >
-                  <div
-                    style={{
-                      font: '700 8.5px var(--font-ui)',
-                      letterSpacing: '.09em',
-                      textTransform: 'uppercase',
-                      color: 'var(--ink-50)',
-                    }}
-                  >
+                <div className="border-line bg-paper rounded-[14px] border px-[15px] py-[13px]">
+                  <div className="text-ink-50 font-sans text-[8.5px] font-bold uppercase leading-[normal] tracking-[.09em]">
                     Próximo livre
                   </div>
-                  <div
-                    style={{
-                      font: '600 clamp(20px,2.4vw,26px) var(--font-display)',
-                      color: 'var(--ink)',
-                      marginTop: '4px',
-                    }}
-                  >
+                  <div className="text-ink mt-[4px] font-serif text-[clamp(20px,2.4vw,26px)] font-semibold leading-[normal]">
                     14h30
                   </div>
-                  <div
-                    style={{
-                      font: '600 10px var(--font-ui)',
-                      color: 'var(--ink-50)',
-                      marginTop: '2px',
-                    }}
-                  >
+                  <div className="text-ink-50 mt-[2px] font-sans text-[10px] font-semibold leading-[normal]">
                     encaixe possível
                   </div>
                 </div>
               </div>
               {/* agenda list */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '13px',
-                    background: 'var(--paper)',
-                    border: '1px solid var(--border-soft)',
-                    borderRadius: '14px',
-                    padding: '12px 14px',
-                  }}
-                >
-                  <div
-                    style={{
-                      font: '600 14px var(--font-display)',
-                      color: 'var(--emerald)',
-                      width: '44px',
-                      flex: 'none',
-                    }}
-                  >
+              <div className="flex flex-col gap-[8px]">
+                <div className="border-line bg-paper flex items-center gap-[13px] rounded-[14px] border px-[14px] py-[12px]">
+                  <div className="text-green-deep w-[44px] flex-none font-serif text-[14px] font-semibold leading-[normal]">
                     9h00
                   </div>
-                  <span
-                    style={{
-                      width: '34px',
-                      height: '34px',
-                      borderRadius: '10px',
-                      background: 'var(--green-tint)',
-                      display: 'grid',
-                      placeItems: 'center',
-                      flex: 'none',
-                      font: '600 13px var(--font-display)',
-                      color: 'var(--emerald)',
-                    }}
-                  >
+                  <span className="bg-chip text-green-deep grid h-[34px] w-[34px] flex-none place-items-center rounded-[10px] font-serif text-[13px] font-semibold leading-[normal]">
                     M
                   </span>
-                  <div style={{ flex: '1', minWidth: '0' }}>
-                    <div style={{ font: '600 14px var(--font-display)', color: 'var(--ink)' }}>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-ink font-serif text-[14px] font-semibold leading-[normal]">
                       Marcos A.
                     </div>
-                    <div style={{ font: '500 11.5px var(--font-ui)', color: 'var(--ink-50)' }}>
+                    <div className="text-ink-50 font-sans text-[11.5px] font-medium leading-[normal]">
                       Corte + barba
                     </div>
                   </div>
-                  <span
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '5px',
-                      font: '700 10px var(--font-ui)',
-                      color: 'var(--emerald)',
-                      background: 'var(--green-tint)',
-                      borderRadius: '999px',
-                      padding: '5px 10px',
-                      flex: 'none',
-                    }}
-                  >
+                  <span className="bg-chip text-green-deep inline-flex flex-none items-center gap-[5px] rounded-full px-[10px] py-[5px] font-sans text-[10px] font-bold leading-[normal]">
                     <svg
                       width="11"
                       height="11"
@@ -536,63 +212,22 @@ export function ForOwner() {
                     Confirmado
                   </span>
                 </div>
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '13px',
-                    background: 'var(--paper)',
-                    border: '1px solid var(--border-soft)',
-                    borderRadius: '14px',
-                    padding: '12px 14px',
-                  }}
-                >
-                  <div
-                    style={{
-                      font: '600 14px var(--font-display)',
-                      color: 'var(--emerald)',
-                      width: '44px',
-                      flex: 'none',
-                    }}
-                  >
+                <div className="border-line bg-paper flex items-center gap-[13px] rounded-[14px] border px-[14px] py-[12px]">
+                  <div className="text-green-deep w-[44px] flex-none font-serif text-[14px] font-semibold leading-[normal]">
                     10h00
                   </div>
-                  <span
-                    style={{
-                      width: '34px',
-                      height: '34px',
-                      borderRadius: '10px',
-                      background: 'var(--green-tint)',
-                      display: 'grid',
-                      placeItems: 'center',
-                      flex: 'none',
-                      font: '600 13px var(--font-display)',
-                      color: 'var(--emerald)',
-                    }}
-                  >
+                  <span className="bg-chip text-green-deep grid h-[34px] w-[34px] flex-none place-items-center rounded-[10px] font-serif text-[13px] font-semibold leading-[normal]">
                     R
                   </span>
-                  <div style={{ flex: '1', minWidth: '0' }}>
-                    <div style={{ font: '600 14px var(--font-display)', color: 'var(--ink)' }}>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-ink font-serif text-[14px] font-semibold leading-[normal]">
                       Renata C.
                     </div>
-                    <div style={{ font: '500 11.5px var(--font-ui)', color: 'var(--ink-50)' }}>
+                    <div className="text-ink-50 font-sans text-[11.5px] font-medium leading-[normal]">
                       Sobrancelha
                     </div>
                   </div>
-                  <span
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '5px',
-                      font: '700 10px var(--font-ui)',
-                      color: 'var(--emerald)',
-                      background: 'var(--green-tint)',
-                      borderRadius: '999px',
-                      padding: '5px 10px',
-                      flex: 'none',
-                    }}
-                  >
+                  <span className="bg-chip text-green-deep inline-flex flex-none items-center gap-[5px] rounded-full px-[10px] py-[5px] font-sans text-[10px] font-bold leading-[normal]">
                     <svg
                       width="11"
                       height="11"
@@ -608,64 +243,22 @@ export function ForOwner() {
                     Confirmado
                   </span>
                 </div>
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '13px',
-                    background: 'var(--paper)',
-                    border: '1px solid var(--border-soft)',
-                    borderRadius: '14px',
-                    padding: '12px 14px',
-                  }}
-                >
-                  <div
-                    style={{
-                      font: '600 14px var(--font-display)',
-                      color: 'var(--emerald)',
-                      width: '44px',
-                      flex: 'none',
-                    }}
-                  >
+                <div className="border-line bg-paper flex items-center gap-[13px] rounded-[14px] border px-[14px] py-[12px]">
+                  <div className="text-green-deep w-[44px] flex-none font-serif text-[14px] font-semibold leading-[normal]">
                     11h30
                   </div>
-                  <span
-                    style={{
-                      width: '34px',
-                      height: '34px',
-                      borderRadius: '10px',
-                      background: 'var(--green-tint)',
-                      display: 'grid',
-                      placeItems: 'center',
-                      flex: 'none',
-                      font: '600 13px var(--font-display)',
-                      color: 'var(--emerald)',
-                    }}
-                  >
+                  <span className="bg-chip text-green-deep grid h-[34px] w-[34px] flex-none place-items-center rounded-[10px] font-serif text-[13px] font-semibold leading-[normal]">
                     J
                   </span>
-                  <div style={{ flex: '1', minWidth: '0' }}>
-                    <div style={{ font: '600 14px var(--font-display)', color: 'var(--ink)' }}>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-ink font-serif text-[14px] font-semibold leading-[normal]">
                       João P.
                     </div>
-                    <div style={{ font: '500 11.5px var(--font-ui)', color: 'var(--ink-50)' }}>
+                    <div className="text-ink-50 font-sans text-[11.5px] font-medium leading-[normal]">
                       Corte
                     </div>
                   </div>
-                  <span
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '5px',
-                      font: '700 10px var(--font-ui)',
-                      color: 'var(--ink-70)',
-                      background: 'var(--cream)',
-                      border: '1px solid var(--border)',
-                      borderRadius: '999px',
-                      padding: '5px 10px',
-                      flex: 'none',
-                    }}
-                  >
+                  <span className="border-edge bg-cream text-ink-70 inline-flex flex-none items-center gap-[5px] rounded-full border px-[10px] py-[5px] font-sans text-[10px] font-bold leading-[normal]">
                     <svg
                       width="11"
                       height="11"
@@ -682,43 +275,14 @@ export function ForOwner() {
                     Lembrete às 9h30
                   </span>
                 </div>
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '13px',
-                    border: '1px dashed var(--border)',
-                    borderRadius: '14px',
-                    padding: '12px 14px',
-                  }}
-                >
-                  <div
-                    style={{
-                      font: '600 14px var(--font-display)',
-                      color: 'var(--ink-30)',
-                      width: '44px',
-                      flex: 'none',
-                    }}
-                  >
+                <div className="border-edge flex items-center gap-[13px] rounded-[14px] border border-dashed px-[14px] py-[12px]">
+                  <div className="text-ink-30 w-[44px] flex-none font-serif text-[14px] font-semibold leading-[normal]">
                     14h30
                   </div>
-                  <div
-                    style={{
-                      flex: '1',
-                      minWidth: '0',
-                      font: '500 12.5px var(--font-ui)',
-                      color: 'var(--ink-50)',
-                    }}
-                  >
+                  <div className="text-ink-50 min-w-0 flex-1 font-sans text-[12.5px] font-medium leading-[normal]">
                     Horário livre
                   </div>
-                  <span
-                    style={{
-                      font: '700 10.5px var(--font-ui)',
-                      color: 'var(--emerald)',
-                      flex: 'none',
-                    }}
-                  >
+                  <span className="text-green-deep flex-none font-sans text-[10.5px] font-bold leading-[normal]">
                     + Encaixar
                   </span>
                 </div>
@@ -728,34 +292,9 @@ export function ForOwner() {
         </div>
 
         {/* 3 supporting blocks */}
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit,minmax(250px,1fr))',
-            gap: '16px',
-            marginTop: 'clamp(28px,3.5vw,40px)',
-          }}
-        >
-          <div
-            style={{
-              background: 'var(--cream)',
-              border: '1px solid var(--border-soft)',
-              borderRadius: '20px',
-              padding: '24px',
-            }}
-          >
-            <span
-              style={{
-                width: '46px',
-                height: '46px',
-                borderRadius: 'var(--radius-icontile)',
-                background: 'var(--green-tint)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginBottom: '15px',
-              }}
-            >
+        <div className="mt-[clamp(28px,3.5vw,40px)] grid grid-cols-[repeat(auto-fit,minmax(250px,1fr))] gap-[16px]">
+          <div className="border-line bg-cream rounded-[20px] border p-[24px]">
+            <span className="bg-chip mb-[15px] flex h-[46px] w-[46px] items-center justify-center rounded-[var(--radius-icontile)]">
               <svg
                 width="23"
                 height="23"
@@ -773,41 +312,16 @@ export function ForOwner() {
                 <path d="m9 15 2 2 4-4" />
               </svg>
             </span>
-            <div
-              style={{
-                font: '500 18.5px var(--font-display)',
-                color: 'var(--emerald)',
-                marginBottom: '8px',
-                lineHeight: '1.2',
-              }}
-            >
+            <div className="text-green-deep mb-[8px] font-serif text-[18.5px] font-medium leading-[1.2]">
               Agenda inteligente
             </div>
-            <div style={{ font: '400 14px/1.55 var(--font-ui)', color: 'var(--ink-70)' }}>
+            <div className="text-ink-70 font-sans text-[14px] font-normal leading-[1.55]">
               Respeita seu expediente e evita dois no mesmo horário. E marca horário fixo - semanal,
               quinzenal ou mensal - de uma vez.
             </div>
           </div>
-          <div
-            style={{
-              background: 'var(--cream)',
-              border: '1px solid var(--border-soft)',
-              borderRadius: '20px',
-              padding: '24px',
-            }}
-          >
-            <span
-              style={{
-                width: '46px',
-                height: '46px',
-                borderRadius: 'var(--radius-icontile)',
-                background: 'var(--green-tint)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginBottom: '15px',
-              }}
-            >
+          <div className="border-line bg-cream rounded-[20px] border p-[24px]">
+            <span className="bg-chip mb-[15px] flex h-[46px] w-[46px] items-center justify-center rounded-[var(--radius-icontile)]">
               <svg
                 width="23"
                 height="23"
@@ -822,40 +336,15 @@ export function ForOwner() {
                 <path d="M13.7 21a2 2 0 0 1-3.4 0" />
               </svg>
             </span>
-            <div
-              style={{
-                font: '500 18.5px var(--font-display)',
-                color: 'var(--emerald)',
-                marginBottom: '8px',
-                lineHeight: '1.2',
-              }}
-            >
+            <div className="text-green-deep mb-[8px] font-serif text-[18.5px] font-medium leading-[1.2]">
               Confirmação e lembrete automáticos
             </div>
-            <div style={{ font: '400 14px/1.55 var(--font-ui)', color: 'var(--ink-70)' }}>
+            <div className="text-ink-70 font-sans text-[14px] font-normal leading-[1.55]">
               Já no plano base. O cliente é avisado sem você digitar nada.
             </div>
           </div>
-          <div
-            style={{
-              background: 'var(--cream)',
-              border: '1px solid var(--border-soft)',
-              borderRadius: '20px',
-              padding: '24px',
-            }}
-          >
-            <span
-              style={{
-                width: '46px',
-                height: '46px',
-                borderRadius: 'var(--radius-icontile)',
-                background: 'var(--green-tint)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginBottom: '15px',
-              }}
-            >
+          <div className="border-line bg-cream rounded-[20px] border p-[24px]">
+            <span className="bg-chip mb-[15px] flex h-[46px] w-[46px] items-center justify-center rounded-[var(--radius-icontile)]">
               <svg
                 width="23"
                 height="23"
@@ -871,17 +360,10 @@ export function ForOwner() {
                 <circle cx="7" cy="7" r="3" />
               </svg>
             </span>
-            <div
-              style={{
-                font: '500 18.5px var(--font-display)',
-                color: 'var(--emerald)',
-                marginBottom: '8px',
-                lineHeight: '1.2',
-              }}
-            >
+            <div className="text-green-deep mb-[8px] font-serif text-[18.5px] font-medium leading-[1.2]">
               Serviços, equipe e pagamentos
             </div>
-            <div style={{ font: '400 14px/1.55 var(--font-ui)', color: 'var(--ink-70)' }}>
+            <div className="text-ink-70 font-sans text-[14px] font-normal leading-[1.55]">
               Cadastra uma vez e pronto: preços, profissionais e recebimento no mesmo lugar.
             </div>
           </div>

@@ -1,5 +1,6 @@
 'use server';
 
+import * as Sentry from '@sentry/nextjs';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
@@ -69,6 +70,10 @@ export async function signUp(_prev: ActionResult, formData: FormData): Promise<A
     });
   } catch (err) {
     console.error('[signUp] falha ao bootstrap tenant', err);
+    // Aqui a conta do Supabase JÁ existe e a transação do Postgres não: sobra um
+    // auth.users órfão, sem User/Tenant. O usuário só vê "não foi possível" e
+    // sai - sem isto, ninguém fica sabendo. Sem PII: só o erro e a tag.
+    Sentry.captureException(err, { tags: { component: 'signup', phase: 'bootstrap-tenant' } });
     return { error: 'Não foi possível criar o estabelecimento' };
   }
 

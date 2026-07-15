@@ -2,87 +2,26 @@ export function Reminders() {
   return (
     <section
       id="lembretes"
-      style={{
-        // width:100% pra o grid auto-fit não colapsar (section é flex item do layout)
-        width: '100%',
-        maxWidth: '1080px',
-        margin: '0 auto',
-        padding: 'clamp(56px,7vw,88px) clamp(20px,5vw,40px) 20px',
-      }}
+      // width:100% pra o grid auto-fit não colapsar (section é flex item do layout)
+      className="mx-auto w-full max-w-[1080px] px-[clamp(20px,5vw,40px)] pb-[20px] pt-[clamp(56px,7vw,88px)]"
     >
-      <div style={{ textAlign: 'center', marginBottom: '40px' }}>
-        <div
-          style={{ display: 'inline-flex', alignItems: 'center', gap: '9px', marginBottom: '14px' }}
-        >
-          <span
-            style={{
-              width: '20px',
-              height: '2px',
-              background: 'var(--coral)',
-              borderRadius: '2px',
-            }}
-          />
-          <span
-            style={{
-              font: '700 11px var(--font-ui)',
-              letterSpacing: '.16em',
-              textTransform: 'uppercase',
-              color: '#0C7E41',
-            }}
-          >
+      <div className="mb-[40px] text-center">
+        <div className="mb-[14px] inline-flex items-center gap-[9px]">
+          <span className="bg-coral h-[2px] w-[20px] rounded-[2px]" />
+          <span className="font-sans text-[11px] font-bold uppercase leading-[normal] tracking-[.16em] text-[#0C7E41]">
             Lembretes
           </span>
         </div>
-        <h2
-          style={{
-            font: '400 clamp(26px,4.6vw,38px)/1.14 var(--font-display)',
-            color: 'var(--emerald)',
-            letterSpacing: '-.02em',
-            margin: '0 auto',
-            maxWidth: '760px',
-          }}
-        >
-          Seu cliente é <span style={{ fontStyle: 'italic', color: '#0C7E41' }}>sempre</span>{' '}
-          avisado. O WhatsApp é opcional.
+        <h2 className="text-green-deep mx-auto max-w-[760px] font-serif text-[clamp(26px,4.6vw,38px)] font-normal leading-[1.14] tracking-[-.02em]">
+          Seu cliente é <span className="italic text-[#0C7E41]">sempre</span> avisado. O WhatsApp é
+          opcional.
         </h2>
       </div>
 
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit,minmax(260px,1fr))',
-          gap: '20px',
-          marginBottom: '20px',
-        }}
-      >
-        <div
-          style={{
-            background: 'var(--paper)',
-            border: '1px solid var(--border-soft)',
-            borderRadius: '20px',
-            padding: '28px',
-            boxShadow: 'var(--shadow-card)',
-          }}
-        >
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              marginBottom: '16px',
-            }}
-          >
-            <span
-              style={{
-                width: '46px',
-                height: '46px',
-                borderRadius: 'var(--radius-icontile)',
-                background: 'var(--green-tint)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
+      <div className="mb-[20px] grid grid-cols-[repeat(auto-fit,minmax(260px,1fr))] gap-[20px]">
+        <div className="border-line bg-paper rounded-[20px] border p-[28px] shadow-[var(--shadow-card)]">
+          <div className="mb-[16px] flex items-center justify-between">
+            <span className="bg-chip flex h-[46px] w-[46px] items-center justify-center rounded-[var(--radius-icontile)]">
               <svg
                 width="24"
                 height="24"
@@ -97,64 +36,21 @@ export function Reminders() {
                 <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
               </svg>
             </span>
-            <span
-              style={{
-                font: '700 10px var(--font-ui)',
-                letterSpacing: '.1em',
-                textTransform: 'uppercase',
-                color: '#0C7E41',
-                background: 'var(--green-tint)',
-                borderRadius: '999px',
-                padding: '6px 12px',
-              }}
-            >
+            <span className="bg-chip rounded-full px-[12px] py-[6px] font-sans text-[10px] font-bold uppercase leading-[normal] tracking-[.1em] text-[#0C7E41]">
               Sempre ligado
             </span>
           </div>
-          <div
-            style={{
-              font: '500 19px var(--font-display)',
-              color: 'var(--emerald)',
-              marginBottom: '8px',
-            }}
-          >
+          <div className="text-green-deep mb-[8px] font-serif text-[19px] font-medium leading-[normal]">
             E-mail e push no app
           </div>
-          <div style={{ font: '400 14.5px/1.55 var(--font-ui)', color: 'var(--ink-70)' }}>
+          <div className="text-ink-70 font-sans text-[14.5px] font-normal leading-[1.55]">
             Toda confirmação e todo lembrete saem por e-mail e push -{' '}
-            <strong style={{ color: 'var(--ink)' }}>
-              ilimitado, em todos os planos, sem custo extra.
-            </strong>
+            <strong className="text-ink">ilimitado, em todos os planos, sem custo extra.</strong>
           </div>
         </div>
-        <div
-          style={{
-            background: 'var(--paper)',
-            border: '1px solid var(--border-soft)',
-            borderRadius: '20px',
-            padding: '28px',
-            boxShadow: 'var(--shadow-card)',
-          }}
-        >
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              marginBottom: '16px',
-            }}
-          >
-            <span
-              style={{
-                width: '46px',
-                height: '46px',
-                borderRadius: 'var(--radius-icontile)',
-                background: 'var(--green-tint)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
+        <div className="border-line bg-paper rounded-[20px] border p-[28px] shadow-[var(--shadow-card)]">
+          <div className="mb-[16px] flex items-center justify-between">
+            <span className="bg-chip flex h-[46px] w-[46px] items-center justify-center rounded-[var(--radius-icontile)]">
               <svg
                 width="24"
                 height="24"
@@ -168,33 +64,16 @@ export function Reminders() {
                 <path d="M21 11.5a8.38 8.38 0 0 1-8.5 8.5 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 17 0Z" />
               </svg>
             </span>
-            <span
-              style={{
-                font: '700 10px var(--font-ui)',
-                letterSpacing: '.1em',
-                textTransform: 'uppercase',
-                color: 'var(--ink-50)',
-                background: 'var(--cream)',
-                border: '1px solid var(--border-soft)',
-                borderRadius: '999px',
-                padding: '6px 12px',
-              }}
-            >
+            <span className="border-line bg-cream text-ink-50 rounded-full border px-[12px] py-[6px] font-sans text-[10px] font-bold uppercase leading-[normal] tracking-[.1em]">
               Opcional
             </span>
           </div>
-          <div
-            style={{
-              font: '500 19px var(--font-display)',
-              color: 'var(--emerald)',
-              marginBottom: '8px',
-            }}
-          >
+          <div className="text-green-deep mb-[8px] font-serif text-[19px] font-medium leading-[normal]">
             Lembrete por WhatsApp
           </div>
-          <div style={{ font: '400 14.5px/1.55 var(--font-ui)', color: 'var(--ink-70)' }}>
-            Um canal <strong style={{ color: 'var(--ink)' }}>adicional</strong>, para clientes que
-            preferem não usar o app. Cada plano já vem com uma cota mensal inclusa.
+          <div className="text-ink-70 font-sans text-[14.5px] font-normal leading-[1.55]">
+            Um canal <strong className="text-ink">adicional</strong>, para clientes que preferem não
+            usar o app. Cada plano já vem com uma cota mensal inclusa.
           </div>
         </div>
       </div>

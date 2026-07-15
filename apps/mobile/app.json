@@ -64,6 +64,16 @@
             "enableShrinkResourcesInReleaseBuilds": true
           }
         }
+      ],
+      [
+        "@sentry/react-native/expo",
+        {
+          "organization": "demandae",
+          "project": "demandae-mobile",
+          "experimental_android": {
+            "enableAndroidGradlePlugin": true
+          }
+        }
       ]
     ],
     "experiments": {

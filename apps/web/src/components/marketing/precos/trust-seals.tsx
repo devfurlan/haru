@@ -38,36 +38,12 @@ const SEALS = [
 
 export function TrustSeals() {
   return (
-    <section
-      style={{
-        // width:100% pra o grid auto-fit não colapsar (section é flex item do layout)
-        width: '100%',
-        maxWidth: '1200px',
-        margin: '0 auto',
-        padding: '52px clamp(16px,4vw,40px) 24px',
-      }}
-    >
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit,minmax(210px,1fr))',
-          gap: '20px',
-        }}
-      >
+    // width:100% pra o grid auto-fit não colapsar (section é flex item do layout)
+    <section className="mx-auto w-full max-w-[1200px] px-[clamp(16px,4vw,40px)] pb-[24px] pt-[52px]">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(210px,1fr))] gap-[20px]">
         {SEALS.map((s) => (
-          <div key={s.title} style={{ display: 'flex', gap: '14px', alignItems: 'flex-start' }}>
-            <span
-              style={{
-                width: '40px',
-                height: '40px',
-                borderRadius: 'var(--radius-icontile)',
-                background: 'var(--green-tint)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flex: 'none',
-              }}
-            >
+          <div key={s.title} className="flex items-start gap-[14px]">
+            <span className="bg-chip flex h-[40px] w-[40px] flex-none items-center justify-center rounded-[var(--radius-icontile)]">
               <svg
                 width="20"
                 height="20"
@@ -82,14 +58,10 @@ export function TrustSeals() {
               </svg>
             </span>
             <div>
-              <div style={{ font: '600 15px var(--font-ui)', color: 'var(--ink)' }}>{s.title}</div>
-              <div
-                style={{
-                  font: '400 13px/1.4 var(--font-ui)',
-                  color: 'var(--ink-50)',
-                  marginTop: '3px',
-                }}
-              >
+              <div className="text-ink font-sans text-[15px] font-semibold leading-[normal]">
+                {s.title}
+              </div>
+              <div className="text-ink-50 mt-[3px] font-sans text-[13px] font-normal leading-[1.4]">
                 {s.desc}
               </div>
             </div>

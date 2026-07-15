@@ -26,11 +26,20 @@ export interface WebhookChange {
     // depois do número entrar em coexistence chegam aqui (campo `smb_message_echoes`),
     // não em `messages`. No echo, `from` = número do negócio e `to` = cliente.
     message_echoes?: WebhookMessage[];
+    // Resultado da entrega do que NÓS enviamos. `failed` traz o motivo em `errors`
+    // (template recusado, janela de 24h, número sem WhatsApp, bloqueio).
     statuses?: Array<{
       id: string;
-      status: string;
+      status: 'sent' | 'delivered' | 'read' | 'failed';
       timestamp: string;
       recipient_id: string;
+      errors?: Array<{
+        code: number;
+        title: string;
+        message?: string;
+        error_data?: { details: string };
+        href?: string;
+      }>;
     }>;
   };
   field: string;

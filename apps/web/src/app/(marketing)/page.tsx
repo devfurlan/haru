@@ -4,11 +4,9 @@ import { Faq } from '@/components/marketing/home/faq';
 import { FinalCta } from '@/components/marketing/home/final-cta';
 import { ForClient } from '@/components/marketing/home/for-client';
 import { ForOwner } from '@/components/marketing/home/for-owner';
-import { Guarantees } from '@/components/marketing/home/guarantees';
 import { Hero } from '@/components/marketing/home/hero';
 import { HowItWorks } from '@/components/marketing/home/how-it-works';
 import { Niches } from '@/components/marketing/home/niches';
-import { Pillars } from '@/components/marketing/home/pillars';
 import { PricingPreview } from '@/components/marketing/home/pricing-preview';
 import { WhatsInside } from '@/components/marketing/home/whats-inside';
 
@@ -23,15 +21,13 @@ export default function HomePage() {
     <>
       <Hero />
       <Niches />
+      <HowItWorks />
       <ForClient />
       <ForOwner />
-      <Pillars />
       <WhatsInside />
       <Differentiators />
-      <AiAddon />
       <PricingPreview />
-      <Guarantees />
-      <HowItWorks />
+      <AiAddon />
       <Faq />
       <FinalCta />
     </>

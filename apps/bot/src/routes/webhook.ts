@@ -120,6 +120,36 @@ const MAX_PROCESSED = 1000;
 async function processWebhook(payload: WebhookPayload, app: FastifyInstance) {
   for (const entry of payload.entry) {
     for (const change of entry.changes) {
+      // Status de entrega do que enviamos. SÓ `failed` é reportado: sent/delivered/read
+      // chegam pra toda mensagem enviada e estourariam a quota do Sentry.
+      for (const status of change.value.statuses ?? []) {
+        if (status.status !== 'failed') continue;
+        const metaError = status.errors?.[0];
+        app.log.error(
+          { messageId: status.id, code: metaError?.code, title: metaError?.title },
+          'Entrega falhou (Meta)',
+        );
+        // captureMessage: é falha de entrega reportada pela Meta, não exceção JS.
+        // recipient_id é telefone do cliente (PII) e fica de fora - o wamid identifica
+        // a mensagem e o valor de debug está no código de erro da Meta.
+        Sentry.captureMessage(
+          `WhatsApp delivery failed: ${metaError?.code ?? 'unknown'} ${metaError?.title ?? ''}`.trim(),
+          {
+            level: 'error',
+            tags: {
+              component: 'webhook',
+              phase: 'status',
+              meta_error_code: String(metaError?.code ?? 'unknown'),
+            },
+            extra: {
+              messageId: status.id,
+              phoneNumberId: change.value.metadata.phone_number_id,
+              errors: status.errors,
+            },
+          },
+        );
+      }
+
       const messages = change.value.messages;
       // Coexistence: mensagens que o dono mandou pelo celular chegam aqui.
       const echoes = change.value.message_echoes;

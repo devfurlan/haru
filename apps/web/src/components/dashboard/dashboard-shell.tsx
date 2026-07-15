@@ -11,11 +11,6 @@ import { cn } from '@/lib/utils';
 
 import { initialsOf, NAV_GROUPS, NAV_ITEMS, type NavItem } from './nav-config';
 
-const SIDEBAR_BG =
-  'radial-gradient(560px 320px at 18% -8%, rgba(47,211,122,.13), transparent 62%), radial-gradient(480px 380px at 85% 112%, rgba(255,90,54,.10), transparent 60%), var(--emerald)';
-const RAIL_BG =
-  'radial-gradient(300px 260px at 30% -8%, rgba(47,211,122,.13), transparent 62%), var(--emerald)';
-
 export interface DashboardShellProps {
   tenantName: string;
   tenantLogoUrl: string | null;
@@ -45,14 +40,17 @@ function useIsActive() {
 
 function StatusDot() {
   return (
-    <span className="size-[7px] flex-none rounded-full bg-green-bright animate-pulse-ring" aria-hidden />
+    <span
+      className="bg-green-bright animate-pulse-ring size-[7px] flex-none rounded-full"
+      aria-hidden
+    />
   );
 }
 
 function Badge({ count }: { count: number }) {
   if (count <= 0) return null;
   return (
-    <span className="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-coral px-1.5 text-[11px] font-bold text-white">
+    <span className="bg-coral ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] font-bold text-white">
       {count}
     </span>
   );
@@ -102,31 +100,29 @@ export function DashboardShell({
   const statusText = live ? 'No ar pros seus clientes' : 'Página pausada';
 
   return (
-    <div className="flex h-screen overflow-hidden bg-cream">
+    <div className="bg-cream flex h-screen overflow-hidden">
       {/* ══ SIDEBAR (desktop, lg+) ══ */}
-      <aside
-        className="hidden w-[242px] flex-none flex-col px-3.5 pb-4 pt-[22px] text-on-emerald lg:flex"
-        style={{ background: SIDEBAR_BG }}
-      >
-        <Link href="/dashboard" aria-label="Demandaê" className="mb-4 ml-2 self-start text-cream no-underline">
+      <aside className="text-on-emerald hidden w-[242px] flex-none flex-col px-3.5 pb-4 pt-[22px] [background:radial-gradient(560px_320px_at_18%_-8%,rgba(47,211,122,.13),transparent_62%),radial-gradient(480px_380px_at_85%_112%,rgba(255,90,54,.10),transparent_60%),var(--emerald)] lg:flex">
+        <Link
+          href="/dashboard"
+          aria-label="Demandaê"
+          className="text-cream mb-4 ml-2 self-start no-underline"
+        >
           <Logo color="coral" size="sm" />
         </Link>
 
         {/* estabelecimento */}
-        <div
-          className="mb-4 flex items-center gap-3 rounded-2xl border p-3"
-          style={{ background: 'var(--surface-emerald-card)', borderColor: 'rgba(47,211,122,.18)' }}
-        >
+        <div className="bg-green-card mb-4 flex items-center gap-3 rounded-2xl border border-[rgba(47,211,122,.18)] p-3">
           <Avatar
             src={tenantLogoUrl}
             initials={tenantInitials}
-            className="flex size-10 flex-none items-center justify-center rounded-xl bg-[rgba(47,211,122,.16)] font-serif text-[15px] text-green-bright"
+            className="text-green-bright flex size-10 flex-none items-center justify-center rounded-xl bg-[rgba(47,211,122,.16)] font-serif text-[15px]"
           />
           <div className="min-w-0 flex-1">
-            <div className="truncate font-serif text-[14.5px] font-semibold leading-tight text-on-emerald">
+            <div className="text-on-emerald truncate font-serif text-[14.5px] font-semibold leading-tight">
               {tenantName}
             </div>
-            <div className="mt-0.5 flex items-center gap-1.5 text-[11px] font-medium text-on-emerald-mut">
+            <div className="text-on-emerald-mut mt-0.5 flex items-center gap-1.5 text-[11px] font-medium">
               {live && <StatusDot />}
               {statusText}
             </div>
@@ -137,7 +133,7 @@ export function DashboardShell({
         <nav className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto">
           {NAV_GROUPS.map((group) => (
             <React.Fragment key={group.id}>
-              <div className="px-3 pb-1.5 pt-3 text-[10.5px] font-bold uppercase tracking-[0.14em] text-on-emerald-faint first:pt-1">
+              <div className="text-on-emerald-faint px-3 pb-1.5 pt-3 text-[10.5px] font-bold uppercase tracking-[0.14em] first:pt-1">
                 {group.label}
               </div>
               {visibleItems
@@ -164,11 +160,13 @@ export function DashboardShell({
             <Avatar
               src={userAvatarUrl}
               initials={userInitial}
-              className="flex size-[34px] flex-none items-center justify-center rounded-full bg-coral text-[13px] font-bold text-white"
+              className="bg-coral flex size-[34px] flex-none items-center justify-center rounded-full text-[13px] font-bold text-white"
             />
             <div className="min-w-0 flex-1">
-              <div className="truncate text-[13px] font-semibold text-on-emerald">{userName || 'Você'}</div>
-              <div className="truncate text-[11px] font-medium text-on-emerald-faint">
+              <div className="text-on-emerald truncate text-[13px] font-semibold">
+                {userName || 'Você'}
+              </div>
+              <div className="text-on-emerald-faint truncate text-[11px] font-medium">
                 {roleLabel} · minha conta
               </div>
             </div>
@@ -177,7 +175,7 @@ export function DashboardShell({
             <button
               type="submit"
               title="Sair"
-              className="rounded-[10px] p-1.5 text-on-emerald-mut hover:bg-[rgba(250,245,234,.09)] hover:text-on-emerald"
+              className="text-on-emerald-mut hover:text-on-emerald rounded-[10px] p-1.5 hover:bg-[rgba(250,245,234,.09)]"
             >
               <LogOut className="size-[17px]" />
             </button>
@@ -186,22 +184,28 @@ export function DashboardShell({
       </aside>
 
       {/* ══ RAIL (tablet, md..lg) ══ */}
-      <aside
-        className="hidden w-[72px] flex-none flex-col items-center gap-1 py-[18px] text-on-emerald md:flex lg:hidden"
-        style={{ background: RAIL_BG }}
-      >
-        <Link href="/dashboard" aria-label="Início" className="mb-3 font-serif text-2xl italic text-coral no-underline">
+      <aside className="text-on-emerald hidden w-[72px] flex-none flex-col items-center gap-1 py-[18px] [background:radial-gradient(300px_260px_at_30%_-8%,rgba(47,211,122,.13),transparent_62%),var(--emerald)] md:flex lg:hidden">
+        <Link
+          href="/dashboard"
+          aria-label="Início"
+          className="text-coral mb-3 font-serif text-2xl italic no-underline"
+        >
           ê
         </Link>
         {visibleItems.map((item) => (
-          <RailLink key={item.key} item={item} active={isActive(item.href)} handoffCount={handoffCount} />
+          <RailLink
+            key={item.key}
+            item={item}
+            active={isActive(item.href)}
+            handoffCount={handoffCount}
+          />
         ))}
         <div className="flex-1" />
         <form action={signOut}>
           <button
             type="submit"
             title="Sair"
-            className="flex size-11 items-center justify-center rounded-[13px] text-on-emerald-mut hover:bg-[rgba(250,245,234,.09)] hover:text-on-emerald"
+            className="text-on-emerald-mut hover:text-on-emerald flex size-11 items-center justify-center rounded-[13px] hover:bg-[rgba(250,245,234,.09)]"
           >
             <LogOut className="size-[19px]" />
           </button>
@@ -209,20 +213,20 @@ export function DashboardShell({
         <Link
           href="/account"
           title="Minha conta"
-          className="mt-1.5 flex size-9 items-center justify-center rounded-full bg-coral text-[13px] font-bold text-white no-underline"
+          className="bg-coral mt-1.5 flex size-9 items-center justify-center rounded-full text-[13px] font-bold text-white no-underline"
         >
           {userInitial}
         </Link>
       </aside>
 
       {/* ══ TOPBAR (mobile) ══ */}
-      <header className="fixed inset-x-0 top-0 z-40 flex h-14 items-center gap-3 bg-green-deep px-4 text-on-emerald shadow-[0_6px_18px_rgba(10,51,36,.18)] md:hidden">
+      <header className="bg-green-deep text-on-emerald fixed inset-x-0 top-0 z-40 flex h-14 items-center gap-3 px-4 shadow-[0_6px_18px_rgba(10,51,36,.18)] md:hidden">
         <div className="text-cream">
           <Logo color="coral" size="sm" />
         </div>
         <div className="flex-1" />
         {live && (
-          <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-on-emerald-mut">
+          <span className="text-on-emerald-mut inline-flex items-center gap-1.5 text-[11px] font-medium">
             <StatusDot />
             No ar
           </span>
@@ -231,7 +235,7 @@ export function DashboardShell({
         <Link
           href="/account"
           aria-label="Minha conta"
-          className="flex size-[30px] items-center justify-center rounded-full bg-coral text-xs font-bold text-white no-underline"
+          className="bg-coral flex size-[30px] items-center justify-center rounded-full text-xs font-bold text-white no-underline"
         >
           {userInitial}
         </Link>
@@ -246,9 +250,14 @@ export function DashboardShell({
       </main>
 
       {/* ══ BOTTOM NAV (mobile) ══ */}
-      <nav className="fixed inset-x-0 bottom-0 z-40 flex border-t border-edge bg-paper px-1 pb-[calc(6px+env(safe-area-inset-bottom))] pt-1.5 shadow-[0_-8px_24px_rgba(10,51,36,.08)] md:hidden">
+      <nav className="border-edge bg-paper fixed inset-x-0 bottom-0 z-40 flex border-t px-1 pb-[calc(6px+env(safe-area-inset-bottom))] pt-1.5 shadow-[0_-8px_24px_rgba(10,51,36,.08)] md:hidden">
         {mobileItems.map((item) => (
-          <BottomLink key={item.key} item={item} active={isActive(item.href)} handoffCount={handoffCount} />
+          <BottomLink
+            key={item.key}
+            item={item}
+            active={isActive(item.href)}
+            handoffCount={handoffCount}
+          />
         ))}
         <button
           type="button"
@@ -272,27 +281,27 @@ export function DashboardShell({
             onClick={() => setMoreOpen(false)}
             className="absolute inset-0 bg-[rgba(10,51,36,.45)]"
           />
-          <div className="absolute inset-x-0 bottom-0 rounded-t-[28px] bg-paper px-[18px] pb-[calc(18px+env(safe-area-inset-bottom))] pt-2.5 shadow-[0_-14px_40px_rgba(10,51,36,.3)]">
-            <div className="mx-auto mb-3 mt-1.5 h-1 w-10 rounded-full bg-edge" />
-            <div className="px-1 pb-2 font-serif text-[17px] text-ink">Seu negócio</div>
+          <div className="bg-paper absolute inset-x-0 bottom-0 rounded-t-[28px] px-[18px] pb-[calc(18px+env(safe-area-inset-bottom))] pt-2.5 shadow-[0_-14px_40px_rgba(10,51,36,.3)]">
+            <div className="bg-edge mx-auto mb-3 mt-1.5 h-1 w-10 rounded-full" />
+            <div className="text-ink px-1 pb-2 font-serif text-[17px]">Seu negócio</div>
             {moreItems.map((item) => (
               <SheetLink key={item.key} item={item} onNavigate={() => setMoreOpen(false)} />
             ))}
             <Link
               href="/account"
               onClick={() => setMoreOpen(false)}
-              className="flex items-center gap-3 border-t border-dotted border-edge py-3.5 text-sm font-semibold text-ink no-underline"
+              className="border-edge text-ink flex items-center gap-3 border-t border-dotted py-3.5 text-sm font-semibold no-underline"
             >
               <span className="text-ink-70">
                 <UserGlyph />
               </span>
               Minha conta
-              <span className="ml-auto text-ink-30">›</span>
+              <span className="text-ink-30 ml-auto">›</span>
             </Link>
-            <form action={signOut} className="border-t border-dotted border-edge">
+            <form action={signOut} className="border-edge border-t border-dotted">
               <button
                 type="submit"
-                className="flex w-full items-center gap-3 py-3.5 text-sm font-semibold text-ink-50"
+                className="text-ink-50 flex w-full items-center gap-3 py-3.5 text-sm font-semibold"
               >
                 <LogOut className="size-[19px]" />
                 Sair
@@ -321,7 +330,7 @@ function SidebarLink({
       className={cn(
         'flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-semibold no-underline transition-colors',
         active
-          ? 'bg-[rgba(47,211,122,.15)] text-on-emerald'
+          ? 'text-on-emerald bg-[rgba(47,211,122,.15)]'
           : 'text-on-emerald-mut hover:bg-[rgba(250,245,234,.09)]',
       )}
     >
@@ -349,13 +358,13 @@ function RailLink({
       className={cn(
         'relative flex size-11 items-center justify-center rounded-[13px] no-underline transition-colors',
         active
-          ? 'bg-[rgba(47,211,122,.15)] text-on-emerald'
+          ? 'text-on-emerald bg-[rgba(47,211,122,.15)]'
           : 'text-on-emerald-mut hover:bg-[rgba(250,245,234,.09)]',
       )}
     >
       <Icon className="size-5" strokeWidth={2.1} />
       {item.badge === 'handoff' && handoffCount > 0 && (
-        <span className="absolute right-1.5 top-1.5 size-2.5 rounded-full border-2 border-green-deep bg-coral" />
+        <span className="border-green-deep bg-coral absolute right-1.5 top-1.5 size-2.5 rounded-full border-2" />
       )}
     </Link>
   );
@@ -382,7 +391,7 @@ function BottomLink({
       <Icon className="size-[21px]" strokeWidth={2.1} />
       <span className="text-[10px] font-semibold">{item.label}</span>
       {item.badge === 'handoff' && handoffCount > 0 && (
-        <span className="absolute left-[calc(50%+6px)] top-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-coral px-1 text-[9.5px] font-bold text-white">
+        <span className="bg-coral absolute left-[calc(50%+6px)] top-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[9.5px] font-bold text-white">
           {handoffCount}
         </span>
       )}
@@ -396,18 +405,26 @@ function SheetLink({ item, onNavigate }: { item: NavItem; onNavigate: () => void
     <Link
       href={item.href}
       onClick={onNavigate}
-      className="flex items-center gap-3 border-t border-dotted border-edge py-3.5 text-sm font-semibold text-ink no-underline"
+      className="border-edge text-ink flex items-center gap-3 border-t border-dotted py-3.5 text-sm font-semibold no-underline"
     >
-      <Icon className="size-[19px] text-ink-70" strokeWidth={2.1} />
+      <Icon className="text-ink-70 size-[19px]" strokeWidth={2.1} />
       {item.label}
-      <span className="ml-auto text-ink-30">›</span>
+      <span className="text-ink-30 ml-auto">›</span>
     </Link>
   );
 }
 
 function MoreIcon() {
   return (
-    <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round">
+    <svg
+      width="21"
+      height="21"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.1"
+      strokeLinecap="round"
+    >
       <circle cx="5" cy="12" r="1.4" />
       <circle cx="12" cy="12" r="1.4" />
       <circle cx="19" cy="12" r="1.4" />
@@ -417,7 +434,16 @@ function MoreIcon() {
 
 function UserGlyph() {
   return (
-    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round">
+    <svg
+      width="19"
+      height="19"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.1"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <circle cx="12" cy="8" r="3.5" />
       <path d="M5 20c.7-3.8 3.4-6 7-6s6.3 2.2 7 6" />
     </svg>

@@ -1,52 +1,14 @@
 export function PillarsIndex() {
   return (
-    <section
-      style={{
-        // width:100% conserta o colapso do grid auto-fit (section é flex item do layout)
-        width: '100%',
-        maxWidth: '1200px',
-        margin: '0 auto',
-        padding: '14px clamp(16px,4vw,40px) clamp(24px,4vw,44px)',
-      }}
-    >
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit,minmax(210px,1fr))',
-          gap: '16px',
-        }}
-      >
+    // width:100% conserta o colapso do grid auto-fit (section é flex item do layout)
+    <section className="mx-auto w-full max-w-[1200px] px-[clamp(16px,4vw,40px)] pb-[clamp(24px,4vw,44px)] pt-[14px]">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(210px,1fr))] gap-[16px]">
         <a
           href="#agenda"
-          className="hv-bd-green"
-          style={{
-            background: 'var(--paper)',
-            border: '1px solid var(--border-soft)',
-            borderRadius: '20px',
-            padding: '22px 20px',
-            boxShadow: 'var(--shadow-card)',
-            display: 'block',
-          }}
+          className="hv-bd-green border-line bg-paper block rounded-[20px] border px-[20px] py-[22px] shadow-[var(--shadow-card)]"
         >
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              marginBottom: '16px',
-            }}
-          >
-            <span
-              style={{
-                width: '44px',
-                height: '44px',
-                borderRadius: 'var(--radius-icontile)',
-                background: 'var(--green-tint)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
+          <div className="mb-[16px] flex items-center justify-between">
+            <span className="bg-chip flex h-[44px] w-[44px] items-center justify-center rounded-[var(--radius-icontile)]">
               <svg
                 width="22"
                 height="22"
@@ -63,60 +25,23 @@ export function PillarsIndex() {
                 <line x1="3" y1="10" x2="21" y2="10" />
               </svg>
             </span>
-            <span
-              style={{
-                font: '700 12px var(--font-ui)',
-                letterSpacing: '.14em',
-                color: 'var(--ink-30)',
-              }}
-            >
+            <span className="text-ink-30 font-sans text-[12px] font-bold leading-[normal] tracking-[.14em]">
               01
             </span>
           </div>
-          <div style={{ font: '500 19px var(--font-display)', color: 'var(--emerald)' }}>
+          <div className="text-green-deep font-serif text-[19px] font-medium leading-[normal]">
             Agenda
           </div>
-          <div
-            style={{
-              font: '400 13.5px/1.5 var(--font-ui)',
-              color: 'var(--ink-50)',
-              marginTop: '6px',
-            }}
-          >
+          <div className="text-ink-50 mt-[6px] font-sans text-[13.5px] font-normal leading-[1.5]">
             Rápida, por profissional, com fila de espera.
           </div>
         </a>
         <a
           href="#cliente"
-          className="hv-bd-green"
-          style={{
-            background: 'var(--paper)',
-            border: '1px solid var(--border-soft)',
-            borderRadius: '20px',
-            padding: '22px 20px',
-            boxShadow: 'var(--shadow-card)',
-            display: 'block',
-          }}
+          className="hv-bd-green border-line bg-paper block rounded-[20px] border px-[20px] py-[22px] shadow-[var(--shadow-card)]"
         >
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              marginBottom: '16px',
-            }}
-          >
-            <span
-              style={{
-                width: '44px',
-                height: '44px',
-                borderRadius: 'var(--radius-icontile)',
-                background: 'var(--green-tint)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
+          <div className="mb-[16px] flex items-center justify-between">
+            <span className="bg-chip flex h-[44px] w-[44px] items-center justify-center rounded-[var(--radius-icontile)]">
               <svg
                 width="22"
                 height="22"
@@ -131,60 +56,23 @@ export function PillarsIndex() {
                 <line x1="10" y1="18.5" x2="14" y2="18.5" />
               </svg>
             </span>
-            <span
-              style={{
-                font: '700 12px var(--font-ui)',
-                letterSpacing: '.14em',
-                color: 'var(--ink-30)',
-              }}
-            >
+            <span className="text-ink-30 font-sans text-[12px] font-bold leading-[normal] tracking-[.14em]">
               02
             </span>
           </div>
-          <div style={{ font: '500 19px var(--font-display)', color: 'var(--emerald)' }}>
+          <div className="text-green-deep font-serif text-[19px] font-medium leading-[normal]">
             Cliente
           </div>
-          <div
-            style={{
-              font: '400 13.5px/1.5 var(--font-ui)',
-              color: 'var(--ink-50)',
-              marginTop: '6px',
-            }}
-          >
+          <div className="text-ink-50 mt-[6px] font-sans text-[13.5px] font-normal leading-[1.5]">
             App e página com a sua marca. Sem marketplace.
           </div>
         </a>
         <a
           href="#dinheiro"
-          className="hv-bd-green"
-          style={{
-            background: 'var(--paper)',
-            border: '1px solid var(--border-soft)',
-            borderRadius: '20px',
-            padding: '22px 20px',
-            boxShadow: 'var(--shadow-card)',
-            display: 'block',
-          }}
+          className="hv-bd-green border-line bg-paper block rounded-[20px] border px-[20px] py-[22px] shadow-[var(--shadow-card)]"
         >
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              marginBottom: '16px',
-            }}
-          >
-            <span
-              style={{
-                width: '44px',
-                height: '44px',
-                borderRadius: 'var(--radius-icontile)',
-                background: 'var(--green-tint)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
+          <div className="mb-[16px] flex items-center justify-between">
+            <span className="bg-chip flex h-[44px] w-[44px] items-center justify-center rounded-[var(--radius-icontile)]">
               <svg
                 width="22"
                 height="22"
@@ -199,60 +87,23 @@ export function PillarsIndex() {
                 <line x1="2" y1="10" x2="22" y2="10" />
               </svg>
             </span>
-            <span
-              style={{
-                font: '700 12px var(--font-ui)',
-                letterSpacing: '.14em',
-                color: 'var(--ink-30)',
-              }}
-            >
+            <span className="text-ink-30 font-sans text-[12px] font-bold leading-[normal] tracking-[.14em]">
               03
             </span>
           </div>
-          <div style={{ font: '500 19px var(--font-display)', color: 'var(--emerald)' }}>
+          <div className="text-green-deep font-serif text-[19px] font-medium leading-[normal]">
             Dinheiro
           </div>
-          <div
-            style={{
-              font: '400 13.5px/1.5 var(--font-ui)',
-              color: 'var(--ink-50)',
-              marginTop: '6px',
-            }}
-          >
+          <div className="text-ink-50 mt-[6px] font-sans text-[13.5px] font-normal leading-[1.5]">
             Assinatura, pacotes e pagamento antecipado.
           </div>
         </a>
         <a
           href="#gestao"
-          className="hv-bd-green"
-          style={{
-            background: 'var(--paper)',
-            border: '1px solid var(--border-soft)',
-            borderRadius: '20px',
-            padding: '22px 20px',
-            boxShadow: 'var(--shadow-card)',
-            display: 'block',
-          }}
+          className="hv-bd-green border-line bg-paper block rounded-[20px] border px-[20px] py-[22px] shadow-[var(--shadow-card)]"
         >
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              marginBottom: '16px',
-            }}
-          >
-            <span
-              style={{
-                width: '44px',
-                height: '44px',
-                borderRadius: 'var(--radius-icontile)',
-                background: 'var(--green-tint)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
+          <div className="mb-[16px] flex items-center justify-between">
+            <span className="bg-chip flex h-[44px] w-[44px] items-center justify-center rounded-[var(--radius-icontile)]">
               <svg
                 width="22"
                 height="22"
@@ -269,60 +120,23 @@ export function PillarsIndex() {
                 <rect x="13.5" y="13.5" width="7.5" height="7.5" rx="2" />
               </svg>
             </span>
-            <span
-              style={{
-                font: '700 12px var(--font-ui)',
-                letterSpacing: '.14em',
-                color: 'var(--ink-30)',
-              }}
-            >
+            <span className="text-ink-30 font-sans text-[12px] font-bold leading-[normal] tracking-[.14em]">
               04
             </span>
           </div>
-          <div style={{ font: '500 19px var(--font-display)', color: 'var(--emerald)' }}>
+          <div className="text-green-deep font-serif text-[19px] font-medium leading-[normal]">
             Gestão
           </div>
-          <div
-            style={{
-              font: '400 13.5px/1.5 var(--font-ui)',
-              color: 'var(--ink-50)',
-              marginTop: '6px',
-            }}
-          >
+          <div className="text-ink-50 mt-[6px] font-sans text-[13.5px] font-normal leading-[1.5]">
             O negócio inteiro numa tela, no PC e no celular.
           </div>
         </a>
         <a
           href="#fidelidade"
-          className="hv-bd-green"
-          style={{
-            background: 'var(--paper)',
-            border: '1px solid var(--border-soft)',
-            borderRadius: '20px',
-            padding: '22px 20px',
-            boxShadow: 'var(--shadow-card)',
-            display: 'block',
-          }}
+          className="hv-bd-green border-line bg-paper block rounded-[20px] border px-[20px] py-[22px] shadow-[var(--shadow-card)]"
         >
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              marginBottom: '16px',
-            }}
-          >
-            <span
-              style={{
-                width: '44px',
-                height: '44px',
-                borderRadius: 'var(--radius-icontile)',
-                background: 'var(--green-tint)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
+          <div className="mb-[16px] flex items-center justify-between">
+            <span className="bg-chip flex h-[44px] w-[44px] items-center justify-center rounded-[var(--radius-icontile)]">
               <svg
                 width="22"
                 height="22"
@@ -337,26 +151,14 @@ export function PillarsIndex() {
                 <path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11" />
               </svg>
             </span>
-            <span
-              style={{
-                font: '700 12px var(--font-ui)',
-                letterSpacing: '.14em',
-                color: 'var(--ink-30)',
-              }}
-            >
+            <span className="text-ink-30 font-sans text-[12px] font-bold leading-[normal] tracking-[.14em]">
               05
             </span>
           </div>
-          <div style={{ font: '500 19px var(--font-display)', color: 'var(--emerald)' }}>
+          <div className="text-green-deep font-serif text-[19px] font-medium leading-[normal]">
             Fidelidade
           </div>
-          <div
-            style={{
-              font: '400 13.5px/1.5 var(--font-ui)',
-              color: 'var(--ink-50)',
-              marginTop: '6px',
-            }}
-          >
+          <div className="text-ink-50 mt-[6px] font-sans text-[13.5px] font-normal leading-[1.5]">
             Pontos, recompensas e retorno automático.
           </div>
         </a>

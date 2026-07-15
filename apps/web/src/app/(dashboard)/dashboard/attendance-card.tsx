@@ -85,6 +85,7 @@ export function AttendanceCard({
                   <div className="bg-line h-1.5 w-24 flex-none overflow-hidden rounded-full">
                     <div
                       className="bg-green-bright h-full rounded-full"
+                      // ponytail: runtime, Tailwind nao gera
                       style={{ width: pct(p.attendanceRate) }}
                     />
                   </div>

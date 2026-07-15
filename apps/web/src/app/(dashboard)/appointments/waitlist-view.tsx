@@ -98,13 +98,7 @@ export function WaitlistView({
 
 function RecoveryCard({ metric }: { metric: RecoveryMetric }) {
   return (
-    <div
-      className="border-line shadow-soft flex flex-wrap items-center gap-4 rounded-[18px] border p-5"
-      style={{
-        background:
-          'radial-gradient(460px 200px at 8% -40%, rgba(47,211,122,.16), transparent 62%), var(--brand-paper)',
-      }}
-    >
+    <div className="border-line shadow-soft flex flex-wrap items-center gap-4 rounded-[18px] border p-5 [background:radial-gradient(460px_200px_at_8%_-40%,rgba(47,211,122,.16),transparent_62%),var(--brand-paper)]">
       <div className="bg-chip text-green-emph flex size-[46px] flex-none items-center justify-center rounded-[14px]">
         <Clock className="size-6" strokeWidth={2.1} />
       </div>
@@ -135,23 +129,14 @@ function RecoveryCard({ metric }: { metric: RecoveryMetric }) {
 function InsightCard({ insight }: { insight: NonNullable<WaitlistInsight> }) {
   const art = insight.professionalName ? 'o' : '';
   return (
-    <div
-      className="text-on-emerald relative overflow-hidden rounded-[20px] p-6"
-      style={{
-        background:
-          'radial-gradient(520px 260px at 88% -30%, rgba(255,90,54,.20), transparent 60%), radial-gradient(480px 300px at 6% 130%, rgba(47,211,122,.16), transparent 60%), var(--emerald)',
-        boxShadow: '0 16px 36px rgba(10,51,36,.28)',
-      }}
-    >
+    <div className="text-on-emerald relative overflow-hidden rounded-[20px] p-6 shadow-[0_16px_36px_rgba(10,51,36,.28)] [background:radial-gradient(520px_260px_at_88%_-30%,rgba(255,90,54,.20),transparent_60%),radial-gradient(480px_300px_at_6%_130%,rgba(47,211,122,.16),transparent_60%),var(--emerald)]">
       <div className="flex items-center gap-1.5 text-[10.5px] font-bold uppercase tracking-[0.14em] text-[#ffb59f]">
         <Lightbulb className="size-[15px]" strokeWidth={2.2} />
         Oportunidade
       </div>
       <p className="mt-2.5 max-w-[640px] font-serif text-[25px] leading-[1.18]">
         {insight.count} pessoas querem{' '}
-        <em className="text-green-bright not-italic" style={{ fontStyle: 'italic' }}>
-          {insight.dayLabel}
-        </em>{' '}
+        <em className="text-green-bright italic">{insight.dayLabel}</em>{' '}
         {insight.professionalName ? `com ${art} ${insight.professionalName}` : 'com você'}.
       </p>
       <p className="text-on-emerald-mut mt-1 max-w-[560px] text-sm leading-relaxed">
@@ -182,10 +167,7 @@ function InsightCard({ insight }: { insight: NonNullable<WaitlistInsight> }) {
 
 function LiveCard({ live }: { live: NonNullable<ActiveOfferLive> }) {
   return (
-    <div
-      className="bg-paper shadow-soft rounded-[18px] border p-5"
-      style={{ borderColor: '#ffd6c9' }}
-    >
+    <div className="bg-paper shadow-soft rounded-[18px] border border-[#ffd6c9] p-5">
       <div className="flex flex-wrap items-center gap-2.5">
         <div className="text-coral-deep flex items-center gap-1.5 text-[10.5px] font-bold uppercase tracking-[0.13em]">
           <span className="bg-coral animate-pulse-ring size-2 rounded-full" />
@@ -196,10 +178,7 @@ function LiveCard({ live }: { live: NonNullable<ActiveOfferLive> }) {
         </div>
       </div>
       <p className="text-ink mt-2 font-serif text-lg">
-        Vaga aberta{' '}
-        <em className="text-coral-deep not-italic" style={{ fontStyle: 'italic' }}>
-          {live.dayLabel}
-        </em>{' '}
+        Vaga aberta <em className="text-coral-deep italic">{live.dayLabel}</em>{' '}
         {live.professionalName ? `com ${live.professionalName}` : ''}
       </p>
       <p className="text-ink-50 mt-0.5 text-[12.5px]">
@@ -213,6 +192,7 @@ function LiveCard({ live }: { live: NonNullable<ActiveOfferLive> }) {
           <span className="text-ink-50">aguardando confirmação</span>
         </div>
         <div className="bg-line h-[7px] overflow-hidden rounded">
+          {/* ponytail: runtime, Tailwind nao gera */}
           <div className="bg-coral h-full rounded" style={{ width: `${live.progressPct}%` }} />
         </div>
       </div>
@@ -410,10 +390,7 @@ function EmptyState() {
         <Users className="size-6" strokeWidth={2} />
       </div>
       <div className="text-ink font-serif text-[22px]">
-        Ninguém na fila{' '}
-        <em className="text-green-emph not-italic" style={{ fontStyle: 'italic' }}>
-          por enquanto
-        </em>
+        Ninguém na fila <em className="text-green-emph italic">por enquanto</em>
       </div>
       <p className="text-ink-50 mx-auto mt-2 max-w-[420px] text-[13.5px] leading-relaxed">
         Quando sua agenda lotar, seus clientes vão poder entrar na fila. A gente avisa eles se abrir
@@ -444,10 +421,7 @@ function OffCard() {
         <Clock className="size-6" strokeWidth={2.1} />
       </div>
       <div className="text-ink font-serif text-xl">
-        A fila de espera está{' '}
-        <em className="text-coral-deep not-italic" style={{ fontStyle: 'italic' }}>
-          desligada
-        </em>
+        A fila de espera está <em className="text-coral-deep italic">desligada</em>
       </div>
       <p className="text-ink-50 mx-auto mt-1.5 max-w-[380px] text-[13px] leading-relaxed">
         Ligue pra recuperar horários cancelados sozinho: quando um dia lota, seus clientes entram na
