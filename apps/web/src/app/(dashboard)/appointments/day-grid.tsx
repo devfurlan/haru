@@ -21,6 +21,8 @@ const HOUR_PX = 64;
 const MIN_BLOCK_PX = 28;
 /** Gutter à esquerda para as horas (px). */
 const GUTTER_PX = 64;
+/** Respiro vertical no topo/base para o rótulo da 1ª/última hora não ser cortado. */
+const PAD_Y = 12;
 
 /** Estilo do bloco por status: fundo suave + borda esquerda colorida. */
 const STATUS_BLOCK: Record<AppointmentStatus, { bg: string; bar: string; muted?: boolean }> = {
@@ -239,14 +241,14 @@ export function DayGrid({
 
   const { startHour, endHour } = range;
   const pxPerMin = HOUR_PX / 60;
-  const height = (endHour - startHour) * 60 * pxPerMin;
+  const height = (endHour - startHour) * 60 * pxPerMin + PAD_Y * 2;
   const hours: number[] = [];
   for (let h = startHour; h <= endHour; h++) hours.push(h);
 
   const showNow = nowMin !== null && nowMin >= startHour * 60 && nowMin <= endHour * 60;
   const dayEmpty = positioned.length === 0;
 
-  const topOf = (min: number) => (min - startHour * 60) * pxPerMin;
+  const topOf = (min: number) => PAD_Y + (min - startHour * 60) * pxPerMin;
   const heightOf = (start: number, end: number) => Math.max((end - start) * pxPerMin, MIN_BLOCK_PX);
 
   function RemoveBtn({ id }: { id: string }) {

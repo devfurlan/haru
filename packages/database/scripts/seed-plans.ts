@@ -15,7 +15,7 @@ async function main() {
   for (const p of plans) {
     console.log(
       `  ${p.tier.padEnd(12)} R$ ${(p.priceMonthlyCents / 100).toFixed(2).padStart(7)}/mês  ` +
-        `agend.: ${p.appointmentsPerMonth ?? '∞'}`,
+        `lembretes WA: ${p.whatsappRemindersPerMonth ?? '∞'}`,
     );
   }
 

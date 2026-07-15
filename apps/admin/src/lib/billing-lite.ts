@@ -11,7 +11,7 @@ export const TIER_LABEL: Record<PlanTier, string> = {
   ESSENCIAL: 'Solo',
   PROFISSIONAL: 'Time',
   NEGOCIO: 'Multi',
-  ENTERPRISE: 'Custom',
+  ENTERPRISE: 'Enterprise',
 };
 
 export const ADDON_TIER_LABEL: Record<AddonTier, string> = {
@@ -22,25 +22,27 @@ export const ADDON_TIER_LABEL: Record<AddonTier, string> = {
 
 export interface PlanSnapshot {
   priceCents: number;
-  appointmentsLimit: number | null;
-  aiMessagesLimit: number | null;
+  whatsappRemindersLimit: number | null;
   maxProfessionals: number | null;
   maxReceptionists: number | null;
   featOnlinePayments: boolean;
   featWebhooks: boolean;
   featTeam: boolean;
+  featWaitlist: boolean;
+  featServiceSubscriptions: boolean;
 }
 
 /** Deriva o snapshot dos termos a partir do Plan vigente e do ciclo de cobrança. */
 export function snapshotPlan(plan: Plan, cycle: BillingCycle): PlanSnapshot {
   return {
     priceCents: cycle === 'ANNUAL' ? plan.priceAnnualCents : plan.priceMonthlyCents,
-    appointmentsLimit: plan.appointmentsPerMonth,
-    aiMessagesLimit: plan.aiMessagesPerMonth,
+    whatsappRemindersLimit: plan.whatsappRemindersPerMonth,
     maxProfessionals: plan.maxProfessionals,
     maxReceptionists: plan.maxReceptionists,
     featOnlinePayments: plan.onlinePayments,
     featWebhooks: plan.webhooks,
     featTeam: plan.team,
+    featWaitlist: plan.waitlist,
+    featServiceSubscriptions: plan.serviceSubscriptions,
   };
 }

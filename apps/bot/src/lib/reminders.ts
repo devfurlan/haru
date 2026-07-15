@@ -1,3 +1,5 @@
+import { cycleWindow, getMonthlyWhatsappReminderUsage, isSubscriptionActive } from '@haru/billing';
+
 import { Sentry } from '../instrument.js';
 import { emailAppointmentReminder } from './appointmentEmail.js';
 import { emailNumberBanned, emailQualityDegraded } from './email.js';
@@ -74,6 +76,8 @@ async function processReminders() {
       // Número banido pela Meta recusa todo envio WhatsApp (#135000); o e-mail segue.
       whatsappBannedAt: null,
     },
+    // Assinatura p/ a cota de lembretes por WhatsApp (pausa o canal a 100%).
+    include: { subscription: true },
   });
 
   for (const tenant of tenants) {
@@ -123,6 +127,20 @@ async function processReminders() {
     const waTemplateLang = ownNumberId ? (tenant.reminderTemplateLanguage ?? 'pt_BR') : 'pt_BR';
     const waAllowFreeform = Boolean(ownNumberId);
 
+    // Cota de lembretes por WhatsApp (quota do plano base): ao chegar em 100% do ciclo, pausa
+    // SÓ os disparos pelo número da PLATAFORMA. E-mail e push nunca pausam (ilimitados) e o
+    // cliente final segue agendando. Own-number (variante OWN do addon) NÃO é cobrado: envia
+    // pela WABA do próprio tenant, que paga a Meta direto - a cota do plano base não se aplica.
+    // ponytail: se a cota tiver que valer para own-number também, remover o `!ownNumberId`.
+    const remindersLimit =
+      !ownNumberId && isSubscriptionActive(tenant.subscription)
+        ? (tenant.subscription!.whatsappRemindersLimit ?? null)
+        : null;
+    let remindersUsed =
+      remindersLimit != null
+        ? await getMonthlyWhatsappReminderUsage(tenant.id, now, cycleWindow(tenant.subscription))
+        : 0;
+
     for (const appt of appts) {
       const when = formatWhen(appt.startsAt, tenant.timezone);
       const name = appt.contact.name ?? 'cliente';
@@ -134,6 +152,7 @@ async function processReminders() {
         appt.contact.phone != null &&
         waNumberId &&
         !whatsappBlocked &&
+        (remindersLimit == null || remindersUsed < remindersLimit) &&
         appt.reminderSentAt == null &&
         appt.contact.remindersOptOutAt == null
       ) {
@@ -183,6 +202,7 @@ async function processReminders() {
         }
 
         if (sent) {
+          remindersUsed++;
           await prisma.appointment.update({
             where: { id: appt.id },
             data: { reminderSentAt: new Date() },

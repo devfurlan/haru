@@ -16,36 +16,41 @@ const EMPTY = {
   name: '',
   priceMonthlyCents: 0,
   priceAnnualCents: 0,
-  appointmentsPerMonth: null,
-  aiMessagesPerMonth: null,
+  whatsappRemindersPerMonth: null,
   maxProfessionals: null,
   maxReceptionists: null,
   onlinePayments: false,
   webhooks: false,
   team: false,
-  active: true,
+  waitlist: false,
+  serviceSubscriptions: false,
+  // Default = plano PERSONALIZADO: o catálogo público (Solo/Time/Multi) já vem do seed;
+  // o que se cria aqui no dia a dia é deal sob medida, fora da vitrine.
+  active: false,
   displayOrder: 0,
 };
 
-export function CreatePlanForm({ availableTiers }: { availableTiers: PlanTier[] }) {
+export function CreatePlanForm({ tiers }: { tiers: PlanTier[] }) {
   const [open, setOpen] = useState(false);
   const [state, action, pending] = useActionState(createPlan, undefined);
-
-  if (availableTiers.length === 0) return null;
 
   if (!open) {
     return (
       <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
-        + Criar plano faltante
+        + Criar plano personalizado
       </Button>
     );
   }
 
   return (
     <form action={action} className="space-y-4">
-      <Field label="Tier" htmlFor="tier">
-        <Select id="tier" name="tier" defaultValue={availableTiers[0]}>
-          {availableTiers.map((t) => (
+      <Field
+        label="Tier"
+        htmlFor="tier"
+        hint="Faixa comercial (rótulo e upsell). Quem decide as features é a lista de toggles abaixo, não o tier."
+      >
+        <Select id="tier" name="tier" defaultValue={tiers[0]}>
+          {tiers.map((t) => (
             <option key={t} value={t}>
               {TIER_LABEL[t]}
             </option>

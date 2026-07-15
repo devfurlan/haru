@@ -1,5 +1,5 @@
 import { prisma } from '@haru/database';
-import type { Subscription } from '@haru/database';
+import type { Plan, PlanTier, Subscription } from '@haru/database';
 
 import type { FeatureKey } from './types';
 
@@ -12,6 +12,17 @@ import type { FeatureKey } from './types';
 export interface TenantWithSubscription {
   id: string;
   subscription?: Subscription | null;
+}
+
+/**
+ * O plano PÚBLICO de um tier - o que a vitrine lista e o self-serve contrata. `Plan.tier`
+ * NÃO é único (planos PERSONALIZADOS dividem o mesmo tier com `active: false`), mas o índice
+ * parcial `Plan_tier_active_key` garante no máximo UM público por tier, então este findFirst
+ * é determinístico. Planos personalizados nunca saem por aqui: são atribuídos por id no
+ * admin. null = tier sem plano público (ex.: ENTERPRISE, que é "sob consulta").
+ */
+export async function getPublicPlan(tier: PlanTier): Promise<Plan | null> {
+  return prisma.plan.findFirst({ where: { tier, active: true } });
 }
 
 /**
@@ -112,42 +123,35 @@ export function hasFeature(sub: Subscription | null | undefined, feature: Featur
       return sub.featWebhooks;
     case 'team':
       return sub.featTeam;
+    case 'waitlist':
+      return sub.featWaitlist;
+    case 'serviceSubscriptions':
+      return sub.featServiceSubscriptions;
     case 'aiAttendant':
       return isAddonActive(sub);
   }
 }
 
 /**
- * Fila de espera: feature do plano Time pra cima (PROFISSIONAL/NEGOCIO/ENTERPRISE). Solo
- * (ESSENCIAL) não tem - agenda de 1 profissional raramente lota a ponto de gerar fila, e a
- * fila é diferencial de retenção do Time (gancho natural de upgrade). Sem assinatura ativa
- * também não libera.
- *
- * ponytail: gate por tier AO VIVO, não por flag snapshot como os demais features (featTeam,
- * featOnlinePayments...). Aceitável com base pequena; alinhar a um snapshot (coluna
- * featWaitlist na Subscription, grandfathered) quando mexer em quais features cada plano
- * entrega virar problema real. Reusa isSubscriptionActive - trial/acesso, se um dia existir,
- * entra LÁ e a fila herda de graça.
+ * Fila de espera (recuperação de vaga em dia lotado). Lê a flag do SNAPSHOT - o plano
+ * contratado é que decide, não o tier: nos planos públicos ela vem do Time pra cima, mas um
+ * plano personalizado pode ligá-la em qualquer tier. Sem assinatura ativa não libera (trial
+ * futuro, se existir, entra em isSubscriptionActive e a fila herda de graça).
  */
 export function hasWaitlist(sub: Subscription | null | undefined): boolean {
-  return isSubscriptionActive(sub) && !!sub && sub.planTier !== 'ESSENCIAL';
+  return hasFeature(sub, 'waitlist');
 }
 
 /**
- * Assinatura de serviços do cliente final ("Clube do Corte"): feature do plano Time pra
- * cima (PROFISSIONAL/NEGOCIO/ENTERPRISE). Solo (ESSENCIAL) não tem - é diferencial de
- * receita recorrente do Time. Gate NÃO-BURLÁVEL: cada write que move dinheiro/cria linha
- * (dono cria/edita plano, cliente assina, cobrança recorrente) chama isto no corpo da
- * action, não só esconde no front. REGRA DURA: gateia OFERTAR/COBRAR, nunca o CONSUMO de
- * crédito já vendido - um dono que faz downgrade não estorna quem já assinou (o crédito
- * pago continua honrado; ver isSubscriptionActive da própria Membership).
- *
- * ponytail: gate por tier AO VIVO, igual hasWaitlist - alinhar a um snapshot
- * (featServiceSubscriptions grandfathered) junto com a fila quando a matriz de features
- * por plano virar problema. Reusa isSubscriptionActive - trial futuro herda de graça.
+ * Assinatura de serviços do cliente final ("Clube do Corte") + pacotes. Lê a flag do
+ * SNAPSHOT (o plano contratado decide, não o tier). Gate NÃO-BURLÁVEL: cada write que move
+ * dinheiro/cria linha (dono cria/edita plano, cliente assina, cobrança recorrente) chama
+ * isto no corpo da action, não só esconde no front. REGRA DURA: gateia OFERTAR/COBRAR, nunca
+ * o CONSUMO de crédito já vendido - um dono que faz downgrade não estorna quem já assinou (o
+ * crédito pago continua honrado; ver isSubscriptionActive da própria Membership).
  */
 export function hasServiceSubscriptions(sub: Subscription | null | undefined): boolean {
-  return isSubscriptionActive(sub) && !!sub && sub.planTier !== 'ESSENCIAL';
+  return hasFeature(sub, 'serviceSubscriptions');
 }
 
 // --- Equipe: profissionais x recepcionistas ----------------------------------
@@ -210,26 +214,23 @@ export function cycleWindow(
   return { gte, lt };
 }
 
-/** Agendamentos criados na janela (exclui cancelados). Conta sob demanda via índice. */
-export async function getMonthlyAppointmentUsage(
+/**
+ * Lembretes por WhatsApp ENVIADOS na janela = agendamentos com `reminderSentAt` dentro do
+ * ciclo. O carimbo é setado só no envio WhatsApp bem-sucedido (apps/bot reminders.ts), então
+ * conta exatamente os lembretes que saíram por WhatsApp - a ÚNICA quota do plano base.
+ * ponytail: proxy de "lembretes de agendamento" - a remarcação zera o carimbo e reenvia, e
+ * confirmações/cancelamentos não contam. Contador dedicado só se a cota tiver que contar TODO
+ * disparo WhatsApp.
+ */
+export async function getMonthlyWhatsappReminderUsage(
   tenantId: string,
   now = new Date(),
   window?: { gte: Date; lt: Date },
 ): Promise<number> {
   const { gte, lt } = window ?? monthRange(now);
   return prisma.appointment.count({
-    where: { tenantId, createdAt: { gte, lt }, status: { not: 'CANCELED' } },
+    where: { tenantId, reminderSentAt: { gte, lt } },
   });
-}
-
-/** Turnos do bot na janela (uma linha em AiUsageLog por turno). Base do custo de IA. */
-export async function getMonthlyAiUsage(
-  tenantId: string,
-  now = new Date(),
-  window?: { gte: Date; lt: Date },
-): Promise<number> {
-  const { gte, lt } = window ?? monthRange(now);
-  return prisma.aiUsageLog.count({ where: { tenantId, createdAt: { gte, lt } } });
 }
 
 /**
@@ -257,29 +258,22 @@ export interface UsageMetric {
 }
 
 export interface UsageStatus {
-  appointments: UsageMetric;
-  aiMessages: UsageMetric;
+  /** Uso do ciclo x cota de lembretes por WhatsApp - única quota do plano base. */
+  whatsappReminders: UsageMetric;
 }
 
 function metric(used: number, limit: number | null): UsageMetric {
   return { used, limit, pct: limit && limit > 0 ? Math.round((used / limit) * 100) : null };
 }
 
-/** Uso do ciclo + limites do snapshot da assinatura, pronto para o banner. */
+/** Uso do ciclo + cota de lembretes do snapshot da assinatura, pronto para o banner. */
 export async function getUsageStatus(
   tenant: TenantWithSubscription,
   now = new Date(),
 ): Promise<UsageStatus> {
   const sub = tenant.subscription ?? null;
-  const window = cycleWindow(sub, now);
-  const [appts, ai] = await Promise.all([
-    getMonthlyAppointmentUsage(tenant.id, now, window),
-    getMonthlyAiUsage(tenant.id, now, window),
-  ]);
-  return {
-    appointments: metric(appts, sub?.appointmentsLimit ?? null),
-    aiMessages: metric(ai, sub?.aiMessagesLimit ?? null),
-  };
+  const used = await getMonthlyWhatsappReminderUsage(tenant.id, now, cycleWindow(sub, now));
+  return { whatsappReminders: metric(used, sub?.whatsappRemindersLimit ?? null) };
 }
 
 /**
@@ -301,8 +295,9 @@ export function isOverLimit(m: UsageMetric): boolean {
 }
 
 /**
- * Maior limiar de alerta atingido para um percentual de uso.
- * 0 = abaixo de 85%; 100 = limite excedido. Usado pelo banner do dashboard.
+ * Maior limiar de alerta atingido para um percentual de uso, na escada do addon
+ * (conversas do bot): 0 = abaixo de 85%; 100 = limite excedido. A quota de lembretes
+ * WhatsApp do plano base usa a escada de 2 níveis (80/100) inline em nextUsageAlerts.
  */
 export function alertLevel(pct: number | null): 0 | 85 | 90 | 95 | 100 {
   if (pct === null) return 0;
@@ -313,58 +308,44 @@ export function alertLevel(pct: number | null): 0 | 85 | 90 | 95 | 100 {
   return 0;
 }
 
-// --- Bloqueio owner-side + alertas de push (email/WhatsApp) -------------------
+// --- Alertas de push (email/WhatsApp/in-app) ---------------------------------
+// NB: agendamento é ilimitado - não existe mais bloqueio owner-side por cota. A quota do
+// plano base (lembretes WhatsApp) é enforçada NO ENVIO, pausando só o canal WhatsApp no
+// loop de lembretes do bot (email/push seguem); ver apps/bot/src/lib/reminders.ts.
 
 /**
- * Fair use: Multi (NEGOCIO) com addon Multi (BOT_MULTI) ativo. Para essa faixa o topo
- * do teto NÃO bloqueia - o excedente vira conversa de upgrade p/ Enterprise (alerta
- * interno pro operador). Ver nextUsageAlerts / isAppointmentLimitReached.
+ * Fair use: Multi (NEGOCIO) com addon Multi (BOT_MULTI) ativo. Só se aplica ao eixo de
+ * CONVERSAS do addon: para essa faixa o topo do teto de conversas NÃO bloqueia - o excedente
+ * vira conversa de upgrade p/ Enterprise (alerta interno pro operador). Ver nextUsageAlerts.
  */
 export function isFairUse(sub: Subscription | null | undefined): boolean {
   return isAddonActive(sub) && sub!.planTier === 'NEGOCIO' && sub!.addonTier === 'BOT_MULTI';
 }
 
-/**
- * True se o tenant atingiu o teto de agendamentos do ciclo - usado SÓ pelos guards
- * owner-side (criar serviço/profissional/agendamento manual). Fair use e assinatura
- * inativa nunca bloqueiam por cota (o acesso inativo é tratado por hasFeature/banner).
- * REGRA DURA: jamais no caminho do cliente final.
- */
-export async function isAppointmentLimitReached(
-  tenant: TenantWithSubscription,
-  now = new Date(),
-): Promise<boolean> {
-  const sub = tenant.subscription ?? null;
-  if (!isSubscriptionActive(sub) || sub!.appointmentsLimit == null || isFairUse(sub)) return false;
-  const used = await getMonthlyAppointmentUsage(tenant.id, now, cycleWindow(sub, now));
-  return used >= sub!.appointmentsLimit;
-}
-
-export type UsageAlertMetric = 'appointments' | 'conversations' | 'fairuse';
+export type UsageAlertMetric = 'whatsappReminders' | 'conversations' | 'fairuse';
 
 export interface PendingUsageAlert {
-  /** Chave de dedup: 'appointments' | 'conversations' | 'fairuse'. */
+  /** Chave de dedup: 'whatsappReminders' | 'conversations' | 'fairuse'. */
   metric: UsageAlertMetric;
-  /** Maior limiar recém-cruzado: 85 | 90 | 95 | 100. */
-  level: 85 | 90 | 95 | 100;
+  /** Limiar recém-cruzado. Lembretes: 80 | 100. Conversas: 85 | 90 | 95 | 100. */
+  level: 80 | 85 | 90 | 95 | 100;
   used: number;
   limit: number;
   /** Início da janela de cota (chave de dedup por ciclo). */
   windowStart: Date;
   /** true = alerta INTERNO pro operador (fair use), não pro dono. */
   fairUse: boolean;
-  /** Qual teto estourou (só no fair use, p/ o texto do alerta interno). */
-  underlyingMetric?: 'appointments' | 'conversations';
+  /** Qual teto estourou (só no fair use do addon, p/ o texto do alerta interno). */
+  underlyingMetric?: 'conversations';
 }
 
 /**
- * Alertas de push (email/WhatsApp) que ainda NÃO saíram neste ciclo. Compara o nível de
- * uso atual (agendamentos + conversas do addon) com o maior nível já alertado na janela
- * (tabela UsageAlert) e devolve só o que SUBIU de nível - nunca repete o mesmo alerta no
- * mesmo ciclo nem alerta "pra trás" quando o uso oscila (item: não spam). Fair use:
- * abaixo de 100% não incomoda o dono; ao passar do teto emite UM alerta interno. Só
- * assinatura ativa alerta. O caller (loop do bot) despacha os canais e chama depois
- * markUsageAlertSent. O banner in-app é status ao vivo e não passa por aqui.
+ * Alertas de push (email/WhatsApp/in-app) que ainda NÃO saíram neste ciclo. Compara o nível
+ * de uso atual com o maior já alertado na janela (tabela UsageAlert) e devolve só o que SUBIU
+ * de nível - nunca repete o mesmo alerta no ciclo nem alerta "pra trás" quando o uso oscila.
+ * Dois eixos: LEMBRETES por WhatsApp (plano base, escada 80/100) e CONVERSAS do addon (escada
+ * 85/90/95/100, com fair use no Multi+BotMulti). Só assinatura ativa alerta. O caller (loop do
+ * bot) despacha os canais e chama depois markUsageAlertSent. O banner in-app é status ao vivo.
  */
 export async function nextUsageAlerts(
   tenant: TenantWithSubscription,
@@ -381,56 +362,65 @@ export async function nextUsageAlerts(
   });
   const sentLevel = (m: UsageAlertMetric) => sent.find((s) => s.metric === m)?.level ?? 0;
 
-  const apptUsed = await getMonthlyAppointmentUsage(tenant.id, now, window);
-  const appts = metric(apptUsed, sub!.appointmentsLimit ?? null);
-  const conv = isAddonActive(sub)
-    ? metric(
-        await getMonthlyConversationUsage(tenant.id, now, window),
-        sub!.addonConversationsLimit ?? null,
-      )
-    : null;
-
   const out: PendingUsageAlert[] = [];
 
-  // Fair use: só o excedente (100%) importa, e vira alerta interno uma vez por ciclo.
-  if (isFairUse(sub)) {
-    const overConv = conv != null && isOverLimit(conv);
-    const overAppt = isOverLimit(appts);
-    if ((overConv || overAppt) && sentLevel('fairuse') < 100) {
-      const m = overConv ? conv! : appts;
+  // Eixo base: lembretes por WhatsApp. Escada de 2 níveis - avisa uma vez em 80% (email +
+  // banner) e uma vez em 100% (o canal WhatsApp pausa; email/push seguem ilimitados). Vale
+  // inclusive no fair use (o pause de canal não tem exceção). limit null (Enterprise) = sem cota.
+  const remLimit = sub!.whatsappRemindersLimit ?? null;
+  if (remLimit != null) {
+    const rem = metric(await getMonthlyWhatsappReminderUsage(tenant.id, now, window), remLimit);
+    const level = isOverLimit(rem) ? 100 : rem.pct != null && rem.pct >= 80 ? 80 : 0;
+    if (level > 0 && level > sentLevel('whatsappReminders')) {
       out.push({
-        metric: 'fairuse',
-        level: 100,
-        used: m.used,
-        limit: m.limit!,
-        windowStart,
-        fairUse: true,
-        underlyingMetric: overConv ? 'conversations' : 'appointments',
-      });
-    }
-    return out;
-  }
-
-  const consider = (key: 'appointments' | 'conversations', m: UsageMetric | null) => {
-    if (!m || m.limit == null) return;
-    // Nível 100 SÓ no over-limit REAL (used >= limit), igual ao bloqueio owner-side e ao
-    // fair use. Abaixo disso o pct arredondado é capado em 95 - 249/250 arredonda p/ 100%
-    // mas ainda NÃO estourou: manda o alerta de 95 (urgente), não o terminal (que diria
-    // falsamente "criações pausadas" e consumiria o dedup antes do bloqueio de fato ligar).
-    const level = isOverLimit(m) ? 100 : Math.min(alertLevel(m.pct), 95);
-    if (level >= 85 && level > sentLevel(key)) {
-      out.push({
-        metric: key,
-        level: level as 85 | 90 | 95 | 100,
-        used: m.used,
-        limit: m.limit,
+        metric: 'whatsappReminders',
+        level: level as 80 | 100,
+        used: rem.used,
+        limit: rem.limit!,
         windowStart,
         fairUse: false,
       });
     }
-  };
-  consider('appointments', appts);
-  consider('conversations', conv);
+  }
+
+  // Eixo addon: conversas do bot (só com addon ativo).
+  if (isAddonActive(sub)) {
+    const conv = metric(
+      await getMonthlyConversationUsage(tenant.id, now, window),
+      sub!.addonConversationsLimit ?? null,
+    );
+    if (conv.limit != null) {
+      if (isFairUse(sub)) {
+        // Multi + Bot Multi: o topo do teto de conversas não bloqueia; o excedente vira UM
+        // alerta interno pro operador (conversa de upgrade p/ Enterprise).
+        if (isOverLimit(conv) && sentLevel('fairuse') < 100) {
+          out.push({
+            metric: 'fairuse',
+            level: 100,
+            used: conv.used,
+            limit: conv.limit,
+            windowStart,
+            fairUse: true,
+            underlyingMetric: 'conversations',
+          });
+        }
+      } else {
+        // Nível 100 SÓ no over-limit REAL (used >= limit); abaixo disso o pct arredondado é
+        // capado em 95 (249/250 arredonda p/ 100% mas ainda não estourou).
+        const level = isOverLimit(conv) ? 100 : Math.min(alertLevel(conv.pct), 95);
+        if (level >= 85 && level > sentLevel('conversations')) {
+          out.push({
+            metric: 'conversations',
+            level: level as 85 | 90 | 95 | 100,
+            used: conv.used,
+            limit: conv.limit,
+            windowStart,
+            fairUse: false,
+          });
+        }
+      }
+    }
+  }
 
   return out;
 }

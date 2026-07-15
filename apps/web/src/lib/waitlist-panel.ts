@@ -5,12 +5,16 @@ import 'server-only';
 // estado ao vivo são todas leituras/agregações diretas do banco (nada mockado).
 
 import { prisma } from '@haru/database';
-import { isoDateInTz, localWallTimeToUtc } from '@haru/shared';
+import { formatBRLShort, isoDateInTz, localWallTimeToUtc } from '@haru/shared';
 
 import { dateStrOf, dayLabel } from '@/lib/waitlist-core';
 
-/** Vagas recuperadas pela fila num período: quantas + receita (soma dos preços). */
-async function recoveredStats(
+/**
+ * Vagas recuperadas pela fila num período: quantas + receita (soma dos preços). Ancora em
+ * `createdAt` (quando a vaga foi recuperada), não no horário do atendimento. Exportada
+ * porque o relatório semanal (weekly-report.ts) reusa a mesma métrica na janela da semana.
+ */
+export async function recoveredStats(
   tenantId: string,
   range: { from: Date; to: Date },
 ): Promise<{ count: number; revenueCents: number }> {
@@ -29,14 +33,8 @@ async function recoveredStats(
   };
 }
 
-const BRL = new Intl.NumberFormat('pt-BR', {
-  style: 'currency',
-  currency: 'BRL',
-  minimumFractionDigits: 0,
-  maximumFractionDigits: 0,
-});
-/** R$ sem centavos (padrão do painel). */
-export const money = (cents: number) => BRL.format(Math.round(cents / 100));
+/** R$ sem centavos (padrão do painel). Vive em @haru/shared - aqui é só o nome curto local. */
+export const money = formatBRLShort;
 
 /**
  * Início do mês (offset em meses) como instante UTC, ancorado no FUSO DO TENANT: o dia 1

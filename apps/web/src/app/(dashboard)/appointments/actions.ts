@@ -23,7 +23,6 @@ import {
 } from '@/lib/professionals';
 import { BOOKING_HORIZON_DAYS, isoDateInTz } from '@haru/shared';
 import { normalizePhoneBR } from '@haru/shared';
-import { isAppointmentLimitReached } from '@haru/billing';
 import { notifyAppointmentCreated } from '@/lib/notify';
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -117,11 +116,17 @@ async function resolveEncaixeProfessional(
   return offering[0]?.id ?? allIds[0];
 }
 
-async function changeStatus(appointmentId: string, status: AppointmentStatus): Promise<boolean> {
+async function changeStatus(
+  appointmentId: string,
+  status: AppointmentStatus,
+  // Marcação de presença pelo dono (Atendido/Faltou) carimba attendanceConfirmed - distingue
+  // "o dono confirmou" de "o cron fechou sozinho". Confirmar/cancelar não é presença.
+  confirmAttendance = false,
+): Promise<boolean> {
   const { tenant } = await requireUserAndTenant();
   const result = await prisma.appointment.updateMany({
     where: { id: appointmentId, tenantId: tenant.id },
-    data: { status },
+    data: confirmAttendance ? { status, attendanceConfirmed: true } : { status },
   });
   revalidatePath('/appointments');
   revalidatePath('/dashboard');
@@ -158,11 +163,11 @@ export async function cancelAppointment(appointmentId: string, opts?: { notifyCl
 }
 
 export async function completeAppointment(appointmentId: string) {
-  await changeStatus(appointmentId, 'COMPLETED');
+  await changeStatus(appointmentId, 'COMPLETED', true);
 }
 
 export async function markNoShow(appointmentId: string) {
-  await changeStatus(appointmentId, 'NO_SHOW');
+  await changeStatus(appointmentId, 'NO_SHOW', true);
 }
 
 /**
@@ -226,16 +231,6 @@ export async function createManualAppointment(
 ): Promise<CreateAppointmentResult> {
   const user = await requireUserAndTenant();
   const { tenant } = user;
-
-  // Bloqueio owner-side ao atingir o teto do ciclo (item 4): o dono não cria mais
-  // agendamentos manuais (avulso/encaixe/série). O cliente final continua agendando
-  // pelo caminho público/bot, que NÃO passa por aqui. Fair use nunca cai neste guard.
-  if (await isAppointmentLimitReached(tenant)) {
-    return {
-      error:
-        'Você atingiu o limite de agendamentos do seu plano neste ciclo. Faça upgrade para criar novos - seus clientes continuam agendando normalmente.',
-    };
-  }
 
   const parsed = createSchema.safeParse({
     serviceId: formData.get('serviceId'),

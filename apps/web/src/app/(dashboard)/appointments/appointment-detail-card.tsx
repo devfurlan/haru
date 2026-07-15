@@ -85,6 +85,9 @@ export function AppointmentDetailCard({
 
   const isPending = status === 'PENDING';
   const isActive = status === 'CONFIRMED';
+  // Presença corrigível pra sempre: já atendido/faltou no passado ainda troca (percebeu depois).
+  const isPast = new Date(appointment.startsAt).getTime() < Date.now();
+  const isDone = status === 'COMPLETED' || status === 'NO_SHOW';
 
   return (
     <div className="text-on-emerald shadow-soft rounded-[18px] bg-[var(--emerald)] p-[18px]">
@@ -212,6 +215,33 @@ export function AppointmentDetailCard({
               </div>
             </div>
           )}
+        </>
+      )}
+
+      {isPast && isDone && (
+        <>
+          <div className="border-[var(--on-emerald-mut)]/40 my-3.5 border-t border-dashed" />
+          <div className="flex gap-2">
+            <button
+              type="button"
+              disabled={pending || status === 'COMPLETED'}
+              onClick={() => act(() => completeAppointment(appointment.id))}
+              className="border-green/40 bg-green/[.16] text-green enabled:hover:bg-green/[.24] flex-1 rounded-[11px] border p-2.5 text-center text-[12.5px] font-semibold transition active:scale-[.965] disabled:opacity-100"
+            >
+              ✓ Atendido
+            </button>
+            <button
+              type="button"
+              disabled={pending || status === 'NO_SHOW'}
+              onClick={() => act(() => markNoShow(appointment.id))}
+              className="text-on-emerald flex-1 rounded-[11px] border border-white/25 bg-transparent p-2.5 text-center text-[12.5px] font-semibold transition active:scale-[.965] enabled:hover:bg-white/[.08] disabled:bg-white/[.12] disabled:opacity-100"
+            >
+              Não compareceu
+            </button>
+          </div>
+          <p className="text-on-emerald-faint mt-2 text-center text-[11px]">
+            Dá pra corrigir quando quiser.
+          </p>
         </>
       )}
 

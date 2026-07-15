@@ -3,9 +3,15 @@ import type { AddonTier, PlanTier } from '@haru/database';
 /**
  * Features booleanas do PLANO base (flags gravadas no snapshot da Subscription).
  * Os VALORES (preços/limites/flags) ficam no banco (`Plan`) e são fotografados na
- * `Subscription`; só as CHAVES (estrutura) vivem em código.
+ * `Subscription`; só as CHAVES (estrutura) vivem em código. Cada plano combina as
+ * features livremente (um plano personalizado pode ser tier Solo COM fila de espera).
  */
-export type PlanFeatureKey = 'onlinePayments' | 'webhooks' | 'team';
+export type PlanFeatureKey =
+  | 'onlinePayments'
+  | 'webhooks'
+  | 'team'
+  | 'waitlist'
+  | 'serviceSubscriptions';
 
 /**
  * Chaves de feature controladas por assinatura. `aiAttendant` (o addon do bot) NÃO é
@@ -19,7 +25,7 @@ export const TIER_LABEL: Record<PlanTier, string> = {
   ESSENCIAL: 'Solo',
   PROFISSIONAL: 'Time',
   NEGOCIO: 'Multi',
-  ENTERPRISE: 'Custom',
+  ENTERPRISE: 'Enterprise',
 };
 
 /** Nome amigável (PT-BR) de cada tier do addon "Atendente IA no WhatsApp". */
@@ -29,9 +35,15 @@ export const ADDON_TIER_LABEL: Record<AddonTier, string> = {
   BOT_MULTI: 'Bot Multi',
 };
 
-/** Tier mínimo que libera cada feature de plano - p/ mensagens "Disponível no plano X". */
+/**
+ * Tier mínimo que libera cada feature nos planos PÚBLICOS - só p/ a copy "Disponível no
+ * plano X" (upsell). NÃO é gating: quem decide é a flag no snapshot (ver hasFeature), então
+ * um plano personalizado pode fugir desta tabela sem quebrar nada.
+ */
 export const FEATURE_MIN_TIER: Record<PlanFeatureKey, PlanTier> = {
   onlinePayments: 'PROFISSIONAL',
   webhooks: 'PROFISSIONAL',
   team: 'PROFISSIONAL',
+  waitlist: 'PROFISSIONAL',
+  serviceSubscriptions: 'PROFISSIONAL',
 };

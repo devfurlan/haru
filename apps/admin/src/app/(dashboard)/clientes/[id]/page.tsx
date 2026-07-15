@@ -25,10 +25,11 @@ export default async function TenantDetailPage({ params }: { params: Promise<{ i
   if (!tenant) notFound();
 
   const sub = tenant.subscription;
-  const tiers =
-    plans.length > 0
-      ? plans.map((p) => p.tier)
-      : (['ESSENCIAL', 'PROFISSIONAL', 'NEGOCIO', 'ENTERPRISE'] as const);
+  // Todos os planos do catálogo (públicos + personalizados): a atribuição é por plano
+  // específico, não por tier. Públicos primeiro, depois os custom.
+  const planChoices = [...plans]
+    .sort((a, b) => Number(b.active) - Number(a.active) || a.displayOrder - b.displayOrder)
+    .map((p) => ({ id: p.id, name: p.name, tier: p.tier, active: p.active }));
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -114,11 +115,12 @@ export default async function TenantDetailPage({ params }: { params: Promise<{ i
       <Section title="Plano / assinatura">
         <PlanForm
           tenantId={tenant.id}
-          tiers={[...tiers]}
+          plans={planChoices}
           subscription={
             sub
               ? {
                   planTier: sub.planTier,
+                  planId: sub.planId,
                   status: sub.status,
                   billingCycle: sub.billingCycle,
                   priceCents: sub.priceCents,

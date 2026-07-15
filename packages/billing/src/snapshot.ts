@@ -29,9 +29,8 @@ function priceForCycle(
  */
 export interface PlanSnapshot {
   priceCents: number;
-  appointmentsLimit: number | null;
-  /** @deprecated IA virou addon; sempre null no modelo consolidado. Ver AddonSnapshot. */
-  aiMessagesLimit: number | null;
+  /** Cota mensal de lembretes por WhatsApp (única quota do plano base). null = ilimitado. */
+  whatsappRemindersLimit: number | null;
   /** Máximo de profissionais (usuários com agenda própria). null = ilimitado. */
   maxProfessionals: number | null;
   /** Máximo de recepcionistas (usuários de apoio, sem agenda). null = ilimitado. */
@@ -39,6 +38,10 @@ export interface PlanSnapshot {
   featOnlinePayments: boolean;
   featWebhooks: boolean;
   featTeam: boolean;
+  /** Fila de espera. Vem do plano contratado (não do tier) - ver Plan.waitlist. */
+  featWaitlist: boolean;
+  /** Clube de assinatura + pacotes. Vem do plano contratado (não do tier). */
+  featServiceSubscriptions: boolean;
 }
 
 /** Deriva o snapshot dos termos a partir do Plan vigente e do ciclo de cobrança. */
@@ -50,13 +53,14 @@ export function snapshotPlan(plan: Plan, cycle: BillingCycle): PlanSnapshot {
       plan.priceAnnualInstallmentCents,
       cycle,
     ),
-    appointmentsLimit: plan.appointmentsPerMonth,
-    aiMessagesLimit: plan.aiMessagesPerMonth,
+    whatsappRemindersLimit: plan.whatsappRemindersPerMonth,
     maxProfessionals: plan.maxProfessionals,
     maxReceptionists: plan.maxReceptionists,
     featOnlinePayments: plan.onlinePayments,
     featWebhooks: plan.webhooks,
     featTeam: plan.team,
+    featWaitlist: plan.waitlist,
+    featServiceSubscriptions: plan.serviceSubscriptions,
   };
 }
 

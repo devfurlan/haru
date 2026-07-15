@@ -70,7 +70,9 @@ function customerEmail(
   ctx: CopyCtx,
 ): { subject: string; html: string } {
   const hi = ctx.name ? `Olá, ${ctx.name}!` : 'Olá!';
-  const det = detailsBlock(ctx.when, ctx.serviceName) + (ctx.calendarUrl ? calendarButton(ctx.calendarUrl) : '');
+  const det =
+    detailsBlock(ctx.when, ctx.serviceName) +
+    (ctx.calendarUrl ? calendarButton(ctx.calendarUrl) : '');
   const cta = 'Ver meus agendamentos';
   const link = `${appUrl()}/conta/agendamentos`;
   switch (event) {
@@ -127,14 +129,47 @@ const SANS =
  * wordmark, painel de detalhes estruturado) usado nos e-mails do DONO - é o usuário
  * que usa o Demandaê, então o e-mail leva a marca. Tudo inline + table-based pra
  * sobreviver aos clientes de e-mail (Gmail/Outlook).
+ *
+ * Exportado porque o relatório semanal (comms/events.ts) é o mesmo formato: título +
+ * intro + painel de label/valor + um CTA.
  */
-function brandedOwnerEmail(args: {
+export function brandedOwnerEmail(args: {
   title: string;
   intro: string;
   rows: { label: string; value: string }[];
   ctaLabel: string;
   ctaLink: string;
+  /**
+   * Número-herói acima do painel (ex.: o faturamento da semana no relatório). Sem ele o
+   * painel vira uma parede de linhas de mesmo peso e a manchete se perde.
+   */
+  hero?: { label: string; value: string; delta?: string; deltaUp?: boolean };
+  /** Caixa destacada logo abaixo do herói (ex.: o insight acionável do relatório). */
+  callout?: string;
 }): string {
+  const heroHtml = args.hero
+    ? `
+          <tr><td style="padding:22px 36px 0;">
+            <div style="font-family:${SANS};font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#8a958f;">${args.hero.label}</div>
+            <div style="padding-top:4px;">
+              <span style="font-family:${SERIF};font-size:34px;font-weight:800;line-height:1.1;color:#0f1f18;">${args.hero.value}</span>${
+                args.hero.delta
+                  ? `<span style="display:inline-block;margin-left:8px;font-family:${SANS};font-size:12px;font-weight:700;color:${args.hero.deltaUp ? '#1f7a4d' : '#c2410c'};background:${args.hero.deltaUp ? '#e8f5ee' : '#ffece7'};padding:4px 9px;border-radius:999px;">${args.hero.delta}</span>`
+                  : ''
+              }
+            </div>
+          </td></tr>`
+    : '';
+
+  const calloutHtml = args.callout
+    ? `
+          <tr><td style="padding:18px 36px 0;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#fff6ed;border:1px solid #ffd9c7;border-radius:12px;">
+              <tr><td style="padding:14px 16px;font-family:${SANS};font-size:13.5px;font-weight:600;line-height:1.6;color:#27392f;">💡 ${args.callout}</td></tr>
+            </table>
+          </td></tr>`
+    : '';
+
   const rowsHtml = args.rows
     .map(
       (r, i) => `
@@ -156,7 +191,7 @@ function brandedOwnerEmail(args: {
           </td></tr>
           <tr><td style="padding:10px 36px 0;">
             <p style="margin:0;font-family:${SANS};font-size:14px;line-height:1.65;color:#27392f;">${args.intro}</p>
-          </td></tr>
+          </td></tr>${heroHtml}${calloutHtml}
           <tr><td style="padding:20px 36px 0;">
             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#fbf8f1;border:1px solid #ece3d3;border-radius:12px;">
               <tr><td style="padding:18px 20px;">

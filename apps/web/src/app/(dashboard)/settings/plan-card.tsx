@@ -91,10 +91,7 @@ export async function PlanCard({ tenant }: { tenant: TenantWithSubscription }) {
       <div className="border-edge my-3.5 border-t border-dashed" />
 
       <div className="flex flex-col gap-3">
-        <UsageBar label="Agendamentos este mês" metric={usage.appointments} />
-        {usage.aiMessages.limit !== null && (
-          <UsageBar label="Mensagens de IA este mês" metric={usage.aiMessages} />
-        )}
+        <UsageBar label="Lembretes por WhatsApp este mês" metric={usage.whatsappReminders} />
       </div>
 
       <Link

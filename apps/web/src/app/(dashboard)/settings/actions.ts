@@ -12,7 +12,6 @@ import {
   getProfessionalUsage,
   getReceptionistUsage,
   hasFeature,
-  isAppointmentLimitReached,
 } from '@haru/billing';
 import { encryptSecret } from '@haru/payments';
 
@@ -1017,16 +1016,6 @@ export async function inviteUser(
     }
   }
 
-  // Bloqueio owner-side ao atingir o teto de agendamentos do ciclo (item 4): não
-  // adiciona novo profissional enquanto no limite. Cota distinta de canAddProfessional
-  // (esta é o teto de agendamentos, não o de profissionais). Fair use não cai aqui.
-  if (isProfessional && (await isAppointmentLimitReached(tenant))) {
-    return {
-      error:
-        'Você atingiu o limite de agendamentos do seu plano neste ciclo. Faça upgrade para adicionar novos profissionais.',
-    };
-  }
-
   const admin = getSupabaseAdmin();
 
   // 1) Cria o auth.users sem senha (email confirmado - ativação define a senha).
@@ -1140,13 +1129,6 @@ export async function updateUser(
       if (!canAddProfessional(tenant.subscription, used)) {
         return {
           error: `Seu plano permite até ${tenant.subscription?.maxProfessionals ?? 0} profissionais (com agenda).`,
-        };
-      }
-      // Teto de agendamentos do ciclo atingido: não promove a profissional (item 4).
-      if (await isAppointmentLimitReached(tenant)) {
-        return {
-          error:
-            'Você atingiu o limite de agendamentos do seu plano neste ciclo. Faça upgrade para adicionar novos profissionais.',
         };
       }
     } else {

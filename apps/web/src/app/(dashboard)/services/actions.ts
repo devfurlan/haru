@@ -4,15 +4,8 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 
 import { prisma } from '@haru/database';
-import { isAppointmentLimitReached } from '@haru/billing';
 
 import { requireUserAndTenant } from '@/lib/auth';
-
-// Bloqueio owner-side ao atingir o teto de agendamentos do ciclo: o dono não cria
-// mais itens (pressão de upgrade), mas o cliente final continua agendando normalmente
-// (o caminho público/bot não passa por aqui). Fair use nunca cai neste guard.
-const LIMIT_REACHED_ERROR =
-  'Você atingiu o limite de agendamentos do seu plano neste ciclo. Faça upgrade para criar novos itens - seus clientes continuam agendando normalmente.';
 
 export type ServiceActionResult = { error: string } | { ok: true };
 
@@ -67,10 +60,6 @@ export async function createService(
   formData: FormData,
 ): Promise<ServiceActionResult> {
   const { tenant } = await requireUserAndTenant();
-
-  if (await isAppointmentLimitReached(tenant)) {
-    return { error: LIMIT_REACHED_ERROR };
-  }
 
   const parsed = serviceSchema.safeParse({
     name: formData.get('name'),

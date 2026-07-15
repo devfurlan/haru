@@ -20,21 +20,54 @@ import {
 interface AppointmentActionsProps {
   appointmentId: string;
   status: AppointmentStatus;
+  /** Início do agendamento - habilita a correção de presença no passado. */
+  startsAt: Date;
   /** Quando definido, o agendamento pertence a uma série recorrente. */
   seriesId?: string | null;
 }
 
-export function AppointmentActions({ appointmentId, status, seriesId }: AppointmentActionsProps) {
+export function AppointmentActions({
+  appointmentId,
+  status,
+  startsAt,
+  seriesId,
+}: AppointmentActionsProps) {
   const [pending, startTransition] = useTransition();
   // Qual cancelamento está sendo confirmado (null = dialog fechado).
   const [cancelTarget, setCancelTarget] = useState<null | 'single' | 'series'>(null);
   // Se o cliente deve ser avisado pelo WhatsApp. Default: sim (cancelamento "puro").
   const [notifyClient, setNotifyClient] = useState(true);
 
-  // Estados terminais não têm ações
-  if (status === 'COMPLETED' || status === 'CANCELED' || status === 'NO_SHOW') {
-    return null;
+  const isPast = startsAt.getTime() < Date.now();
+
+  // Presença é corrigível pra SEMPRE: mesmo já atendido/faltou, o dono troca quando perceber
+  // (faltou terça, viu na sexta). Cancelado é outro ciclo - não vira presença.
+  if (status === 'COMPLETED' || status === 'NO_SHOW') {
+    if (!isPast) return null;
+    return (
+      <div className="flex flex-wrap gap-1">
+        <Button
+          size="sm"
+          variant={status === 'COMPLETED' ? 'default' : 'outline'}
+          disabled={pending || status === 'COMPLETED'}
+          onClick={() => startTransition(() => completeAppointment(appointmentId))}
+        >
+          <Check className="h-4 w-4" />
+          Atendido
+        </Button>
+        <Button
+          size="sm"
+          variant={status === 'NO_SHOW' ? 'default' : 'outline'}
+          disabled={pending || status === 'NO_SHOW'}
+          onClick={() => startTransition(() => markNoShow(appointmentId))}
+        >
+          <UserX className="h-4 w-4" />
+          Não compareceu
+        </Button>
+      </div>
+    );
   }
+  if (status === 'CANCELED') return null;
 
   const openCancel = (target: 'single' | 'series') => {
     setNotifyClient(true);

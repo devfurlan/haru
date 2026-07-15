@@ -2,7 +2,7 @@ import 'server-only';
 
 import { prisma } from '@haru/database';
 import type { BillingCycle, PaymentMethod } from '@haru/database';
-import { snapshotPlan } from '@haru/billing';
+import { getPublicPlan, snapshotPlan } from '@haru/billing';
 
 import type { ParsedBillingEvent } from '@/lib/billing/asaas';
 import {
@@ -260,10 +260,12 @@ export async function applyBillingEvent(parsed: ParsedBillingEvent): Promise<voi
     const effectiveCycle = sub.pendingBillingCycle ?? sub.billingCycle;
     let planChange = {};
     if (sub.pendingPlanTier) {
-      const pendingPlan = await prisma.plan.findUnique({ where: { tier: sub.pendingPlanTier } });
+      // Downgrade agendado é sempre p/ plano público (só o self-serve agenda troca).
+      const pendingPlan = await getPublicPlan(sub.pendingPlanTier);
       if (pendingPlan) {
         planChange = {
           planTier: sub.pendingPlanTier,
+          planId: pendingPlan.id,
           billingCycle: effectiveCycle,
           ...snapshotPlan(pendingPlan, effectiveCycle),
           pendingPlanTier: null,

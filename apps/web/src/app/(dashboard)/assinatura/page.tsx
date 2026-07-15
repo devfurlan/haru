@@ -173,7 +173,7 @@ async function renderDashboard(
       nextChargeISO={sub.currentPeriodEnd ? sub.currentPeriodEnd.toISOString() : null}
       guaranteeUntilISO={sub.guaranteeUntil ? sub.guaranteeUntil.toISOString() : null}
       plans={options}
-      appointments={usage.appointments}
+      whatsappReminders={usage.whatsappReminders}
       conversations={conversations}
       addonActive={addonActive}
       addonName={sub.addonTier ? ADDON_TIER_LABEL[sub.addonTier] : null}

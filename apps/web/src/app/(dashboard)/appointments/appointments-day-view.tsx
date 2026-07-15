@@ -292,7 +292,8 @@ export function AppointmentsDayView({
           <div className="flex flex-wrap items-start gap-4">
             {/* grade */}
             <div className="border-line bg-paper shadow-soft min-w-0 flex-1 overflow-hidden rounded-[18px] border">
-              <div className="max-h-[40rem] overflow-y-auto">
+              {/* ponytail: cap relativo à viewport - dia normal cabe sem scroll aninhado; só rola em tela baixa/dia longo. Ajustar o 15rem se o chrome acima mudar. */}
+              <div className="max-h-[calc(100dvh-15rem)] overflow-y-auto">
                 <DayGrid
                   dayKey={selected}
                   appointments={gridAppts}

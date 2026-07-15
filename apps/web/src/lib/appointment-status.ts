@@ -17,12 +17,21 @@ export const STATUS_STYLE: Record<AppointmentStatus, string> = {
 };
 
 /**
- * Um atendimento é avaliável quando o horário já passou e ele não foi cancelado nem
- * marcado como falta. NÃO exige que o dono clique "Atendido" (COMPLETED): dono que não
- * fecha atendimento no painel nunca liberaria a avaliação do cliente. Fonte única do
- * gate de avaliação (card do histórico, detalhe, página de avaliar); o gate de escrita
- * no server espelha esta mesma regra em SQL (ver canReview em lib/reviews.ts).
+ * Um atendimento "aconteceu" (compareceu) quando o horário já passou e ele não foi cancelado
+ * nem marcado como falta. NÃO exige COMPLETED de propósito: cobre a janela entre o fim do
+ * atendimento e o cron de fechamento (que só roda no fim do dia) - nela o status ainda é
+ * PENDING/CONFIRMED e um teste `=== COMPLETED` daria falso-negativo. Depois do cron, status e
+ * esta heurística convergem (o passado vira COMPLETED). Fonte única de "compareceu": gate de
+ * avaliação (isReviewable) e receita realizada (isAttended). O gate de escrita de avaliação no
+ * server espelha esta regra em SQL (ver canReview em lib/reviews.ts); lapsed-clients repete em
+ * isVisit (opera sobre um `now` já capturado).
  */
-export function isReviewable(appt: { startsAt: Date; status: AppointmentStatus }): boolean {
-  return appt.startsAt < new Date() && appt.status !== 'CANCELED' && appt.status !== 'NO_SHOW';
+export function isAttended(
+  appt: { startsAt: Date; status: AppointmentStatus },
+  now: Date = new Date(),
+): boolean {
+  return appt.startsAt < now && appt.status !== 'CANCELED' && appt.status !== 'NO_SHOW';
 }
+
+/** Avaliável = já compareceu. Alias semântico de isAttended pro gate de review. */
+export const isReviewable = isAttended;

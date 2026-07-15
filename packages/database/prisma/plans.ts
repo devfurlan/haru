@@ -1,16 +1,22 @@
 import type { AddonTier, PlanTier, PrismaClient } from '@prisma/client';
 
 /**
- * Valores iniciais do catálogo (preços em centavos; anual à vista = 10x o mensal =
+ * Valores iniciais do catálogo PÚBLICO (preços em centavos; anual à vista = 10x o mensal =
  * "2 meses grátis"; anual 12x com taxas repassadas ao cliente). Isto é só o PONTO DE
- * PARTIDA - o catálogo é dinâmico no banco e pode ser editado depois (db:studio) sem
- * deploy. Os `seed*` são idempotentes (upsert por tier), então rodam em produção sem
- * duplicar. Fonte da verdade dos números: doc de pricing consolidado (jul/2026).
+ * PARTIDA - o catálogo é dinâmico no banco e pode ser editado depois (admin/db:studio) sem
+ * deploy. Os `seed*` são idempotentes, então rodam em produção sem duplicar. Fonte da
+ * verdade dos números: doc de pricing consolidado (jul/2026).
  *
- * Enterprise = "sob consulta": preço 0 (custom) e limites null (ilimitado).
+ * O seed é dono APENAS dos planos públicos (active: true, um por tier). Planos
+ * PERSONALIZADOS (active: false) são criados no admin e atribuídos a estabelecimentos
+ * específicos - o seed nunca os toca. Enterprise não tem linha aqui: é "sob consulta"
+ * (copy estática no site) e cada deal vira um plano personalizado.
  *
- * NB: os nomes de produto (Solo/Time/Multi) são o `name`; o enum PlanTier
- * (ESSENCIAL/PROFISSIONAL/NEGOCIO) é interno e não muda (evita migração de enum).
+ * NB: agendamentos são ILIMITADOS em todos os planos - a única quota do plano base é
+ * `whatsappRemindersPerMonth` (lembretes por WhatsApp). As features (fila, clube,
+ * pagamentos, webhooks, equipe) são flags POR PLANO, fotografadas na Subscription: o tier
+ * é só o rótulo comercial. Os nomes de produto (Solo/Time/Multi) são o `name`; o enum
+ * PlanTier (ESSENCIAL/PROFISSIONAL/NEGOCIO/ENTERPRISE) é interno e não muda.
  */
 interface PlanSeed {
   tier: PlanTier;
@@ -18,79 +24,79 @@ interface PlanSeed {
   priceMonthlyCents: number;
   priceAnnualCents: number;
   priceAnnualInstallmentCents: number;
-  appointmentsPerMonth: number | null;
-  /// IA saiu do plano base e virou addon (ver ADDON_PLAN_SEED). Sempre null aqui.
-  aiMessagesPerMonth: number | null;
+  whatsappRemindersPerMonth: number | null;
   maxProfessionals: number | null;
   maxReceptionists: number | null;
   onlinePayments: boolean;
   webhooks: boolean;
   team: boolean;
+  waitlist: boolean;
+  serviceSubscriptions: boolean;
+  /// true = plano PÚBLICO (listado em /precos + contratável no self-serve). Só um por tier.
+  active: boolean;
   displayOrder: number;
 }
 
+// Anual à vista = 10× o mensal ("2 meses grátis"). priceAnnualInstallmentCents = valor de
+// cada parcela do anual 12x no cartão. ponytail: recalculado mantendo a mesma margem de
+// parcelamento implícita de hoje (~6% sobre o anual à vista); trocar pelos valores reais da
+// tabela do gateway quando disponíveis.
 export const PLAN_SEED: PlanSeed[] = [
   {
     tier: 'ESSENCIAL',
     name: 'Solo',
-    priceMonthlyCents: 6900,
-    priceAnnualCents: 69000,
-    priceAnnualInstallmentCents: 6115,
-    appointmentsPerMonth: 250,
-    aiMessagesPerMonth: null,
+    priceMonthlyCents: 7900,
+    priceAnnualCents: 79000,
+    priceAnnualInstallmentCents: 7001,
+    whatsappRemindersPerMonth: 250,
     maxProfessionals: 1,
     maxReceptionists: 0,
     onlinePayments: false,
     webhooks: false,
     team: false,
+    waitlist: false,
+    serviceSubscriptions: false,
+    active: true,
     displayOrder: 1,
   },
   {
     tier: 'PROFISSIONAL',
     name: 'Time',
-    priceMonthlyCents: 22900,
-    priceAnnualCents: 229000,
-    priceAnnualInstallmentCents: 20229,
-    appointmentsPerMonth: 1000,
-    aiMessagesPerMonth: null,
-    maxProfessionals: 5,
+    priceMonthlyCents: 12900,
+    priceAnnualCents: 129000,
+    priceAnnualInstallmentCents: 11395,
+    whatsappRemindersPerMonth: 900,
+    maxProfessionals: 6,
     maxReceptionists: 2,
     onlinePayments: true,
     webhooks: true,
     team: true,
+    waitlist: true,
+    serviceSubscriptions: true,
+    active: true,
     displayOrder: 2,
   },
   {
     tier: 'NEGOCIO',
     name: 'Multi',
-    priceMonthlyCents: 54900,
-    priceAnnualCents: 549000,
-    priceAnnualInstallmentCents: 48681,
-    appointmentsPerMonth: 2500,
-    aiMessagesPerMonth: null,
-    maxProfessionals: null,
+    priceMonthlyCents: 19900,
+    priceAnnualCents: 199000,
+    priceAnnualInstallmentCents: 17646,
+    whatsappRemindersPerMonth: 2200,
+    maxProfessionals: 15,
     maxReceptionists: null,
     onlinePayments: true,
     webhooks: true,
     team: true,
+    waitlist: true,
+    serviceSubscriptions: true,
+    active: true,
     displayOrder: 3,
   },
-  {
-    tier: 'ENTERPRISE',
-    name: 'Custom',
-    priceMonthlyCents: 0,
-    priceAnnualCents: 0,
-    priceAnnualInstallmentCents: 0,
-    appointmentsPerMonth: null,
-    aiMessagesPerMonth: null,
-    maxProfessionals: null,
-    maxReceptionists: null,
-    onlinePayments: true,
-    webhooks: true,
-    team: true,
-    displayOrder: 4,
-  },
 ];
+// NB: Enterprise NÃO tem linha no seed. É "sob consulta": o site comunica por copy estática
+// (banner da /precos) e cada negociação vira um PLANO PERSONALIZADO criado no admin
+// (active: false, preço/limites/features próprios) e atribuído ao estabelecimento.
 
 /**
  * Catálogo do addon "Atendente IA no WhatsApp" - tetos de conversa próprios,
@@ -146,10 +152,20 @@ export const ADDON_PLAN_SEED: AddonPlanSeed[] = [
   },
 ];
 
-/** Popula/atualiza a tabela `Plan` com os valores iniciais (idempotente por tier). */
+/**
+ * Popula/atualiza os planos PÚBLICOS (idempotente). O seed é dono só do catálogo público:
+ * identifica cada plano pelo par (tier, active), que o índice parcial `Plan_tier_active_key`
+ * garante ser único. Planos PERSONALIZADOS (active: false, criados no admin) nunca são
+ * tocados aqui. Não dá pra usar `upsert({ where: { tier } })`: tier deixou de ser único.
+ */
 export async function seedPlans(prisma: PrismaClient): Promise<void> {
   for (const plan of PLAN_SEED) {
-    await prisma.plan.upsert({ where: { tier: plan.tier }, update: plan, create: plan });
+    const existing = await prisma.plan.findFirst({ where: { tier: plan.tier, active: true } });
+    if (existing) {
+      await prisma.plan.update({ where: { id: existing.id }, data: plan });
+    } else {
+      await prisma.plan.create({ data: plan });
+    }
   }
 }
 

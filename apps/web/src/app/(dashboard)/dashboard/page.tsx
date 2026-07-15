@@ -1,14 +1,17 @@
 import { prisma } from '@haru/database';
-import { formatPhoneBR } from '@haru/shared';
+import { formatPhoneBR, isoDateInTz, localWallTimeToUtc } from '@haru/shared';
 import { CalendarDays } from 'lucide-react';
 import Link from 'next/link';
 
 import { Button } from '@/components/ui/button';
+import { computeAttendanceStats, getAttendanceRows } from '@/lib/attendance';
 import { requireUserAndTenant } from '@/lib/auth';
 import { computeLapsed } from '@/lib/lapsed-clients';
 import { getRecoveryMetric } from '@/lib/waitlist-panel';
 import { isWhatsappConnected } from '@/lib/whatsapp-status';
 
+import { AttendanceCard } from './attendance-card';
+import { DayCloseCard, type DayCloseGroup } from './day-close-card';
 import { LapsedClientsCard } from './lapsed-clients-card';
 import { RecoveryBanner } from './recovery-banner';
 
@@ -63,50 +66,99 @@ export default async function DashboardPage() {
   const dayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
   const weekday = now.getDay();
 
-  const [todayAppts, pendingCount, blocks, recent, lapsedContacts] = await Promise.all([
-    prisma.appointment.findMany({
-      where: {
-        tenantId: tenant.id,
-        startsAt: { gte: dayStart, lt: dayEnd },
-        status: { not: 'CANCELED' },
-      },
-      include: { service: true, contact: true, professional: true },
-      orderBy: { startsAt: 'asc' },
-    }),
-    prisma.appointment.count({
-      where: { tenantId: tenant.id, status: 'PENDING', startsAt: { gte: now } },
-    }),
-    prisma.scheduleBlock.findMany({ where: { tenantId: tenant.id, weekday } }),
-    prisma.appointment.findMany({
-      where: {
-        tenantId: tenant.id,
-        createdAt: { gte: new Date(now.getTime() - 36 * 3600 * 1000) },
-      },
-      include: { service: true, contact: true },
-      orderBy: { createdAt: 'desc' },
-      take: 5,
-    }),
-    // ponytail: scan de contatos+agendamentos por load do cockpit, limitado a 1000
-    // contatos. Se o histórico de um tenant crescer muito, materializar um count/soma.
-    prisma.contact.findMany({
-      where: { tenantId: tenant.id },
-      select: {
-        id: true,
-        name: true,
-        phone: true,
-        appointments: {
-          select: {
-            startsAt: true,
-            status: true,
-            service: { select: { name: true, priceCents: true } },
+  // Fechar o dia usa o dia-calendário no FUSO DO TENANT (não do servidor/UTC): senão os
+  // atendimentos da noite BRT cairiam no dia UTC seguinte e sumiriam do card.
+  const tzDayStart = localWallTimeToUtc(isoDateInTz(now, tz), 0, tz);
+  const tzDayEnd = new Date(tzDayStart.getTime() + 24 * 60 * 60 * 1000);
+
+  const [todayAppts, pendingCount, blocks, recent, lapsedContacts, dayEnded, attendanceRows] =
+    await Promise.all([
+      prisma.appointment.findMany({
+        where: {
+          tenantId: tenant.id,
+          startsAt: { gte: dayStart, lt: dayEnd },
+          status: { not: 'CANCELED' },
+        },
+        include: { service: true, contact: true, professional: true },
+        orderBy: { startsAt: 'asc' },
+      }),
+      prisma.appointment.count({
+        where: { tenantId: tenant.id, status: 'PENDING', startsAt: { gte: now } },
+      }),
+      prisma.scheduleBlock.findMany({ where: { tenantId: tenant.id, weekday } }),
+      prisma.appointment.findMany({
+        where: {
+          tenantId: tenant.id,
+          createdAt: { gte: new Date(now.getTime() - 36 * 3600 * 1000) },
+        },
+        include: { service: true, contact: true },
+        orderBy: { createdAt: 'desc' },
+        take: 5,
+      }),
+      // ponytail: scan de contatos+agendamentos por load do cockpit, limitado a 1000
+      // contatos. Se o histórico de um tenant crescer muito, materializar um count/soma.
+      prisma.contact.findMany({
+        where: { tenantId: tenant.id },
+        select: {
+          id: true,
+          name: true,
+          phone: true,
+          appointments: {
+            select: {
+              startsAt: true,
+              status: true,
+              service: { select: { name: true, priceCents: true } },
+            },
           },
         },
-      },
-      take: 1000,
-    }),
-  ]);
+        take: 1000,
+      }),
+      // Fechar o dia: atendimentos de hoje (fuso do tenant) que JÁ terminaram e não cancelados.
+      prisma.appointment.findMany({
+        where: {
+          tenantId: tenant.id,
+          status: { not: 'CANCELED' },
+          startsAt: { gte: tzDayStart, lt: tzDayEnd },
+          endsAt: { lt: now },
+        },
+        include: { service: true, contact: true, professional: true },
+        orderBy: { startsAt: 'asc' },
+      }),
+      // Métrica de comparecimento: linhas cruas dos últimos 30 dias (7d deriva em memória).
+      getAttendanceRows(tenant.id, new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)),
+    ]);
 
   const lapsed = computeLapsed(lapsedContacts, now, LAPSE_DAYS);
+
+  // Fechar o dia: agrupa por profissional, pré-marca atendido (só NO_SHOW já vem desmarcado).
+  const dayCloseGroups: DayCloseGroup[] = [];
+  const groupIndex = new Map<string, DayCloseGroup>();
+  for (const a of dayEnded) {
+    const proName = a.professional.name ?? 'Profissional';
+    let g = groupIndex.get(a.professionalId);
+    if (!g) {
+      g = { professionalName: proName, appts: [] };
+      groupIndex.set(a.professionalId, g);
+      dayCloseGroups.push(g);
+    }
+    g.appts.push({
+      id: a.id,
+      // clientName (helper) só é declarado adiante; inline aqui pra evitar TDZ.
+      clientName: a.contact.name ?? (a.contact.phone ? formatPhoneBR(a.contact.phone) : 'Cliente'),
+      timeLabel: hm(a.startsAt, tz),
+      serviceName: a.service.name,
+      priceLabel: money(a.service.priceCents),
+      attended: a.status !== 'NO_SHOW',
+    });
+  }
+  const dayAllConfirmed = dayEnded.length > 0 && dayEnded.every((a) => a.attendanceConfirmed);
+
+  // Métrica: 30d = tudo; 7d = filtra as mesmas linhas.
+  const from7 = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const stats30 = computeAttendanceStats(attendanceRows.map((r) => r.input));
+  const stats7 = computeAttendanceStats(
+    attendanceRows.filter((r) => r.startsAt >= from7).map((r) => r.input),
+  );
 
   // KPIs
   const receitaCents = todayAppts.reduce((sum, a) => sum + a.service.priceCents, 0);
@@ -194,6 +246,8 @@ export default async function DashboardPage() {
           valueClass={pendingCount > 0 ? 'text-coral' : undefined}
         />
       </div>
+
+      <DayCloseCard groups={dayCloseGroups} allConfirmed={dayAllConfirmed} />
 
       <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
         {/* Agora e a seguir */}
@@ -358,6 +412,9 @@ export default async function DashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* Comparecimento - só aparece quando há atendimento fechado no histórico */}
+      <AttendanceCard stats7={stats7} stats30={stats30} />
 
       {/* Clientes sumidos - win-back (só aparece quando há alguém pra chamar de volta) */}
       <LapsedClientsCard data={lapsed} tz={tz} lapseDays={LAPSE_DAYS} />

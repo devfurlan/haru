@@ -8,13 +8,14 @@ export interface PlanDefaults {
   name: string;
   priceMonthlyCents: number;
   priceAnnualCents: number;
-  appointmentsPerMonth: number | null;
-  aiMessagesPerMonth: number | null;
+  whatsappRemindersPerMonth: number | null;
   maxProfessionals: number | null;
   maxReceptionists: number | null;
   onlinePayments: boolean;
   webhooks: boolean;
   team: boolean;
+  waitlist: boolean;
+  serviceSubscriptions: boolean;
   active: boolean;
   displayOrder: number;
 }
@@ -64,22 +65,17 @@ export function PlanFields({ d }: { d: PlanDefaults }) {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Agendamentos/mês" htmlFor="appointmentsPerMonth" hint="Vazio = ilimitado.">
+        <Field
+          label="Lembretes WhatsApp/mês"
+          htmlFor="whatsappRemindersPerMonth"
+          hint="Cota mensal ativa: alerta ao dono em 80%; a 100% pausa só os lembretes por WhatsApp até o reset (e-mail e push nunca são afetados). Agendamentos são ilimitados. Vazio = ilimitado."
+        >
           <Input
-            id="appointmentsPerMonth"
-            name="appointmentsPerMonth"
+            id="whatsappRemindersPerMonth"
+            name="whatsappRemindersPerMonth"
             type="number"
             min={0}
-            defaultValue={d.appointmentsPerMonth ?? ''}
-          />
-        </Field>
-        <Field label="Mensagens IA/mês" htmlFor="aiMessagesPerMonth" hint="Vazio = ilimitado.">
-          <Input
-            id="aiMessagesPerMonth"
-            name="aiMessagesPerMonth"
-            type="number"
-            min={0}
-            defaultValue={d.aiMessagesPerMonth ?? ''}
+            defaultValue={d.whatsappRemindersPerMonth ?? ''}
           />
         </Field>
       </div>
@@ -113,11 +109,35 @@ export function PlanFields({ d }: { d: PlanDefaults }) {
         </Field>
       </div>
 
-      <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
-        <Check name="onlinePayments" label="Pagamentos online" checked={d.onlinePayments} />
-        <Check name="webhooks" label="Webhooks" checked={d.webhooks} />
-        <Check name="team" label="Equipe (multiusuário)" checked={d.team} />
-        <Check name="active" label="Ativo (visível em /precos)" checked={d.active} />
+      <div className="space-y-2">
+        <div className="text-xs font-medium text-muted-foreground">
+          Features liberadas por este plano (viram flags no snapshot de quem assinar)
+        </div>
+        <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
+          <Check name="onlinePayments" label="Pagamentos online" checked={d.onlinePayments} />
+          <Check name="webhooks" label="Webhooks" checked={d.webhooks} />
+          <Check name="team" label="Equipe (multiusuário)" checked={d.team} />
+          <Check name="waitlist" label="Fila de espera" checked={d.waitlist} />
+          <Check
+            name="serviceSubscriptions"
+            label="Clube de assinatura e pacotes"
+            checked={d.serviceSubscriptions}
+          />
+        </div>
+      </div>
+
+      <div className="space-y-1.5 border-t pt-3">
+        <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
+          <Check
+            name="active"
+            label="Público (listado em /precos e contratável no self-serve)"
+            checked={d.active}
+          />
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Desmarcado = plano <strong>personalizado</strong>: fica fora da vitrine e só é
+          atribuído por você, na tela do cliente. Só pode existir um plano público por tier.
+        </p>
       </div>
     </div>
   );

@@ -9,6 +9,7 @@ import { PlanCard } from './plan-card';
 import { SupportCard } from './support-card';
 import { TimezoneCard } from './timezone-card';
 import { WaitlistCard } from './waitlist-card';
+import { WeeklyReportCard } from './weekly-report-card';
 
 export default async function SettingsPage() {
   const { tenant } = await requireAdmin();
@@ -38,6 +39,13 @@ export default async function SettingsPage() {
         cancelTemplateLanguage={tenant.cancelTemplateLanguage}
         rescheduleTemplateName={tenant.rescheduleTemplateName}
         rescheduleTemplateLanguage={tenant.rescheduleTemplateLanguage}
+      />
+
+      {/* Sem gate de plano: relatório é retenção pura, vale até no Solo. */}
+      <WeeklyReportCard
+        enabled={tenant.weeklyReportEnabled}
+        channel={tenant.weeklyReportChannel}
+        ownerWhatsappAlertsEnabled={tenant.ownerWhatsappAlertsEnabled}
       />
 
       {hasWaitlist(tenant.subscription) && (

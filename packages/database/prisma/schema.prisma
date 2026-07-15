@@ -128,6 +128,17 @@ model Tenant {
   /// Modo de notificação: false = em ondas de 3 (padrão); true = avisa todos de uma vez.
   waitlistNotifyAllAtOnce Boolean @default(false)
 
+  // --- Relatório semanal ------------------------------------------------------
+  /// Liga/desliga o resumo da semana anterior enviado ao dono na segunda de manhã.
+  /// Vale em TODOS os planos (inclusive Solo) - é retenção pura, não capa de plano.
+  weeklyReportEnabled     Boolean             @default(true)
+  /// Canais do relatório. O canal WhatsApp ainda respeita `ownerWhatsappAlertsEnabled` +
+  /// o OWNER ter telefone (resolveOwnerWhatsapp); sem isso só o e-mail sai.
+  weeklyReportChannel     WeeklyReportChannel @default(BOTH)
+  /// Dedup: "YYYY-MM-DD" da segunda da última semana JÁ relatada. Carimbado DEPOIS do
+  /// envio - reexecução do cron (retry da Vercel em 500) não duplica o relatório.
+  weeklyReportSentForWeek String?
+
   // --- Atendente IA (addon) ---------------------------------------------------
   /// Identidade que o Atendente IA usa pra se apresentar ao cliente final. Coletada
   /// na ativação do addon. Crítico na variante "número Demandaê" (número compartilhado):
@@ -530,6 +541,12 @@ model Appointment {
   startsAt            DateTime
   endsAt              DateTime
   status              AppointmentStatus  @default(PENDING)
+  /// True quando o DONO confirmou a presença no painel (marcou "Atendido" ou "Faltou").
+  /// False = ainda em aberto OU fechado automaticamente pelo cron de fim de dia. Separa
+  /// "o dono confirmou" de "o sistema assumiu que veio" pra medir a confiança da métrica
+  /// de comparecimento. NO_SHOW só vem do dono (o cron nunca falta ninguém), então NO_SHOW
+  /// implica confirmado; COMPLETED pode ser confirmado (dono) ou automático (cron).
+  attendanceConfirmed Boolean            @default(false)
   /// Série de recorrência à qual essa ocorrência pertence. null = agendamento avulso.
   /// Ocorrências da mesma série compartilham serviço/contato e são geradas juntas.
   seriesId            String?
@@ -562,6 +579,9 @@ model Appointment {
   @@index([professionalId, startsAt])
   @@index([seriesId])
   @@index([membershipId])
+  /// Contagem de lembretes WhatsApp enviados no ciclo (quota do plano base). Ver
+  /// getMonthlyWhatsappReminderUsage em @haru/billing.
+  @@index([tenantId, reminderSentAt])
 }
 
 /// Agrupa as ocorrências de um agendamento recorrente (semanal/quinzenal/mensal).
@@ -600,6 +620,13 @@ enum AppointmentStatus {
 enum PublicBookingConfirmation {
   PENDING
   CONFIRMED
+}
+
+/// Canais do relatório semanal do dono. BOTH = e-mail (completo) + WhatsApp (resumo).
+enum WeeklyReportChannel {
+  EMAIL
+  WHATSAPP
+  BOTH
 }
 
 /// Cobrança de um agendamento via gateway de pagamento. Relação 1:N com Appointment
@@ -723,9 +750,15 @@ model AiUsageLog {
 /// Catálogo de planos editável (preço/limites/features mudam sem deploy). A
 /// `Subscription` fotografa estes valores na ativação - mudar um Plan aqui só
 /// afeta NOVOS assinantes e a página /precos; quem já assina mantém o snapshot.
+///
+/// `tier` NÃO é único: existem N planos por tier. O tier PÚBLICO (active=true) é único por
+/// tier (índice parcial `Plan_tier_active_key`) e é o que a vitrine lista e o self-serve
+/// contrata; os demais são planos PERSONALIZADOS (active=false), criados no admin e
+/// atribuídos a estabelecimentos específicos. O tier segue sendo o rótulo comercial/faixa;
+/// o gating de feature vem das flags abaixo (fotografadas na Subscription), não do tier.
 model Plan {
   id   String   @id @default(cuid())
-  tier PlanTier @unique
+  tier PlanTier
   name String
 
   /// Preços em centavos. priceAnnualCents = total do ciclo anual à vista (já com desconto).
@@ -735,28 +768,40 @@ model Plan {
   /// logo 12x este valor > priceAnnualCents à vista). Ver BillingCycle.ANNUAL_INSTALLMENTS.
   priceAnnualInstallmentCents Int @default(0)
 
-  /// Limites mensais. null = ilimitado (Enterprise).
-  appointmentsPerMonth Int?
-  /// @deprecated IA inbound saiu do plano base e virou addon (ver `AddonPlan` +
-  /// `Subscription.addonConversationsLimit`). Mantido só p/ não quebrar telas antigas;
-  /// remover quando a tela de billing for refeita. Seed novo grava null (base sem bot).
-  aiMessagesPerMonth   Int?
+  /// Cota mensal de lembretes por WhatsApp. null = ilimitado (Enterprise). É a ÚNICA quota
+  /// do plano base - agendamentos são ILIMITADOS em todos os planos. Fonte do snapshot
+  /// `Subscription.whatsappRemindersLimit`. Alerta ao dono em 80%; a 100% pausa só o disparo
+  /// de lembrete por WhatsApp até o reset do ciclo (email e push nunca são afetados).
+  whatsappRemindersPerMonth Int?
   /// Máximo de profissionais (usuários com agenda própria). 1 = só o dono. null = ilimitado.
   maxProfessionals     Int?
   /// Máximo de recepcionistas (usuários de apoio, sem agenda). 0 = nenhum. null = ilimitado.
   maxReceptionists     Int?
 
-  /// Features liberadas pelo tier.
-  onlinePayments Boolean @default(false)
-  webhooks       Boolean @default(false)
-  team           Boolean @default(false)
+  /// Features liberadas por ESTE plano (não pelo tier). São fotografadas na Subscription
+  /// (`feat*`) na contratação e é de lá que o gating lê - por isso um plano personalizado
+  /// pode combinar features livremente (ex.: tier Solo COM fila de espera).
+  onlinePayments       Boolean @default(false)
+  webhooks             Boolean @default(false)
+  team                 Boolean @default(false)
+  /// Fila de espera (recuperação de vaga em dia lotado).
+  waitlist             Boolean @default(false)
+  /// Clube de assinatura + pacotes (assinatura do cliente final ao estabelecimento).
+  serviceSubscriptions Boolean @default(false)
 
-  /// Disponível para contratação / visível na página de preços.
+  /// Plano PÚBLICO: listado em /precos e contratável no self-serve. false = plano
+  /// PERSONALIZADO, fora da vitrine, só atribuível pelo admin a estabelecimentos
+  /// específicos. Só pode haver UM plano público por tier (índice parcial abaixo).
   active       Boolean @default(true)
   displayOrder Int     @default(0)
 
+  /// Assinaturas que apontam para este plano (rastreabilidade; o snapshot é que vale).
+  subscriptions Subscription[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([tier])
 }
 
 /// Catálogo do addon "Atendente IA no WhatsApp" - bot conversacional inbound com
@@ -815,16 +860,28 @@ model Subscription {
   /// Motivo opcional informado pelo dono ao cancelar (feedback). null = não informou.
   canceledReason     String?
 
+  /// Plano do catálogo que gerou o snapshot abaixo (público ou personalizado). É só
+  /// RASTREABILIDADE - o gating lê o snapshot, nunca este plano ao vivo (grandfather).
+  /// SetNull: apagar o plano não apaga a assinatura nem altera os termos contratados.
+  planId String?
+  plan   Plan?   @relation(fields: [planId], references: [id], onDelete: SetNull)
+
   // --- Snapshot dos termos contratados (copiado do Plan na ativação) ---
   /// Preço efetivamente contratado, em centavos, referente ao billingCycle.
   priceCents         Int
-  appointmentsLimit  Int?
-  aiMessagesLimit    Int?
+  /// Cota mensal de lembretes por WhatsApp (snapshot de Plan.whatsappRemindersPerMonth).
+  /// ÚNICA quota do plano base - agendamentos são ilimitados. null = ilimitado (Enterprise).
+  whatsappRemindersLimit Int?
   maxProfessionals   Int?
   maxReceptionists   Int?
   featOnlinePayments Boolean @default(false)
   featWebhooks       Boolean @default(false)
   featTeam           Boolean @default(false)
+  /// Fila de espera e Clube/pacotes: fotografados do Plan contratado. Antes eram gateados
+  /// por tier ao vivo (planTier !== ESSENCIAL); viraram flag p/ que planos personalizados
+  /// combinem features livremente e p/ que o grandfather valha também aqui.
+  featWaitlist             Boolean @default(false)
+  featServiceSubscriptions Boolean @default(false)
 
   // --- Addon "Atendente IA no WhatsApp" (snapshot próprio, grandfather) ----------
   /// Tier do addon contratado. null = sem addon (só plano base). Independente do
@@ -881,22 +938,24 @@ model Subscription {
   updatedAt DateTime @updatedAt
 
   @@index([status])
+  @@index([planId])
 }
 
 /// Dedup dos alertas de uso PUSH (email/WhatsApp): uma linha por (tenant, métrica,
-/// janela de cota). `level` = maior nível já alertado nessa janela (85/90/95/100), pra
-/// não repetir o mesmo alerta no mesmo ciclo nem alertar "pra trás". Nova janela de
-/// cobrança = novo `windowStart` = linha nova = alertas zerados (reset por ciclo). O
-/// banner in-app é status ao vivo e não passa por aqui. Ver @haru/billing nextUsageAlerts.
+/// janela de cota). `level` = maior nível já alertado nessa janela, pra não repetir o
+/// mesmo alerta no mesmo ciclo nem alertar "pra trás". Nova janela de cobrança = novo
+/// `windowStart` = linha nova = alertas zerados (reset por ciclo). O banner in-app é
+/// status ao vivo e não passa por aqui. Ver @haru/billing nextUsageAlerts.
 model UsageAlert {
   id          String   @id @default(cuid())
   tenantId    String
   tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  /// 'appointments' (plano base) | 'conversations' (addon) | 'fairuse' (alerta interno).
+  /// 'whatsappReminders' (quota do plano base: 80|100) | 'conversations' (addon:
+  /// 85|90|95|100) | 'fairuse' (alerta interno do addon).
   metric      String
   /// Início da janela de cota (mensal, ancorada no dia do ciclo) a que o alerta pertence.
   windowStart DateTime
-  /// Maior nível já alertado nesta janela: 85 | 90 | 95 | 100.
+  /// Maior nível já alertado nesta janela. Lembretes: 80 | 100. Conversas: 85 | 90 | 95 | 100.
   level       Int
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -908,7 +967,7 @@ model UsageAlert {
 /// Centro de notificações in-app (sino do painel). Uma linha por aviso destinado ao DONO
 /// do estabelecimento. Dois canais: ACCOUNT (conta/uso/cobrança - acionável) e PRODUCT
 /// (novidades do produto - broadcast, um fan-out por tenant). `kind` identifica o tipo
-/// (ex.: "usage.appointments.90", "billing.past_due", "renewal.upcoming", "product.news")
+/// (ex.: "usage.whatsappReminders.80", "billing.past_due", "renewal.upcoming", "product.news")
 /// e serve de dedup + ícone. Escrito pelo loop de uso (bot), pelo webhook de billing e
 /// pelo cron de renovação. Ler = marcar readAt. Leitura por tenant (não por usuário).
 model Notification {
@@ -916,7 +975,7 @@ model Notification {
   tenantId  String
   tenant    Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   channel   NotificationChannel
-  /// Tipo do aviso (dedup + ícone), ex.: "usage.appointments.90", "billing.past_due".
+  /// Tipo do aviso (dedup + ícone), ex.: "usage.whatsappReminders.80", "billing.past_due".
   kind      String
   title     String
   body      String

@@ -1,49 +1,81 @@
 import Link from 'next/link';
 
-import { Button } from '@/components/ui/button';
-
 import { Logo } from '@/components/logo';
 
-import { Container } from './container';
+import { Btn } from './home/btn';
 
 const links = [
-  { href: '/#cliente', label: 'Como funciona' },
-  { href: '/#recursos', label: 'Recursos' },
-  { href: '/#planos', label: 'Planos' },
-  { href: '/#faq', label: 'FAQ' },
+  { href: '/funcionalidades', label: 'Funcionalidades' },
+  { href: '/#diferenciais', label: 'Diferenciais' },
+  { href: '/precos', label: 'Preços' },
+  { href: '/funcionalidades#em-breve', label: 'Em breve' },
 ];
 
 export function MarketingNav() {
   return (
-    <nav className="border-line bg-cream/90 sticky top-0 z-50 border-b backdrop-blur-md">
-      <Container className="flex h-[70px] items-center justify-between">
-        <Link href="/" aria-label="Demandaê">
-          <Logo pulse />
+    <header
+      id="topo"
+      style={{
+        position: 'sticky',
+        top: 0,
+        zIndex: 60,
+        background: 'rgba(250,245,234,.85)',
+        backdropFilter: 'blur(14px)',
+        WebkitBackdropFilter: 'blur(14px)',
+        borderBottom: '1px solid var(--border-soft)',
+      }}
+    >
+      <div
+        style={{
+          maxWidth: 1200,
+          margin: '0 auto',
+          padding: '15px clamp(16px,4vw,40px)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '16px 28px',
+          flexWrap: 'wrap',
+        }}
+      >
+        <Link
+          href="/"
+          aria-label="Demandaê"
+          style={{ display: 'flex', alignItems: 'center', flex: 'none' }}
+        >
+          <Logo />
         </Link>
-        <div className="hidden items-center gap-1 text-sm font-semibold md:flex">
+        <nav
+          style={{
+            display: 'flex',
+            gap: 26,
+            alignItems: 'center',
+            marginLeft: 10,
+            flexWrap: 'wrap',
+          }}
+        >
           {links.map((l) => (
-            <a
+            <Link
               key={l.href}
               href={l.href}
-              className="hover:bg-line rounded-full px-3.5 py-2 transition-colors"
+              className="hv-emerald"
+              style={{ font: '600 14px var(--font-ui)', color: 'var(--ink-50)' }}
             >
               {l.label}
-            </a>
+            </Link>
           ))}
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            asChild
-            variant="outline"
-            className="border-green-deep text-green-deep hover:bg-green-deep hover:text-cream hidden h-11 rounded-full border-[1.5px] px-5 font-semibold hover:translate-y-0 sm:inline-flex"
+        </nav>
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 20 }}>
+          <Link
+            href="/login"
+            className="hv-coral"
+            style={{ font: '600 14px var(--font-ui)', color: 'var(--ink-70)' }}
           >
-            <Link href="/login">Entrar</Link>
-          </Button>
-          <Button asChild variant="coral" className="h-11 rounded-full px-6">
-            <Link href="/signup">Começar agora</Link>
-          </Button>
+            Entrar
+          </Link>
+          <Btn variant="primary" size="md" href="/signup">
+            Começar agora
+          </Btn>
         </div>
-      </Container>
-    </nav>
+      </div>
+    </header>
   );
 }

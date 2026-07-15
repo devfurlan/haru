@@ -7,6 +7,21 @@ export function formatBRL(cents: number): string {
   return brl.format(cents / 100);
 }
 
+const brlShort = new Intl.NumberFormat('pt-BR', {
+  style: 'currency',
+  currency: 'BRL',
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 0,
+});
+
+/**
+ * R$ arredondado, sem centavos ("R$ 3.240"). Padrão dos números grandes que o DONO lê
+ * (painel, relatório semanal) - centavos só viram ruído em faturamento/receita.
+ */
+export function formatBRLShort(cents: number): string {
+  return brlShort.format(Math.round(cents / 100));
+}
+
 export function formatDuration(minutes: number): string {
   if (minutes < 60) return `${minutes} min`;
   const h = Math.floor(minutes / 60);

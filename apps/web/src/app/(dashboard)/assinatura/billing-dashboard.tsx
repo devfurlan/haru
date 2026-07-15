@@ -76,7 +76,8 @@ interface BillingDashboardProps {
   nextChargeISO: string | null;
   guaranteeUntilISO: string | null;
   plans: PlanOption[];
-  appointments: UsageView;
+  /** Uso do ciclo x cota de lembretes por WhatsApp - única quota do plano base. */
+  whatsappReminders: UsageView;
   /** Uso de conversas do bot - só quando o addon está ativo. */
   conversations: UsageView | null;
   addonActive: boolean;
@@ -117,17 +118,16 @@ function fmtDate(iso: string | null): string | null {
   });
 }
 
-/** Cor da barra de uso conforme o limiar atingido (85/90/95/100%). */
+/** Cor da barra de uso: amarelo a partir de 80% (alerta único), vermelho ao esgotar (100%). */
 function barColor(pct: number | null): string {
   if (pct == null) return 'bg-green-bright';
   if (pct >= 100) return 'bg-red-500';
-  if (pct >= 90) return 'bg-red-400';
-  if (pct >= 85) return 'bg-amber-400';
+  if (pct >= 80) return 'bg-amber-400';
   return 'bg-green-bright';
 }
 
 function UsageBar({ label, m }: { label: string; m: UsageView }) {
-  const alerting = m.pct != null && m.pct >= 85;
+  const alerting = m.pct != null && m.pct >= 80;
   const width = m.pct == null ? 0 : Math.min(m.pct, 100);
   return (
     <div>
@@ -170,7 +170,7 @@ export function BillingDashboard(props: BillingDashboardProps) {
     nextChargeISO,
     guaranteeUntilISO,
     plans,
-    appointments,
+    whatsappReminders,
     conversations,
     addonActive,
     addonName,
@@ -254,7 +254,7 @@ export function BillingDashboard(props: BillingDashboardProps) {
     changePlanAction(fd);
   }
 
-  const appointmentsAlerting = appointments.pct != null && appointments.pct >= 85;
+  const remindersAlerting = whatsappReminders.pct != null && whatsappReminders.pct >= 80;
 
   return (
     <div className="space-y-6">
@@ -324,9 +324,9 @@ export function BillingDashboard(props: BillingDashboardProps) {
       </section>
 
       {/* 5. Trocas comuns em destaque (só faz sentido com assinatura ativa) */}
-      {isActive && ((appointmentsAlerting && nextUpgrade) || normalizedCurrentCycle === 'MONTHLY') ? (
+      {isActive && ((remindersAlerting && nextUpgrade) || normalizedCurrentCycle === 'MONTHLY') ? (
         <div className="grid gap-3 sm:grid-cols-2">
-          {appointmentsAlerting && nextUpgrade && (
+          {remindersAlerting && nextUpgrade && (
             <button
               type="button"
               onClick={() => openChange(nextUpgrade.tier, cycle)}
@@ -336,8 +336,8 @@ export function BillingDashboard(props: BillingDashboardProps) {
               <div>
                 <p className="text-sm font-semibold">Falta pouco pra um upgrade</p>
                 <p className="text-muted-foreground mt-0.5 text-sm">
-                  Você já usou {appointments.pct}% dos agendamentos. Passe para o {nextUpgrade.name}{' '}
-                  e ganhe mais folga.
+                  Você já usou {whatsappReminders.pct}% dos lembretes por WhatsApp. Passe para o{' '}
+                  {nextUpgrade.name} e ganhe mais folga.
                 </p>
               </div>
             </button>
@@ -363,11 +363,12 @@ export function BillingDashboard(props: BillingDashboardProps) {
       {/* 2. Uso vs teto */}
       <section className="bg-card space-y-4 rounded-2xl border p-6">
         <h2 className="font-medium">Uso deste mês</h2>
-        <UsageBar label="Agendamentos" m={appointments} />
+        <UsageBar label="Lembretes por WhatsApp" m={whatsappReminders} />
         {conversations && <UsageBar label="Conversas do bot" m={conversations} />}
         <p className="text-muted-foreground text-xs">
-          O serviço continua funcionando mesmo se passar do teto - o limite serve para você saber a
-          hora de subir de plano.
+          Agendamentos são ilimitados. Ao atingir 100% dos lembretes por WhatsApp, só o envio por
+          WhatsApp pausa até a renovação - e-mail e push continuam ilimitados e seus clientes seguem
+          agendando.
         </p>
       </section>
 

@@ -370,8 +370,13 @@ export async function updatePayments(
 
 // --- Plano / assinatura -----------------------------------------------------
 
+/**
+ * Vincula um plano ESPECÍFICO do catálogo (público ou personalizado) ao estabelecimento -
+ * por isso `planId`, não `planTier`: existem N planos por tier. O mesmo plano personalizado
+ * pode ser atribuído a vários estabelecimentos (aplique em cada um).
+ */
 const planSchema = z.object({
-  planTier: z.enum(['ESSENCIAL', 'PROFISSIONAL', 'NEGOCIO', 'ENTERPRISE']),
+  planId: z.string().min(1, 'Escolha um plano'),
   status: z.enum(['PENDING', 'ACTIVE', 'PAST_DUE', 'SUSPENDED', 'CANCELED']),
   billingCycle: z.enum(['MONTHLY', 'ANNUAL']),
 });
@@ -384,13 +389,13 @@ export async function updatePlan(
   const tenantId = String(formData.get('tenantId'));
 
   const parsed = planSchema.safeParse({
-    planTier: formData.get('planTier'),
+    planId: formData.get('planId'),
     status: formData.get('status'),
     billingCycle: formData.get('billingCycle'),
   });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? 'Dados inválidos' };
 
-  const { planTier, status, billingCycle } = parsed.data;
+  const { planId, status, billingCycle } = parsed.data;
 
   const existing = await prisma.subscription.findUnique({ where: { tenantId } });
   if (!existing) {
@@ -399,7 +404,7 @@ export async function updatePlan(
     };
   }
 
-  const plan = await prisma.plan.findUnique({ where: { tier: planTier } });
+  const plan = await prisma.plan.findUnique({ where: { id: planId } });
   if (!plan) return { error: 'Plano não encontrado no catálogo' };
 
   const snap = snapshotPlan(plan, billingCycle);
@@ -407,7 +412,9 @@ export async function updatePlan(
   await prisma.subscription.update({
     where: { tenantId },
     data: {
-      planTier,
+      // planTier acompanha o plano escolhido (rótulo/upsell); quem gateia é o snapshot.
+      planTier: plan.tier,
+      planId: plan.id,
       status,
       billingCycle,
       canceledAt: status === 'CANCELED' ? (existing.canceledAt ?? new Date()) : null,

@@ -262,10 +262,114 @@
      variar com o tamanho (font-optical-sizing: none). */
   .font-serif {
     font-optical-sizing: none;
-    font-variation-settings: 'SOFT' 0, 'WONK' 0;
+    font-variation-settings:
+      'SOFT' 0,
+      'WONK' 0;
   }
   ::selection {
     background-color: var(--brand-coral);
     color: #ffffff;
+  }
+}
+
+/* ============================================================
+ * Home pública - protótipo Claude Design ("Melhoria do layout de preços").
+ * Escopo `.dmd-home`: define os tokens do DS Demandaê que faltavam no :root
+ * global (--font-ui/--font-display, sombras quentes, icontile) e sobrepõe
+ * `--border` para a hairline creme do DS (#e2d9c4), pra o markup do protótipo
+ * resolver 1:1. Fica escopado pra não afetar dashboard/auth (onde --border é o
+ * token shadcn rgba). Aplicado no wrapper do layout de marketing.
+ * ============================================================ */
+.dmd-home {
+  --font-ui: var(--font-hanken), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-fraunces), ui-serif, Georgia, serif;
+  --border: var(--brand-edge);
+  --radius-icontile: 14px;
+  --shadow-card: 0 12px 30px -20px rgba(10, 51, 36, 0.28);
+  --shadow-raised: 0 22px 40px -20px rgba(10, 51, 36, 0.3);
+  --shadow-cta: 0 10px 24px -18px rgba(255, 90, 54, 0.55);
+  --shadow-ondark: 0 22px 40px -20px rgba(4, 20, 13, 0.7);
+  --shadow-sheet: 0 -20px 50px -20px rgba(4, 18, 12, 0.5);
+  --shadow-phone: 0 40px 80px -34px rgba(10, 51, 36, 0.55), 0 8px 24px rgba(10, 51, 36, 0.16);
+  font-family: var(--font-ui);
+  /* Fraunces com eixos zerados (SOFT/WONK 0, opsz fixo) - herda pra toda a home
+     mesmo quando a fonte é aplicada via `font:` shorthand inline (feedback fraunces). */
+  font-optical-sizing: none;
+  font-variation-settings:
+    'SOFT' 0,
+    'WONK' 0;
+}
+.dmd-home a {
+  color: inherit;
+  text-decoration: none;
+}
+.dmd-home .dmd-btn {
+  transition:
+    transform 130ms ease,
+    filter 200ms ease;
+}
+.dmd-home .dmd-btn:hover {
+  filter: brightness(1.03);
+}
+.dmd-home .dmd-btn:active {
+  transform: scale(0.955);
+}
+/* hovers do protótipo (substituem o atributo `style-hover` do DS). */
+.dmd-home .hv-emerald:hover {
+  color: var(--emerald);
+}
+.dmd-home .hv-coral:hover {
+  color: var(--coral);
+}
+.dmd-home .hv-onem:hover {
+  color: var(--on-emerald);
+}
+.dmd-home .hv-bd-green:hover {
+  border-color: var(--green);
+}
+.dmd-home .hv-bd-emerald:hover {
+  border-color: var(--emerald);
+}
+.dmd-home .hv-pause:hover {
+  animation-play-state: paused;
+}
+
+/* Keyframes do protótipo (prefixo dmd- pra não colidir com o `pulse` do Tailwind). */
+@keyframes dmd-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.35;
+    transform: scale(0.8);
+  }
+}
+@keyframes dmd-fade {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes dmd-floaty {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-7px);
+  }
+}
+@keyframes dmd-marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
   }
 }

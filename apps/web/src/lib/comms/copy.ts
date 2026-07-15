@@ -1,7 +1,9 @@
 import 'server-only';
 
 import type { BillingCycle } from '@haru/database';
-import { formatBRL } from '@haru/shared';
+import { formatBRL, formatBRLShort } from '@haru/shared';
+
+import type { WeeklyReportData } from '@/lib/weekly-report-core';
 
 /**
  * Copy centralizado da comunicação de RETENÇÃO/BILLING do web (e-mails transacionais que
@@ -89,6 +91,36 @@ export function paymentFailedWaParams(tenantName: string, cardUrl: string): stri
   return [tenantName, cardUrl];
 }
 
+/** "+12% vs a semana passada" - sufixo do comparativo, ou '' quando não há baseline. */
+function deltaSuffix(deltaPct: number | null): string {
+  if (deltaPct === null) return '';
+  return ` (${deltaPct >= 0 ? '+' : ''}${deltaPct}% vs a semana passada)`;
+}
+
+const pct = (rate: number): string => `${Math.round(rate * 100)}%`;
+const plural = (n: number, one: string, many: string) => (n === 1 ? one : many);
+
+/**
+ * `demandae_weekly_report`: {{1}} negócio, {{2}} faturamento, {{3}} atendimentos +
+ * comparecimento, {{4}} insight, {{5}} link do painel. Resumo curto: só os 2 números mais
+ * fortes + a frase acionável - o e-mail é onde o dono se aprofunda.
+ *
+ * Params da Meta não podem ter quebra de linha nem 4+ espaços seguidos: tudo em uma linha.
+ */
+export function weeklyReportWaParams(
+  tenantName: string,
+  d: WeeklyReportData,
+  reportUrl: string,
+): string[] {
+  return [
+    tenantName,
+    `${formatBRLShort(d.revenueCents)}${deltaSuffix(d.deltaPct)}`,
+    `${d.attended} ${plural(d.attended, 'atendimento', 'atendimentos')} · ${pct(d.attendanceRate)} de comparecimento`,
+    d.insight,
+    reportUrl,
+  ];
+}
+
 // --- E-mails (corpo HTML + assunto) -----------------------------------------
 
 /**
@@ -126,6 +158,88 @@ export function renewalUpcomingEmail(
       `${valor ? `, no valor de <strong>${valor}</strong>` : ''}.<br><br>` +
       `Você não precisa fazer nada - a cobrança é automática. ${nota}<br><br>` +
       `Se quiser trocar de plano ou rever alguma coisa, é só abrir sua assinatura.`,
+  };
+}
+
+/**
+ * Assunto + intro + herói + insight + painel do e-mail do RELATÓRIO SEMANAL (segunda de
+ * manhã, semana anterior).
+ *
+ * Hierarquia importa: o faturamento vira o número-herói (é a manchete) e o insight vira
+ * caixa destacada (é a única linha que pede AÇÃO). O resto é placar, em linhas curtas -
+ * valor longo quebra feio na largura do card e deixa palavra órfã. Blocos condicionais
+ * (fila, clube) só entram se o estabelecimento usa a feature; linha vazia seria ruído.
+ */
+export function weeklyReportEmail(
+  name: string | null,
+  tenantName: string,
+  d: WeeklyReportData,
+): {
+  subject: string;
+  intro: string;
+  hero: { label: string; value: string; delta?: string; deltaUp?: boolean };
+  callout: string;
+  rows: { label: string; value: string }[];
+} {
+  const rows: { label: string; value: string }[] = [
+    {
+      label: 'Agendamentos',
+      value:
+        `${d.attended} ${plural(d.attended, 'atendido', 'atendidos')} de ${d.total}` +
+        ` · ${d.canceled} ${plural(d.canceled, 'cancelado', 'cancelados')}` +
+        ` · ${d.noShow} ${plural(d.noShow, 'falta', 'faltas')}`,
+    },
+    {
+      label: 'Comparecimento',
+      value: `${pct(d.attendanceRate)} (${pct(d.noShowRate)} de falta)`,
+    },
+    { label: 'Ticket médio', value: formatBRLShort(d.ticketCents) },
+  ];
+
+  // O número que dói: horário vazio é dinheiro que ficou na mesa.
+  if (d.idleSlots > 0) {
+    rows.push({
+      label: 'Horários ociosos',
+      value: `${d.idleSlots} ${plural(d.idleSlots, 'vazio', 'vazios')} · ${formatBRLShort(d.idleCents)} na mesa`,
+    });
+  }
+  if (d.topServices.length > 0) {
+    rows.push({
+      label: `Top ${d.topServices.length === 1 ? 'serviço' : `${d.topServices.length} serviços`}`,
+      value: d.topServices.map((s) => `${s.name} (${s.count})`).join(' · '),
+    });
+  }
+  rows.push({
+    label: 'Clientes',
+    value: `${d.newCustomers} ${plural(d.newCustomers, 'novo', 'novos')} · ${d.returningCustomers} ${plural(d.returningCustomers, 'recorrente', 'recorrentes')}`,
+  });
+  if (d.recovered) {
+    rows.push({
+      label: 'Fila de espera',
+      value: `${d.recovered.count} ${plural(d.recovered.count, 'vaga recuperada', 'vagas recuperadas')} · ${formatBRLShort(d.recovered.revenueCents)}`,
+    });
+  }
+  if (d.club) {
+    rows.push({
+      label: 'Assinaturas',
+      value: `${d.club.activeCount} ${plural(d.club.activeCount, 'assinante', 'assinantes')} · ${formatBRLShort(d.club.mrrCents)}/mês`,
+    });
+  }
+
+  return {
+    subject: `Resumo da semana (${d.weekLabel}) - Demandaê`,
+    intro:
+      `${greeting(name)} Foi assim a semana de <strong>${d.weekLabel}</strong> em ` +
+      `<strong>${tenantName}</strong>.`,
+    hero: {
+      label: 'Faturamento da semana',
+      value: formatBRLShort(d.revenueCents),
+      // Sem baseline (estabelecimento novo) o chip some - não inventa comparativo.
+      delta: d.deltaPct === null ? undefined : `${d.deltaPct >= 0 ? '+' : ''}${d.deltaPct}%`,
+      deltaUp: d.deltaPct !== null && d.deltaPct >= 0,
+    },
+    callout: d.insight,
+    rows,
   };
 }
 

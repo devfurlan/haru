@@ -4,6 +4,7 @@ import { prisma } from '@haru/database';
 import type { AddonTier, BillingCycle, PlanTier } from '@haru/database';
 import {
   TIER_LABEL,
+  getPublicPlan,
   isAddonActive,
   isSubscriptionActive,
   recurringValueCents,
@@ -84,8 +85,9 @@ export async function subscribe(
   }
   const { tier, cycle, method, cpfCnpj } = parsed.data;
 
-  const plan = await prisma.plan.findUnique({ where: { tier: tier as PlanTier } });
-  if (!plan || !plan.active) {
+  // Self-serve só contrata plano PÚBLICO; personalizado é atribuído pelo admin.
+  const plan = await getPublicPlan(tier as PlanTier);
+  if (!plan) {
     return { error: 'Plano indisponível.' };
   }
   if (plan.priceMonthlyCents <= 0) {
@@ -117,6 +119,7 @@ export async function subscribe(
       where: { tenantId: tenant.id },
       update: {
         planTier: tier as PlanTier,
+        planId: plan.id,
         billingCycle: cycle as BillingCycle,
         asaasCustomerId: customerId,
         ...snapshot,
@@ -124,6 +127,7 @@ export async function subscribe(
       create: {
         tenantId: tenant.id,
         planTier: tier as PlanTier,
+        planId: plan.id,
         status: 'PENDING',
         billingCycle: cycle as BillingCycle,
         asaasCustomerId: customerId,
@@ -504,10 +508,15 @@ export async function changePlan(
   const { tier, cycle } = parsed.data;
 
   const [plan, currentPlan] = await Promise.all([
-    prisma.plan.findUnique({ where: { tier: tier as PlanTier } }),
-    prisma.plan.findUnique({ where: { tier: sub.planTier } }),
+    // Destino: só plano PÚBLICO (troca self-serve não alcança plano personalizado).
+    getPublicPlan(tier as PlanTier),
+    // Origem: o plano REALMENTE contratado (pode ser personalizado) - `planId` quando houver,
+    // senão cai no público do tier (assinaturas antigas, antes do planId).
+    sub.planId
+      ? prisma.plan.findUnique({ where: { id: sub.planId } })
+      : getPublicPlan(sub.planTier),
   ]);
-  if (!plan || !plan.active || plan.priceMonthlyCents <= 0) {
+  if (!plan || plan.priceMonthlyCents <= 0) {
     return { error: 'Plano indisponível para troca self-service.' };
   }
 
@@ -548,6 +557,7 @@ export async function changePlan(
         where: { id: sub.id },
         data: {
           planTier: tier as PlanTier,
+          planId: plan.id,
           billingCycle: cycle as BillingCycle,
           ...snapshot,
           pendingPlanTier: null,

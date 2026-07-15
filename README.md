@@ -204,15 +204,15 @@ Templates que o código envia hoje. O **corpo** é uma sugestão (texto que o ne
 
 ### Alertas ao dono (templates da PLATAFORMA)
 
-Diferente dos de cima (cada Tenant cria os seus na conta dele), estes vivem na **WABA da própria plataforma Demandaê** e são enviados **pelo número da plataforma** pro WhatsApp do dono do estabelecimento - **nunca** pelo número do bot do Tenant (que é canal do cliente final). São **opt-in** (o dono liga em `/settings`, "Alertas de uso e cobrança por WhatsApp") e o envio fica **inativo (no-op logado)** até os templates serem aprovados na Meta e as envs preenchidas: `WHATSAPP_PLATFORM_PHONE_NUMBER_ID`, `WHATSAPP_PLATFORM_ACCESS_TOKEN`, `WHATSAPP_TEMPLATE_USAGE_ALERT`, `WHATSAPP_TEMPLATE_PAYMENT_FAILED`. Enquanto isso, o e-mail e a notificação in-app já cobrem o dono; o WhatsApp é reforço.
+Diferente dos de cima (cada Tenant cria os seus na conta dele), estes vivem na **WABA da própria plataforma Demandaê** e são enviados **pelo número da plataforma** pro WhatsApp do dono do estabelecimento - **nunca** pelo número do bot do Tenant (que é canal do cliente final). São **opt-in** (o dono liga em `/settings`, "Alertas de uso e cobrança por WhatsApp") e o envio fica **inativo (no-op logado)** até os templates serem aprovados na Meta e as envs preenchidas: `WHATSAPP_PLATFORM_PHONE_NUMBER_ID`, `WHATSAPP_PLATFORM_ACCESS_TOKEN`, `WHATSAPP_TEMPLATE_USAGE_ALERT`, `WHATSAPP_TEMPLATE_PAYMENT_FAILED`, `WHATSAPP_TEMPLATE_WEEKLY_REPORT`. Enquanto isso, o e-mail e a notificação in-app já cobrem o dono; o WhatsApp é reforço.
 
-#### Alerta de uso (90% / 95% / 100%)
+#### Alerta de uso - conversas do bot / addon (90% / 95% / 100%)
 
 - **Nome (env `WHATSAPP_TEMPLATE_USAGE_ALERT`):** sugestão `demandae_usage_alert` · **Idioma:** `pt_BR` · **Categoria Meta:** `UTILITY`
-- **Variáveis:** `{{1}}` nome do negócio · `{{2}}` recurso (agendamentos / conversas do bot) · `{{3}}` percentual usado (ex.: `90%`)
-- **Enviado em:** [apps/bot/src/lib/usageAlerts.ts](apps/bot/src/lib/usageAlerts.ts) (loop de uso - só 90/95/100, nunca 85, pra não spamar)
+- **Variáveis:** `{{1}}` nome do negócio · `{{2}}` recurso (conversas do bot) · `{{3}}` percentual usado (ex.: `90%`)
+- **Enviado em:** [apps/bot/src/lib/usageAlerts.ts](apps/bot/src/lib/usageAlerts.ts) (loop de uso, só para o eixo de **conversas do addon** - 90/95/100, nunca 85). A cota de **lembretes por WhatsApp** do plano base (alerta único em **80%**, pausa do canal em **100%**) avisa por **e-mail + banner**, não por este template.
 - **Corpo sugerido:**
-  > Oi! 👋 Você já usou {{3}} dos seus {{2}} do plano em _{{1}}_ neste ciclo. Ao estourar o limite, as novas criações no painel pausam (seus clientes seguem agendando). Dá uma olhada nos planos quando puder.
+  > Oi! 👋 Você já usou {{3}} das suas {{2}} do plano em _{{1}}_ neste ciclo. Dá uma olhada nos planos quando puder pra ampliar a cota.
 
 #### Cobrança falhou
 
@@ -222,7 +222,17 @@ Diferente dos de cima (cada Tenant cria os seus na conta dele), estes vivem na *
 - **Corpo sugerido:**
   > Oi! Não confirmamos o pagamento da assinatura de _{{1}}_ e o acesso foi pausado. Regularize por aqui pra reativar o bot e o painel: {{2}}
 
-**Aprovação:** criar os dois na conta WhatsApp Business **da plataforma** (WhatsApp Manager → _Modelos de mensagem_), categoria `UTILITY`, aguardar aprovação e preencher as envs acima. A aprovação em si não é feita nesta camada - só a lista + o envio env-gated ficam prontos.
+#### Relatório semanal
+
+- **Nome (env `WHATSAPP_TEMPLATE_WEEKLY_REPORT`):** sugestão `demandae_weekly_report` · **Idioma:** `pt_BR` · **Categoria Meta:** `UTILITY`
+- **Variáveis:** `{{1}}` nome do negócio · `{{2}}` faturamento da semana, já com o comparativo (ex.: `R$ 3.240 (+12% vs a semana passada)`) · `{{3}}` atendimentos + comparecimento (ex.: `44 atendimentos · 92% de comparecimento`) · `{{4}}` insight acionável (frase pronta, gerada por regra determinística) · `{{5}}` link do painel
+- **Enviado em:** [apps/web/src/app/api/cron/weekly-report/route.ts](apps/web/src/app/api/cron/weekly-report/route.ts) (segunda 11:00 UTC = 08:00 BRT, via `onWeeklyReport`, junto do e-mail completo). Só sai se o dono deixou o relatório ligado com canal WhatsApp/Os dois em `/settings` **e** o opt-in de alertas do dono estiver ligado.
+- **Corpo sugerido:**
+  > 📊 Resumo da semana em _{{1}}_. Faturamento: {{2}}. Atendimentos: {{3}}. {{4}} Relatório completo: {{5}}
+
+> **Categoria:** é `UTILITY` de verdade - o conteúdo é o dado do negócio do próprio dono, não oferta. Manter o corpo estático livre de "aproveite", "não perca", "promoção" e afins, senão a Meta reclassifica como `MARKETING`. Os parâmetros não podem conter quebra de linha nem 4+ espaços seguidos (por isso `{{4}}` é sempre uma frase de uma linha).
+
+**Aprovação:** criar os três na conta WhatsApp Business **da plataforma** (WhatsApp Manager → _Modelos de mensagem_), categoria `UTILITY`, aguardar aprovação e preencher as envs acima. A aprovação em si não é feita nesta camada - só a lista + o envio env-gated ficam prontos.
 
 ### Transacional ao cliente pela PLATAFORMA (fallback do plano base)
 

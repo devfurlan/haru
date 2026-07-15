@@ -6,7 +6,10 @@ import prisma from './prisma.js';
 
 const USAGE_TICK_INTERVAL_MS = 30 * 60 * 1000;
 
-const USAGE_LABEL = { appointments: 'agendamentos', conversations: 'conversas do bot' } as const;
+const USAGE_LABEL = {
+  whatsappReminders: 'lembretes por WhatsApp',
+  conversations: 'conversas do bot',
+} as const;
 
 // Graph API do número da PLATAFORMA (não o do tenant) - envio de template pro DONO.
 const GRAPH_URL = 'https://graph.facebook.com/v21.0';
@@ -30,9 +33,10 @@ async function ownerWhatsappTarget(
 }
 
 /**
- * Alerta de uso pro dono por WhatsApp - só 90/95/100 (não 85, pra não spamar) e só com
- * opt-in do tenant + telefone do OWNER. Enviado pelo número da PLATAFORMA Demandaê (envs
- * WHATSAPP_PLATFORM_*), NUNCA pelo número do bot do tenant (que é canal do cliente final).
+ * Alerta de uso pro dono por WhatsApp - reforço opt-in do eixo de CONVERSAS do addon (só
+ * 90/95/100, não 85, pra não spamar). O eixo de lembretes por WhatsApp NÃO usa este canal (a
+ * regra é email + banner); o caller só chama isto para a métrica 'conversations'. Enviado pelo
+ * número da PLATAFORMA Demandaê (envs WHATSAPP_PLATFORM_*), NUNCA pelo número do bot do tenant.
  * Env-gated + fail-soft: no-op se faltar número/token/template. Requer template aprovado na
  * Meta na conta da plataforma (README: demandae_usage_alert). O e-mail sempre cobre o dono.
  */
@@ -45,7 +49,8 @@ async function sendUsageAlertWhatsApp(tenantId: string, alert: PendingUsageAlert
   const target = await ownerWhatsappTarget(tenantId);
   if (!target) return;
 
-  const resource = alert.metric === 'conversations' ? 'conversas do bot' : 'agendamentos';
+  const resource =
+    alert.metric === 'whatsappReminders' ? USAGE_LABEL.whatsappReminders : USAGE_LABEL.conversations;
   const pct = Math.round((alert.used / alert.limit) * 100);
   // Params na ORDEM aprovada na Meta: {{1}} negócio, {{2}} recurso, {{3}} %. Ver README.
   const params = [target.tenantName, resource, `${pct}%`];
@@ -83,7 +88,8 @@ async function sendUsageAlertWhatsApp(tenantId: string, alert: PendingUsageAlert
  * bloqueia o markUsageAlertSent). Dedup vem do caller (UsageAlert - um por nível/ciclo).
  */
 async function createUsageNotification(tenantId: string, alert: PendingUsageAlert): Promise<void> {
-  const label = alert.metric === 'conversations' ? USAGE_LABEL.conversations : USAGE_LABEL.appointments;
+  const isReminders = alert.metric === 'whatsappReminders';
+  const label = isReminders ? USAGE_LABEL.whatsappReminders : USAGE_LABEL.conversations;
   const pct = Math.round((alert.used / alert.limit) * 100);
   const atLimit = alert.level >= 100;
   try {
@@ -94,7 +100,9 @@ async function createUsageNotification(tenantId: string, alert: PendingUsageAler
         kind: `usage.${alert.metric}.${alert.level}`,
         title: atLimit ? `Limite de ${label} atingido` : `${pct}% dos ${label} usados`,
         body: atLimit
-          ? `Você chegou ao teto de ${label} do seu plano neste ciclo (${alert.used}/${alert.limit}). Faça upgrade pra liberar mais volume.`
+          ? isReminders
+            ? `Você chegou ao teto de ${label} do seu plano neste ciclo (${alert.used}/${alert.limit}). Os lembretes agora vão só por e-mail e push (ilimitados) e voltam por WhatsApp no reset do ciclo - seus clientes continuam agendando. Faça upgrade pra ampliar a cota.`
+            : `Você chegou ao teto de ${label} do seu plano neste ciclo (${alert.used}/${alert.limit}). Faça upgrade pra ampliar a cota.`
           : `Você já usou ${pct}% dos ${label} do seu plano neste ciclo (${alert.used}/${alert.limit}).`,
         ctaLabel: 'Ver planos',
         ctaHref: '/assinatura',
@@ -135,18 +143,18 @@ async function processUsageAlerts() {
           await emailFairUseExceeded({
             tenantId: sub.tenantId,
             tenantName: sub.tenant.name,
-            metric: a.underlyingMetric ?? 'appointments',
             used: a.used,
             limit: a.limit,
           });
         } else {
           await emailUsageAlert(sub.tenantId, {
-            metric: a.metric as 'appointments' | 'conversations',
+            metric: a.metric as 'whatsappReminders' | 'conversations',
             level: a.level,
             used: a.used,
             limit: a.limit,
           });
-          await sendUsageAlertWhatsApp(sub.tenantId, a);
+          // Reforço owner-WhatsApp só no eixo de conversas do addon; lembretes = email + banner.
+          if (a.metric === 'conversations') await sendUsageAlertWhatsApp(sub.tenantId, a);
           await createUsageNotification(sub.tenantId, a);
         }
         // Carimba DEPOIS de tentar despachar. Best-effort: se um canal falhar não

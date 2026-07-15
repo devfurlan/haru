@@ -4,13 +4,17 @@ import { prisma } from '../src/index.js';
 
 /**
  * Ativa manualmente a assinatura de um tenant (onboarding concierge dos primeiros
- * clientes, antes do checkout self-serve da Fase 2). Lê o `Plan` vigente, grava o
- * SNAPSHOT dos termos na `Subscription` e marca como ACTIVE.
+ * clientes, antes do checkout self-serve da Fase 2). Lê o `Plan`, grava o SNAPSHOT dos
+ * termos na `Subscription` e marca como ACTIVE.
+ *
+ * O 2º argumento aceita um TIER (resolve o plano PÚBLICO daquele tier) ou o ID de um plano
+ * específico - inclusive PERSONALIZADO (active: false, criado no admin). Não importa
+ * `@haru/billing` (getPublicPlan) porque billing depende de database: seria ciclo.
  *
  * Uso (a partir de packages/database):
- *   dotenv -e .env -- tsx scripts/set-plan.ts <slug> <TIER> [monthly|annual]
+ *   dotenv -e .env -- tsx scripts/set-plan.ts <slug> <TIER|planId> [monthly|annual]
  * ou:
- *   pnpm --filter @haru/database set-plan <slug> <TIER> [monthly|annual]
+ *   pnpm --filter @haru/database set-plan <slug> <TIER|planId> [monthly|annual]
  */
 
 const VALID_TIERS: PlanTier[] = ['ESSENCIAL', 'PROFISSIONAL', 'NEGOCIO', 'ENTERPRISE'];
@@ -28,18 +32,12 @@ function addDays(date: Date, days: number): Date {
 }
 
 async function main() {
-  const [slug, tierArg, cycleArg = 'monthly'] = process.argv.slice(2);
+  const [slug, planArg, cycleArg = 'monthly'] = process.argv.slice(2);
 
-  if (!slug || !tierArg) {
+  if (!slug || !planArg) {
     console.error(
-      'Uso: set-plan <slug> <ESSENCIAL|PROFISSIONAL|NEGOCIO|ENTERPRISE> [monthly|annual]',
+      'Uso: set-plan <slug> <ESSENCIAL|PROFISSIONAL|NEGOCIO|ENTERPRISE|planId> [monthly|annual]',
     );
-    process.exit(1);
-  }
-
-  const tier = tierArg.toUpperCase() as PlanTier;
-  if (!VALID_TIERS.includes(tier)) {
-    console.error(`Tier inválido: "${tierArg}". Use um de: ${VALID_TIERS.join(', ')}`);
     process.exit(1);
   }
 
@@ -51,10 +49,19 @@ async function main() {
     process.exit(1);
   }
 
-  const plan = await prisma.plan.findUnique({ where: { tier } });
+  // Tier -> plano PÚBLICO daquele tier; senão trata o argumento como id de plano
+  // (permite atribuir um plano PERSONALIZADO criado no admin).
+  const maybeTier = planArg.toUpperCase() as PlanTier;
+  const isTier = VALID_TIERS.includes(maybeTier);
+  const plan = isTier
+    ? await prisma.plan.findFirst({ where: { tier: maybeTier, active: true } })
+    : await prisma.plan.findUnique({ where: { id: planArg } });
+
   if (!plan) {
     console.error(
-      `Plano ${tier} não existe. Rode o seed primeiro (pnpm --filter @haru/database seed).`,
+      isTier
+        ? `Não há plano público para o tier ${maybeTier}. Rode o seed (seed:plans) ou passe o id de um plano personalizado.`
+        : `Plano não encontrado pelo id "${planArg}".`,
     );
     process.exit(1);
   }
@@ -65,19 +72,21 @@ async function main() {
   // Snapshot dos termos do Plan vigente (grandfather: editar o Plan depois não muda isto).
   const snapshot = {
     priceCents: cycle === 'ANNUAL' ? plan.priceAnnualCents : plan.priceMonthlyCents,
-    appointmentsLimit: plan.appointmentsPerMonth,
-    aiMessagesLimit: plan.aiMessagesPerMonth,
+    whatsappRemindersLimit: plan.whatsappRemindersPerMonth,
     maxProfessionals: plan.maxProfessionals,
     maxReceptionists: plan.maxReceptionists,
     featOnlinePayments: plan.onlinePayments,
     featWebhooks: plan.webhooks,
     featTeam: plan.team,
+    featWaitlist: plan.waitlist,
+    featServiceSubscriptions: plan.serviceSubscriptions,
   };
 
   const sub = await prisma.subscription.upsert({
     where: { tenantId: tenant.id },
     update: {
-      planTier: tier,
+      planTier: plan.tier,
+      planId: plan.id,
       status: 'ACTIVE',
       billingCycle: cycle,
       currentPeriodStart: now,
@@ -88,7 +97,8 @@ async function main() {
     },
     create: {
       tenantId: tenant.id,
-      planTier: tier,
+      planTier: plan.tier,
+      planId: plan.id,
       status: 'ACTIVE',
       billingCycle: cycle,
       currentPeriodStart: now,
@@ -99,9 +109,10 @@ async function main() {
   });
 
   console.log(
-    `✓ ${tenant.name} (${slug}) → ${tier} ${cycle} ATIVO ` +
-      `(R$ ${(sub.priceCents / 100).toFixed(2)}, ` +
-      `agend.: ${sub.appointmentsLimit ?? '∞'}, IA: ${sub.aiMessagesLimit ?? '∞'}, ` +
+    `✓ ${tenant.name} (${slug}) → ${plan.name} [${plan.tier}${plan.active ? '' : ', personalizado'}] ` +
+      `${cycle} ATIVO (R$ ${(sub.priceCents / 100).toFixed(2)}, ` +
+      `lembretes WhatsApp: ${sub.whatsappRemindersLimit ?? '∞'}, ` +
+      `fila: ${sub.featWaitlist ? 'sim' : 'não'}, clube: ${sub.featServiceSubscriptions ? 'sim' : 'não'}, ` +
       `garantia até ${sub.guaranteeUntil?.toISOString().slice(0, 10)})`,
   );
 }

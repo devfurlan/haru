@@ -1,6 +1,7 @@
 import { prisma } from '@haru/database';
 import { formatBRL } from '@haru/shared';
 
+import { isAttended } from '@/lib/appointment-status';
 import { requireUserAndTenant } from '@/lib/auth';
 
 import { ClientsList, type ClientRow } from './clients-list';
@@ -15,7 +16,11 @@ export default async function ClientsPage() {
     take: 300,
     include: {
       appointments: {
-        select: { startsAt: true, status: true, service: { select: { name: true, priceCents: true } } },
+        select: {
+          startsAt: true,
+          status: true,
+          service: { select: { name: true, priceCents: true } },
+        },
         orderBy: { startsAt: 'desc' },
       },
     },
@@ -27,14 +32,21 @@ export default async function ClientsPage() {
     month: '2-digit',
   });
 
+  const nowDate = new Date(now);
   const rows: ClientRow[] = contacts.map((c) => {
     const active = c.appointments.filter((a) => a.status !== 'CANCELED');
     const count = active.length;
-    const completed = c.appointments.filter((a) => a.status === 'COMPLETED');
-    const totalCents = completed.reduce((s, a) => s + a.service.priceCents, 0);
+    // Receita realizada = tudo que compareceu (passado, não cancelado, não faltou). Antes só
+    // somava COMPLETED e, como ninguém marcava, subcontava. isAttended cobre também a janela
+    // entre o atendimento e o cron de fechamento.
+    const totalCents = c.appointments
+      .filter((a) => isAttended(a, nowDate))
+      .reduce((s, a) => s + a.service.priceCents, 0);
 
     // Última visita: agendamento passado mais recente (lista já vem desc por startsAt).
-    const lastPast = c.appointments.find((a) => a.startsAt.getTime() < now && a.status !== 'CANCELED');
+    const lastPast = c.appointments.find(
+      (a) => a.startsAt.getTime() < now && a.status !== 'CANCELED',
+    );
 
     // Serviço de sempre: mais frequente entre os não-cancelados.
     const freq = new Map<string, number>();
