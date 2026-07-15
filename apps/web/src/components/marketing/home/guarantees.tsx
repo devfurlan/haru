@@ -16,7 +16,7 @@ function Icon({ children }: { children: ReactNode }) {
       strokeWidth="2"
       strokeLinecap="round"
       strokeLinejoin="round"
-      className="mt-[1px] flex-none"
+      className="block"
       aria-hidden
     >
       {children}
@@ -89,15 +89,13 @@ export function Guarantees() {
     <div className="mt-[clamp(26px,3.4vw,38px)] grid grid-cols-[repeat(auto-fit,minmax(190px,1fr))] gap-x-[18px] gap-y-[20px] border-t border-t-[color:rgba(10,51,36,.1)] pt-[clamp(24px,3vw,32px)]">
       {ITEMS.map((it) => (
         <div key={it.title}>
+          {it.icon}
           {/* 2 linhas de título fixas: "Suporte de gente, em português" quebra e sem isso
               as 5 descrições desalinhavam entre si. */}
-          <div className="flex min-h-[34px] items-start gap-[8px]">
-            {it.icon}
-            <div className="text-green-deep font-sans text-[13px] font-semibold leading-[1.3]">
-              {it.title}
-            </div>
+          <div className="text-green-deep mt-[10px] min-h-[34px] font-sans text-[13px] font-semibold leading-[1.3]">
+            {it.title}
           </div>
-          <div className="text-ink-70 mt-[5px] font-sans text-[12px] font-normal leading-[1.45]">
+          <div className="text-ink-70 mt-[3px] font-sans text-[12px] font-normal leading-[1.45]">
             {it.body}
           </div>
         </div>

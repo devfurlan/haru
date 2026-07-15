@@ -70,7 +70,13 @@ export function CookieConsent() {
           role="dialog"
           aria-modal="false"
           aria-label="Preferências de cookies"
-          className="border-border bg-ink text-cream shadow-soft animate-rise fixed inset-x-4 bottom-4 z-[100] mx-auto max-w-md rounded-2xl border p-5 sm:left-6 sm:right-auto sm:mx-0"
+          className={`border-border bg-ink text-cream shadow-soft animate-rise fixed bottom-4 left-4 z-[100] rounded-2xl border sm:left-6 ${
+            // Compacto encolhe ao conteúdo (o pedido é ser discreto); só o painel de
+            // preferências ocupa a largura de um card de verdade.
+            customizing
+              ? 'right-4 mx-auto max-w-md p-5 sm:right-auto sm:mx-0'
+              : 'max-w-[calc(100%-2rem)] px-4 py-3'
+          }`}
         >
           {customizing ? (
             <>
@@ -114,53 +120,49 @@ export function CookieConsent() {
             </>
           ) : (
             <>
-              <p className="text-cream/85 text-sm leading-relaxed">
-                Usamos <strong className="text-cream">cookies essenciais</strong> pra manter seu
-                login e o site funcionando. Com a sua autorização, usamos também cookies de{' '}
-                <strong className="text-cream">análise</strong> e de{' '}
-                <strong className="text-cream">publicidade</strong>. Você escolhe, e pode mudar
-                quando quiser na{' '}
+              <p className="text-cream/85 text-sm leading-snug">
+                🍪 <strong className="text-cream font-semibold">Usamos cookies.</strong>{' '}
                 <Link
                   href="/cookies"
-                  className="text-green-bright font-semibold underline underline-offset-4"
+                  className="text-cream/70 hover:text-cream underline underline-offset-4"
                 >
-                  Política de Cookies
+                  Saiba mais
                 </Link>
-                .
               </p>
               {/* ANPD p.33: dar destaque só ao aceite é dark pattern. Rejeitar e
-                  aceitar saem sólidos, no mesmo tamanho e lado a lado. */}
-              <div className="mt-4 flex gap-2">
-                <Button
-                  onClick={() => choose(DENY_ALL)}
-                  variant="secondary"
-                  className="bg-cream text-ink hover:bg-cream/90 h-10 flex-1 rounded-full px-4"
+                  aceitar saem com o mesmo peso, lado a lado. */}
+              <div className="text-cream/45 mt-2 flex select-none items-center gap-2 text-sm">
+                <ChoiceLink onClick={() => choose(DENY_ALL)}>Rejeitar</ChoiceLink>
+                <span aria-hidden>|</span>
+                <ChoiceLink
+                  onClick={() => {
+                    setDraft(consent ?? DENY_ALL);
+                    setCustomizing(true);
+                  }}
                 >
-                  Rejeitar não essenciais
-                </Button>
-                <Button
-                  onClick={() => choose(GRANT_ALL)}
-                  variant="coral"
-                  className="h-10 flex-1 rounded-full px-4"
-                >
-                  Aceitar todos
-                </Button>
+                  Personalizar
+                </ChoiceLink>
+                <span aria-hidden>|</span>
+                <ChoiceLink onClick={() => choose(GRANT_ALL)}>Aceitar</ChoiceLink>
               </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setDraft(consent ?? DENY_ALL);
-                  setCustomizing(true);
-                }}
-                className="text-cream/70 hover:text-cream mt-3 w-full text-center text-xs font-semibold underline underline-offset-4"
-              >
-                Personalizar
-              </button>
             </>
           )}
         </div>
       ) : null}
     </>
+  );
+}
+
+// ponytail: <button> cru. As três escolhas têm o mesmo peso de propósito (ANPD).
+function ChoiceLink({ onClick, children }: { onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="text-cream/80 hover:text-cream font-semibold transition-colors"
+    >
+      {children}
+    </button>
   );
 }
 
