@@ -6,11 +6,23 @@ import { Button } from '@/components/ui/button';
 import { createClient } from '@/lib/supabase/client';
 
 /**
- * "Continuar com Google" da área do cliente. Um botão só serve login e cadastro: o
- * Supabase cria o auth.users no 1º OAuth e /auth/callback garante o CustomerAccount.
- * O redirect leva ao Google e volta em /auth/callback?next=<next>.
+ * "Continuar com Google". Um botão só serve login e cadastro: o Supabase cria o
+ * auth.users no 1º OAuth e /auth/callback provisiona a conta do domínio. O redirect
+ * leva ao Google e volta em /auth/callback.
+ *
+ * Por padrão provisiona um CustomerAccount (cliente). Com `flow="owner"` (usado no
+ * /signup do estabelecimento) manda `flow=owner`, e o callback desvia pra tela de nome
+ * do estabelecimento (cria Tenant) em vez de criar cliente.
  */
-export function GoogleAuthButton({ next = '/conta' }: { next?: string }) {
+export function GoogleAuthButton({
+  next = '/conta',
+  flow,
+  plano,
+}: {
+  next?: string;
+  flow?: 'owner';
+  plano?: string;
+}) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -18,10 +30,14 @@ export function GoogleAuthButton({ next = '/conta' }: { next?: string }) {
     setError(null);
     setLoading(true);
     const supabase = createClient();
+    const query =
+      flow === 'owner'
+        ? `flow=owner${plano ? `&plano=${encodeURIComponent(plano)}` : ''}`
+        : `next=${encodeURIComponent(next)}`;
     const { error: oauthError } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`,
+        redirectTo: `${window.location.origin}/auth/callback?${query}`,
       },
     });
     // Sucesso: o browser é redirecionado pro Google (não chega aqui). Só cai neste

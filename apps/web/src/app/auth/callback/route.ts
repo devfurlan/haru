@@ -1,6 +1,8 @@
 import { redirect } from 'next/navigation';
 import type { NextRequest } from 'next/server';
 
+import { prisma } from '@haru/database';
+
 import { ensureCustomerAccount } from '@/lib/customer-auth';
 import { safeInternalPath } from '@/lib/safe-redirect';
 import { createClient } from '@/lib/supabase/server';
@@ -28,6 +30,18 @@ export async function GET(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) redirect('/login?error=oauth');
+
+  // Dono já provisionado sempre entra no painel, seja qual for o botão usado (evita cair
+  // na área do cliente). Espelha a ordem do signIn por senha: checa User antes de cliente.
+  const owner = await prisma.user.findUnique({ where: { authId: user.id } });
+  if (owner) redirect('/dashboard');
+
+  // Cadastro de DONO via Google (flow=owner): o auth.users já existe, mas falta o nome do
+  // estabelecimento pra criar o Tenant - manda pra tela de conclusão em vez de criar cliente.
+  if (searchParams.get('flow') === 'owner') {
+    const plano = searchParams.get('plano');
+    redirect(`/signup/estabelecimento${plano ? `?plano=${encodeURIComponent(plano)}` : ''}`);
+  }
 
   const result = await ensureCustomerAccount(user);
   if ('error' in result) {

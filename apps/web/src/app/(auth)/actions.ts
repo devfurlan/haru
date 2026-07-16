@@ -7,6 +7,7 @@ import { z } from 'zod';
 
 import { Prisma, prisma } from '@haru/database';
 
+import { getAuthUser } from '@/lib/auth';
 import { traduzErroSignUp } from '@/lib/auth-errors';
 import { getBaseUrl } from '@/lib/base-url';
 import { TERMS_VERSION } from '@/lib/legal';
@@ -17,6 +18,38 @@ import { uniqueSlug } from '@/lib/slug';
 export type ActionResult = { error: string } | undefined;
 
 export type ForgotPasswordResult = { error: string } | { ok: true } | undefined;
+
+/**
+ * Cria o Tenant + User(OWNER) do estabelecimento numa transação. Reusado pelos dois
+ * caminhos de cadastro de dono - por senha (`signUp`) e por Google (`createOwnerFromOAuth`)
+ * - que só diferem em como o auth.users nasce (auth.signUp vs OAuth). O dono nasce ACTIVE
+ * (já autenticado) com a prova de consentimento do momento do cadastro. Pode lançar P2002
+ * se o e-mail/authId já tiver painel.
+ */
+async function createOwnerTenant(params: {
+  authId: string;
+  email: string;
+  ownerName: string;
+  businessName: string;
+}) {
+  await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+    const tenant = await tx.tenant.create({
+      data: { name: params.businessName, slug: uniqueSlug(params.businessName) },
+    });
+    await tx.user.create({
+      data: {
+        authId: params.authId,
+        email: params.email,
+        name: params.ownerName,
+        role: 'OWNER',
+        status: 'ACTIVE',
+        termsAcceptedAt: new Date(),
+        termsVersion: TERMS_VERSION,
+        tenantId: tenant.id,
+      },
+    });
+  });
+}
 
 const signUpSchema = z.object({
   email: z.string().email('Email inválido'),
@@ -48,26 +81,7 @@ export async function signUp(_prev: ActionResult, formData: FormData): Promise<A
   }
 
   try {
-    await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-      const tenant = await tx.tenant.create({
-        data: { name: businessName, slug: uniqueSlug(businessName) },
-      });
-      await tx.user.create({
-        data: {
-          authId: data.user!.id,
-          email,
-          name: ownerName,
-          role: 'OWNER',
-          // Dono já define a senha no signup - nasce ativo (explícito p/ não
-          // depender do default do schema).
-          status: 'ACTIVE',
-          // Prova de consentimento coletada no momento do cadastro.
-          termsAcceptedAt: new Date(),
-          termsVersion: TERMS_VERSION,
-          tenantId: tenant.id,
-        },
-      });
-    });
+    await createOwnerTenant({ authId: data.user.id, email, ownerName, businessName });
   } catch (err) {
     console.error('[signUp] falha ao bootstrap tenant', err);
     // Aqui a conta do Supabase JÁ existe e a transação do Postgres não: sobra um
@@ -80,6 +94,64 @@ export async function signUp(_prev: ActionResult, formData: FormData): Promise<A
   revalidatePath('/', 'layout');
   // Conta nova cai no onboarding (wizard de 4 passos). O plano escolhido na home é
   // preservado: ao concluir/pular o onboarding, segue pro checkout com ele marcado.
+  const plano = parsePlanParam(formData.get('plano') as string | null);
+  redirect(plano ? `/onboarding?plano=${plano.toLowerCase()}` : '/onboarding');
+}
+
+const ownerSetupSchema = z.object({
+  businessName: z.string().min(2, 'Nome do estabelecimento muito curto').max(80),
+  acceptTerms: z.literal('on', {
+    errorMap: () => ({ message: 'É preciso aceitar os Termos e a Política de Privacidade.' }),
+  }),
+});
+
+/**
+ * Conclui o cadastro do DONO que entrou via Google. O auth.users já existe (OAuth), então
+ * aqui só falta o nome do estabelecimento pra criar Tenant + User - nome e e-mail vêm da
+ * sessão do Google. Chega pela tela /signup/estabelecimento (ver /auth/callback flow=owner).
+ */
+export async function createOwnerFromOAuth(
+  _prev: ActionResult,
+  formData: FormData,
+): Promise<ActionResult> {
+  const parsed = ownerSetupSchema.safeParse({
+    businessName: formData.get('businessName'),
+    acceptTerms: formData.get('acceptTerms'),
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? 'Dados inválidos' };
+  }
+
+  const authUser = await getAuthUser();
+  if (!authUser?.email) redirect('/signup'); // sessão sumiu: refaz o login com o Google
+
+  // Idempotente: se já virou dono (duplo submit / voltou na tela), não recria.
+  const existing = await prisma.user.findUnique({ where: { authId: authUser.id } });
+  if (existing) redirect('/dashboard');
+
+  const meta = authUser.user_metadata as { full_name?: string; name?: string } | null;
+  const ownerName = (meta?.full_name ?? meta?.name ?? '').trim() || authUser.email.split('@')[0];
+
+  try {
+    await createOwnerTenant({
+      authId: authUser.id,
+      email: authUser.email,
+      ownerName,
+      businessName: parsed.data.businessName,
+    });
+  } catch (err) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+      // E-mail/authId já vinculado a outro painel: manda entrar em vez de duplicar.
+      return { error: 'Esse e-mail já tem um painel. Entre com e-mail e senha.' };
+    }
+    console.error('[createOwnerFromOAuth] falha ao bootstrap tenant', err);
+    Sentry.captureException(err, {
+      tags: { component: 'signup-oauth', phase: 'bootstrap-tenant' },
+    });
+    return { error: 'Não foi possível criar o estabelecimento' };
+  }
+
+  revalidatePath('/', 'layout');
   const plano = parsePlanParam(formData.get('plano') as string | null);
   redirect(plano ? `/onboarding?plano=${plano.toLowerCase()}` : '/onboarding');
 }
