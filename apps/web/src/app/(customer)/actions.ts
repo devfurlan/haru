@@ -26,7 +26,7 @@ import {
   updateCustomerProfileCore,
 } from '@/lib/customer';
 import { requireCustomerAccount } from '@/lib/customer-auth';
-import { upsertReview } from '@/lib/reviews';
+import { requestOwnerContact, upsertReview } from '@/lib/reviews';
 import { withinRateLimitFor } from '@/lib/ratelimit';
 import { normalizePhoneBR } from '@haru/shared';
 import { safeInternalPath } from '@/lib/safe-redirect';
@@ -525,6 +525,17 @@ export async function customerSubmitReview(input: {
   const res = await upsertReview(account, input.tenantId, input.rating, input.comment ?? null);
   if ('error' in res) return res;
   revalidatePath('/conta/agendamentos');
+  return { ok: true };
+}
+
+/** Cliente com nota baixa pede que o dono entre em contato pra resolver (acende o sino dele). */
+export async function customerRequestOwnerContact(input: {
+  tenantId: string;
+}): Promise<CustomerActionResult> {
+  const account = await requireCustomerAccount();
+  if (!input.tenantId) return { error: 'Estabelecimento inválido' };
+  const res = await requestOwnerContact(account, input.tenantId);
+  if ('error' in res) return res;
   return { ok: true };
 }
 

@@ -4,7 +4,7 @@ import { ArrowLeft, Star } from 'lucide-react';
 import Link from 'next/link';
 import { useState, useTransition } from 'react';
 
-import { customerSubmitReview } from '@/app/(customer)/actions';
+import { customerRequestOwnerContact, customerSubmitReview } from '@/app/(customer)/actions';
 import { TenantAvatar } from '@/components/customer/tenant-avatar';
 import type { CustomerAppointmentItem } from '@/lib/customer';
 import { cn } from '@/lib/utils';
@@ -54,6 +54,20 @@ export function AvaliarClient({
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  // Nudge de nota baixa: pedido de contato ao dono (só aparece no agradecimento, rating <= 2).
+  const [contactRequested, setContactRequested] = useState(false);
+  const [contactPending, startContact] = useTransition();
+
+  function askOwnerContact() {
+    startContact(async () => {
+      const res = await customerRequestOwnerContact({ tenantId: item.tenant.id });
+      if (res && 'error' in res) {
+        setError(res.error);
+        return;
+      }
+      setContactRequested(true);
+    });
+  }
 
   const chipList = rating >= 4 ? CHIPS_BONS : CHIPS_RUINS;
 
@@ -106,6 +120,43 @@ export function AvaliarClient({
             Sua avaliação de ★ {rating},0 já foi pro {item.tenant.name}. Isso ajuda outros clientes
             a escolher melhor.
           </p>
+
+          {/* Nota baixa: oferece resgate pelo dono. A avaliação continua pública. */}
+          {rating <= 2 ? (
+            <div className="mx-auto mt-6 max-w-[420px] rounded-[16px] border border-[rgba(250,245,234,0.18)] bg-[rgba(250,245,234,0.06)] p-5">
+              {contactRequested ? (
+                <p className="text-[14px] leading-[1.5] text-[#cfe6d8]">
+                  Pronto. O {item.tenant.name} foi avisado e pode te procurar pra resolver.
+                </p>
+              ) : (
+                <>
+                  <p className="text-cream text-[14.5px] font-semibold">Não rolou dessa vez?</p>
+                  <p className="mt-1 text-[13px] leading-[1.5] text-[#8fbfa4]">
+                    Se quiser, o {item.tenant.name} pode entrar em contato pra resolver.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={askOwnerContact}
+                    disabled={contactPending}
+                    className="bg-coral mt-3.5 rounded-[12px] px-5 py-3 text-[13.5px] font-bold text-white transition-transform active:scale-[0.97] disabled:opacity-60"
+                  >
+                    {contactPending ? 'Enviando…' : 'Quero que entrem em contato'}
+                  </button>
+                </>
+              )}
+            </div>
+          ) : null}
+
+          {/* Nota boa: convida a voltar. */}
+          {rating >= 4 ? (
+            <Link
+              href={`/${item.tenant.slug}`}
+              className="text-green-bright mt-6 inline-block text-[14px] font-bold hover:underline"
+            >
+              Gostou? Agende sua próxima →
+            </Link>
+          ) : null}
+
           <div className="mt-7 flex justify-center gap-2.5">
             <Link
               href="/conta/agendamentos"

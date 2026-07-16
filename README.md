@@ -322,6 +322,19 @@ O DONO é avisado dos eventos de assinante (novo assinante, cancelou, pagamento 
 
 > ⚠️ **Manutenção:** mesma regra - alterou template/parâmetro/corpo, atualiza aqui na mesma mudança.
 
+### Convite de avaliação (template da PLATAFORMA ao cliente)
+
+Enviado **pelo número da plataforma** Demandaê ~1h após o fim do atendimento (`REVIEW_INVITE_DELAY_HOURS` em [apps/web/src/lib/comms/review-invite.ts](apps/web/src/lib/comms/review-invite.ts)), pelo cron [/api/cron/review-invites](apps/web/src/app/api/cron/review-invites/route.ts). Quem tem o app recebe por **push** (abre a tela nativa de avaliar); sem app cai no WhatsApp; e-mail sempre. Categoria `UTILITY` (pergunta sobre o próprio atendimento - **sem** "aproveite/promoção"). Env-gated e fail-soft: sem `WHATSAPP_PLATFORM_PHONE_NUMBER_ID` / `WHATSAPP_PLATFORM_ACCESS_TOKEN` + o template, vira no-op logado (push + e-mail cobrem). Só convida uma vez por atendimento e nunca quem já avaliou o estabelecimento; respeita o opt-out de lembretes (`Contact.remindersOptOutAt`).
+
+#### Como foi seu atendimento?
+
+- **Nome (env `WHATSAPP_TEMPLATE_REVIEW_INVITE`):** sugestão `demandae_review_invite` · **Idioma:** `pt_BR` · **Categoria Meta:** `UTILITY`
+- **Variáveis:** `{{1}}` cliente · `{{2}}` serviço · `{{3}}` estabelecimento · `{{4}}` link para avaliar
+- **Corpo sugerido:**
+  > Oi, {{1}}! Como foi seu {{2}} na {{3}}? Conta rapidinho, leva 10 segundos e ajuda outras pessoas: {{4}}
+
+> ⚠️ **Manutenção:** mesma regra - alterou template/parâmetro/corpo, atualiza aqui na mesma mudança.
+
 ## Deploy
 
 - **web** → Vercel

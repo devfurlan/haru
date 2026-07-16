@@ -280,6 +280,7 @@ export default async function TenantPublicPage({
         rating: r.rating,
         comment: r.comment,
         ago: timeAgoBR(r.createdAt),
+        ownerReply: r.ownerReply,
       }))}
       status={{ open: st.open, shortLabel, longLabel }}
       hours={hours}

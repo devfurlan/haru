@@ -28,6 +28,7 @@ export interface PublicProfileReview {
   rating: number;
   comment: string;
   ago: string;
+  ownerReply: string | null;
 }
 
 export interface PublicProfileHours {
@@ -468,6 +469,16 @@ export function PublicProfile({
                       <Stars rating={r.rating} />
                     </div>
                     <p className="text-ink-70 mt-2.5 text-[13.5px] leading-[1.6]">{r.comment}</p>
+                    {r.ownerReply ? (
+                      <div className="border-line bg-cream-2 mt-2.5 rounded-xl border px-3.5 py-2.5">
+                        <div className="text-ink-50 text-[10px] font-bold uppercase tracking-[0.1em]">
+                          Resposta de {tenantName}
+                        </div>
+                        <p className="text-ink-70 mt-1 text-[13px] leading-[1.55]">
+                          {r.ownerReply}
+                        </p>
+                      </div>
+                    ) : null}
                   </div>
                 ))}
               </div>

@@ -3,6 +3,8 @@ import 'server-only';
 import { prisma } from '@haru/database';
 import type { CustomerAccount } from '@haru/database';
 
+import { createNotification } from '@/lib/comms/notifications';
+
 // Avaliações do cliente ao estabelecimento. Gate: só quem já foi atendido no tenant
 // (horário passado, sem cancelamento/falta - ver isReviewable) pode avaliar; NÃO depende
 // de o dono marcar "Atendido" (COMPLETED). A média/contagem ficam denormalizadas em
@@ -18,6 +20,8 @@ export interface PublicReview {
   rating: number;
   comment: string;
   createdAt: Date;
+  ownerReply: string | null;
+  ownerRepliedAt: Date | null;
 }
 
 /**
@@ -33,6 +37,8 @@ export async function getPublicReviews(tenantId: string, limit = 6): Promise<Pub
       rating: true,
       comment: true,
       createdAt: true,
+      ownerReply: true,
+      ownerRepliedAt: true,
       customerAccount: { select: { name: true } },
     },
   });
@@ -41,6 +47,8 @@ export async function getPublicReviews(tenantId: string, limit = 6): Promise<Pub
     rating: r.rating,
     comment: r.comment as string,
     createdAt: r.createdAt,
+    ownerReply: r.ownerReply,
+    ownerRepliedAt: r.ownerRepliedAt,
   }));
 }
 
@@ -119,6 +127,137 @@ export async function upsertReview(
       where: { id: tenantId },
       data: { ratingAvg: agg._avg.rating ?? null, ratingCount: agg._count._all },
     });
+  });
+  return { ok: true };
+}
+
+// --- Painel do dono -----------------------------------------------------------
+
+export interface TenantReviewRow {
+  id: string;
+  rating: number;
+  comment: string | null;
+  customerName: string | null;
+  createdAt: Date;
+  ownerReply: string | null;
+  ownerRepliedAt: Date | null;
+  /** Cliente (nota baixa) pediu que o dono entre em contato pra resolver. */
+  contactRequested: boolean;
+}
+
+export interface TenantReviewsSummary {
+  avg: number | null;
+  count: number;
+  /** Contagem por nota: distribution[0] = 1★ ... distribution[4] = 5★. */
+  distribution: [number, number, number, number, number];
+  /** Quantas já têm resposta do dono. */
+  replied: number;
+  /** Quantas têm pedido de contato aberto (nota baixa). */
+  contactRequests: number;
+  reviews: TenantReviewRow[];
+}
+
+/**
+ * Todas as avaliações do tenant pro painel do dono (mais recentes primeiro), com o agregado
+ * pronto (média, total, distribuição, respondidas, pedidos de contato). Ao contrário do
+ * getPublicReviews, inclui as SEM comentário (o dono vê a nota mesmo sem texto).
+ */
+export async function getTenantReviews(tenantId: string): Promise<TenantReviewsSummary> {
+  const rows = await prisma.review.findMany({
+    where: { tenantId },
+    orderBy: { createdAt: 'desc' },
+    select: {
+      id: true,
+      rating: true,
+      comment: true,
+      createdAt: true,
+      ownerReply: true,
+      ownerRepliedAt: true,
+      contactRequestedAt: true,
+      customerAccount: { select: { name: true } },
+    },
+  });
+
+  const distribution: [number, number, number, number, number] = [0, 0, 0, 0, 0];
+  let sum = 0;
+  let replied = 0;
+  let contactRequests = 0;
+  for (const r of rows) {
+    distribution[r.rating - 1] += 1;
+    sum += r.rating;
+    if (r.ownerReply) replied += 1;
+    if (r.contactRequestedAt) contactRequests += 1;
+  }
+
+  return {
+    avg: rows.length ? sum / rows.length : null,
+    count: rows.length,
+    distribution,
+    replied,
+    contactRequests,
+    reviews: rows.map((r) => ({
+      id: r.id,
+      rating: r.rating,
+      comment: r.comment,
+      customerName: r.customerAccount.name,
+      createdAt: r.createdAt,
+      ownerReply: r.ownerReply,
+      ownerRepliedAt: r.ownerRepliedAt,
+      contactRequested: r.contactRequestedAt != null,
+    })),
+  };
+}
+
+/**
+ * Resposta pública do dono a uma avaliação. Ownership por (id, tenantId) - nunca findUnique
+ * só por id (IDOR entre tenants). Editável: texto vazio/null limpa a resposta. NÃO recomputa
+ * ratingAvg/ratingCount (a média depende só da nota, não da resposta).
+ */
+export async function replyToReview(
+  tenantId: string,
+  reviewId: string,
+  textRaw: string | null,
+): Promise<{ ok: true } | { error: string }> {
+  const review = await prisma.review.findFirst({
+    where: { id: reviewId, tenantId },
+    select: { id: true },
+  });
+  if (!review) return { error: 'Avaliação não encontrada.' };
+
+  const text = (textRaw ?? '').trim().slice(0, 1000) || null;
+  await prisma.review.update({
+    where: { id: reviewId },
+    data: { ownerReply: text, ownerRepliedAt: text ? new Date() : null },
+  });
+  return { ok: true };
+}
+
+/**
+ * Cliente com nota baixa (1-2) pede que o dono entre em contato pra resolver. Marca a review
+ * (contactRequestedAt) e acende o sino in-app do dono. A review segue pública. Precisa já ter
+ * avaliado (a UI só oferece isto depois de salvar).
+ */
+export async function requestOwnerContact(
+  account: CustomerAccount,
+  tenantId: string,
+): Promise<{ ok: true } | { error: string }> {
+  const review = await prisma.review.findUnique({
+    where: { customerAccountId_tenantId: { customerAccountId: account.id, tenantId } },
+    select: { id: true, rating: true },
+  });
+  if (!review) return { error: 'Avalie primeiro.' };
+
+  await prisma.review.update({
+    where: { id: review.id },
+    data: { contactRequestedAt: new Date() },
+  });
+
+  const nome = account.name ?? 'Um cliente';
+  await createNotification(tenantId, 'ACCOUNT', 'review.contact_requested', {
+    title: 'Cliente pediu contato',
+    body: `${nome} deu nota ${review.rating} e quer que você resolva.`,
+    ctaLabel: 'Ver avaliação',
+    ctaHref: '/reviews',
   });
   return { ok: true };
 }

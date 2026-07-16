@@ -110,6 +110,8 @@ export async function rescheduleAppointmentCore(args: {
       // horário (WhatsApp e push; o e-mail mantém o comportamento atual do código).
       reminderSentAt: null,
       reminderPushSentAt: null,
+      // Atendimento moveu: re-arma o convite de avaliação pro novo horário.
+      reviewInviteSentAt: null,
     },
   });
 

@@ -8,6 +8,7 @@ import {
   Repeat,
   Scissors,
   Settings,
+  Star,
   Upload,
   User,
   Users,
@@ -74,6 +75,15 @@ export const NAV_ITEMS: NavItem[] = [
     adminOnly: true,
   },
   { key: 'fidelidade', label: 'Fidelidade', href: '/loyalty', icon: Gift, group: 'negocio' },
+  {
+    // Avaliações do estabelecimento (todos os planos). adminOnly: responder é ação de dono.
+    key: 'avaliacoes',
+    label: 'Avaliações',
+    href: '/reviews',
+    icon: Star,
+    group: 'negocio',
+    adminOnly: true,
+  },
   {
     // Assinatura de serviços DO CLIENTE ao estabelecimento (feature Time+). adminOnly: mostra
     // MRR/receita do dono, então só o dono vê. Página faz o gate de tier com upsell pro Solo.

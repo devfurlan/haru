@@ -189,7 +189,12 @@ export default function AppointmentsScreen() {
             <>
               <View className="gap-3">
                 {list.map((item, i) => (
-                  <AppointmentCard key={item.id} item={item} first={i === 0} />
+                  <AppointmentCard
+                    key={item.id}
+                    item={item}
+                    first={i === 0}
+                    reviewRating={data?.reviews?.[item.tenant.id] ?? null}
+                  />
                 ))}
               </View>
               {tab === 'upcoming' && past.length > 0 ? <ConcluidosPreview items={past} /> : null}

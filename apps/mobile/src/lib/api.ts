@@ -58,7 +58,14 @@ export type AppointmentItem = {
   payment: PaymentLite;
 };
 
-export type AppointmentsData = { upcoming: AppointmentItem[]; past: AppointmentItem[] };
+export type AppointmentsData = {
+  upcoming: AppointmentItem[];
+  past: AppointmentItem[];
+  /** { [tenantId]: nota } - notas do cliente por estabelecimento (chip "sua nota"). */
+  reviews: Record<string, number>;
+};
+
+export type MyReview = { rating: number | null; comment: string | null; canReview: boolean };
 
 // Estabelecimento no diretório de busca (GET /tenants/search).
 export type DiscoverTenant = {
@@ -508,6 +515,20 @@ export const api = {
   getSupport: () => request<{ history: SupportTurn[] }>('/support'),
   sendSupport: (text: string) =>
     request<{ reply: string }>('/support', { method: 'POST', body: JSON.stringify({ text }) }),
+
+  // --- Avaliações ---
+  myReview: (tenantId: string) =>
+    request<MyReview>(`/reviews?tenantId=${encodeURIComponent(tenantId)}`),
+  submitReview: (tenantId: string, rating: number, comment: string) =>
+    request<{ ok: true }>('/reviews', {
+      method: 'POST',
+      body: JSON.stringify({ tenantId, rating, comment }),
+    }),
+  requestOwnerContact: (tenantId: string) =>
+    request<{ ok: true }>('/reviews/contact', {
+      method: 'POST',
+      body: JSON.stringify({ tenantId }),
+    }),
 
   // --- Push ---
   pushRegister: (expoPushToken: string, platform: string) =>

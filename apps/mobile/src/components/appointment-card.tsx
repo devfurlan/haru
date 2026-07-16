@@ -1,4 +1,4 @@
-import { Link } from 'expo-router';
+import { Link, type Href } from 'expo-router';
 import { Pressable, View } from 'react-native';
 
 import { Text } from '@/components/text';
@@ -38,10 +38,22 @@ function parts(iso: string, tz: string) {
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
-export function AppointmentCard({ item, first }: { item: AppointmentItem; first?: boolean }) {
+export function AppointmentCard({
+  item,
+  first,
+  reviewRating,
+}: {
+  item: AppointmentItem;
+  first?: boolean;
+  /** Nota que o cliente já deu a este estabelecimento (null = ainda não avaliou). */
+  reviewRating?: number | null;
+}) {
   const status = STATUS_LABEL[item.status];
   const { day, month, weekday, time } = parts(item.startsAt, item.tenant.timezone);
   const dim = item.status === 'CANCELED' || item.isPast;
+
+  // Avaliável = já compareceu (passou e não foi cancelado/falta) - espelha isReviewable do web.
+  const reviewable = item.isPast && item.status !== 'CANCELED' && item.status !== 'NO_SHOW';
 
   // "Sáb, 5 jul · 15h30"
   const whenLine = `${cap(weekday)}, ${Number(day)} ${month} · ${time.replace(':', 'h')}`;
@@ -86,7 +98,19 @@ export function AppointmentCard({ item, first }: { item: AppointmentItem; first?
             >
               {whenLine}
             </Text>
-            <Text className="text-coral text-[13px] font-bold">Ver</Text>
+            {reviewable && reviewRating != null ? (
+              <Text className="text-sub text-[12.5px] font-bold">
+                ★ {reviewRating},0 · sua nota
+              </Text>
+            ) : reviewable ? (
+              <Link href={`/avaliar/${item.id}` as Href} asChild>
+                <Pressable hitSlop={6} className="bg-coral rounded-full px-3 py-1.5 active:opacity-80">
+                  <Text className="text-[12px] font-bold text-white">Avaliar</Text>
+                </Pressable>
+              </Link>
+            ) : (
+              <Text className="text-coral text-[13px] font-bold">Ver</Text>
+            )}
           </View>
         </View>
       </Pressable>

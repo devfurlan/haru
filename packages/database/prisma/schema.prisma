@@ -330,6 +330,14 @@ model Review {
   /// Nota de 1 a 5 (validada na escrita).
   rating            Int
   comment           String?
+  /// Resposta pública do dono a esta avaliação (aparece na vitrine, abaixo do comentário).
+  /// null = ainda sem resposta. Editável (upsert de texto; null limpa). NÃO afeta a média.
+  ownerReply        String?
+  ownerRepliedAt    DateTime?
+  /// Marcado quando o cliente, após dar nota baixa (1-2), pede que o dono entre em contato
+  /// pra resolver. Acende o sino in-app do dono e destaca a linha no painel. A review segue
+  /// pública. null = sem pedido.
+  contactRequestedAt DateTime?
   createdAt         DateTime        @default(now())
   updatedAt         DateTime        @updatedAt
 
@@ -560,6 +568,10 @@ model Appointment {
   /// Marca de quando o lembrete via PUSH (app) foi enviado. null = ainda não. Mesmo
   /// padrão dos outros canais - evita reenvio a cada tick do loop; zerado na remarcação.
   reminderPushSentAt  DateTime?
+  /// Marca de quando o CONVITE DE AVALIAÇÃO foi despachado (1h após o fim do atendimento).
+  /// null = ainda não. Dedup do cron de convites (evita reenvio); zerado na remarcação pra
+  /// re-armar no novo horário. Mesmo padrão dos reminderXxxSentAt.
+  reviewInviteSentAt  DateTime?
   /// True quando este agendamento nasceu de uma confirmação na FILA DE ESPERA (vaga
   /// recuperada). Alimenta on-read a métrica de receita recuperada no painel do dono.
   fromWaitlist        Boolean            @default(false)

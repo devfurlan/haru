@@ -610,6 +610,8 @@ export async function rescheduleAppointmentForContact(
       // pro novo horário (se cair dentro da janela). Vale pros dois canais.
       reminderSentAt: null,
       reminderEmailSentAt: null,
+      // Atendimento moveu: re-arma o convite de avaliação pro novo horário.
+      reviewInviteSentAt: null,
     },
   });
 

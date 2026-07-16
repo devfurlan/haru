@@ -96,6 +96,10 @@ export async function attachNotificationTap(
         } else {
           navigate('/clube');
         }
+      } else if (data.type === 'review_request' && typeof data.appointmentId === 'string') {
+        // Convite pós-atendimento: abre a tela nativa de avaliar (antes do fallback de
+        // appointmentId, que levaria pro detalhe). Payload: { type, appointmentId, tenantSlug }.
+        navigate(`/avaliar/${data.appointmentId}`);
       } else if (typeof data.appointmentId === 'string') {
         navigate(`/appointment/${data.appointmentId}`);
       }
