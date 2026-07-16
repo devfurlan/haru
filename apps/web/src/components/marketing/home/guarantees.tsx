@@ -93,9 +93,7 @@ export function Guarantees() {
       {ITEMS.map((it) => (
         <div key={it.title}>
           {it.icon}
-          {/* 2 linhas de título fixas: "Suporte de gente, em português" quebra e sem isso
-              as 5 descrições desalinhavam entre si. */}
-          <div className="text-green-deep mt-2.5 min-h-[34px] font-sans text-[13px] font-semibold leading-[1.3]">
+          <div className="text-green-deep mt-2.5 font-sans text-[13px] font-semibold leading-[1.3]">
             {it.title}
           </div>
           <div className="text-ink-70 mt-1 font-sans text-[12px] font-normal leading-[1.45]">

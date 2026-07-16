@@ -6,6 +6,7 @@ import {
   computeAvailableSlots,
   weekdayInTz,
   formatPhoneBR,
+  isReservedSlug,
   normalizePhoneBR,
   matchesSearch,
   normalizeForSearch,
@@ -84,5 +85,17 @@ assert.ok(ics.includes('DTEND:20260715T183000Z'), 'ics DTEND');
 assert.ok(ics.includes('UID:appt-123@demandae'), 'ics UID estável');
 assert.ok(ics.includes('LOCATION:Rua Aurora\\, 210\\; Centro'), 'ics escapa vírgula/;');
 assert.ok(ics.trim().endsWith('END:VCALENDAR'), 'ics fecha VCALENDAR');
+
+// Slugs reservados: rota estática ganha da dinâmica `[slug]`, então toda rota conhecida da
+// raiz precisa estar barrada - inclusive as landings por nicho, senão um tenant registra
+// "barbearia" e a página pública dele fica inalcançável pra sempre.
+assert.ok(isReservedSlug('login'), 'rota de auth reservada');
+assert.ok(isReservedSlug('precos'), 'rota de marketing reservada');
+assert.ok(isReservedSlug('barbearia'), 'landing de nicho reservada');
+assert.ok(isReservedSlug('podologia'), 'landing de nicho reservada');
+assert.ok(isReservedSlug('sitemap.xml'), 'arquivo na raiz reservado');
+assert.ok(isReservedSlug('meu.negocio'), 'slug file-like reservado');
+assert.ok(!isReservedSlug('barbearia-do-leo'), 'slug de tenant comum passa');
+assert.ok(!isReservedSlug('studio-aurora'), 'slug de tenant comum passa');
 
 console.log('shared self-check OK');

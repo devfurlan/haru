@@ -1,4 +1,23 @@
-export function HowItWorks() {
+export type Step = { title: string; body: string };
+
+// Copy da home. As landings de nicho passam os mesmos três passos na língua do nicho
+// (`steps`), mantendo faixa, grid e tipografia idênticos - o molde é o mesmo.
+const HOME_STEPS: Step[] = [
+  {
+    title: 'Você cadastra',
+    body: 'Seus serviços, horários e equipe. Leva minutos, e a gente ajuda.',
+  },
+  {
+    title: 'O cliente agenda',
+    body: 'Sozinho, pelo app ou pela sua página. 24 horas por dia, sem você responder.',
+  },
+  {
+    title: 'Você fatura',
+    body: 'Recebe, cobra e fideliza. Tudo no mesmo lugar, do jeito que já devia ser.',
+  },
+];
+
+export function HowItWorks({ steps = HOME_STEPS }: { steps?: Step[] }) {
   return (
     // Creme forte (não o --cream da página, nem o --paper dos cards): a faixa vem logo
     // depois dos nichos e precisa se destacar do fundo pra não flutuar solta.
@@ -16,39 +35,19 @@ export function HowItWorks() {
           </h2>
         </div>
         <div className="grid grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-[clamp(20px,3vw,32px)]">
-          <div className="flex flex-col items-center text-center">
-            <div className="border-edge bg-paper mb-5 grid h-16 w-16 place-items-center rounded-[50%] border font-serif text-[30px] font-normal leading-[normal] text-[#0C7E41]">
-              1
+          {steps.map((s, i) => (
+            <div key={s.title} className="flex flex-col items-center text-center">
+              <div className="border-edge bg-paper mb-5 grid h-16 w-16 place-items-center rounded-[50%] border font-serif text-[30px] font-normal leading-[normal] text-[#0C7E41]">
+                {i + 1}
+              </div>
+              <h3 className="text-green-deep mb-2 font-serif text-[20px] font-medium leading-[normal]">
+                {s.title}
+              </h3>
+              <p className="text-ink-70 max-w-[280px] font-sans text-[15px] font-normal leading-[1.55]">
+                {s.body}
+              </p>
             </div>
-            <h3 className="text-green-deep mb-2 font-serif text-[20px] font-medium leading-[normal]">
-              Você cadastra
-            </h3>
-            <p className="text-ink-70 max-w-[280px] font-sans text-[15px] font-normal leading-[1.55]">
-              Seus serviços, horários e equipe. Leva minutos, e a gente ajuda.
-            </p>
-          </div>
-          <div className="flex flex-col items-center text-center">
-            <div className="border-edge bg-paper mb-5 grid h-16 w-16 place-items-center rounded-[50%] border font-serif text-[30px] font-normal leading-[normal] text-[#0C7E41]">
-              2
-            </div>
-            <h3 className="text-green-deep mb-2 font-serif text-[20px] font-medium leading-[normal]">
-              O cliente agenda
-            </h3>
-            <p className="text-ink-70 max-w-[280px] font-sans text-[15px] font-normal leading-[1.55]">
-              Sozinho, pelo app ou pela sua página. 24 horas por dia, sem você responder.
-            </p>
-          </div>
-          <div className="flex flex-col items-center text-center">
-            <div className="border-edge bg-paper mb-5 grid h-16 w-16 place-items-center rounded-[50%] border font-serif text-[30px] font-normal leading-[normal] text-[#0C7E41]">
-              3
-            </div>
-            <h3 className="text-green-deep mb-2 font-serif text-[20px] font-medium leading-[normal]">
-              Você fatura
-            </h3>
-            <p className="text-ink-70 max-w-[280px] font-sans text-[15px] font-normal leading-[1.55]">
-              Recebe, cobra e fideliza. Tudo no mesmo lugar, do jeito que já devia ser.
-            </p>
-          </div>
+          ))}
         </div>
       </div>
     </section>

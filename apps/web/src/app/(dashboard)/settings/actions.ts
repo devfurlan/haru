@@ -20,34 +20,12 @@ import { removeAvatar, uploadAvatar } from '@/lib/avatar-storage';
 import { getBaseUrl } from '@/lib/base-url';
 import { geocodeAddress } from '@/lib/geocode';
 import { isPublicWebhookUrl } from '@/lib/safe-url';
-import { normalizePhoneBR } from '@haru/shared';
+import { isReservedSlug, normalizePhoneBR } from '@haru/shared';
 import { createClient } from '@/lib/supabase/server';
 import { getSupabaseAdmin } from '@/lib/supabase/admin';
 import { saveWhatsappCredentials } from '@/lib/whatsapp-credentials';
 import { sendInviteWhatsapp } from '@/lib/whatsapp-invite';
 import { syncWhatsappProfile, uploadWhatsappProfilePicture } from '@/lib/whatsapp-profile';
-
-// Slugs reservados - não podem ser usados como slug de tenant (conflitam com
-// rotas conhecidas em apps/web).
-const RESERVED_SLUGS = new Set([
-  'login',
-  'signup',
-  'ativar',
-  'conta',
-  'dashboard',
-  'appointments',
-  'conversations',
-  'schedule',
-  'services',
-  'settings',
-  'account',
-  'business',
-  'page',
-  'team',
-  'blog',
-  'api',
-  'admin',
-]);
 
 function isValidTimezone(tz: string): boolean {
   try {
@@ -65,7 +43,7 @@ const tenantSchema = z.object({
     .min(2, 'Slug muito curto')
     .max(40)
     .regex(/^[a-z0-9-]+$/, 'Slug aceita só minúsculas, dígitos e hífen')
-    .refine((v) => !RESERVED_SLUGS.has(v), { message: 'Esse slug é reservado pelo sistema' }),
+    .refine((v) => !isReservedSlug(v), { message: 'Esse slug é reservado pelo sistema' }),
   address: z
     .string()
     .max(200, 'Endereço muito longo')

@@ -2,6 +2,7 @@
 
 import { Prisma, prisma } from '@haru/database';
 import type { SubscriptionStatus } from '@haru/database';
+import { isReservedSlug } from '@haru/shared';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 
@@ -10,23 +11,6 @@ import { snapshotPlan } from '@/lib/billing-lite';
 import { encryptSecret } from '@/lib/crypto';
 
 export type FormResult = { error: string } | { ok: true };
-
-const RESERVED_SLUGS = new Set([
-  'login',
-  'signup',
-  'ativar',
-  'dashboard',
-  'appointments',
-  'conversations',
-  'schedule',
-  'services',
-  'settings',
-  'account',
-  'business',
-  'blog',
-  'api',
-  'admin',
-]);
 
 function isValidTimezone(tz: string): boolean {
   try {
@@ -51,7 +35,7 @@ const profileSchema = z.object({
     .min(2, 'Slug muito curto')
     .max(40)
     .regex(/^[a-z0-9-]+$/, 'Slug aceita só minúsculas, dígitos e hífen')
-    .refine((v) => !RESERVED_SLUGS.has(v), { message: 'Esse slug é reservado pelo sistema' }),
+    .refine((v) => !isReservedSlug(v), { message: 'Esse slug é reservado pelo sistema' }),
   address: emptyToNull(200, 'Endereço muito longo'),
   description: emptyToNull(256, 'Descrição muito longa (máx. 256)'),
   whatsappAbout: emptyToNull(139, 'Status muito longo (máx. 139)'),

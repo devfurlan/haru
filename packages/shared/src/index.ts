@@ -6,4 +6,5 @@ export * from './booking-days';
 export * from './calendar';
 export * from './format';
 export * from './recurrence';
+export * from './reserved-slugs';
 export * from './search';

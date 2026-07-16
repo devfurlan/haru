@@ -2,7 +2,11 @@
 
 import { useState } from 'react';
 
-const faqs = [
+export type FaqItem = { q: string; a: string };
+
+// Copy da home. As landings de nicho passam as objeções do nicho (`items`) no mesmo
+// acordeão - só muda o conteúdo.
+const HOME_FAQS: FaqItem[] = [
   {
     q: 'Meu cliente precisa baixar o app?',
     a: 'Não. O app existe pra quem gosta, mas qualquer cliente agenda pela sua página web pública, direto do navegador, sem instalar nada.',
@@ -29,7 +33,7 @@ const faqs = [
   },
 ];
 
-export function Faq() {
+export function Faq({ items = HOME_FAQS }: { items?: FaqItem[] }) {
   const [open, setOpen] = useState(0);
 
   return (
@@ -49,7 +53,7 @@ export function Faq() {
         </h2>
       </div>
       <div className="flex flex-col gap-3">
-        {faqs.map((f, i) => (
+        {items.map((f, i) => (
           <div key={i} className="border-line bg-paper overflow-hidden rounded-[16px] border">
             <div
               className="flex cursor-pointer items-center justify-between gap-4 px-6 py-5"
