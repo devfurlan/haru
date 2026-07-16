@@ -4,7 +4,7 @@ import { Logo } from '@/components/logo';
 
 // Shell das telas de auth (login/cadastro/recuperação), compartilhado por dono e cliente.
 // Split: painel esmeralda com a proposta da marca à esquerda (desktop), formulário
-// em card creme à direita. Cada página traz seu próprio título/form dentro do card.
+// direto sobre o creme à direita (sem card). Cada página traz seu próprio título/form.
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen flex-wrap items-stretch">
@@ -37,9 +37,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           <Link href="/" aria-label="Demandaê" className="mb-6 inline-flex md:hidden">
             <Logo size="md" />
           </Link>
-          <div className="border-line bg-paper shadow-soft rounded-[22px] border p-7">
-            {children}
-          </div>
+          {children}
         </div>
       </div>
     </div>
