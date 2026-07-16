@@ -2,17 +2,30 @@ import Link from 'next/link';
 
 import { Logo } from '@/components/logo';
 
-// Rodapé em 3 colunas (layout da home antiga). Os destinos NÃO são os do rodapé antigo:
+// Rodapé em colunas (layout da home antiga). Os destinos NÃO são os do rodapé antigo:
 // ele apontava pra âncoras da home velha que não existem mais (#cliente, #recursos,
-// #planos), então "Recursos"/"Planos" vão pras páginas reais e as duas âncoras que
-// sobraram (#como-funciona, #faq) têm id declarado nas seções correspondentes.
+// #planos), então os itens vão pras páginas reais e as duas âncoras que sobraram
+// (#como-funciona, #faq) têm id declarado nas seções correspondentes.
+//
+// Os rótulos das páginas batem com os do menu de propósito ("Funcionalidades", não
+// "Recursos"; "Preços", não "Planos"): mesmo destino com dois nomes faz o visitante
+// achar que são páginas diferentes. Mudou aqui, muda em marketing-nav.tsx.
 const columns = [
   {
     title: 'Produto',
     links: [
       { href: '/#como-funciona', label: 'Como funciona' },
-      { href: '/funcionalidades', label: 'Recursos' },
-      { href: '/precos', label: 'Planos' },
+      { href: '/funcionalidades', label: 'Funcionalidades' },
+      { href: '/precos', label: 'Preços' },
+    ],
+  },
+  {
+    // Espelha NICHES do menu - o rodapé é o outro lugar onde o Google acha essas
+    // landings. Landing nova entra nos dois.
+    title: 'Para quem é',
+    links: [
+      { href: '/barbearia', label: 'Barbearia' },
+      { href: '/podologia', label: 'Podologia' },
     ],
   },
   {
@@ -61,7 +74,10 @@ export function MarketingFooter() {
                     // SEM camada e vence qualquer `@layer utilities`, independente de
                     // especificidade. Sem o `!` o link herda o ink do body e some no fundo
                     // escuro. Idem `dmd-btn` em home/btn.tsx.
-                    className="hv-green text-on-emerald! font-sans text-[14px] font-medium leading-[normal]"
+                    // hover:text-green! (não a classe `hv-green`): a base `text-on-emerald!`
+                    // é layered-important e venceria o hover unlayered do globals; o
+                    // utilitário de hover fica na mesma layer e ganha por especificidade.
+                    className="text-on-emerald! hover:text-green! font-sans text-[14px] font-medium leading-[normal]"
                   >
                     {l.label}
                   </Link>

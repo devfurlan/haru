@@ -39,7 +39,7 @@ export function Faq({ items = HOME_FAQS }: { items?: FaqItem[] }) {
   return (
     <section
       id="faq"
-      className="mx-auto max-w-[820px] px-[clamp(20px,5vw,40px)] py-[clamp(56px,7vw,88px)]"
+      className="scroll-mt-17.5 mx-auto max-w-[820px] px-[clamp(20px,5vw,40px)] py-[clamp(56px,7vw,88px)]"
     >
       <div className="mb-9 text-center">
         <div className="mb-3.5 inline-flex items-center gap-2">

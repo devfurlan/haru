@@ -21,7 +21,7 @@ export function HowItWorks({ steps = HOME_STEPS }: { steps?: Step[] }) {
   return (
     // Creme forte (não o --cream da página, nem o --paper dos cards): a faixa vem logo
     // depois dos nichos e precisa se destacar do fundo pra não flutuar solta.
-    <section id="como-funciona" className="border-edge bg-cream-2 border-y">
+    <section id="como-funciona" className="border-edge bg-cream-2 scroll-mt-17.5 border-y">
       <div className="mx-auto max-w-[1080px] px-[clamp(20px,5vw,40px)] py-[clamp(56px,7vw,88px)]">
         <div className="mx-auto mb-[clamp(36px,4vw,52px)] max-w-[600px] text-center">
           <div className="mb-3.5 inline-flex items-center gap-2">

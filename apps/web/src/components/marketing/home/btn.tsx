@@ -21,16 +21,20 @@ export function Btn({
   size = 'md',
   full = false,
   href = '/signup',
+  onClick,
 }: {
   children: ReactNode;
   variant?: 'primary' | 'secondary';
   size?: 'md' | 'lg';
   full?: boolean;
   href?: string;
+  /** Ex.: fechar o menu mobile ao navegar. A navegação do Link acontece do mesmo jeito. */
+  onClick?: () => void;
 }) {
   return (
     <Link
       href={href}
+      onClick={onClick}
       className={cn(
         'dmd-btn inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md font-sans text-[15px] font-semibold leading-[1]',
         pads[size],

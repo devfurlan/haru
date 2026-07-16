@@ -314,7 +314,13 @@
 .dmd-home .dmd-btn:active {
   transform: scale(0.955);
 }
-/* hovers do protótipo (substituem o atributo `style-hover` do DS). */
+/* hovers do protótipo (substituem o atributo `style-hover` do DS).
+   NÃO adianta pôr `!important` aqui: quando o link também tem uma cor de base com `!`
+   (ex.: `text-ink-50!`), essa base vive em `@layer utilities`, e para declarações
+   `!important` a precedência de camada INVERTE - important dentro de layer vence important
+   fora de layer. Então o hover !important unlayered perderia pra base layered. Onde o link
+   tem cor-base com `!`, o hover precisa ser um utilitário na MESMA layer (`hover:text-x!`),
+   que vence por especificidade. Estas regras seguem valendo pros usos sem cor-base `!`. */
 .dmd-home .hv-emerald:hover {
   color: var(--emerald);
 }
