@@ -56,6 +56,9 @@ const RESERVED_SLUGS = new Set([
   // landings por nicho (components/marketing/nicho/content.tsx)
   'barbearia',
   'podologia',
+  'salao',
+  'clinica-estetica',
+  'estetica',
 ]);
 
 const FILE_LIKE_SLUG = /\.[a-z0-9]+$/i;

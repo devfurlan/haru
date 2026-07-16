@@ -15,6 +15,9 @@ import { Btn } from './home/btn';
 // RESERVED_SLUGS, ver nicho/content.tsx).
 const NICHES = [
   { href: '/barbearia', label: 'Barbearia' },
+  { href: '/salao', label: 'Salão de beleza' },
+  { href: '/clinica-estetica', label: 'Clínica de estética' },
+  { href: '/estetica', label: 'Estética e spa' },
   { href: '/podologia', label: 'Podologia' },
 ];
 
@@ -101,7 +104,7 @@ export function MarketingNav() {
                 nichesOpen ? 'visible opacity-100' : 'invisible opacity-0',
               )}
             >
-              <div className="border-line bg-paper flex min-w-[190px] flex-col rounded-2xl border p-1.5 shadow-[var(--shadow-raised)]">
+              <div className="border-line bg-paper flex min-w-[214px] flex-col rounded-2xl border p-1.5 shadow-[var(--shadow-raised)]">
                 {NICHES.map((n) => (
                   <Link
                     key={n.href}
@@ -116,9 +119,16 @@ export function MarketingNav() {
                     {n.label}
                   </Link>
                 ))}
-                <span className="text-ink-30 border-line mt-1 border-t px-3 pb-1 pt-2.5 font-sans text-[12px] font-medium leading-[1.35]">
-                  Serve pra todo negócio de hora marcada.
-                </span>
+                {/* Antes era texto morto de rodapé; virou o atalho pra home ("serve pra todos"),
+                    discreto e separado por divisor. mt-1.5 + o mesmo px dos itens alinha a
+                    borda de ponta a ponta do painel. */}
+                <Link
+                  href="/"
+                  onClick={() => setNichesOpen(false)}
+                  className="border-line text-ink-50! hover:text-green-deep! mx-1 mt-1.5 block border-t px-2 pb-1 pt-2.5 font-sans text-[12.5px] font-medium leading-[1.35]"
+                >
+                  Serve pra todo negócio de hora marcada <span aria-hidden>›</span>
+                </Link>
               </div>
             </div>
           </div>

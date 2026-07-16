@@ -25,6 +25,9 @@ const columns = [
     title: 'Para quem é',
     links: [
       { href: '/barbearia', label: 'Barbearia' },
+      { href: '/salao', label: 'Salão de beleza' },
+      { href: '/clinica-estetica', label: 'Clínica de estética' },
+      { href: '/estetica', label: 'Estética e spa' },
       { href: '/podologia', label: 'Podologia' },
     ],
   },
