@@ -1,5 +1,0 @@
-User-agent: *
-Allow: /
-
-Sitemap: https://www.demandae.com/sitemap.xml
-Host: www.demandae.com
