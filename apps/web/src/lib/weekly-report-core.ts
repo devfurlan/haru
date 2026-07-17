@@ -4,16 +4,20 @@
 // ocupação, e as regras determinísticas do insight.
 
 import type { AppointmentStatus } from '@haru/database';
-import {
-  formatBRLShort,
-  formatTimeInTz,
-  isoDateInTz,
-  localWallTimeToUtc,
-  weekdayInTz,
-} from '@haru/shared';
+import { formatBRLShort, isoDateInTz, localWallTimeToUtc, weekdayInTz } from '@haru/shared';
 
-import { isAttended } from './appointment-status';
 import type { AttendanceStats } from './attendance';
+import {
+  computeCoreMetrics,
+  isRealized,
+  localMinuteOfDay,
+  mergeIntervals,
+  overlapMs,
+  type ScheduleBlockInput,
+  type ScheduleExceptionInput,
+} from './metrics/metrics-core';
+
+export type { ScheduleBlockInput, ScheduleExceptionInput };
 
 const MS_PER_MIN = 60_000;
 /** Meia-noite local em minutos: divisor manhã/tarde. */
@@ -93,27 +97,16 @@ export interface ReportApptInput {
   durationMinutes: number;
 }
 
-export interface ScheduleBlockInput {
-  professionalId: string;
-  weekday: number;
-  startMinute: number;
-  endMinute: number;
-}
-
-export interface ScheduleExceptionInput {
-  /** null = folga do estabelecimento inteiro (vale pra todos os profissionais). */
-  professionalId: string | null;
-  startsAt: Date;
-  endsAt: Date;
-}
+// ScheduleBlockInput / ScheduleExceptionInput vivem no motor (metrics-core) e são
+// re-exportados acima - fonte única dos tipos de agenda/capacidade.
 
 export interface WeeklyReportInput {
   tz: string;
   now: Date;
   window: WeekWindow;
   appts: ReportApptInput[];
-  /** Semana anterior à relatada - só pro comparativo de faturamento. */
-  prevAppts: { startsAt: Date; status: AppointmentStatus; priceCents: number }[];
+  /** Semana anterior à relatada - só pro comparativo de faturamento (regra canônica: endsAt). */
+  prevAppts: { endsAt: Date; status: AppointmentStatus; priceCents: number }[];
   /** Já calculada com a métrica canônica (computeAttendanceStats). */
   attendance: AttendanceStats;
   blocks: ScheduleBlockInput[];
@@ -175,36 +168,18 @@ export interface WeeklyReportData {
 }
 
 // ── Capacidade x ocupação ─────────────────────────────────────────────────────
+// mergeIntervals/overlapMs/localMinuteOfDay vêm do motor (metrics-core) - a matemática de
+// intervalo/folga é fonte única, compartilhada com o computeOccupancy agregado.
 
 interface Interval {
   s: number;
   e: number;
 }
 
-/** Une intervalos sobrepostos pra folga sobreposta não ser descontada duas vezes. */
-function mergeIntervals(list: Interval[]): Interval[] {
-  const out: Interval[] = [];
-  for (const it of [...list].sort((a, b) => a.s - b.s)) {
-    const last = out[out.length - 1];
-    if (last && it.s <= last.e) last.e = Math.max(last.e, it.e);
-    else out.push({ ...it });
-  }
-  return out;
-}
-
-const overlapMs = (a: Interval, b: Interval): number =>
-  Math.max(0, Math.min(a.e, b.e) - Math.max(a.s, b.s));
-
 const daypartKey = (weekday: number, daypart: 'morning' | 'afternoon') => `${weekday}|${daypart}`;
 
 const daypartLabel = (weekday: number, daypart: 'morning' | 'afternoon') =>
   `${WEEKDAY_NAME[weekday]} ${daypart === 'morning' ? 'de manhã' : 'à tarde'}`;
-
-/** Minuto do dia (0..1439) de um instante lido no fuso do tenant. */
-function localMinuteOfDay(d: Date, tz: string): number {
-  const [h, m] = formatTimeInTz(d, tz).split(':').map(Number);
-  return h * 60 + m;
-}
 
 /**
  * Ocupação da semana por (dia da semana, manhã/tarde). Capacidade = janelas de expediente
@@ -362,51 +337,39 @@ export function buildWeeklyReport(input: WeeklyReportInput): WeeklyReportData | 
   const { appts, prevAppts, now, attendance, window } = input;
   if (appts.length === 0) return null;
 
-  // Faturamento = valor de SERVIÇO ENTREGUE (preço de tudo que foi atendido), não caixa.
+  // Métricas escalares (faturamento, ticket, contagens, top serviços, novo×recorrente) vêm do
+  // MOTOR - fonte única (lib/metrics/metrics-core.ts). O relatório só acrescenta o que é dele:
+  // comparativo com a semana anterior, ocupação por daypart e o insight.
+  //
+  // Faturamento = valor de SERVIÇO ENTREGUE (preço de tudo que foi realizado), não caixa.
   // ponytail: atendimento pago com crédito do Clube (Appointment.membershipId != null) entra
   // aqui E o dinheiro dele aparece de novo na linha "Assinaturas" (MRR) - a mesma relação
   // comercial em duas linhas. É DE PROPÓSITO (decisão confirmada com o dono do produto em
-  // 14/07): pro dono, "faturamento" = "quanto de serviço eu vendi essa semana", e excluir os
-  // cobertos por crédito faria o número não bater com a contagem de atendidos ("atendi 10,
-  // mas só conta 7?"). NÃO "conserte" isso achando que é double-count acidental. Se um dia a
-  // leitura contábil importar mais que a do dono, o filtro é um `!a.membershipId` aqui - e aí
-  // ReportApptInput precisa carregar o membershipId (hoje não carrega, justamente por isso).
-  const attendedAppts = appts.filter((a) => isAttended(a, now));
-  const revenueCents = attendedAppts.reduce((s, a) => s + a.priceCents, 0);
-  const ticketCents =
-    attendedAppts.length > 0 ? Math.round(revenueCents / attendedAppts.length) : 0;
+  // 14/07): pro dono, "faturamento" = "quanto de serviço eu vendi essa semana". O motor soma
+  // TODOS os realizados (revenueOf não olha membershipId), preservando esse comportamento.
+  const m = computeCoreMetrics(appts, now, {
+    window: { start: window.start, end: window.end },
+    firstVisitByContact: input.firstVisitByContact,
+  });
+  const revenueCents = m.revenueCents;
+  const ticketCents = m.ticketCents;
 
   // Sem semana anterior COM MOVIMENTO não há comparativo honesto (estabelecimento novo ou
-  // semana parada): omite em vez de comparar contra zero.
-  const prevAttended = prevAppts.filter((a) => isAttended(a, now));
+  // semana parada): omite em vez de comparar contra zero. Mesma regra canônica (isRealized).
   const prevRevenueCents =
-    prevAppts.length > 0 ? prevAttended.reduce((s, a) => s + a.priceCents, 0) : null;
+    prevAppts.length > 0
+      ? prevAppts.filter((a) => isRealized(a, now)).reduce((s, a) => s + a.priceCents, 0)
+      : null;
   const deltaCents = prevRevenueCents !== null ? revenueCents - prevRevenueCents : null;
   const deltaPct =
     prevRevenueCents !== null && prevRevenueCents > 0
       ? Math.round(((revenueCents - prevRevenueCents) / prevRevenueCents) * 100)
       : null;
 
-  // Top 3 serviços entre os atendidos (por receita - é o que o dono quer ver no topo).
-  const byService = new Map<string, TopService>();
-  for (const a of attendedAppts) {
-    const cur = byService.get(a.serviceId) ?? { name: a.serviceName, count: 0, revenueCents: 0 };
-    cur.count++;
-    cur.revenueCents += a.priceCents;
-    byService.set(a.serviceId, cur);
-  }
-  const topServices = [...byService.values()]
-    .sort((a, b) => b.revenueCents - a.revenueCents || b.count - a.count)
-    .slice(0, 3);
-
-  // Novo = o PRIMEIRO atendimento do contato no tenant caiu nesta semana.
-  let newCustomers = 0;
-  let returningCustomers = 0;
-  for (const contactId of new Set(attendedAppts.map((a) => a.contactId))) {
-    const first = input.firstVisitByContact.get(contactId);
-    if (first && first >= window.start && first < window.end) newCustomers++;
-    else returningCustomers++;
-  }
+  // Top 3 serviços do motor (já ordenados por receita); drop do serviceId pro formato do e-mail.
+  const topServices: TopService[] = m.topServices
+    .slice(0, 3)
+    .map((s) => ({ name: s.name, count: s.count, revenueCents: s.revenueCents }));
 
   const dayparts = computeDayparts(input);
   const idleMin = dayparts.reduce((s, x) => s + x.idleMin, 0);
@@ -426,9 +389,9 @@ export function buildWeeklyReport(input: WeeklyReportInput): WeeklyReportData | 
     prevRevenueCents,
     deltaCents,
     deltaPct,
-    total: appts.length,
-    attended: attendedAppts.length,
-    canceled: appts.filter((a) => a.status === 'CANCELED').length,
+    total: m.total,
+    attended: m.realized,
+    canceled: m.canceled,
     noShow: attendance.noShow,
     attendanceRate: attendance.attendanceRate,
     noShowRate: attendance.noShowRate,
@@ -436,8 +399,8 @@ export function buildWeeklyReport(input: WeeklyReportInput): WeeklyReportData | 
     idleSlots,
     idleCents,
     topServices,
-    newCustomers,
-    returningCustomers,
+    newCustomers: m.newCustomers,
+    returningCustomers: m.returningCustomers,
     recovered: input.recovered,
     club: input.club,
   };

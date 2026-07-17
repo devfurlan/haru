@@ -17,6 +17,7 @@ import { dateStrOf, dayLabel } from '@/lib/waitlist-core';
 export async function recoveredStats(
   tenantId: string,
   range: { from: Date; to: Date },
+  filters: { professionalId?: string; serviceId?: string } = {},
 ): Promise<{ count: number; revenueCents: number }> {
   const appts = await prisma.appointment.findMany({
     where: {
@@ -24,6 +25,8 @@ export async function recoveredStats(
       fromWaitlist: true,
       status: { not: 'CANCELED' },
       createdAt: { gte: range.from, lt: range.to },
+      ...(filters.professionalId ? { professionalId: filters.professionalId } : {}),
+      ...(filters.serviceId ? { serviceId: filters.serviceId } : {}),
     },
     select: { service: { select: { priceCents: true } } },
   });

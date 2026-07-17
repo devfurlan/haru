@@ -51,7 +51,7 @@ export async function getWeeklyReportData(
   const [prevAppts, blocks, exceptions, firstVisits, club] = await Promise.all([
     prisma.appointment.findMany({
       where: { tenantId: tenant.id, startsAt: { gte: window.prevStart, lt: window.start } },
-      select: { startsAt: true, status: true, service: { select: { priceCents: true } } },
+      select: { endsAt: true, status: true, service: { select: { priceCents: true } } },
     }),
     prisma.scheduleBlock.findMany({
       where: { tenantId: tenant.id },
@@ -107,7 +107,7 @@ export async function getWeeklyReportData(
       durationMinutes: a.service.durationMinutes,
     })),
     prevAppts: prevAppts.map((a) => ({
-      startsAt: a.startsAt,
+      endsAt: a.endsAt,
       status: a.status,
       priceCents: a.service.priceCents,
     })),

@@ -1,8 +1,8 @@
 import { prisma } from '@haru/database';
 import { formatBRL } from '@haru/shared';
 
-import { isAttended } from '@/lib/appointment-status';
 import { requireUserAndTenant } from '@/lib/auth';
+import { isRealized, revenueOf } from '@/lib/metrics/metrics-core';
 
 import { ClientsList, type ClientRow } from './clients-list';
 
@@ -18,6 +18,7 @@ export default async function ClientsPage() {
       appointments: {
         select: {
           startsAt: true,
+          endsAt: true,
           status: true,
           service: { select: { name: true, priceCents: true } },
         },
@@ -36,12 +37,11 @@ export default async function ClientsPage() {
   const rows: ClientRow[] = contacts.map((c) => {
     const active = c.appointments.filter((a) => a.status !== 'CANCELED');
     const count = active.length;
-    // Receita realizada = tudo que compareceu (passado, não cancelado, não faltou). Antes só
-    // somava COMPLETED e, como ninguém marcava, subcontava. isAttended cobre também a janela
-    // entre o atendimento e o cron de fechamento.
+    // Receita realizada = tudo que foi realizado (terminou, não cancelado, não faltou), pela
+    // regra canônica do MOTOR (isRealized). Fonte única - o mesmo número do relatório semanal.
     const totalCents = c.appointments
-      .filter((a) => isAttended(a, nowDate))
-      .reduce((s, a) => s + a.service.priceCents, 0);
+      .filter((a) => isRealized(a, nowDate))
+      .reduce((s, a) => s + revenueOf({ priceCents: a.service.priceCents }), 0);
 
     // Última visita: agendamento passado mais recente (lista já vem desc por startsAt).
     const lastPast = c.appointments.find(

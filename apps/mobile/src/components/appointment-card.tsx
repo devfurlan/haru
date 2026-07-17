@@ -52,8 +52,9 @@ export function AppointmentCard({
   const { day, month, weekday, time } = parts(item.startsAt, item.tenant.timezone);
   const dim = item.status === 'CANCELED' || item.isPast;
 
-  // Avaliável = já compareceu (passou e não foi cancelado/falta) - espelha isReviewable do web.
-  const reviewable = item.isPast && item.status !== 'CANCELED' && item.status !== 'NO_SHOW';
+  // Avaliável = já realizado (terminou, não cancelado/falta). Gate canônico do motor (endsAt),
+  // computado no servidor (item.isReviewable) - não recalcular com startsAt aqui.
+  const reviewable = item.isReviewable;
 
   // "Sáb, 5 jul · 15h30"
   const whenLine = `${cap(weekday)}, ${Number(day)} ${month} · ${time.replace(':', 'h')}`;
@@ -62,13 +63,18 @@ export function AppointmentCard({
     <Link href={`/appointment/${item.id}`} asChild>
       <Pressable
         style={first ? cardShadow : undefined}
-        className={`border-line rounded-[18px] border bg-paper p-3.5 active:opacity-80 ${
+        className={`border-line bg-paper rounded-[18px] border p-3.5 active:opacity-80 ${
           dim ? 'opacity-60' : ''
         }`}
       >
         {/* Linha 1: negócio + serviço + status */}
         <View className="flex-row items-center gap-3">
-          <TenantAvatar name={item.tenant.name} logoUrl={item.tenant.logoUrl} size={52} radius={15} />
+          <TenantAvatar
+            name={item.tenant.name}
+            logoUrl={item.tenant.logoUrl}
+            size={52}
+            radius={15}
+          />
 
           <View className="flex-1">
             <Text
@@ -104,7 +110,10 @@ export function AppointmentCard({
               </Text>
             ) : reviewable ? (
               <Link href={`/avaliar/${item.id}` as Href} asChild>
-                <Pressable hitSlop={6} className="bg-coral rounded-full px-3 py-1.5 active:opacity-80">
+                <Pressable
+                  hitSlop={6}
+                  className="bg-coral rounded-full px-3 py-1.5 active:opacity-80"
+                >
                   <Text className="text-[12px] font-bold text-white">Avaliar</Text>
                 </Pressable>
               </Link>

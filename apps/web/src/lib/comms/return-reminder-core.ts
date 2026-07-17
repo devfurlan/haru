@@ -36,6 +36,7 @@ export const ATTRIBUTION_DAYS = 10;
 export interface ReturnApptInput {
   serviceId: string;
   startsAt: Date;
+  endsAt: Date;
   status: ApptStatus;
   priceCents: number;
 }

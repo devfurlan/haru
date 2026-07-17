@@ -18,6 +18,7 @@ export type ApptStatus = 'PENDING' | 'CONFIRMED' | 'CANCELED' | 'COMPLETED' | 'N
 
 export interface LapsedAppointmentInput {
   startsAt: Date;
+  endsAt: Date;
   status: ApptStatus;
   service: { name: string; priceCents: number };
 }
@@ -47,11 +48,12 @@ export interface LapsedResult {
   totalMonthlyCents: number;
 }
 
-// Uma "visita" = agendamento passado que de fato aconteceu (não cancelado, não faltou).
-// Estrutural de propósito (só startsAt+status): reusado pelo lembrete de retorno, que
-// tem outro shape de appointment (ver lib/comms/return-reminder-core.ts).
-export function isVisit(a: { startsAt: Date; status: ApptStatus }, nowMs: number): boolean {
-  return a.startsAt.getTime() < nowMs && a.status !== 'CANCELED' && a.status !== 'NO_SHOW';
+// Uma "visita" = atendimento que já foi REALIZADO (terminou, não cancelado, não faltou).
+// Mesmo gate canônico do isRealized/isAttended (endsAt), reusado pelo lembrete de retorno
+// (outro shape de appointment - ver lib/comms/return-reminder-core.ts). A DATA da visita
+// segue sendo o startsAt (é o que o cadence-math usa); só o gate "aconteceu" usa endsAt.
+export function isVisit(a: { endsAt: Date; status: ApptStatus }, nowMs: number): boolean {
+  return a.endsAt.getTime() < nowMs && a.status !== 'CANCELED' && a.status !== 'NO_SHOW';
 }
 
 export function computeLapsed(

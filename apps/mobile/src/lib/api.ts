@@ -56,6 +56,9 @@ export type AppointmentItem = {
   openWeekdays: number[];
   currentDateStr: string;
   isPast: boolean;
+  /** Já realizado (terminou, não cancelado/falta) - libera "Avaliar". Gate canônico do motor
+   *  (endsAt), computado no servidor; NÃO recalcular no app com startsAt. */
+  isReviewable: boolean;
   isActive: boolean;
   payment: PaymentLite;
 };
@@ -315,7 +318,10 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   // 2xx sem JSON = o servidor da API não está servindo /api/mobile (dev server
   // desatualizado, HTML de 404, etc.). Vira erro claro em vez de quebrar a tela.
   if (body === null) {
-    throw new ApiError(res.status, 'O servidor da API não retornou JSON. Ele está no ar e atualizado?');
+    throw new ApiError(
+      res.status,
+      'O servidor da API não retornou JSON. Ele está no ar e atualizado?',
+    );
   }
   return body as T;
 }
@@ -440,7 +446,13 @@ export const api = {
   // Entra na fila do dia + profissional. Retorna a posição pra tela de sucesso.
   joinWaitlist: (
     slug: string,
-    input: { serviceId: string; professionalId: string; dateStr: string; name: string; phone?: string },
+    input: {
+      serviceId: string;
+      professionalId: string;
+      dateStr: string;
+      name: string;
+      phone?: string;
+    },
   ) =>
     request<WaitlistJoinResult>(`/tenants/${slug}/waitlist`, {
       method: 'POST',

@@ -132,7 +132,7 @@ const input: WeeklyReportInput = {
   window: w,
   appts,
   prevAppts: [
-    { startsAt: new Date('2026-06-30T12:00:00.000Z'), status: 'COMPLETED', priceCents: 5000 },
+    { endsAt: new Date('2026-06-30T13:00:00.000Z'), status: 'COMPLETED', priceCents: 5000 },
   ],
   attendance: {
     total: 3,

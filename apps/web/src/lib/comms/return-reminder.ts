@@ -53,6 +53,7 @@ function hourLabel(hhmm: string): string {
 type ApptRow = {
   serviceId: string;
   startsAt: Date;
+  endsAt: Date;
   status: ApptStatus;
   service: {
     name: string;
@@ -94,6 +95,7 @@ function pickCandidate(appts: ApptRow[], now: Date, tz: string): ReturnCandidate
   const inputs: ReturnApptInput[] = appts.map((a) => ({
     serviceId: a.serviceId,
     startsAt: a.startsAt,
+    endsAt: a.endsAt,
     status: a.status,
     priceCents: a.service.priceCents,
   }));
@@ -141,6 +143,7 @@ async function dispatchForTenant(
         select: {
           serviceId: true,
           startsAt: true,
+          endsAt: true,
           status: true,
           service: {
             select: { name: true, priceCents: true, durationMinutes: true, returnCycleDays: true },

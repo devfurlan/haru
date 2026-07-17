@@ -4,6 +4,7 @@ import type { AppointmentStatus, CustomerAccount, PaymentStatus } from '@haru/da
 import { isoDateInTz, isValidCpfCnpj, normalizePhoneBR, onlyDigits } from '@haru/shared';
 import { decryptNullable, encryptSecret } from '@haru/payments';
 
+import { isReviewable } from '@/lib/appointment-status';
 import { claimContactsByPhone } from '@/lib/customer-claim';
 import { getSupabaseAdmin } from '@/lib/supabase/admin';
 import { checkPhoneOtp, sendPhoneOtp } from '@/lib/twilio-verify';
@@ -22,6 +23,8 @@ export interface CustomerAppointmentItem {
   professionalName: string | null;
   /** Instante UTC; formatar sempre no `tenant.timezone`. */
   startsAt: Date;
+  /** Instante UTC do fim - gate de "já realizado" (isReviewable) usa endsAt. */
+  endsAt: Date;
   /** Já formatado no fuso do tenant (a UI é cross-tenant, cada item num fuso). */
   whenLabel: string;
   status: AppointmentStatus;
@@ -41,6 +44,9 @@ export interface CustomerAppointmentItem {
   /** Dia atual do agendamento (YYYY-MM-DD no fuso do tenant) - pré-seleção. */
   currentDateStr: string;
   isPast: boolean;
+  /** Já realizado (terminou, não cancelado/falta) - libera "Avaliar". Regra canônica do motor
+   *  (isReviewable/isRealized, endsAt), computada no servidor pra web e app usarem o mesmo gate. */
+  isReviewable: boolean;
   /** Futuro e ainda ativo (PENDING/CONFIRMED) - pode remarcar/cancelar. */
   isActive: boolean;
   payment: { status: PaymentStatus; amountCents: number } | null;
@@ -131,6 +137,7 @@ export async function getCustomerAppointments(
       priceCents: a.service.priceCents,
       professionalName: a.professional.name,
       startsAt: a.startsAt,
+      endsAt: a.endsAt,
       whenLabel: formatWhen(a.startsAt, a.tenant.timezone),
       status: a.status,
       seriesId: a.seriesId,
@@ -138,6 +145,7 @@ export async function getCustomerAppointments(
       openWeekdays: weekdaysByPro.get(a.professionalId) ?? [],
       currentDateStr: isoDateInTz(a.startsAt, a.tenant.timezone),
       isPast,
+      isReviewable: isReviewable(a, now),
       isActive: !isPast && (a.status === 'PENDING' || a.status === 'CONFIRMED'),
       payment: a.payments[0] ?? null,
     };

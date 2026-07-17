@@ -54,12 +54,13 @@ export async function getPublicReviews(tenantId: string, limit = 6): Promise<Pub
 
 /** O cliente pode avaliar este tenant? Só depois de já ter sido atendido nele. */
 export async function canReview(account: CustomerAccount, tenantId: string): Promise<boolean> {
-  // Mesma regra do isReviewable (lib/appointment-status.ts), em SQL: horário passado e
-  // não cancelado/falta. Mantê-las em sincronia se a regra mudar.
+  // Mesma regra do isReviewable/isRealized (lib/metrics/metrics-core.ts), em SQL: atendimento
+  // que JÁ TERMINOU (endsAt passado) e não cancelado/falta. Mantê-las em sincronia se a regra
+  // mudar.
   const appt = await prisma.appointment.findFirst({
     where: {
       tenantId,
-      startsAt: { lt: new Date() },
+      endsAt: { lt: new Date() },
       status: { notIn: ['CANCELED', 'NO_SHOW'] },
       contact: { customerAccountId: account.id },
     },

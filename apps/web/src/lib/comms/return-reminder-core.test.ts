@@ -23,6 +23,7 @@ const P: ReturnParams = { leadDays: 3, lapseDays: 60, tz: 'UTC' };
 const v = (serviceId: string, daysAgo: number, priceCents = 5000): ReturnApptInput => ({
   serviceId,
   startsAt: new Date(now.getTime() - daysAgo * DAY),
+  endsAt: new Date(now.getTime() - daysAgo * DAY + 30 * 60_000),
   status: 'COMPLETED',
   priceCents,
 });

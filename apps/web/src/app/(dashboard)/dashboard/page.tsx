@@ -1,21 +1,31 @@
 import { prisma } from '@haru/database';
 import { formatPhoneBR, isoDateInTz, localWallTimeToUtc } from '@haru/shared';
-import { CalendarDays } from 'lucide-react';
+import { CalendarDays, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 
 import { Button } from '@/components/ui/button';
 import { computeAttendanceStats, getAttendanceRows } from '@/lib/attendance';
 import { requireUserAndTenant } from '@/lib/auth';
+import { getDashboard } from '@/lib/dashboard';
 import { computeLapsed } from '@/lib/lapsed-clients';
 import { getRecoveryMetric } from '@/lib/waitlist-panel';
 import { isWhatsappConnected } from '@/lib/whatsapp-status';
 
 import { AttendanceCard } from './attendance-card';
+import { AutoRefresh } from './auto-refresh';
 import { DayCloseCard, type DayCloseGroup } from './day-close-card';
 import { LapsedClientsCard } from './lapsed-clients-card';
+import {
+  DayCountsCard,
+  FilaCard,
+  MrrCard,
+  OccupancyCard,
+  PeriodRevenueCard,
+  RevenueTodayCard,
+} from './metric-cards';
 import { RecoveryBanner } from './recovery-banner';
 
-// Cliente "sumido": era de casa e não volta há este tanto de dias (protótipo Painel do Dono).
+// Cliente "sumido": era de casa e não volta há este tanto de dias.
 const LAPSE_DAYS = 60;
 
 const BRL = new Intl.NumberFormat('pt-BR', {
@@ -59,91 +69,84 @@ function statusPill(status: Status, live: boolean): { bg: string; fg: string; la
 export default async function DashboardPage() {
   const { tenant, name: ownerName } = await requireUserAndTenant();
   const tz = tenant.timezone;
-
   const now = new Date();
-  // Limites do dia em horário local do servidor (mesma abordagem do dashboard antigo).
-  const dayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const dayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
-  const weekday = now.getDay();
 
-  // Fechar o dia usa o dia-calendário no FUSO DO TENANT (não do servidor/UTC): senão os
-  // atendimentos da noite BRT cairiam no dia UTC seguinte e sumiriam do card.
+  // Dia-calendário no FUSO DO TENANT (não do servidor/UTC): senão os atendimentos da noite BRT
+  // cairiam no dia UTC seguinte. Alinhado com o motor (getDashboard usa a mesma âncora).
   const tzDayStart = localWallTimeToUtc(isoDateInTz(now, tz), 0, tz);
   const tzDayEnd = new Date(tzDayStart.getTime() + 24 * 60 * 60 * 1000);
 
-  const [todayAppts, pendingCount, blocks, recent, lapsedContacts, dayEnded, attendanceRows] =
-    await Promise.all([
-      prisma.appointment.findMany({
-        where: {
-          tenantId: tenant.id,
-          startsAt: { gte: dayStart, lt: dayEnd },
-          status: { not: 'CANCELED' },
-        },
-        include: { service: true, contact: true, professional: true },
-        orderBy: { startsAt: 'asc' },
-      }),
-      prisma.appointment.count({
-        where: { tenantId: tenant.id, status: 'PENDING', startsAt: { gte: now } },
-      }),
-      prisma.scheduleBlock.findMany({ where: { tenantId: tenant.id, weekday } }),
-      prisma.appointment.findMany({
-        where: {
-          tenantId: tenant.id,
-          createdAt: { gte: new Date(now.getTime() - 36 * 3600 * 1000) },
-        },
-        include: { service: true, contact: true },
-        orderBy: { createdAt: 'desc' },
-        take: 5,
-      }),
-      // ponytail: scan de contatos+agendamentos por load do cockpit, limitado a 1000
-      // contatos. Se o histórico de um tenant crescer muito, materializar um count/soma.
-      prisma.contact.findMany({
-        where: { tenantId: tenant.id },
-        select: {
-          id: true,
-          name: true,
-          phone: true,
-          appointments: {
-            select: {
-              startsAt: true,
-              status: true,
-              service: { select: { name: true, priceCents: true } },
-            },
+  const [
+    dashboard,
+    todayAppts,
+    pendingCount,
+    recent,
+    lapsedContacts,
+    attendanceRows,
+    recoveryMetric,
+  ] = await Promise.all([
+    // TODOS os números (faturamento/contagens/ocupação/mrr/fila/destaques) vêm do MOTOR.
+    getDashboard(tenant, now),
+    // Lista operacional do dia (nomes de cliente/profissional) - não é métrica, é a agenda.
+    prisma.appointment.findMany({
+      where: {
+        tenantId: tenant.id,
+        startsAt: { gte: tzDayStart, lt: tzDayEnd },
+        status: { not: 'CANCELED' },
+      },
+      include: { service: true, contact: true, professional: true },
+      orderBy: { startsAt: 'asc' },
+    }),
+    prisma.appointment.count({
+      where: { tenantId: tenant.id, status: 'PENDING', startsAt: { gte: now } },
+    }),
+    prisma.appointment.findMany({
+      where: {
+        tenantId: tenant.id,
+        createdAt: { gte: new Date(now.getTime() - 36 * 3600 * 1000) },
+      },
+      include: { service: true, contact: true },
+      orderBy: { createdAt: 'desc' },
+      take: 5,
+    }),
+    // ponytail: scan de contatos+agendamentos por load, limitado a 1000. Se o histórico de um
+    // tenant crescer muito, materializar. (win-back, não é métrica do motor.)
+    prisma.contact.findMany({
+      where: { tenantId: tenant.id },
+      select: {
+        id: true,
+        name: true,
+        phone: true,
+        appointments: {
+          select: {
+            startsAt: true,
+            endsAt: true,
+            status: true,
+            service: { select: { name: true, priceCents: true } },
           },
         },
-        take: 1000,
-      }),
-      // Fechar o dia: atendimentos de hoje (fuso do tenant) que JÁ terminaram e não cancelados.
-      prisma.appointment.findMany({
-        where: {
-          tenantId: tenant.id,
-          status: { not: 'CANCELED' },
-          startsAt: { gte: tzDayStart, lt: tzDayEnd },
-          endsAt: { lt: now },
-        },
-        include: { service: true, contact: true, professional: true },
-        orderBy: { startsAt: 'asc' },
-      }),
-      // Métrica de comparecimento: linhas cruas dos últimos 30 dias (7d deriva em memória).
-      getAttendanceRows(tenant.id, new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)),
-    ]);
+      },
+      take: 1000,
+    }),
+    getAttendanceRows(tenant.id, new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)),
+    getRecoveryMetric(tenant.id, tz),
+  ]);
 
   const lapsed = computeLapsed(lapsedContacts, now, LAPSE_DAYS);
 
-  // Fechar o dia: agrupa por profissional, pré-marca atendido (só NO_SHOW já vem desmarcado).
+  // Fechar o dia: os de hoje que JÁ terminaram (deriva da lista, sem query extra).
+  const dayEnded = todayAppts.filter((a) => a.endsAt < now);
   const dayCloseGroups: DayCloseGroup[] = [];
   const groupIndex = new Map<string, DayCloseGroup>();
   for (const a of dayEnded) {
-    const proName = a.professional.name ?? 'Profissional';
     let g = groupIndex.get(a.professionalId);
     if (!g) {
-      g = { professionalName: proName, appts: [] };
+      g = { professionalName: a.professional.name ?? 'Profissional', appts: [] };
       groupIndex.set(a.professionalId, g);
       dayCloseGroups.push(g);
     }
     g.appts.push({
       id: a.id,
-      // clientName (helper) só é declarado adiante; inline aqui pra evitar TDZ.
       clientName: a.contact.name ?? (a.contact.phone ? formatPhoneBR(a.contact.phone) : 'Cliente'),
       timeLabel: hm(a.startsAt, tz),
       serviceName: a.service.name,
@@ -153,24 +156,12 @@ export default async function DashboardPage() {
   }
   const dayAllConfirmed = dayEnded.length > 0 && dayEnded.every((a) => a.attendanceConfirmed);
 
-  // Métrica: 30d = tudo; 7d = filtra as mesmas linhas.
   const from7 = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
   const stats30 = computeAttendanceStats(attendanceRows.map((r) => r.input));
   const stats7 = computeAttendanceStats(
     attendanceRows.filter((r) => r.startsAt >= from7).map((r) => r.input),
   );
 
-  // KPIs
-  const receitaCents = todayAppts.reduce((sum, a) => sum + a.service.priceCents, 0);
-  const bookedMin = todayAppts.reduce(
-    (sum, a) => sum + (a.endsAt.getTime() - a.startsAt.getTime()) / 60000,
-    0,
-  );
-  const availableMin = blocks.reduce((sum, b) => sum + (b.endMinute - b.startMinute), 0);
-  const ocupacao =
-    availableMin > 0 ? Math.min(100, Math.round((bookedMin / availableMin) * 100)) : 0;
-
-  // cor por profissional (estável por ordem de id no dia)
   const proIds = [...new Set(todayAppts.map((a) => a.professionalId))];
   const proColor = (id: string) => PRO_DOTS[proIds.indexOf(id) % PRO_DOTS.length];
 
@@ -186,16 +177,19 @@ export default async function DashboardPage() {
     day: 'numeric',
     month: 'long',
   }).format(now);
+  const weekdayLabel = new Intl.DateTimeFormat('pt-BR', { timeZone: tz, weekday: 'long' })
+    .format(now)
+    .replace('-feira', '');
 
   const whatsappConnected = isWhatsappConnected(tenant);
   const firstName = (ownerName ?? '').trim().split(/\s+/)[0] || 'você';
   const clientName = (c: { name: string | null; phone: string | null }) =>
     c.name ?? (c.phone ? formatPhoneBR(c.phone) : 'Cliente');
 
-  const recoveryMetric = await getRecoveryMetric(tenant.id, tz);
-
   return (
     <div className="mx-auto flex w-full max-w-[1240px] flex-col gap-5">
+      <AutoRefresh />
+
       {/* header */}
       <div className="flex flex-wrap items-end gap-4">
         <div className="min-w-[260px] flex-1">
@@ -216,36 +210,62 @@ export default async function DashboardPage() {
         </div>
       </div>
 
+      {/* Destaques acionáveis - some quando não há nada a dizer */}
+      {dashboard.highlights.length > 0 && (
+        <div className="flex flex-wrap gap-2.5">
+          {dashboard.highlights.map((h) => (
+            <div
+              key={h}
+              className="border-line bg-paper shadow-soft text-ink-70 flex items-center gap-2 rounded-full border py-1.5 pl-2 pr-4 text-[13px] font-medium"
+            >
+              <span className="bg-chip text-green-emph flex size-6 flex-none items-center justify-center rounded-full">
+                <Sparkles className="size-3.5" strokeWidth={2.3} />
+              </span>
+              {h}
+            </div>
+          ))}
+        </div>
+      )}
+
       <RecoveryBanner metric={recoveryMetric} />
 
-      {/* KPIs */}
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-3.5">
-        <Kpi label="Agendamentos hoje" value={String(todayAppts.length)} sub="marcados pra hoje" />
-        <Kpi
-          label="Receita prevista"
-          value={money(receitaCents)}
-          sub="somando o dia"
-          subClass="text-green-emph"
-        />
-        <div className="border-line bg-paper shadow-soft rounded-2xl border p-4">
-          <div className="text-ink-50 text-[10.5px] font-bold uppercase tracking-[0.12em]">
-            Ocupação do dia
-          </div>
-          <div className="text-ink mb-2 mt-1.5 font-serif text-3xl">{ocupacao}%</div>
-          <div className="bg-line h-1.5 overflow-hidden rounded-full">
-            {/* ponytail: runtime, Tailwind nao gera */}
-            <div
-              className="bg-green-bright h-full rounded-full"
-              style={{ width: `${ocupacao}%` }}
-            />
-          </div>
+      {/* Hero do dia: faturamento + agendamentos + ocupação */}
+      <div className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="sm:col-span-2">
+          <RevenueTodayCard
+            revenueCents={dashboard.today.revenueCents}
+            prevRevenueCents={dashboard.today.prevRevenueCents}
+            trend={dashboard.today.trend}
+            weekdayLabel={weekdayLabel}
+          />
         </div>
-        <Kpi
-          label="Pendentes"
-          value={String(pendingCount)}
-          sub="aguardando confirmação"
-          valueClass={pendingCount > 0 ? 'text-coral' : undefined}
+        <DayCountsCard
+          total={dashboard.today.total}
+          realized={dashboard.today.realized}
+          upcoming={dashboard.today.upcoming}
+          noShow={dashboard.today.noShow}
         />
+        <OccupancyCard pct={dashboard.today.occupancyPct} />
+      </div>
+
+      {/* Semana + mês + (se houver) assinatura e fila */}
+      <div className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
+        <PeriodRevenueCard
+          label="Esta semana"
+          sub="de segunda até agora"
+          revenueCents={dashboard.week.revenueCents}
+          trend={dashboard.week.trend}
+        />
+        <PeriodRevenueCard
+          label="Este mês"
+          sub="desde o dia 1"
+          revenueCents={dashboard.month.revenueCents}
+          trend={dashboard.month.trend}
+        />
+        {dashboard.mrr && (
+          <MrrCard cents={dashboard.mrr.cents} activeCount={dashboard.mrr.activeCount} />
+        )}
+        {dashboard.waiting != null && <FilaCard waiting={dashboard.waiting} />}
       </div>
 
       <DayCloseCard groups={dayCloseGroups} allConfirmed={dayAllConfirmed} />
@@ -420,28 +440,6 @@ export default async function DashboardPage() {
 
       {/* Clientes sumidos - win-back (só aparece quando há alguém pra chamar de volta) */}
       <LapsedClientsCard data={lapsed} tz={tz} lapseDays={LAPSE_DAYS} />
-    </div>
-  );
-}
-
-function Kpi({
-  label,
-  value,
-  sub,
-  subClass,
-  valueClass,
-}: {
-  label: string;
-  value: string;
-  sub: string;
-  subClass?: string;
-  valueClass?: string;
-}) {
-  return (
-    <div className="border-line bg-paper shadow-soft rounded-2xl border p-4">
-      <div className="text-ink-50 text-[10.5px] font-bold uppercase tracking-[0.12em]">{label}</div>
-      <div className={`mt-1.5 font-serif text-3xl ${valueClass ?? 'text-ink'}`}>{value}</div>
-      <div className={`text-xs font-medium ${subClass ?? 'text-ink-50'}`}>{sub}</div>
     </div>
   );
 }
