@@ -29,9 +29,6 @@ export const env = {
   get BOT_INTERNAL_TOKEN() {
     return required('BOT_INTERNAL_TOKEN');
   },
-  get HEALTHCHECKS_URL() {
-    return process.env.HEALTHCHECKS_URL ?? '';
-  },
   /**
    * Destinatário dos alertas operacionais da plataforma (ex.: número de um tenant
    * banido pela Meta). Vai pro operador, não pro dono do tenant. Default: o e-mail
