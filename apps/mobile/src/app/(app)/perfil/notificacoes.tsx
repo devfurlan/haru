@@ -60,14 +60,19 @@ function ToggleRow({
 
 export default function NotificacoesScreen() {
   const [emails, setEmails] = useState<boolean | null>(null);
+  const [reviews, setReviews] = useState<boolean | null>(null);
   const [push, setPush] = useState<boolean | null>(null);
   const [savingEmails, setSavingEmails] = useState(false);
+  const [savingReviews, setSavingReviews] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     api
       .me()
-      .then((m) => setEmails(m.appointmentEmailsEnabled))
+      .then((m) => {
+        setEmails(m.appointmentEmailsEnabled);
+        setReviews(m.reviewInvitesEnabled);
+      })
       .catch(() => setError('Não foi possível carregar as preferências.'));
     isPushEnabledPref().then(setPush);
   }, []);
@@ -86,6 +91,20 @@ export default function NotificacoesScreen() {
     }
   }
 
+  async function toggleReviews(next: boolean) {
+    setError(null);
+    setReviews(next); // otimista
+    setSavingReviews(true);
+    try {
+      await api.updateMe({ reviewInvitesEnabled: next });
+    } catch (err) {
+      setReviews(!next); // reverte
+      setError(err instanceof ApiError ? err.message : 'Não foi possível salvar.');
+    } finally {
+      setSavingReviews(false);
+    }
+  }
+
   async function togglePush(next: boolean) {
     setPush(next);
     try {
@@ -95,7 +114,7 @@ export default function NotificacoesScreen() {
     }
   }
 
-  const loading = emails === null || push === null;
+  const loading = emails === null || push === null || reviews === null;
 
   return (
     <SafeAreaView className="bg-cream flex-1" edges={['top']}>
@@ -119,6 +138,13 @@ export default function NotificacoesScreen() {
             value={emails!}
             onValueChange={toggleEmails}
             disabled={savingEmails}
+          />
+          <ToggleRow
+            title="Convites para avaliar"
+            description="Um lembrete pra avaliar o atendimento pouco depois dele. Desligar vale pra todos os canais."
+            value={reviews!}
+            onValueChange={toggleReviews}
+            disabled={savingReviews}
             last
           />
 

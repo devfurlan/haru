@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 
 interface CustomerNotificationsCardProps {
   appointmentEmailsEnabled: boolean;
+  reviewInvitesEnabled: boolean;
 }
 
 function SubmitButton() {
@@ -22,6 +23,7 @@ function SubmitButton() {
 
 export function CustomerNotificationsCard({
   appointmentEmailsEnabled,
+  reviewInvitesEnabled,
 }: CustomerNotificationsCardProps) {
   const [state, formAction] = useActionState<CustomerActionResult, FormData>(
     customerUpdateNotifications,
@@ -31,8 +33,8 @@ export function CustomerNotificationsCard({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Notificações por e-mail</CardTitle>
-        <CardDescription>Avisos dos seus agendamentos no seu e-mail de login.</CardDescription>
+        <CardTitle>Notificações</CardTitle>
+        <CardDescription>O que você recebe sobre seus agendamentos.</CardDescription>
       </CardHeader>
       <CardContent>
         <form action={formAction} className="space-y-4">
@@ -50,6 +52,25 @@ export function CustomerNotificationsCard({
                 <span className="text-muted-foreground block text-xs">
                   Confirmação, lembrete, remarcação e cancelamento dos seus agendamentos. Os avisos
                   pelo WhatsApp do estabelecimento continuam normalmente.
+                </span>
+              </span>
+            </label>
+          </div>
+
+          <div className="space-y-2 rounded-lg border border-dashed p-4">
+            <label htmlFor="reviewInvitesEnabled" className="flex items-start gap-3">
+              <input
+                id="reviewInvitesEnabled"
+                name="reviewInvitesEnabled"
+                type="checkbox"
+                defaultChecked={reviewInvitesEnabled}
+                className="border-input mt-0.5 size-4 shrink-0 rounded"
+              />
+              <span className="space-y-1">
+                <span className="block text-sm font-medium">Convites para avaliar</span>
+                <span className="text-muted-foreground block text-xs">
+                  Um lembrete pra avaliar o atendimento pouco depois dele (e-mail e app). Desligar
+                  vale pra todos os canais.
                 </span>
               </span>
             </label>

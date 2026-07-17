@@ -12,7 +12,10 @@ export default async function NotificacoesPage() {
     <div className="mx-auto max-w-[640px]">
       <ScreenHeader title="Notificações" eyebrow="Conta" backHref="/conta/perfil" />
       <div className="px-5 pb-8 pt-2">
-        <CustomerNotificationsCard appointmentEmailsEnabled={account.appointmentEmailsEnabled} />
+        <CustomerNotificationsCard
+          appointmentEmailsEnabled={account.appointmentEmailsEnabled}
+          reviewInvitesEnabled={account.reviewInvitesEnabled}
+        />
       </div>
     </div>
   );

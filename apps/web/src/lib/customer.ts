@@ -387,11 +387,11 @@ export async function updateCustomerProfileCore(
 /** Liga/desliga os e-mails de agendamento (confirmação/lembrete/remarcação/cancelamento). */
 export async function setCustomerNotifications(
   account: CustomerAccount,
-  appointmentEmailsEnabled: boolean,
+  prefs: { appointmentEmailsEnabled?: boolean; reviewInvitesEnabled?: boolean },
 ): Promise<CustomerMutationResult> {
   await prisma.customerAccount.update({
     where: { id: account.id },
-    data: { appointmentEmailsEnabled },
+    data: prefs, // campos undefined são ignorados pelo Prisma
   });
   return { ok: true };
 }

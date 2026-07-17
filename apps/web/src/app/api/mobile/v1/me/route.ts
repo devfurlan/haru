@@ -1,6 +1,6 @@
 // /api/mobile/v1/me - conta do cliente autenticado (app mobile).
-//   GET    - dados básicos + cadastro (document/birthDate) + preferência de e-mail.
-//   PATCH  - atualiza nome/CPF/nascimento e/ou a preferência de e-mails de agendamento.
+//   GET    - dados básicos + cadastro (document/birthDate) + preferências de notificação.
+//   PATCH  - atualiza nome/CPF/nascimento e/ou as preferências de notificação.
 //   DELETE - exclui a conta (irreversível; exigido pelas app stores).
 import {
   deleteCustomerAccount,
@@ -37,6 +37,7 @@ export async function GET(req: Request) {
     document: profile.document,
     birthDate: profile.birthDate ? toYMD(profile.birthDate) : null,
     appointmentEmailsEnabled: account.appointmentEmailsEnabled,
+    reviewInvitesEnabled: account.reviewInvitesEnabled,
   });
 }
 
@@ -49,10 +50,16 @@ export async function PATCH(req: Request) {
     document?: unknown;
     birthDate?: unknown;
     appointmentEmailsEnabled?: unknown;
+    reviewInvitesEnabled?: unknown;
   } | null;
 
-  if (typeof body?.appointmentEmailsEnabled === 'boolean') {
-    const result = await setCustomerNotifications(account, body.appointmentEmailsEnabled);
+  const prefs: { appointmentEmailsEnabled?: boolean; reviewInvitesEnabled?: boolean } = {};
+  if (typeof body?.appointmentEmailsEnabled === 'boolean')
+    prefs.appointmentEmailsEnabled = body.appointmentEmailsEnabled;
+  if (typeof body?.reviewInvitesEnabled === 'boolean')
+    prefs.reviewInvitesEnabled = body.reviewInvitesEnabled;
+  if (Object.keys(prefs).length > 0) {
+    const result = await setCustomerNotifications(account, prefs);
     if ('error' in result) return Response.json(result, { status: 400 });
   }
 

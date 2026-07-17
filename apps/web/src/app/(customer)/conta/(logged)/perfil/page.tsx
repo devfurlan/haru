@@ -75,7 +75,10 @@ export default async function CustomerProfilePage() {
         />
 
         <div className="space-y-5">
-          <CustomerNotificationsCard appointmentEmailsEnabled={account.appointmentEmailsEnabled} />
+          <CustomerNotificationsCard
+            appointmentEmailsEnabled={account.appointmentEmailsEnabled}
+            reviewInvitesEnabled={account.reviewInvitesEnabled}
+          />
 
           <Card>
             <CardHeader>

@@ -169,9 +169,11 @@ export async function customerUpdateProfile(
 // remarcação e cancelamento dos próprios agendamentos).
 // ---------------------------------------------------------------------------
 
+const toBool = (v: unknown) => v === 'on' || v === 'true';
 const notificationsSchema = z.object({
   // Checkbox: presente ("on") = ligado; ausente = desligado.
-  appointmentEmailsEnabled: z.preprocess((v) => v === 'on' || v === 'true', z.boolean()),
+  appointmentEmailsEnabled: z.preprocess(toBool, z.boolean()),
+  reviewInvitesEnabled: z.preprocess(toBool, z.boolean()),
 });
 
 export async function customerUpdateNotifications(
@@ -182,12 +184,16 @@ export async function customerUpdateNotifications(
 
   const parsed = notificationsSchema.safeParse({
     appointmentEmailsEnabled: formData.get('appointmentEmailsEnabled'),
+    reviewInvitesEnabled: formData.get('reviewInvitesEnabled'),
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? 'Dados inválidos' };
   }
 
-  await setCustomerNotifications(account, parsed.data.appointmentEmailsEnabled);
+  await setCustomerNotifications(account, {
+    appointmentEmailsEnabled: parsed.data.appointmentEmailsEnabled,
+    reviewInvitesEnabled: parsed.data.reviewInvitesEnabled,
+  });
 
   revalidatePath('/conta/perfil');
   return { ok: true };

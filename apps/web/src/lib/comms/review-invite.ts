@@ -38,7 +38,8 @@ export async function dispatchReviewInvites(now: Date): Promise<{ checked: numbe
       endsAt: { gte: lower, lte: upper },
       status: { notIn: ['CANCELED', 'NO_SHOW'] },
       reviewInviteSentAt: null,
-      contact: { customerAccountId: { not: null } },
+      // Precisa de conta de cliente E que ela não tenha desligado o convite no perfil.
+      contact: { customerAccount: { is: { reviewInvitesEnabled: true } } },
     },
     select: {
       id: true,

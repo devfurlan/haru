@@ -22,6 +22,7 @@ export type Me = {
   document: string | null;
   birthDate: string | null;
   appointmentEmailsEnabled: boolean;
+  reviewInvitesEnabled: boolean;
 };
 
 export type SupportTurn = { role: 'USER' | 'ASSISTANT'; body: string; createdAt: string };
@@ -327,6 +328,7 @@ export const api = {
     document?: string;
     birthDate?: string;
     appointmentEmailsEnabled?: boolean;
+    reviewInvitesEnabled?: boolean;
   }) => request<{ ok: true }>('/me', { method: 'PATCH', body: JSON.stringify(input) }),
   deleteAccount: () => request<{ ok: true }>('/me', { method: 'DELETE' }),
   // Troca/confirma telefone via OTP por SMS (Twilio Verify), em 2 passos.
