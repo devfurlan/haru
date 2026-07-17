@@ -1,6 +1,14 @@
 packages:
   - "apps/*"
   - "packages/*"
+# @sentry/react-native NÃO declara @expo/config-plugins, mas o config plugin dele faz
+# require('@expo/config-plugins'). No layout isolado do pnpm esse require (feito a partir
+# do store) não acha o pacote, e o EAS/expo config quebra com "Cannot find module". Hoistar
+# pro node_modules raiz o põe no caminho do walk-up, resolvendo local e no build do EAS.
+publicHoistPattern:
+  - '*eslint*'
+  - '*prettier*'
+  - '@expo/config-plugins'
 allowBuilds:
   '@prisma/engines': true
   '@sentry/cli': true
