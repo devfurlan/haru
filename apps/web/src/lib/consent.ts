@@ -25,7 +25,7 @@ export type ConsentState = {
 //
 // Não fire em localhost/preview: resolva com condição de hostname no trigger, DENTRO
 // do GTM. Lógica de ambiente mora lá, não aqui.
-export const GTM_ID = '';
+export const GTM_ID = 'GTM-NMFMNQBX';
 
 export const CONSENT_KEY = 'demandae-cookie-consent';
 

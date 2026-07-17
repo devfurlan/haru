@@ -22,7 +22,11 @@ import {
 
 import { createBookingCore } from '@/lib/appointment-mutations';
 import { createNotification } from '@/lib/comms/notifications';
-import { sendPlatformWhatsapp } from '@/lib/comms/whatsapp';
+import {
+  notifyPreferOwnChannels,
+  type ChannelPayload,
+  type OwnChannelTarget,
+} from '@/lib/comms/prefer-own-channels';
 import { appUrl } from '@/lib/email';
 import { sendPushSafe } from '@/lib/comms/push';
 import { getServiceDaySlots, loadDayAvailability } from '@/lib/professionals';
@@ -500,9 +504,13 @@ export async function confirmWaitlistSlot(args: {
     }),
   ]);
 
-  notifyClientConfirmed(entry.contactId, entry.professionalId, tenant.timezone, startsAt).catch(
-    (err) => console.error('[waitlist] confirmação ao cliente falhou', err),
-  );
+  notifyClientConfirmed(
+    entry.contactId,
+    entry.professionalId,
+    tenant.timezone,
+    startsAt,
+    offer.tenantId,
+  ).catch((err) => console.error('[waitlist] confirmação ao cliente falhou', err));
   notifyOwnerRecovered(
     offer.tenantId,
     entry.serviceId,
@@ -807,7 +815,11 @@ export async function getWaitlistPressure(
 
 type TenantCtx = { timezone: string; name: string; slug: string };
 
-/** Push "abriu horário" (app) OU WhatsApp pela plataforma (sem app) - por entry da onda. */
+/**
+ * "Abriu horário" por entry da onda. Sensível a TEMPO REAL (janela de minutos pra garantir):
+ * push + WhatsApp de REFORÇO juntos (whatsappAlways) - a alta abertura imediata do WhatsApp
+ * compensa na janela curta. Sem app = WhatsApp sozinho. Respeita o opt-out "PARAR".
+ */
 async function notifyWave(
   offerId: string,
   tenantId: string,
@@ -834,26 +846,23 @@ async function notifyWave(
     const name = contact.name ?? contact.customerAccount?.name ?? 'cliente';
     const devices = contact.customerAccount?.pushDevices ?? [];
 
-    if (devices.length > 0) {
-      await sendPushSafe(
-        devices.map((d) => d.expoPushToken),
-        {
-          title: `Abriu horário ${label}`,
-          body: `Com o ${proName}. Você tem alguns minutos pra garantir.`,
-          data: { type: 'waitlist_offer', offerId, entryId: entry.id, slug: tenant.slug },
-        },
-      );
-      continue; // tem app: push basta
-    }
-    if (contact.phone) {
-      await sendPlatformWhatsapp(contact.phone, process.env.WHATSAPP_TEMPLATE_WAITLIST_OPENING, [
-        name,
-        label,
-        proName,
-        tenant.name,
-        `${link}?e=${entry.id}`,
-      ]);
-    }
+    const target: OwnChannelTarget = { email: null, phone: contact.phone, pushDevices: devices };
+    const payload: ChannelPayload = {
+      push: {
+        title: `Abriu horário ${label}`,
+        body: `Com o ${proName}. Você tem alguns minutos pra garantir.`,
+        data: { type: 'waitlist_offer', offerId, entryId: entry.id, slug: tenant.slug },
+      },
+      whatsapp: {
+        template: process.env.WHATSAPP_TEMPLATE_WAITLIST_OPENING,
+        params: [name, label, proName, tenant.name, `${link}?e=${entry.id}`],
+      },
+    };
+    await notifyPreferOwnChannels(target, payload, {
+      whatsappOptOut: contact.remindersOptOutAt != null,
+      whatsappAlways: true, // tempo real: WhatsApp como reforço, não só fallback
+      log: { tenantId, commsType: 'waitlist_slot_opened' },
+    });
   }
 }
 
@@ -886,12 +895,13 @@ async function notifyClientJoined(
   );
 }
 
-/** Push/WhatsApp "Fechado!" ao cliente que confirmou. */
+/** "Fechado!" ao cliente que confirmou. Own-first: push resolve; WhatsApp só sem app (fallback). */
 async function notifyClientConfirmed(
   contactId: string,
   professionalId: string,
   tz: string,
   startsAt: Date,
+  tenantId: string,
 ): Promise<void> {
   const [contact, pro] = await Promise.all([
     prisma.contact.findUnique({
@@ -904,26 +914,24 @@ async function notifyClientConfirmed(
   const proName = pro?.name ?? 'profissional';
   const when = formatWhen(startsAt, tz);
   const devices = contact.customerAccount?.pushDevices ?? [];
+  const name = contact.name ?? contact.customerAccount?.name ?? 'cliente';
 
-  if (devices.length > 0) {
-    await sendPushSafe(
-      devices.map((d) => d.expoPushToken),
-      {
-        title: 'Vaga garantida!',
-        body: `${when} com o ${proName}.`,
-        data: { type: 'waitlist_confirmed' },
-      },
-    );
-    return;
-  }
-  if (contact.phone) {
-    const name = contact.name ?? contact.customerAccount?.name ?? 'cliente';
-    await sendPlatformWhatsapp(contact.phone, process.env.WHATSAPP_TEMPLATE_WAITLIST_CONFIRMED, [
-      name,
-      when,
-      proName,
-    ]);
-  }
+  const target: OwnChannelTarget = { email: null, phone: contact.phone, pushDevices: devices };
+  const payload: ChannelPayload = {
+    push: {
+      title: 'Vaga garantida!',
+      body: `${when} com o ${proName}.`,
+      data: { type: 'waitlist_confirmed' },
+    },
+    whatsapp: {
+      template: process.env.WHATSAPP_TEMPLATE_WAITLIST_CONFIRMED,
+      params: [name, when, proName],
+    },
+  };
+  await notifyPreferOwnChannels(target, payload, {
+    whatsappOptOut: contact.remindersOptOutAt != null,
+    log: { tenantId, commsType: 'waitlist_confirmed' },
+  });
 }
 
 /** Notificação in-app do dono: vaga recuperada automaticamente. */

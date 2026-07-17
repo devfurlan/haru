@@ -1,4 +1,5 @@
 import { cycleWindow, getMonthlyWhatsappReminderUsage, isSubscriptionActive } from '@haru/billing';
+import { pickChannels } from '@haru/shared';
 
 import { Sentry } from '../instrument.js';
 import { emailAppointmentReminder } from './appointmentEmail.js';
@@ -145,10 +146,28 @@ async function processReminders() {
       const when = formatWhen(appt.startsAt, tenant.timezone);
       const name = appt.contact.name ?? 'cliente';
 
-      // --- Lembrete por WhatsApp (só se o cliente tem número, o tenant tem número, o
-      // cliente não pediu pra sair e ainda não enviou). Cliente sem WhatsApp (agendou
-      // logado, sem número) recebe só por e-mail/push. ---
+      // Canais PRÓPRIOS do cliente (own-channels-first): push (tem app) e/ou e-mail (conta ou
+      // walk-in com e-mail e a pref ligada). O WhatsApp vira o ÚLTIMO recurso - só sai quando
+      // não há NENHUM canal próprio, reduzindo dependência do WhatsApp/Meta.
+      const account = appt.contact.customerAccount;
+      const emailTo = account?.email ?? appt.contact.email;
+      const emailPrefOn = account?.appointmentEmailsEnabled ?? true;
+      const hasEmail = !!emailTo && emailPrefOn;
+      const devices = account?.pushDevices ?? [];
+      const hasPush = devices.length > 0;
+      const hasOwnChannel = hasPush || hasEmail;
+      // Log do canal primário 1x por lembrete: só na primeira vez que o appt entra no lote
+      // (todos os carimbos nulos). Depois disso ao menos um está setado -> não re-loga.
+      const firstTouch =
+        appt.reminderSentAt == null &&
+        appt.reminderEmailSentAt == null &&
+        appt.reminderPushSentAt == null;
+
+      // --- Lembrete por WhatsApp: SÓ como fallback (sem push nem e-mail), se o cliente tem
+      // número, o tenant tem número, o cliente não pediu pra sair, cota ok e ainda não enviou.
+      // Cliente com app ou e-mail recebe pelos canais próprios - o WhatsApp não sai. ---
       if (
+        !hasOwnChannel &&
         appt.contact.phone != null &&
         waNumberId &&
         !whatsappBlocked &&
@@ -210,14 +229,11 @@ async function processReminders() {
         }
       }
 
-      // --- Lembrete por e-mail AO CLIENTE (independente do WhatsApp) ---
+      // --- Lembrete por e-mail AO CLIENTE (canal próprio, independente do WhatsApp) ---
       if (appt.reminderEmailSentAt == null) {
-        const account = appt.contact.customerAccount;
-        const to = account?.email ?? appt.contact.email;
-        const prefOn = account?.appointmentEmailsEnabled ?? true;
-        if (to && prefOn) {
+        if (hasEmail) {
           await emailAppointmentReminder({
-            to,
+            to: emailTo!,
             customerName: account?.name ?? appt.contact.name ?? null,
             tenantName: tenant.name,
             when,
@@ -239,8 +255,7 @@ async function processReminders() {
       // instalar o app e permitir notificações É o opt-in. ponytail: sem pref dedicada;
       // adicionar `pushEnabled` na conta se um dia precisar de controle granular. ---
       if (appt.reminderPushSentAt == null) {
-        const devices = appt.contact.customerAccount?.pushDevices ?? [];
-        if (devices.length > 0) {
+        if (hasPush) {
           const { invalidTokens } = await sendExpoPush(
             devices.map((d) => ({
               to: d.expoPushToken,
@@ -261,6 +276,20 @@ async function processReminders() {
           where: { id: appt.id },
           data: { reminderPushSentAt: new Date() },
         });
+      }
+
+      // Métrica: registra o canal PRIMÁRIO deste lembrete (own-first) uma única vez.
+      // whatsapp elegível = tem número/tenant-número/não optou por sair (a cota é edge do
+      // envio, não muda o primário own-first). Fire-and-forget: nunca derruba o tick.
+      if (firstTouch) {
+        const waEligible =
+          appt.contact.phone != null && waNumberId != null && appt.contact.remindersOptOutAt == null;
+        const { primary } = pickChannels({ push: hasPush, email: hasEmail, whatsapp: waEligible });
+        await prisma.commsDelivery
+          .create({
+            data: { tenantId: tenant.id, commsType: 'appointment_reminder', channel: primary },
+          })
+          .catch((err) => console.error('[reminders] log de canal falhou', err));
       }
     }
   }

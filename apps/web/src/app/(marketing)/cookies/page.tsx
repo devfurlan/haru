@@ -1,13 +1,15 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
+import { CookiePreferencesButton } from '@/components/cookie-preferences-button';
+
 export const metadata: Metadata = {
   title: 'Política de Cookies - Demandaê',
   description:
     'O que são cookies, quais o Demandaê utiliza e como você pode gerenciá-los na plataforma de agendamento e pagamentos do Demandaê - app do cliente, página pública e painel.',
 };
 
-const LAST_UPDATED = '15 de julho de 2026';
+const LAST_UPDATED = '17 de julho de 2026';
 
 export default function CookiePolicyPage() {
   return (
@@ -41,11 +43,31 @@ export default function CookiePolicyPage() {
 
         <section className="space-y-3">
           <h2 className="text-xl font-semibold">2. Como usamos cookies</h2>
+          <p>Organizamos os cookies e tecnologias equivalentes em três categorias:</p>
+          <ul className="list-disc space-y-2 pl-6">
+            <li>
+              <strong>Essenciais.</strong> Indispensáveis para o funcionamento da plataforma - sem
+              eles, recursos como login e área autenticada não operam. Não dependem de consentimento
+              prévio, por serem necessários à prestação do serviço solicitado por você, e ficam
+              sempre ativos.
+            </li>
+            <li>
+              <strong>De análise.</strong> Ajudam a entender como o site é usado (páginas mais
+              acessadas, onde os visitantes encontram dificuldade) para melhorarmos o produto. Só
+              são ativados <strong>com o seu consentimento</strong>.
+            </li>
+            <li>
+              <strong>De publicidade.</strong> Servem para medir a eficácia de eventuais anúncios em
+              plataformas como Meta e Google. Só são ativados{' '}
+              <strong>com o seu consentimento</strong>. No momento não veiculamos anúncios, então
+              nenhum cookie desta categoria é definido hoje; a opção existe para quando isso mudar.
+            </li>
+          </ul>
           <p>
-            Utilizamos primordialmente <strong>cookies essenciais</strong>, indispensáveis para o
-            funcionamento da plataforma. Sem eles, recursos como login e área autenticada não
-            funcionam. Esses cookies não dependem de consentimento prévio, por serem necessários à
-            prestação do serviço solicitado por você.
+            As categorias de análise e de publicidade vêm <strong>desativadas por padrão</strong>.
+            Ao acessar o site você vê um aviso onde pode aceitar, recusar ou escolher categoria por
+            categoria - e nada dessas duas categorias é carregado antes da sua escolha. Você pode
+            rever essa decisão a qualquer momento (veja a seção 7).
           </p>
         </section>
 
@@ -72,16 +94,36 @@ export default function CookiePolicyPage() {
                   </td>
                   <td className="py-2 align-top">Essencial</td>
                 </tr>
+                <tr className="border-b">
+                  <td className="py-2 pr-4 align-top font-mono text-xs">_ga, _ga_&lt;id&gt;</td>
+                  <td className="py-2 pr-4 align-top">
+                    Google Analytics 4: distingue visitantes e sessões para medir o uso do site de
+                    forma agregada. Só é definido após o consentimento de análise.
+                  </td>
+                  <td className="py-2 align-top">Análise</td>
+                </tr>
+                <tr className="border-b">
+                  <td className="py-2 pr-4 align-top font-mono text-xs">_clck, _clsk</td>
+                  <td className="py-2 pr-4 align-top">
+                    Microsoft Clarity: liga as páginas de uma mesma visita para reconstruir o
+                    percurso (mapas de calor e gravações de sessão anônimas), ajudando a achar onde
+                    a tela trava. Só é definido após o consentimento de análise.
+                  </td>
+                  <td className="py-2 align-top">Análise</td>
+                </tr>
               </tbody>
             </table>
           </div>
           <p>
             O nome exato do cookie de sessão inclui a referência do projeto de autenticação e pode
-            variar conforme a configuração do provedor. Atualmente não utilizamos cookies de
-            publicidade ou de rastreamento para fins de marketing, nem ferramentas de analytics. As
-            únicas tecnologias complementares presentes no site são a meta tag de verificação de
-            domínio do Facebook e o fluxo de cadastro incorporado (Embedded Signup) do WhatsApp, que
-            não são pixels de anúncios nem rastreiam a sua navegação para publicidade.
+            variar conforme a configuração do provedor. Os cookies de análise (Google Analytics e
+            Microsoft Clarity) são carregados por meio do Google Tag Manager e{' '}
+            <strong>somente depois do seu consentimento</strong> - quem recusa não recebe nenhum
+            deles. Não veiculamos anúncios no momento, portanto nenhum cookie de publicidade (como
+            os do Pixel da Meta ou do Google Ads) é definido hoje; caso isso mude, dependerá do seu
+            consentimento na categoria de publicidade. O site também usa uma meta tag de verificação
+            de domínio do Facebook e o fluxo de cadastro incorporado (Embedded Signup) do WhatsApp,
+            que não são pixels de anúncios nem rastreiam a sua navegação.
           </p>
         </section>
 
@@ -144,9 +186,16 @@ export default function CookiePolicyPage() {
         <section className="space-y-3">
           <h2 className="text-xl font-semibold">7. Como gerenciar cookies</h2>
           <p>
-            Você pode configurar o seu navegador para bloquear ou apagar cookies. No entanto, ao
-            desativar cookies essenciais, partes da plataforma - incluindo o login - podem deixar de
-            funcionar. As instruções variam conforme o navegador (Chrome, Firefox, Safari, Edge,
+            As categorias de análise e de publicidade podem ser revistas a qualquer momento, sem
+            precisar mexer no navegador:
+          </p>
+          <p>
+            <CookiePreferencesButton className="text-coral font-semibold underline underline-offset-4" />
+          </p>
+          <p>
+            Você também pode configurar o seu navegador para bloquear ou apagar cookies. No entanto,
+            ao desativar cookies essenciais, partes da plataforma - incluindo o login - podem deixar
+            de funcionar. As instruções variam conforme o navegador (Chrome, Firefox, Safari, Edge,
             entre outros) e costumam estar disponíveis na seção de configurações de privacidade.
           </p>
         </section>

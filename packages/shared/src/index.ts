@@ -4,6 +4,7 @@
 export * from './availability';
 export * from './booking-days';
 export * from './calendar';
+export * from './comms-channel';
 export * from './format';
 export * from './recurrence';
 export * from './reserved-slugs';

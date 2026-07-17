@@ -1,20 +1,24 @@
 import 'server-only';
 
+import { prisma } from '@haru/database';
+import { pickChannels, type ChannelPlan, type CommsPrimary } from '@haru/shared';
+
 import { brandedShell, sendEmail } from '@/lib/email';
 
 import { sendPushSafe } from './push';
 import { sendPlatformWhatsapp } from './whatsapp';
 
 /**
- * Seletor de canal "own-channels-first": prioriza os canais PRÓPRIOS (push + email, sem
- * custo de template e sem risco de plataforma) e usa WhatsApp só como ÚLTIMO RECURSO -
- * quando não há NEM push NEM email. É a generalização de notifyCustomer
- * (subscription-events.ts), que hoje manda WhatsApp sempre que não há push, mesmo com
- * email. Estabelecido aqui como padrão reutilizável; outros comms migram depois.
+ * Seletor de canal "own-channels-first" (lado WEB): prioriza os canais PRÓPRIOS (push +
+ * email, sem custo de template e sem risco de plataforma) e usa WhatsApp só como ÚLTIMO
+ * RECURSO - quando não há NEM push NEM email (fallback), ou como REFORÇO/garantia quando
+ * `whatsappAlways` (comms crítico de dinheiro ou sensível a tempo real). A DECISÃO pura vive
+ * em @haru/shared (pickChannels), compartilhada com o bot; aqui ficam os senders do web + o
+ * log de canal pra métrica.
  *
  * Decisão por ELEGIBILIDADE, não por sucesso de envio: push é fire-and-forget (Expo) e o
  * email pode ter falha transitória do Resend - esperar falhar pra cair no WhatsApp mandaria
- * WhatsApp em toda instabilidade. Se existe canal próprio, o WhatsApp não sai.
+ * WhatsApp em toda instabilidade.
  */
 
 /** Alvo do envio. Espelha o `account` do review-invite; email/phone podem vir do Contact. */
@@ -31,40 +35,57 @@ export type ChannelPayload = {
 };
 
 /** Canal PRIMÁRIO pela hierarquia (pro log de métrica) + o que de fato foi tentado. */
-export type SentChannels = {
-  push: boolean;
-  email: boolean;
-  whatsapp: boolean;
-  primary: 'PUSH' | 'EMAIL' | 'WHATSAPP' | 'NONE';
+export type SentChannels = ChannelPlan;
+
+type ChannelOpts = {
+  whatsappOptOut: boolean;
+  /** WhatsApp sai JUNTO dos canais próprios (garantia/reforço), não só como fallback. */
+  whatsappAlways?: boolean;
 };
 
+/** Log opcional de métrica: registra o canal primário em CommsDelivery. */
+type LogRef = { tenantId: string; commsType: string };
+
 /**
- * Decide os canais SEM enviar (pura). Exposta pra reivindicar o canal primário antes do
- * envio (dedup atômico do lembrete de retorno). notifyPreferOwnChannels a reusa.
+ * Decide os canais SEM enviar (pura, via pickChannels do shared). Exposta pra reivindicar o
+ * canal primário antes do envio (dedup atômico do lembrete de retorno). notifyPreferOwnChannels
+ * a reusa.
  */
 export function channelDecision(
   t: OwnChannelTarget,
   p: ChannelPayload,
-  opts: { whatsappOptOut: boolean },
+  opts: ChannelOpts,
 ): SentChannels {
-  const push = t.pushDevices.length > 0 && !!p.push;
-  const email = !!t.email && !!p.email;
-  // WhatsApp só quando não há NENHUM canal próprio (e o cliente não pediu "PARAR").
-  const whatsapp = !push && !email && !!t.phone && !opts.whatsappOptOut && !!p.whatsapp;
-  return {
-    push,
-    email,
-    whatsapp,
-    primary: push ? 'PUSH' : email ? 'EMAIL' : whatsapp ? 'WHATSAPP' : 'NONE',
-  };
+  return pickChannels(
+    {
+      push: t.pushDevices.length > 0 && !!p.push,
+      email: !!t.email && !!p.email,
+      whatsapp: !!t.phone && !opts.whatsappOptOut && !!p.whatsapp,
+    },
+    { whatsappAlways: opts.whatsappAlways },
+  );
+}
+
+/** Grava o canal primário do comms (fire-and-forget: nunca derruba o envio). */
+export async function logCommsDelivery(
+  tenantId: string,
+  commsType: string,
+  channel: CommsPrimary,
+): Promise<void> {
+  try {
+    await prisma.commsDelivery.create({ data: { tenantId, commsType, channel } });
+  } catch (err) {
+    console.error('[comms] log de canal falhou', commsType, err);
+  }
 }
 
 export async function notifyPreferOwnChannels(
   t: OwnChannelTarget,
   p: ChannelPayload,
-  opts: { whatsappOptOut: boolean },
+  opts: ChannelOpts & { log?: LogRef },
 ): Promise<SentChannels> {
-  const { push, email, whatsapp } = channelDecision(t, p, opts);
+  const decision = channelDecision(t, p, opts);
+  const { push, email, whatsapp } = decision;
 
   await Promise.allSettled([
     push
@@ -85,10 +106,7 @@ export async function notifyPreferOwnChannels(
       : Promise.resolve(),
   ]);
 
-  return {
-    push,
-    email,
-    whatsapp,
-    primary: push ? 'PUSH' : email ? 'EMAIL' : whatsapp ? 'WHATSAPP' : 'NONE',
-  };
+  if (opts.log) await logCommsDelivery(opts.log.tenantId, opts.log.commsType, decision.primary);
+
+  return decision;
 }

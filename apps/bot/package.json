@@ -15,6 +15,7 @@
   "dependencies": {
     "@haru/billing": "workspace:*",
     "@haru/database": "workspace:*",
+    "@haru/shared": "workspace:*",
     "@haru/payments": "workspace:*",
     "@sentry/node": "^10.48.0",
     "@supabase/supabase-js": "^2.78.0",

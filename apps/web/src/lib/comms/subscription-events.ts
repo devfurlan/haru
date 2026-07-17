@@ -3,21 +3,26 @@ import 'server-only';
 import { prisma } from '@haru/database';
 import { formatBRL } from '@haru/shared';
 
-import { appUrl, brandedShell, sendEmail } from '@/lib/email';
+import { appUrl } from '@/lib/email';
 
 import { createNotification } from './notifications';
-import { sendPushSafe } from './push';
-import { sendPlatformWhatsapp } from './whatsapp';
+import {
+  notifyPreferOwnChannels,
+  type ChannelPayload,
+  type OwnChannelTarget,
+} from './prefer-own-channels';
 
 /**
  * Fan-out multi-canal dos eventos da ASSINATURA DE SERVIÇOS do cliente final ("Clube").
  * Separado de comms/events.ts (que é escopado ao billing DONO->Demandaê). Cada canal é
  * best-effort (Promise.allSettled): falha de um nunca derruba o webhook/cron.
  *
- * CLIENTE: push (se tem app) OU WhatsApp pela plataforma (sem app) + e-mail. NÃO usa o model
- * Notification (que é o sino do DONO). DONO: notificação in-app (createNotification).
- * WhatsApp usa o número da PLATAFORMA Demandaê (nunca o do tenant) - templates UTILITY
- * aprovados na Meta (ver README). Env-gated e fail-soft (sem template = no-op logado).
+ * CLIENTE: own-channels-first (notifyPreferOwnChannels) - push+e-mail quando existem, WhatsApp
+ * pela plataforma só como fallback (sem push nem e-mail) OU como garantia na falha de pagamento
+ * (whatsappAlways, comms crítico de dinheiro). NÃO usa o model Notification (sino do DONO).
+ * DONO: notificação in-app (createNotification). WhatsApp usa o número da PLATAFORMA Demandaê
+ * (nunca o do tenant) - templates UTILITY aprovados na Meta (ver README). Cada envio registra o
+ * canal primário em CommsDelivery (métrica de redução de WhatsApp).
  */
 
 type MembershipCtx = NonNullable<Awaited<ReturnType<typeof loadCtx>>>;
@@ -34,6 +39,9 @@ function loadCtx(membershipId: string) {
       currentPeriodEnd: true,
       creditsExpireAt: true,
       tenant: { select: { id: true, name: true, slug: true } },
+      // Opt-out "PARAR" do WhatsApp é por-tenant (no Contact); só pesa quando o WhatsApp de
+      // fato sairia (fallback sem canal próprio ou garantia da falha de pagamento).
+      contact: { select: { remindersOptOutAt: true } },
       customerAccount: {
         select: {
           name: true,
@@ -52,8 +60,10 @@ function dateShort(d: Date): string {
 }
 
 /**
- * Dispara os canais do CLIENTE: push-se-tem-app-senão-WhatsApp + e-mail. `link` é o destino
- * do e-mail/WhatsApp (a área do cliente ainda não existe - aponta pra página do tenant).
+ * Dispara os canais do CLIENTE via seletor own-channels-first: push+e-mail quando existem,
+ * WhatsApp só como fallback (sem canal próprio) OU como garantia quando `whatsappAlways`
+ * (falha de pagamento). `link` é o destino do e-mail/WhatsApp (a área do cliente ainda não
+ * existe - aponta pra página do tenant). Registra o canal primário em CommsDelivery.
  */
 async function notifyCustomer(
   ctx: MembershipCtx,
@@ -65,30 +75,31 @@ async function notifyCustomer(
     link: string;
     /** type do payload de push (deep-link no app). */
     pushType: string;
+    /** identificador do comms pro log de canal (ex.: 'clubsub_activated'). */
+    commsType: string;
+    /** WhatsApp sai junto dos canais próprios (só na falha de pagamento - crítico de dinheiro). */
+    whatsappAlways?: boolean;
   },
 ): Promise<void> {
   const acc = ctx.customerAccount;
-  const devices = acc.pushDevices;
-  await Promise.allSettled([
-    (async () => {
-      if (devices.length > 0) {
-        await sendPushSafe(devices.map((d) => d.expoPushToken), {
-          ...args.push,
-          data: { type: args.pushType, membershipId: ctx.id, slug: ctx.tenant.slug },
-        });
-      } else if (acc.phone) {
-        await sendPlatformWhatsapp(acc.phone, args.waTemplate, args.waParams);
-      }
-    })(),
-    (async () => {
-      if (!acc.email) return;
-      await sendEmail(
-        acc.email,
-        args.email.subject,
-        brandedShell(args.email.subject, args.email.body, args.email.cta, args.link),
-      );
-    })(),
-  ]);
+  const target: OwnChannelTarget = {
+    email: acc.email,
+    phone: acc.phone,
+    pushDevices: acc.pushDevices,
+  };
+  const payload: ChannelPayload = {
+    push: {
+      ...args.push,
+      data: { type: args.pushType, membershipId: ctx.id, slug: ctx.tenant.slug },
+    },
+    email: { ...args.email, link: args.link },
+    whatsapp: { template: args.waTemplate, params: args.waParams },
+  };
+  await notifyPreferOwnChannels(target, payload, {
+    whatsappOptOut: ctx.contact?.remindersOptOutAt != null,
+    whatsappAlways: args.whatsappAlways,
+    log: { tenantId: ctx.tenant.id, commsType: args.commsType },
+  });
 }
 
 /** Nome curto do cliente pro texto ("cliente" se não tiver). */
@@ -106,6 +117,7 @@ export async function notifySubscriptionActivated(membershipId: string): Promise
   const n = ctx.creditsPerCycle;
   await notifyCustomer(ctx, {
     pushType: 'clubsub_activated',
+    commsType: 'clubsub_activated',
     link,
     push: {
       title: `Seu ${ctx.planName} está ativo! 🎉`,
@@ -133,6 +145,7 @@ export async function notifySubscriptionRenewed(
   const valor = amountCents != null ? formatBRL(amountCents) : formatBRL(ctx.priceCents);
   await notifyCustomer(ctx, {
     pushType: 'clubsub_renewed',
+    commsType: 'clubsub_renewed',
     link,
     push: {
       title: `Seus ${n} ${n === 1 ? 'crédito' : 'créditos'} chegaram`,
@@ -158,6 +171,10 @@ export async function notifySubscriptionPaymentFailed(membershipId: string): Pro
   const link = `${appUrl()}/${ctx.tenant.slug}`;
   await notifyCustomer(ctx, {
     pushType: 'clubsub_payment_failed',
+    commsType: 'clubsub_payment_failed',
+    // Crítico de dinheiro: a assinatura suspende se não regularizar. WhatsApp sai como
+    // GARANTIA junto de push+e-mail (respeitando o opt-out "PARAR"), não só como fallback.
+    whatsappAlways: true,
     link,
     push: {
       title: 'Não conseguimos cobrar seu Clube',
@@ -181,6 +198,7 @@ export async function notifySubscriptionCanceled(membershipId: string): Promise<
   const until = ctx.currentPeriodEnd ? dateShort(ctx.currentPeriodEnd) : null;
   await notifyCustomer(ctx, {
     pushType: 'clubsub_canceled',
+    commsType: 'clubsub_canceled',
     link,
     push: {
       title: `${ctx.planName} cancelado`,
@@ -204,6 +222,7 @@ export async function notifyCreditsLow(membershipId: string): Promise<void> {
   const left = ctx.creditBalance;
   await notifyCustomer(ctx, {
     pushType: 'clubsub_credits_low',
+    commsType: 'clubsub_credits_low',
     link,
     push: {
       title: `Resta ${left} ${left === 1 ? 'crédito' : 'créditos'} este mês`,
@@ -252,6 +271,7 @@ export async function notifyCreditsExpiring(membershipId: string): Promise<void>
   const left = ctx.creditBalance;
   await notifyCustomer(ctx, {
     pushType: 'clubsub_credits_expiring',
+    commsType: 'clubsub_credits_expiring',
     link,
     push: {
       title: `${left} ${left === 1 ? 'crédito vence' : 'créditos vencem'} em ${when}`,

@@ -199,6 +199,7 @@ model Tenant {
   memberships        Membership[]
   membershipCharges  MembershipCharge[]
   returnReminders    ReturnReminder[]
+  commsDeliveries    CommsDelivery[]
 }
 
 model User {
@@ -671,6 +672,33 @@ model ReturnReminder {
 
 /// Canal primário de um ReturnReminder (hierarquia own-channels-first).
 enum ReturnReminderChannel {
+  PUSH
+  EMAIL
+  WHATSAPP
+  NONE
+}
+
+/// Log append-only de qual canal PRIMÁRIO cada comms transacional saiu (own-channels-first).
+/// Uma linha por disparo. Responde à métrica "% dos comms que saiu por push/email vs WhatsApp"
+/// - valida se a migração own-first está de fato reduzindo o WhatsApp. `commsType` é string
+/// livre (ex.: 'clubsub_activated', 'appointment_reminder', 'review_invite') pra não exigir
+/// migration a cada comms novo. ponytail: só o canal primário; o WhatsApp de REFORÇO
+/// (whatsappAlways em fila/falha-de-pgto) não é contado à parte - é reforço estrutural conhecido.
+model CommsDelivery {
+  id        String       @id @default(cuid())
+  tenantId  String
+  tenant    Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  commsType String
+  channel   CommsChannel
+  sentAt    DateTime     @default(now())
+
+  @@index([tenantId, sentAt])
+  @@index([tenantId, commsType, sentAt])
+}
+
+/// Canal primário de um comms (hierarquia own-channels-first). Mesmos valores do
+/// ReturnReminderChannel, mantido separado pra não churnar aquela coluna já em produção.
+enum CommsChannel {
   PUSH
   EMAIL
   WHATSAPP

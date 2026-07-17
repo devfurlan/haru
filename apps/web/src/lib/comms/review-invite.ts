@@ -2,11 +2,14 @@ import 'server-only';
 
 import { prisma } from '@haru/database';
 
-import { appUrl, brandedShell, sendEmail } from '@/lib/email';
+import { appUrl } from '@/lib/email';
 
-import { sendPushSafe } from './push';
+import {
+  notifyPreferOwnChannels,
+  type ChannelPayload,
+  type OwnChannelTarget,
+} from './prefer-own-channels';
 import { reviewInviteWindow } from './review-invite-core';
-import { sendPlatformWhatsapp } from './whatsapp';
 
 export { REVIEW_INVITE_DELAY_HOURS } from './review-invite-core';
 
@@ -20,8 +23,9 @@ export { REVIEW_INVITE_DELAY_HOURS } from './review-invite-core';
  * gravar. E canReview é re-checado no upsertReview, então um NO_SHOW marcado depois ainda
  * bloqueia a avaliação (backstop do offset curto).
  *
- * Canais (padrão do notifyCustomer do Clube): push se tem app, senão WhatsApp pela plataforma
- * (template UTILITY, respeitando opt-out de lembretes), + e-mail sempre. Tudo best-effort.
+ * Canais (own-channels-first): push+e-mail quando existem; WhatsApp pela plataforma (template
+ * UTILITY, respeitando opt-out) só como fallback pra quem não tem canal próprio. Comms de
+ * relacionamento - WhatsApp é dispensável quando push/e-mail cobrem. Tudo best-effort.
  *
  * O núcleo puro (janela + elegibilidade) vive em review-invite-core.ts (testável sem IO).
  */
@@ -84,6 +88,7 @@ export async function dispatchReviewInvites(now: Date): Promise<{ checked: numbe
     try {
       await notifyReviewInvite({
         appointmentId: appt.id,
+        tenantId: appt.tenantId,
         tenantName: appt.tenant.name,
         tenantSlug: appt.tenant.slug,
         serviceName: appt.service.name,
@@ -112,6 +117,7 @@ function stamp(appointmentId: string, now: Date): Promise<unknown> {
 
 async function notifyReviewInvite(args: {
   appointmentId: string;
+  tenantId: string;
   tenantName: string;
   tenantSlug: string;
   serviceName: string;
@@ -127,44 +133,32 @@ async function notifyReviewInvite(args: {
   const { account } = args;
   const link = `${appUrl()}/conta/agendamentos/${args.appointmentId}/avaliar`;
   const withPro = args.professionalName ? ` com ${args.professionalName}` : '';
+  const subject = `Como foi seu ${args.serviceName} em ${args.tenantName}?`;
 
-  await Promise.allSettled([
-    (async () => {
-      if (account.pushDevices.length > 0) {
-        await sendPushSafe(
-          account.pushDevices.map((d) => d.expoPushToken),
-          {
-            title: `Como foi seu ${args.serviceName}?`,
-            body: `Toca pra avaliar ${args.tenantName}${withPro}.`,
-            data: {
-              type: 'review_request',
-              appointmentId: args.appointmentId,
-              tenantSlug: args.tenantSlug,
-            },
-          },
-        );
-      } else if (account.phone && !args.optOut) {
-        await sendPlatformWhatsapp(account.phone, process.env.WHATSAPP_TEMPLATE_REVIEW_INVITE, [
-          account.name ?? 'cliente',
-          args.serviceName,
-          args.tenantName,
-          link,
-        ]);
-      }
-    })(),
-    (async () => {
-      if (!account.email) return;
-      const subject = `Como foi seu ${args.serviceName} em ${args.tenantName}?`;
-      await sendEmail(
-        account.email,
-        subject,
-        brandedShell(
-          subject,
-          `Seu atendimento${withPro} em <strong>${args.tenantName}</strong> já passou. Conta rapidinho como foi - leva 10 segundos e ajuda outras pessoas a escolher.`,
-          'Avaliar atendimento',
-          link,
-        ),
-      );
-    })(),
-  ]);
+  const target: OwnChannelTarget = {
+    email: account.email,
+    phone: account.phone,
+    pushDevices: account.pushDevices,
+  };
+  const payload: ChannelPayload = {
+    push: {
+      title: `Como foi seu ${args.serviceName}?`,
+      body: `Toca pra avaliar ${args.tenantName}${withPro}.`,
+      data: { type: 'review_request', appointmentId: args.appointmentId, tenantSlug: args.tenantSlug },
+    },
+    email: {
+      subject,
+      body: `Seu atendimento${withPro} em <strong>${args.tenantName}</strong> já passou. Conta rapidinho como foi - leva 10 segundos e ajuda outras pessoas a escolher.`,
+      cta: 'Avaliar atendimento',
+      link,
+    },
+    whatsapp: {
+      template: process.env.WHATSAPP_TEMPLATE_REVIEW_INVITE,
+      params: [account.name ?? 'cliente', args.serviceName, args.tenantName, link],
+    },
+  };
+  await notifyPreferOwnChannels(target, payload, {
+    whatsappOptOut: args.optOut,
+    log: { tenantId: args.tenantId, commsType: 'review_invite' },
+  });
 }

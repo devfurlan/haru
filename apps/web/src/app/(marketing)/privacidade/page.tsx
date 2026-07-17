@@ -7,7 +7,7 @@ export const metadata: Metadata = {
     'Como o Demandaê coleta, usa, compartilha e protege dados pessoais na plataforma de agendamento e pagamentos para negócios de serviço - app do cliente, página pública e painel.',
 };
 
-const LAST_UPDATED = '15 de julho de 2026';
+const LAST_UPDATED = '17 de julho de 2026';
 
 export default function PrivacyPolicyPage() {
   return (
@@ -324,6 +324,17 @@ export default function PrivacyPolicyPage() {
               segurança) - base legal: <strong>execução de contrato</strong> (art. 7º, V).
             </li>
             <li>
+              <strong>Medição de audiência e análise de uso do site</strong> (entender páginas mais
+              acessadas e onde os visitantes têm dificuldade, com ferramentas como Google Analytics
+              e Microsoft Clarity) - base legal: <strong>consentimento</strong> (art. 7º, I),
+              manifestado no aviso de cookies. Essas ferramentas só são ativadas se você consentir e
+              você pode revogar a qualquer momento (veja a{' '}
+              <Link href="/cookies" className="font-medium underline underline-offset-4">
+                Política de Cookies
+              </Link>
+              ).
+            </li>
+            <li>
               <strong>Comunicações de marketing</strong> - base legal:{' '}
               <strong>consentimento</strong> (art. 7º, I). Só as enviamos quando você autoriza, e
               você pode revogar o consentimento a qualquer momento.
@@ -516,7 +527,15 @@ export default function PrivacyPolicyPage() {
             </li>
             <li>
               <strong>Google:</strong> autenticação por meio do &ldquo;Entrar com o Google&rdquo;,
-              quando você opta por esse login.
+              quando você opta por esse login; e, mediante o seu consentimento no aviso de cookies,
+              medição de audiência do site (Google Analytics), gerenciamento de tags (Google Tag
+              Manager) e eventual medição de anúncios (Google Ads). Sem consentimento, essas
+              ferramentas de medição não são carregadas.
+            </li>
+            <li>
+              <strong>Microsoft (Clarity):</strong> mediante o seu consentimento no aviso de
+              cookies, mapas de calor e gravações de sessão anônimas do site, para entender o uso e
+              melhorar a experiência. Sem consentimento, não é carregado.
             </li>
             <li>
               <strong>Twilio (Verify):</strong> envio e verificação do código por SMS (OTP) para
@@ -721,8 +740,8 @@ export default function PrivacyPolicyPage() {
           <h2 className="text-xl font-semibold">17. Transferência internacional</h2>
           <p>
             Alguns dos prestadores acima tratam dados em servidores fora do Brasil, especialmente
-            nos Estados Unidos - entre eles Meta, OpenAI, Supabase, Google, Twilio, Expo (e os
-            gateways de push Google FCM e Apple APNs), Resend, Upstash, Sentry,
+            nos Estados Unidos - entre eles Meta, OpenAI, Supabase, Google, Microsoft, Twilio, Expo
+            (e os gateways de push Google FCM e Apple APNs), Resend, Upstash, Sentry,
             Nominatim/OpenStreetMap, Vercel e Railway - e na Europa, no caso do Photon/komoot
             (Alemanha) e da OpenStreetMap Foundation (Reino Unido). Nesses casos, a transferência
             internacional se apoia nas hipóteses do art. 33 da LGPD, em regra mediante a adoção de{' '}
@@ -807,7 +826,10 @@ export default function PrivacyPolicyPage() {
           <h2 className="text-xl font-semibold">20. Cookies e armazenamento local</h2>
           <p>
             Utilizamos cookies essenciais no site e no painel, e armazenamento local no aplicativo
-            móvel, para o funcionamento da plataforma. Para detalhes, consulte nossa{' '}
+            móvel, para o funcionamento da plataforma. Mediante o seu consentimento, usamos também
+            cookies de análise (Google Analytics e Microsoft Clarity) e, no futuro, poderemos usar
+            cookies de publicidade - ambos desativados por padrão e reversíveis a qualquer momento.
+            Para detalhes e para gerenciar as suas preferências, consulte nossa{' '}
             <Link href="/cookies" className="font-medium underline underline-offset-4">
               Política de Cookies
             </Link>

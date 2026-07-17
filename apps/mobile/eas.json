@@ -19,7 +19,8 @@
       "env": {
         "EXPO_PUBLIC_SUPABASE_URL": "https://rmhlslarbamcqxdxfope.supabase.co",
         "EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY": "sb_publishable_SdjvZc43yMaQQzZnB2ysVQ_36ktWfip",
-        "EXPO_PUBLIC_API_URL": "https://www.demandae.com"
+        "EXPO_PUBLIC_API_URL": "https://www.demandae.com",
+        "EXPO_PUBLIC_SENTRY_DSN": "https://c01bddfccd9befed8d51242242357d16@o4511740808986624.ingest.us.sentry.io/4511751242317824"
       }
     },
     "production": {
@@ -31,7 +32,8 @@
       "env": {
         "EXPO_PUBLIC_SUPABASE_URL": "https://rmhlslarbamcqxdxfope.supabase.co",
         "EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY": "sb_publishable_SdjvZc43yMaQQzZnB2ysVQ_36ktWfip",
-        "EXPO_PUBLIC_API_URL": "https://www.demandae.com"
+        "EXPO_PUBLIC_API_URL": "https://www.demandae.com",
+        "EXPO_PUBLIC_SENTRY_DSN": "https://c01bddfccd9befed8d51242242357d16@o4511740808986624.ingest.us.sentry.io/4511751242317824"
       }
     }
   },
