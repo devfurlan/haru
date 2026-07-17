@@ -34,6 +34,7 @@ export {
   hasFeature,
   hasWaitlist,
   hasServiceSubscriptions,
+  hasCommissions,
   getProfessionalUsage,
   getReceptionistUsage,
   canAddProfessional,

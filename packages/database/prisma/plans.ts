@@ -32,6 +32,7 @@ interface PlanSeed {
   team: boolean;
   waitlist: boolean;
   serviceSubscriptions: boolean;
+  commissions: boolean;
   /// true = plano PÚBLICO (listado em /precos + contratável no self-serve). Só um por tier.
   active: boolean;
   displayOrder: number;
@@ -56,6 +57,7 @@ export const PLAN_SEED: PlanSeed[] = [
     team: false,
     waitlist: false,
     serviceSubscriptions: false,
+    commissions: false,
     active: true,
     displayOrder: 1,
   },
@@ -73,6 +75,7 @@ export const PLAN_SEED: PlanSeed[] = [
     team: true,
     waitlist: true,
     serviceSubscriptions: true,
+    commissions: false,
     active: true,
     displayOrder: 2,
   },
@@ -90,6 +93,7 @@ export const PLAN_SEED: PlanSeed[] = [
     team: true,
     waitlist: true,
     serviceSubscriptions: true,
+    commissions: true,
     active: true,
     displayOrder: 3,
   },

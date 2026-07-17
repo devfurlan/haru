@@ -42,6 +42,8 @@ export interface PlanSnapshot {
   featWaitlist: boolean;
   /** Clube de assinatura + pacotes. Vem do plano contratado (não do tier). */
   featServiceSubscriptions: boolean;
+  /** Comissões/financeiro por profissional. Vem do plano contratado (não do tier). */
+  featCommissions: boolean;
 }
 
 /** Deriva o snapshot dos termos a partir do Plan vigente e do ciclo de cobrança. */
@@ -61,6 +63,7 @@ export function snapshotPlan(plan: Plan, cycle: BillingCycle): PlanSnapshot {
     featTeam: plan.team,
     featWaitlist: plan.waitlist,
     featServiceSubscriptions: plan.serviceSubscriptions,
+    featCommissions: plan.commissions,
   };
 }
 

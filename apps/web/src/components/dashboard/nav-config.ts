@@ -1,6 +1,7 @@
 import {
   CalendarDays,
   Clock,
+  Coins,
   Gift,
   Globe,
   LayoutGrid,
@@ -95,6 +96,16 @@ export const NAV_ITEMS: NavItem[] = [
     adminOnly: true,
   },
   { key: 'equipe', label: 'Equipe', href: '/team', icon: Users, group: 'negocio' },
+  {
+    // Comissões/financeiro por profissional (feature Multi+). adminOnly: mostra o corte da
+    // casa e o que pagar. A página faz o gate de feature (hasCommissions) com upsell.
+    key: 'comissoes',
+    label: 'Comissões',
+    href: '/comissoes',
+    icon: Coins,
+    group: 'negocio',
+    adminOnly: true,
+  },
   { key: 'horarios', label: 'Horários', href: '/schedule', icon: Clock, group: 'negocio' },
   { key: 'pagina', label: 'Página pública', href: '/page', icon: Globe, group: 'negocio' },
   {

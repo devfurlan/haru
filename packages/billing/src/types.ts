@@ -11,7 +11,8 @@ export type PlanFeatureKey =
   | 'webhooks'
   | 'team'
   | 'waitlist'
-  | 'serviceSubscriptions';
+  | 'serviceSubscriptions'
+  | 'commissions';
 
 /**
  * Chaves de feature controladas por assinatura. `aiAttendant` (o addon do bot) NÃO é
@@ -46,4 +47,6 @@ export const FEATURE_MIN_TIER: Record<PlanFeatureKey, PlanTier> = {
   team: 'PROFISSIONAL',
   waitlist: 'PROFISSIONAL',
   serviceSubscriptions: 'PROFISSIONAL',
+  // Comissões: Multi+ (equipe maior; decisão de produto). Marketing já mostra Multi+.
+  commissions: 'NEGOCIO',
 };

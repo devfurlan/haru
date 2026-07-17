@@ -200,6 +200,7 @@ model Tenant {
   membershipCharges  MembershipCharge[]
   returnReminders    ReturnReminder[]
   commsDeliveries    CommsDelivery[]
+  professionalCompensations ProfessionalCompensation[]
 }
 
 model User {
@@ -246,11 +247,47 @@ model User {
   professionalServices ProfessionalService[]
   waitlistEntries      WaitlistEntry[]
   waitlistOffers       WaitlistOffer[]
+  compensation         ProfessionalCompensation?
 }
 
 enum UserRole {
   OWNER
   STAFF
+}
+
+/// Como um profissional (User com isProfessional=true) é remunerado. UM modelo por
+/// profissional no v1 (o dono escolhe). Extensível: SALARY/MIXED entram no enum e a
+/// tabela ganha os campos; percentual por serviço vira uma tabela filha (override por
+/// serviço) sem refazer isto. Config do dono; NÃO é fonte de faturamento (o motor de
+/// métricas é) - a comissão é calculada em cima do realizado.
+model ProfessionalCompensation {
+  id             String            @id @default(cuid())
+  tenantId       String
+  tenant         Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  /// 1:1 com o profissional. Ausência da linha = "não configurado" (dono ainda não definiu).
+  professionalId String            @unique
+  professional   User              @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+  model          CompensationModel @default(COMMISSION_PERCENT)
+  /// COMMISSION_PERCENT: % do valor do serviço que fica com o profissional (0..100, inteiro).
+  /// ponytail: inteiro basta no v1; virar basis points se precisar de fração.
+  commissionPercent    Int?
+  /// FIXED_PER_SERVICE: valor fixo (centavos) que o profissional recebe por atendimento.
+  fixedPerServiceCents Int?
+  /// CHAIR_RENT: aluguel MENSAL (centavos) que o profissional PAGA à casa; ele fica com 100%
+  /// dos serviços. Fluxo invertido - a casa recebe, não paga.
+  chairRentCents       Int?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId])
+}
+
+/// Modelos de remuneração suportados. v1: os três primeiros. v2: SALARY, MIXED (salário +
+/// % acima de meta) entram aqui sem quebrar os existentes.
+enum CompensationModel {
+  COMMISSION_PERCENT // % do valor do serviço
+  FIXED_PER_SERVICE // R$ fixo por atendimento
+  CHAIR_RENT // aluguel de cadeira (casa recebe do profissional; ele fica com 100%)
 }
 
 enum UserStatus {
@@ -887,6 +924,9 @@ model Plan {
   waitlist             Boolean @default(false)
   /// Clube de assinatura + pacotes (assinatura do cliente final ao estabelecimento).
   serviceSubscriptions Boolean @default(false)
+  /// Comissões/financeiro por profissional (feature de equipe). Nos planos públicos vem do
+  /// Multi (NEGOCIO) pra cima; admin liga/desliga por plano.
+  commissions          Boolean @default(false)
 
   /// Plano PÚBLICO: listado em /precos e contratável no self-serve. false = plano
   /// PERSONALIZADO, fora da vitrine, só atribuível pelo admin a estabelecimentos
@@ -981,6 +1021,8 @@ model Subscription {
   /// combinem features livremente e p/ que o grandfather valha também aqui.
   featWaitlist             Boolean @default(false)
   featServiceSubscriptions Boolean @default(false)
+  /// Comissões/financeiro por profissional. Snapshot do Plan.commissions (grandfather).
+  featCommissions          Boolean @default(false)
 
   // --- Addon "Atendente IA no WhatsApp" (snapshot próprio, grandfather) ----------
   /// Tier do addon contratado. null = sem addon (só plano base). Independente do

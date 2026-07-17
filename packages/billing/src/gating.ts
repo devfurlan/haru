@@ -127,6 +127,8 @@ export function hasFeature(sub: Subscription | null | undefined, feature: Featur
       return sub.featWaitlist;
     case 'serviceSubscriptions':
       return sub.featServiceSubscriptions;
+    case 'commissions':
+      return sub.featCommissions;
     case 'aiAttendant':
       return isAddonActive(sub);
   }
@@ -152,6 +154,15 @@ export function hasWaitlist(sub: Subscription | null | undefined): boolean {
  */
 export function hasServiceSubscriptions(sub: Subscription | null | undefined): boolean {
   return hasFeature(sub, 'serviceSubscriptions');
+}
+
+/**
+ * Comissões/financeiro por profissional (config de remuneração + fechamento). Lê a flag do
+ * SNAPSHOT (o plano contratado decide, não o tier). Feature de equipe: nos planos públicos vem
+ * do Multi pra cima, mas um plano personalizado pode ligá-la em qualquer tier (admin).
+ */
+export function hasCommissions(sub: Subscription | null | undefined): boolean {
+  return hasFeature(sub, 'commissions');
 }
 
 // --- Equipe: profissionais x recepcionistas ----------------------------------

@@ -42,6 +42,7 @@ const plan = {
   team: false,
   waitlist: false,
   serviceSubscriptions: false,
+  commissions: false,
 } as unknown as Plan;
 
 assert.equal(snapshotPlan(plan, 'MONTHLY').priceCents, 7900);
@@ -51,8 +52,13 @@ assert.equal(snapshotPlan(plan, 'MONTHLY').whatsappRemindersLimit, 250); // úni
 // Features vêm do PLANO (não do tier) e entram no snapshot - base do gating de fila/clube.
 assert.equal(snapshotPlan(plan, 'MONTHLY').featWaitlist, false);
 assert.equal(snapshotPlan(plan, 'MONTHLY').featServiceSubscriptions, false);
+assert.equal(snapshotPlan(plan, 'MONTHLY').featCommissions, false);
 assert.equal(
   snapshotPlan({ ...plan, waitlist: true } as unknown as Plan, 'MONTHLY').featWaitlist,
+  true,
+);
+assert.equal(
+  snapshotPlan({ ...plan, commissions: true } as unknown as Plan, 'MONTHLY').featCommissions,
   true,
 );
 
@@ -117,7 +123,10 @@ assert.equal(isAddonActive(sub({ status: 'PENDING', addonTier: 'BOT_TIME' })), f
 // Escolhido mas ainda NÃO ativado (addonTier setado na escolha; setup/verificação pendente).
 assert.equal(isAddonActive(sub({ addonTier: 'BOT_TIME', addonActivatedAt: null })), false);
 assert.equal(hasFeature(sub({ addonTier: 'BOT_TIME' }), 'aiAttendant'), true);
-assert.equal(hasFeature(sub({ addonTier: 'BOT_TIME', addonActivatedAt: null }), 'aiAttendant'), false);
+assert.equal(
+  hasFeature(sub({ addonTier: 'BOT_TIME', addonActivatedAt: null }), 'aiAttendant'),
+  false,
+);
 assert.equal(hasFeature(sub({ addonTier: null }), 'aiAttendant'), false);
 
 // --- Valor recorrente unificado: plano base + addon quando ativo -----------------
@@ -129,12 +138,19 @@ assert.equal(
 ); // addon ativo soma
 assert.equal(
   recurringValueCents(
-    sub({ priceCents: 6900, addonTier: 'BOT_TIME', addonPriceCents: 24900, addonActivatedAt: null }),
+    sub({
+      priceCents: 6900,
+      addonTier: 'BOT_TIME',
+      addonPriceCents: 24900,
+      addonActivatedAt: null,
+    }),
   ),
   6900,
 ); // escolhido mas não ativado: não soma
 assert.equal(
-  recurringValueCents(sub({ status: 'PENDING', priceCents: 6900, addonTier: 'BOT_TIME', addonPriceCents: 24900 })),
+  recurringValueCents(
+    sub({ status: 'PENDING', priceCents: 6900, addonTier: 'BOT_TIME', addonPriceCents: 24900 }),
+  ),
   6900,
 ); // assinatura inativa: addon não conta
 

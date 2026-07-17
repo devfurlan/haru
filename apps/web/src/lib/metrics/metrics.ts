@@ -74,6 +74,43 @@ export async function getRevenue(q: MetricsQuery): Promise<number> {
     .reduce((s, r) => s + revenueOf({ priceCents: r.service.priceCents }), 0);
 }
 
+export interface ProfessionalMetric {
+  revenueCents: number;
+  count: number;
+}
+
+/**
+ * Faturamento realizado + nº de atendimentos POR profissional no período, numa query só.
+ * Base do relatório de comissões (evita N chamadas de getMetrics). Mesma regra/fonte de preço
+ * (isRealized + revenueOf) - não é cálculo paralelo, é o mesmo do motor agrupado por pro.
+ */
+export async function getRevenueByProfessional(q: {
+  scope: MetricsScope;
+  from: Date;
+  to: Date;
+  now?: Date;
+}): Promise<Map<string, ProfessionalMetric>> {
+  const now = q.now ?? new Date();
+  const rows = await prisma.appointment.findMany({
+    where: { tenantId: q.scope.tenantId, startsAt: { gte: q.from, lt: q.to } },
+    select: {
+      professionalId: true,
+      endsAt: true,
+      status: true,
+      service: { select: { priceCents: true } },
+    },
+  });
+  const map = new Map<string, ProfessionalMetric>();
+  for (const r of rows) {
+    if (!isRealized(r, now)) continue;
+    const cur = map.get(r.professionalId) ?? { revenueCents: 0, count: 0 };
+    cur.revenueCents += revenueOf({ priceCents: r.service.priceCents });
+    cur.count += 1;
+    map.set(r.professionalId, cur);
+  }
+  return map;
+}
+
 /**
  * Todas as métricas do período para o escopo/filtros dados. Uma chamada = uma foto completa
  * (faturamento, contagens, taxas, ticket, ocupação, top serviços, novo×recorrente, MRR,
