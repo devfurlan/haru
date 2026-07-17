@@ -15,6 +15,7 @@ export interface ServiceFormDefaults {
   description?: string | null;
   durationMinutes?: number;
   priceCents?: number;
+  returnCycleDays?: number | null;
 }
 
 export interface ProfessionalOption {
@@ -134,6 +135,30 @@ export function ServiceForm({
             className="flex-1 bg-transparent px-2 py-3 text-sm text-ink outline-none placeholder:text-ink-30"
           />
         </div>
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor="returnCycleDays" className="text-xs font-semibold text-ink-70">
+          Ritmo de retorno <span className="font-medium text-ink-30">· opcional</span>
+        </label>
+        <div className="flex items-center overflow-hidden rounded-xl border border-edge bg-cream focus-within:border-green-deep">
+          <span className="pl-3.5 font-serif text-sm text-ink-50">a cada</span>
+          <input
+            id="returnCycleDays"
+            name="returnCycleDays"
+            type="number"
+            min={1}
+            max={365}
+            defaultValue={defaults?.returnCycleDays ?? ''}
+            placeholder="30"
+            className="flex-1 bg-transparent px-2 py-3 text-sm text-ink outline-none placeholder:text-ink-30"
+          />
+          <span className="pr-3.5 font-serif text-sm text-ink-50">dias</span>
+        </div>
+        <p className="text-[11px] text-ink-50">
+          Serve pro lembrete de retorno quando o cliente ainda não tem histórico. Vazio = a
+          gente aprende do ritmo real de cada um.
+        </p>
       </div>
 
       {multiProf && (

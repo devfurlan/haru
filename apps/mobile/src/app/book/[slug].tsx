@@ -345,7 +345,16 @@ function SeriesRow({
 }
 
 export default function BookScreen() {
-  const { slug } = useLocalSearchParams<{ slug: string }>();
+  const {
+    slug,
+    serviceId: prefillServiceId,
+    professionalId: prefillProfessionalId,
+  } = useLocalSearchParams<{
+    slug: string;
+    serviceId?: string;
+    professionalId?: string;
+    dateStr?: string;
+  }>();
   const { session } = useAuth();
   const { ids: favIds, reload: reloadFavs, toggle: toggleFav } = useFavorites();
   const insets = useSafeAreaInsets();
@@ -418,6 +427,19 @@ export default function BookScreen() {
       active = false;
     };
   }, [slug]);
+
+  // Deep-link do lembrete de retorno: abre já no serviço (+ profissional) e pula pro passo
+  // de horário. Roda uma vez no load (guard step==='service' && !service). ponytail: o dia
+  // exato fica com o SlotPicker (o texto do lembrete nomeia o dia); preselecioná-lo pediria
+  // um prop novo no SlotPicker compartilhado - fora do escopo nível-dia.
+  useEffect(() => {
+    if (!tenant || !prefillServiceId || service || step !== 'service') return;
+    const svc = tenant.services.find((s) => s.id === prefillServiceId);
+    if (!svc) return;
+    setService(svc);
+    if (prefillProfessionalId) setProfessionalId(prefillProfessionalId);
+    setStep('slot');
+  }, [tenant, prefillServiceId, prefillProfessionalId, service, step]);
 
   // Pré-preenche contato se o cliente estiver logado (melhor esforço).
   useEffect(() => {

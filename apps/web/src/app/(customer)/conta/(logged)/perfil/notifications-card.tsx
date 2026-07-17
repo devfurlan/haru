@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 interface CustomerNotificationsCardProps {
   appointmentEmailsEnabled: boolean;
   reviewInvitesEnabled: boolean;
+  returnRemindersEnabled: boolean;
 }
 
 function SubmitButton() {
@@ -24,6 +25,7 @@ function SubmitButton() {
 export function CustomerNotificationsCard({
   appointmentEmailsEnabled,
   reviewInvitesEnabled,
+  returnRemindersEnabled,
 }: CustomerNotificationsCardProps) {
   const [state, formAction] = useActionState<CustomerActionResult, FormData>(
     customerUpdateNotifications,
@@ -71,6 +73,25 @@ export function CustomerNotificationsCard({
                 <span className="text-muted-foreground block text-xs">
                   Um lembrete pra avaliar o atendimento pouco depois dele (e-mail e app). Desligar
                   vale pra todos os canais.
+                </span>
+              </span>
+            </label>
+          </div>
+
+          <div className="space-y-2 rounded-lg border border-dashed p-4">
+            <label htmlFor="returnRemindersEnabled" className="flex items-start gap-3">
+              <input
+                id="returnRemindersEnabled"
+                name="returnRemindersEnabled"
+                type="checkbox"
+                defaultChecked={returnRemindersEnabled}
+                className="border-input mt-0.5 size-4 shrink-0 rounded"
+              />
+              <span className="space-y-1">
+                <span className="block text-sm font-medium">Lembrete de retorno</span>
+                <span className="text-muted-foreground block text-xs">
+                  Um empurrãozinho quando chega a hora de voltar (com horários livres pra marcar).
+                  Desligar vale pra todos os canais.
                 </span>
               </span>
             </label>

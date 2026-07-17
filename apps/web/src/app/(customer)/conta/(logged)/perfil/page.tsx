@@ -78,6 +78,7 @@ export default async function CustomerProfilePage() {
           <CustomerNotificationsCard
             appointmentEmailsEnabled={account.appointmentEmailsEnabled}
             reviewInvitesEnabled={account.reviewInvitesEnabled}
+            returnRemindersEnabled={account.returnRemindersEnabled}
           />
 
           <Card>

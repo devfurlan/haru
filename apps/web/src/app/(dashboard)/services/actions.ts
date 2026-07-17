@@ -33,6 +33,14 @@ const serviceSchema = z.object({
     .transform((v) => (v && v.trim() ? v.trim() : null)),
   durationMinutes: durationSchema,
   priceCents: priceSchema.transform((reais) => Math.round(reais * 100)),
+  // Ritmo de retorno (dias) opcional: vazio = null (a engine aprende do histórico).
+  returnCycleDays: z
+    .string()
+    .optional()
+    .transform((v) => (v && v.trim() ? Number(v) : null))
+    .refine((n) => n === null || (Number.isInteger(n) && n > 0 && n <= 365), {
+      message: 'Ritmo de retorno deve ser entre 1 e 365 dias',
+    }),
 });
 
 /**
@@ -66,6 +74,7 @@ export async function createService(
     description: formData.get('description'),
     durationMinutes: formData.get('durationMinutes'),
     priceCents: formData.get('priceReais'),
+    returnCycleDays: formData.get('returnCycleDays'),
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? 'Dados inválidos' };
@@ -84,6 +93,7 @@ export async function createService(
         description: parsed.data.description,
         durationMinutes: parsed.data.durationMinutes,
         priceCents: parsed.data.priceCents,
+        returnCycleDays: parsed.data.returnCycleDays,
       },
     });
     if (professionalIds.length > 0) {
@@ -110,6 +120,7 @@ export async function updateService(
     description: formData.get('description'),
     durationMinutes: formData.get('durationMinutes'),
     priceCents: formData.get('priceReais'),
+    returnCycleDays: formData.get('returnCycleDays'),
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? 'Dados inválidos' };
@@ -134,6 +145,7 @@ export async function updateService(
         description: parsed.data.description,
         durationMinutes: parsed.data.durationMinutes,
         priceCents: parsed.data.priceCents,
+        returnCycleDays: parsed.data.returnCycleDays,
       },
     });
     // Reconcilia o vínculo N:N (delete + recreate). Não afeta agendamentos passados,

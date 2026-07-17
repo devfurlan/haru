@@ -12,7 +12,9 @@ import {
   type AvailableSlotWithProfessionals,
   type ProfessionalAvailabilityInput,
   computeSlotsAcrossProfessionals,
+  isoDateInTz,
   localWallTimeToUtc,
+  weekdayInTz,
 } from '@haru/shared';
 
 export interface ProfessionalLite {
@@ -135,6 +137,64 @@ export async function getServiceDaySlots(args: {
     professionals,
     includeBusy: args.includeBusy,
   });
+}
+
+export interface OfferedSlot {
+  /** YYYY-MM-DD no fuso do tenant (vira o `d=` do deep-link de agendamento). */
+  dateStr: string;
+  /** UTC ISO (== Appointment.startsAt). */
+  startsAtIso: string;
+  /** "HH:MM" no fuso do tenant. */
+  label: string;
+}
+
+/**
+ * Próximos horários livres de UM profissional pro serviço, varrendo até `horizonDays`
+ * a partir de hoje (fuso do tenant) e parando em `limit`. Pula dias sem expediente do
+ * profissional (evita 3 queries/dia à toa). Reusa getServiceDaySlots - é o "próximo slot
+ * em N dias" que a busca de 1-dia não oferece. Usado pelo lembrete de retorno pra ofertar
+ * horários concretos; retorna [] quando o profissional não tem vaga no horizonte (o
+ * caller manda então a versão genérica).
+ * ponytail: loop simples com early-break; se pesar no cron, virar 1 query da janela + núcleo puro.
+ */
+export async function nextSlotsForProfessional(args: {
+  tenantId: string;
+  serviceId: string;
+  professionalId: string;
+  tz: string;
+  durationMinutes: number;
+  now: Date;
+  horizonDays: number;
+  limit: number;
+}): Promise<OfferedSlot[]> {
+  const blocks = await prisma.scheduleBlock.findMany({
+    where: { tenantId: args.tenantId, professionalId: args.professionalId },
+    select: { weekday: true },
+  });
+  if (blocks.length === 0) return [];
+  const openWeekdays = new Set(blocks.map((b) => b.weekday));
+
+  const out: OfferedSlot[] = [];
+  const startMs = args.now.getTime();
+  for (let i = 0; i < args.horizonDays && out.length < args.limit; i++) {
+    const dateStr = isoDateInTz(new Date(startMs + i * 86_400_000), args.tz);
+    if (!openWeekdays.has(weekdayInTz(dateStr, args.tz))) continue; // dia fechado -> pula sem query
+    const slots = await getServiceDaySlots({
+      tenantId: args.tenantId,
+      serviceId: args.serviceId,
+      tz: args.tz,
+      durationMinutes: args.durationMinutes,
+      dateStr,
+      now: args.now,
+      professionalId: args.professionalId,
+      includeBusy: false,
+    });
+    for (const s of slots) {
+      out.push({ dateStr, startsAtIso: s.startsAtIso, label: s.label });
+      if (out.length >= args.limit) break;
+    }
+  }
+  return out;
 }
 
 export type ResolveProfessional =

@@ -335,6 +335,19 @@ Enviado **pelo número da plataforma** Demandaê ~1h após o fim do atendimento 
 
 > ⚠️ **Manutenção:** mesma regra - alterou template/parâmetro/corpo, atualiza aqui na mesma mudança.
 
+### Lembrete de retorno (template da PLATAFORMA ao cliente)
+
+Enviado **pelo número da plataforma** Demandaê quando chega a hora do próximo atendimento (preventivo), pelo cron diário [/api/cron/return-reminders](apps/web/src/app/api/cron/return-reminders/route.ts) ([apps/web/src/lib/comms/return-reminder.ts](apps/web/src/lib/comms/return-reminder.ts)). **Canais own-first:** push + e-mail saem juntos (canais próprios); o WhatsApp é **só fallback** - dispara apenas quando o cliente NÃO tem app **nem** e-mail (ver [prefer-own-channels.ts](apps/web/src/lib/comms/prefer-own-channels.ts)). Por isso o template WhatsApp é **genérico** (sem horários): os horários concretos vão só no push/e-mail; o link já leva à página com as vagas reais. Categoria `UTILITY` - corpo estritamente utilitário/informativo (reengajamento com tom "aproveite/promoção" a Meta reclassifica como `MARKETING`, que exige opt-in e é bloqueável). Env-gated e fail-soft: sem `WHATSAPP_PLATFORM_PHONE_NUMBER_ID` / `WHATSAPP_PLATFORM_ACCESS_TOKEN` + o template, vira no-op logado. Opt-out do cliente: `CustomerAccount.returnRemindersEnabled` (toggle "Lembrete de retorno" no perfil web e app) desliga **todos** os canais; o WhatsApp também respeita `Contact.remindersOptOutAt` ("PARAR").
+
+#### Tá na hora de voltar?
+
+- **Nome (env `WHATSAPP_TEMPLATE_RETURN_REMINDER`):** sugestão `demandae_return_reminder` · **Idioma:** `pt_BR` · **Categoria Meta:** `UTILITY`
+- **Variáveis:** `{{1}}` cliente · `{{2}}` serviço · `{{3}}` link para agendar
+- **Corpo sugerido:**
+  > Oi, {{1}}! Faz um tempinho desde seu último {{2}}. Que tal já deixar o próximo marcado? É só escolher um horário: {{3}}
+
+> ⚠️ **Manutenção:** mesma regra - alterou template/parâmetro/corpo, atualiza aqui na mesma mudança.
+
 ## Deploy
 
 - **web** → Vercel

@@ -61,9 +61,11 @@ function ToggleRow({
 export default function NotificacoesScreen() {
   const [emails, setEmails] = useState<boolean | null>(null);
   const [reviews, setReviews] = useState<boolean | null>(null);
+  const [returns, setReturns] = useState<boolean | null>(null);
   const [push, setPush] = useState<boolean | null>(null);
   const [savingEmails, setSavingEmails] = useState(false);
   const [savingReviews, setSavingReviews] = useState(false);
+  const [savingReturns, setSavingReturns] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -72,6 +74,7 @@ export default function NotificacoesScreen() {
       .then((m) => {
         setEmails(m.appointmentEmailsEnabled);
         setReviews(m.reviewInvitesEnabled);
+        setReturns(m.returnRemindersEnabled);
       })
       .catch(() => setError('Não foi possível carregar as preferências.'));
     isPushEnabledPref().then(setPush);
@@ -105,6 +108,20 @@ export default function NotificacoesScreen() {
     }
   }
 
+  async function toggleReturns(next: boolean) {
+    setError(null);
+    setReturns(next); // otimista
+    setSavingReturns(true);
+    try {
+      await api.updateMe({ returnRemindersEnabled: next });
+    } catch (err) {
+      setReturns(!next); // reverte
+      setError(err instanceof ApiError ? err.message : 'Não foi possível salvar.');
+    } finally {
+      setSavingReturns(false);
+    }
+  }
+
   async function togglePush(next: boolean) {
     setPush(next);
     try {
@@ -114,7 +131,7 @@ export default function NotificacoesScreen() {
     }
   }
 
-  const loading = emails === null || push === null || reviews === null;
+  const loading = emails === null || push === null || reviews === null || returns === null;
 
   return (
     <SafeAreaView className="bg-cream flex-1" edges={['top']}>
@@ -145,6 +162,13 @@ export default function NotificacoesScreen() {
             value={reviews!}
             onValueChange={toggleReviews}
             disabled={savingReviews}
+          />
+          <ToggleRow
+            title="Lembrete de retorno"
+            description="Um empurrãozinho quando chega a hora de voltar, com horários livres pra marcar. Desligar vale pra todos os canais."
+            value={returns!}
+            onValueChange={toggleReturns}
+            disabled={savingReturns}
             last
           />
 

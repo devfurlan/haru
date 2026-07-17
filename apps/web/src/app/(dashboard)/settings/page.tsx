@@ -6,6 +6,7 @@ import { getBaseUrl } from '@/lib/base-url';
 import { NotificationsCard } from './notifications-card';
 import { PaymentsCard } from './payments-card';
 import { PlanCard } from './plan-card';
+import { ReturnReminderCard } from './return-reminder-card';
 import { SupportCard } from './support-card';
 import { TimezoneCard } from './timezone-card';
 import { WaitlistCard } from './waitlist-card';
@@ -47,6 +48,9 @@ export default async function SettingsPage() {
         channel={tenant.weeklyReportChannel}
         ownerWhatsappAlertsEnabled={tenant.ownerWhatsappAlertsEnabled}
       />
+
+      {/* Sem gate de plano: retenção/receita pro dono, vale em todos os planos. */}
+      <ReturnReminderCard enabled={tenant.returnRemindersEnabled} />
 
       {hasWaitlist(tenant.subscription) && (
         <WaitlistCard

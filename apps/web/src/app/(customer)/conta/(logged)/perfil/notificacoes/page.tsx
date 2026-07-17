@@ -15,6 +15,7 @@ export default async function NotificacoesPage() {
         <CustomerNotificationsCard
           appointmentEmailsEnabled={account.appointmentEmailsEnabled}
           reviewInvitesEnabled={account.reviewInvitesEnabled}
+          returnRemindersEnabled={account.returnRemindersEnabled}
         />
       </div>
     </div>

@@ -139,6 +139,12 @@ model Tenant {
   /// envio - reexecução do cron (retry da Vercel em 500) não duplica o relatório.
   weeklyReportSentForWeek String?
 
+  // --- Lembrete de retorno ----------------------------------------------------
+  /// Liga/desliga o lembrete de retorno inteligente (cutuca o cliente pra reagendar
+  /// quando chega a hora do próximo atendimento). Vale em TODOS os planos - retenção,
+  /// não capa. Default ON: começa a rodar assim que a feature sobe, pros elegíveis.
+  returnRemindersEnabled  Boolean @default(true)
+
   // --- Atendente IA (addon) ---------------------------------------------------
   /// Identidade que o Atendente IA usa pra se apresentar ao cliente final. Coletada
   /// na ativação do addon. Crítico na variante "número Demandaê" (número compartilhado):
@@ -192,6 +198,7 @@ model Tenant {
   membershipPlans    MembershipPlan[]
   memberships        Membership[]
   membershipCharges  MembershipCharge[]
+  returnReminders    ReturnReminder[]
 }
 
 model User {
@@ -293,6 +300,10 @@ model CustomerAccount {
   /// pelo cliente no perfil (web e app), igual ao appointmentEmailsEnabled. false = não
   /// convida por nenhum canal (ver lib/comms/review-invite.ts).
   reviewInvitesEnabled     Boolean   @default(true)
+  /// Receber o lembrete de retorno ("tá na hora de voltar"). Controlado pelo cliente
+  /// no perfil (web e app), igual ao reviewInvitesEnabled. false = não cutuca por
+  /// nenhum canal (ver lib/comms/return-reminder.ts).
+  returnRemindersEnabled   Boolean   @default(true)
   createdAt                DateTime  @default(now())
   updatedAt                DateTime  @updatedAt
 
@@ -375,6 +386,10 @@ model Service {
   durationMinutes Int
   priceCents      Int
   active          Boolean  @default(true)
+  /// Ciclo de retorno padrão (dias) sugerido pelo dono - ex.: "corte a cada 30 dias".
+  /// Fallback do lembrete de retorno quando o cliente ainda não tem histórico suficiente
+  /// pra estimar a cadência real. null/0 = não configurado (sem chute, não cutuca).
+  returnCycleDays Int?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
@@ -387,6 +402,7 @@ model Service {
   loyaltyQualifiesIn LoyaltyProgramService[]
   waitlistEntries    WaitlistEntry[]
   membershipPlans    MembershipPlanService[]
+  returnReminders    ReturnReminder[]
 }
 
 /// Vínculo N:N entre um profissional (User) e um Service que ele executa. Define
@@ -480,6 +496,7 @@ model Contact {
   loyaltyRedemptions LoyaltyRedemption[]
   waitlistEntries    WaitlistEntry[]
   memberships        Membership[]
+  returnReminders    ReturnReminder[]
 
   @@unique([tenantId, phone])
   @@index([customerAccountId])
@@ -620,6 +637,44 @@ enum RecurrenceFrequency {
   WEEKLY // toda semana (+7 dias)
   BIWEEKLY // quinzenal (+14 dias)
   MONTHLY // mensal (+1 mês, mesmo dia, com clamp ao último dia do mês)
+}
+
+/// Lembrete de retorno enviado a um cliente (preventivo: "tá na hora de voltar").
+/// Serve DOIS papéis: (1) dedup por ciclo - a chave única (contactId, serviceId,
+/// cycleAnchor) garante um lembrete por ciclo; quando o cliente volta, o cycleAnchor
+/// (última visita do serviço) avança e a linha antiga não casa mais -> elegível de
+/// novo, sem job de reset. (2) log de métrica - conversão medida por janela sobre o
+/// createdAt do Appointment (molde recoveredStats), agrupada por `channel`.
+model ReturnReminder {
+  id             String                @id @default(cuid())
+  tenantId       String
+  tenant         Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  contactId      String
+  contact        Contact               @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  serviceId      String
+  service        Service               @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  /// Profissional preferido ofertado no lembrete (User com isProfessional=true). Bare
+  /// scalar de propósito (só rótulo p/ métrica; nenhuma query o traversa) - null = oferta
+  /// genérica (sem horário concreto).
+  professionalId String?
+  /// Canal PRIMÁRIO pelo qual o lembrete saiu (hierarquia PUSH > EMAIL > WHATSAPP).
+  /// NONE = cliente sem canal alcançável no ciclo (registrado pra não retentar em vão).
+  channel        ReturnReminderChannel
+  /// = startsAt da última visita do serviço no envio. Âncora do ciclo (chave de dedup).
+  cycleAnchor    DateTime
+  sentAt         DateTime              @default(now())
+
+  @@unique([contactId, serviceId, cycleAnchor])
+  @@index([contactId, sentAt])
+  @@index([tenantId, sentAt])
+}
+
+/// Canal primário de um ReturnReminder (hierarquia own-channels-first).
+enum ReturnReminderChannel {
+  PUSH
+  EMAIL
+  WHATSAPP
+  NONE
 }
 
 enum AppointmentStatus {

@@ -73,6 +73,7 @@ export function ServicesPanel({ services, professionals }: ServicesPanelProps) {
                       description: editing.description,
                       durationMinutes: editing.durationMinutes,
                       priceCents: editing.priceCents,
+                      returnCycleDays: editing.returnCycleDays,
                     }
                   : undefined
               }

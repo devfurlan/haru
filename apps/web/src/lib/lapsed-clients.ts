@@ -14,7 +14,7 @@ const DAY_MS = 86_400_000;
 const MIN_VISITS = 2;
 const SPAN_FLOOR_DAYS = 30;
 
-type ApptStatus = 'PENDING' | 'CONFIRMED' | 'CANCELED' | 'COMPLETED' | 'NO_SHOW';
+export type ApptStatus = 'PENDING' | 'CONFIRMED' | 'CANCELED' | 'COMPLETED' | 'NO_SHOW';
 
 export interface LapsedAppointmentInput {
   startsAt: Date;
@@ -48,7 +48,9 @@ export interface LapsedResult {
 }
 
 // Uma "visita" = agendamento passado que de fato aconteceu (não cancelado, não faltou).
-function isVisit(a: LapsedAppointmentInput, nowMs: number): boolean {
+// Estrutural de propósito (só startsAt+status): reusado pelo lembrete de retorno, que
+// tem outro shape de appointment (ver lib/comms/return-reminder-core.ts).
+export function isVisit(a: { startsAt: Date; status: ApptStatus }, nowMs: number): boolean {
   return a.startsAt.getTime() < nowMs && a.status !== 'CANCELED' && a.status !== 'NO_SHOW';
 }
 

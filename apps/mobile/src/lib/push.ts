@@ -100,6 +100,15 @@ export async function attachNotificationTap(
         // Convite pós-atendimento: abre a tela nativa de avaliar (antes do fallback de
         // appointmentId, que levaria pro detalhe). Payload: { type, appointmentId, tenantSlug }.
         navigate(`/avaliar/${data.appointmentId}`);
+      } else if (data.type === 'return_reminder' && typeof data.tenantSlug === 'string') {
+        // Lembrete de retorno: abre o booking já com o serviço (+ pro/dia, quando houve
+        // horários ofertados). Payload: { type, tenantSlug, serviceId, professionalId, dateStr }.
+        const q = new URLSearchParams();
+        if (typeof data.serviceId === 'string') q.set('serviceId', data.serviceId);
+        if (typeof data.professionalId === 'string') q.set('professionalId', data.professionalId);
+        if (typeof data.dateStr === 'string') q.set('dateStr', data.dateStr);
+        const qs = q.toString();
+        navigate(`/book/${data.tenantSlug}${qs ? `?${qs}` : ''}`);
       } else if (typeof data.appointmentId === 'string') {
         navigate(`/appointment/${data.appointmentId}`);
       }

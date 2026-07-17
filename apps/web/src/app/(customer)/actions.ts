@@ -174,6 +174,7 @@ const notificationsSchema = z.object({
   // Checkbox: presente ("on") = ligado; ausente = desligado.
   appointmentEmailsEnabled: z.preprocess(toBool, z.boolean()),
   reviewInvitesEnabled: z.preprocess(toBool, z.boolean()),
+  returnRemindersEnabled: z.preprocess(toBool, z.boolean()),
 });
 
 export async function customerUpdateNotifications(
@@ -185,6 +186,7 @@ export async function customerUpdateNotifications(
   const parsed = notificationsSchema.safeParse({
     appointmentEmailsEnabled: formData.get('appointmentEmailsEnabled'),
     reviewInvitesEnabled: formData.get('reviewInvitesEnabled'),
+    returnRemindersEnabled: formData.get('returnRemindersEnabled'),
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? 'Dados inválidos' };
@@ -193,6 +195,7 @@ export async function customerUpdateNotifications(
   await setCustomerNotifications(account, {
     appointmentEmailsEnabled: parsed.data.appointmentEmailsEnabled,
     reviewInvitesEnabled: parsed.data.reviewInvitesEnabled,
+    returnRemindersEnabled: parsed.data.returnRemindersEnabled,
   });
 
   revalidatePath('/conta/perfil');

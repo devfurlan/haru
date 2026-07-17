@@ -38,6 +38,7 @@ export async function GET(req: Request) {
     birthDate: profile.birthDate ? toYMD(profile.birthDate) : null,
     appointmentEmailsEnabled: account.appointmentEmailsEnabled,
     reviewInvitesEnabled: account.reviewInvitesEnabled,
+    returnRemindersEnabled: account.returnRemindersEnabled,
   });
 }
 
@@ -51,13 +52,20 @@ export async function PATCH(req: Request) {
     birthDate?: unknown;
     appointmentEmailsEnabled?: unknown;
     reviewInvitesEnabled?: unknown;
+    returnRemindersEnabled?: unknown;
   } | null;
 
-  const prefs: { appointmentEmailsEnabled?: boolean; reviewInvitesEnabled?: boolean } = {};
+  const prefs: {
+    appointmentEmailsEnabled?: boolean;
+    reviewInvitesEnabled?: boolean;
+    returnRemindersEnabled?: boolean;
+  } = {};
   if (typeof body?.appointmentEmailsEnabled === 'boolean')
     prefs.appointmentEmailsEnabled = body.appointmentEmailsEnabled;
   if (typeof body?.reviewInvitesEnabled === 'boolean')
     prefs.reviewInvitesEnabled = body.reviewInvitesEnabled;
+  if (typeof body?.returnRemindersEnabled === 'boolean')
+    prefs.returnRemindersEnabled = body.returnRemindersEnabled;
   if (Object.keys(prefs).length > 0) {
     const result = await setCustomerNotifications(account, prefs);
     if ('error' in result) return Response.json(result, { status: 400 });
