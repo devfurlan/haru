@@ -1,12 +1,12 @@
 import { prisma } from '@haru/database';
 
-import { requireUserAndTenant } from '@/lib/auth';
+import { requireAdmin } from '@/lib/auth';
 import { getLoyaltyOverview } from '@/lib/loyalty';
 
 import { LoyaltyPanel } from './loyalty-panel';
 
 export default async function LoyaltyPage() {
-  const { tenant } = await requireUserAndTenant();
+  const { tenant } = await requireAdmin();
 
   const [overview, services] = await Promise.all([
     getLoyaltyOverview(tenant.id, tenant.timezone),

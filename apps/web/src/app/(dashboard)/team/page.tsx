@@ -3,12 +3,12 @@ import { formatBRL } from '@haru/shared';
 import Link from 'next/link';
 
 import { initialsOf } from '@/components/dashboard/nav-config';
-import { requireUserAndTenant } from '@/lib/auth';
+import { requireAdmin } from '@/lib/auth';
 
 import { UsersCard, type UserRow } from '../settings/users-card';
 
 export default async function TeamPage() {
-  const { tenant, id: currentUserId } = await requireUserAndTenant();
+  const { tenant, id: currentUserId } = await requireAdmin();
 
   const now = new Date();
   const dayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());

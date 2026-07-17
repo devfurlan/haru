@@ -5,7 +5,7 @@ import { z } from 'zod';
 
 import { prisma } from '@haru/database';
 
-import { requireUserAndTenant } from '@/lib/auth';
+import { requireAdmin } from '@/lib/auth';
 
 export type ServiceActionResult = { error: string } | { ok: true };
 
@@ -67,7 +67,7 @@ export async function createService(
   _prev: ServiceActionResult | undefined,
   formData: FormData,
 ): Promise<ServiceActionResult> {
-  const { tenant } = await requireUserAndTenant();
+  const { tenant } = await requireAdmin();
 
   const parsed = serviceSchema.safeParse({
     name: formData.get('name'),
@@ -113,7 +113,7 @@ export async function updateService(
   _prev: ServiceActionResult | undefined,
   formData: FormData,
 ): Promise<ServiceActionResult> {
-  const { tenant } = await requireUserAndTenant();
+  const { tenant } = await requireAdmin();
 
   const parsed = serviceSchema.safeParse({
     name: formData.get('name'),
@@ -164,7 +164,7 @@ export async function updateService(
 }
 
 export async function toggleServiceActive(serviceId: string, nextActive: boolean) {
-  const { tenant } = await requireUserAndTenant();
+  const { tenant } = await requireAdmin();
   await prisma.service.updateMany({
     where: { id: serviceId, tenantId: tenant.id },
     data: { active: nextActive },
@@ -173,7 +173,7 @@ export async function toggleServiceActive(serviceId: string, nextActive: boolean
 }
 
 export async function deleteService(serviceId: string) {
-  const { tenant } = await requireUserAndTenant();
+  const { tenant } = await requireAdmin();
   await prisma.service.deleteMany({
     where: { id: serviceId, tenantId: tenant.id },
   });

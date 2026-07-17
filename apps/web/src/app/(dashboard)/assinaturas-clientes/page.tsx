@@ -4,7 +4,7 @@ import { prisma, type PaymentProvider } from '@haru/database';
 import { hasServiceSubscriptions } from '@haru/billing';
 
 import { Button } from '@/components/ui/button';
-import { requireUserAndTenant } from '@/lib/auth';
+import { requireAdmin } from '@/lib/auth';
 import { getSubscriptionsOverview } from '@/lib/subscriptions-panel';
 
 import { SubscriptionsPanel } from './subscriptions-panel';
@@ -35,7 +35,7 @@ function PageHeader() {
 }
 
 export default async function AssinaturasClientesPage() {
-  const { tenant } = await requireUserAndTenant();
+  const { tenant } = await requireAdmin();
 
   // Gate de tier: assinatura de serviços é feature Time+. Decisão de produto: NÃO esconder da
   // barra pro Solo - mostrar a seção com um upsell. É uma feature que gera receita, então a

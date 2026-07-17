@@ -5,7 +5,7 @@ import { z } from 'zod';
 
 import { prisma } from '@haru/database';
 
-import { requireUserAndTenant } from '@/lib/auth';
+import { requireAdmin } from '@/lib/auth';
 import { getLoyaltyProgram, stampsForContact } from '@/lib/loyalty';
 import { DISCOUNT_OPTIONS, STAMP_MAX, STAMP_MIN, TTL_OPTIONS } from '@/lib/loyalty-constants';
 
@@ -42,7 +42,7 @@ export async function saveLoyaltyProgram(
   _prev: LoyaltyActionResult | undefined,
   formData: FormData,
 ): Promise<LoyaltyActionResult> {
-  const { tenant } = await requireUserAndTenant();
+  const { tenant } = await requireAdmin();
 
   const parsed = programSchema.safeParse({
     prizeKind: formData.get('prizeKind'),
@@ -130,7 +130,7 @@ export async function saveLoyaltyProgram(
 
 /** Pausa/retoma o programa (congela a contagem de carimbos). */
 export async function toggleLoyaltyPause() {
-  const { tenant } = await requireUserAndTenant();
+  const { tenant } = await requireAdmin();
   const program = await prisma.loyaltyProgram.findUnique({
     where: { tenantId: tenant.id },
     select: { pausedAt: true },
@@ -145,14 +145,14 @@ export async function toggleLoyaltyPause() {
 
 /** Encerra o programa: apaga a regra (resgates e serviços caem em cascata). */
 export async function endLoyaltyProgram() {
-  const { tenant } = await requireUserAndTenant();
+  const { tenant } = await requireAdmin();
   await prisma.loyaltyProgram.deleteMany({ where: { tenantId: tenant.id } });
   revalidatePath('/loyalty');
 }
 
 /** Confirma o resgate de um cliente que completou o cartão (zera o cartão dele). */
 export async function redeemLoyaltyPrize(contactId: string) {
-  const { tenant } = await requireUserAndTenant();
+  const { tenant } = await requireAdmin();
 
   const program = await getLoyaltyProgram(tenant.id);
   if (!program) return;

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 
-import { requireUserAndTenant } from '@/lib/auth';
+import { requireAdmin } from '@/lib/auth';
 import { replyToReview } from '@/lib/reviews';
 
 /**
@@ -13,7 +13,7 @@ export async function replyToReviewAction(input: {
   reviewId: string;
   text: string | null;
 }): Promise<{ ok: true } | { error: string }> {
-  const { tenant } = await requireUserAndTenant();
+  const { tenant } = await requireAdmin();
   const res = await replyToReview(tenant.id, input.reviewId, input.text);
   if ('error' in res) return res;
 

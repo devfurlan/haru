@@ -1,4 +1,4 @@
-import { requireUserAndTenant } from '@/lib/auth';
+import { requireAdmin } from '@/lib/auth';
 import { getTenantReviews } from '@/lib/reviews';
 
 import { ReviewsList, type ReviewRow } from './reviews-list';
@@ -6,7 +6,7 @@ import { ReviewsList, type ReviewRow } from './reviews-list';
 export const dynamic = 'force-dynamic';
 
 export default async function ReviewsPage() {
-  const { tenant } = await requireUserAndTenant();
+  const { tenant } = await requireAdmin();
   const summary = await getTenantReviews(tenant.id);
 
   const dateFmt = new Intl.DateTimeFormat('pt-BR', {

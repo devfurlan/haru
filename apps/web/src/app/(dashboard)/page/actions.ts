@@ -5,7 +5,7 @@ import { randomUUID } from 'node:crypto';
 import { prisma } from '@haru/database';
 import { revalidatePath } from 'next/cache';
 
-import { requireUserAndTenant } from '@/lib/auth';
+import { requireAdmin } from '@/lib/auth';
 import { getSupabaseAdmin } from '@/lib/supabase/admin';
 
 // Fotos de capa da vitrine. Mesmo padrão da logo (redimensiona no cliente, upload
@@ -28,7 +28,7 @@ function revalidate(slug: string) {
 }
 
 export async function uploadCoverImage(formData: FormData): Promise<CoverResult> {
-  const { tenant } = await requireUserAndTenant();
+  const { tenant } = await requireAdmin();
 
   const current = tenant.coverImageUrls ?? [];
   if (current.length >= MAX_COVERS) {
@@ -57,7 +57,7 @@ export async function uploadCoverImage(formData: FormData): Promise<CoverResult>
 }
 
 export async function removeCoverImage(url: string): Promise<CoverResult> {
-  const { tenant } = await requireUserAndTenant();
+  const { tenant } = await requireAdmin();
 
   const urls = (tenant.coverImageUrls ?? []).filter((u) => u !== url);
   await prisma.tenant.update({ where: { id: tenant.id }, data: { coverImageUrls: urls } });
@@ -73,7 +73,7 @@ export async function removeCoverImage(url: string): Promise<CoverResult> {
 }
 
 export async function setCoverMain(url: string): Promise<CoverResult> {
-  const { tenant } = await requireUserAndTenant();
+  const { tenant } = await requireAdmin();
 
   const rest = (tenant.coverImageUrls ?? []).filter((u) => u !== url);
   if (rest.length === (tenant.coverImageUrls ?? []).length) {

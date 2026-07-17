@@ -35,7 +35,14 @@ function initials(row: ClientRow): string {
 
 const displayName = (row: ClientRow) => row.name ?? formatPhoneBR(row.phone);
 
-export function ClientsList({ clients }: { clients: ClientRow[] }) {
+export function ClientsList({
+  clients,
+  showRevenue = true,
+}: {
+  clients: ClientRow[];
+  /** Receita por cliente só o dono vê; a equipe (profissional/apoio) não. */
+  showRevenue?: boolean;
+}) {
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<Sort>('recentes');
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -50,11 +57,11 @@ export function ClientsList({ clients }: { clients: ClientRow[] }) {
     );
     const sorted = [...filtered].sort((a, b) => {
       if (sort === 'az') return displayName(a).localeCompare(displayName(b), 'pt-BR');
-      if (sort === 'gasto') return b.totalCents - a.totalCents;
+      if (sort === 'gasto' && showRevenue) return b.totalCents - a.totalCents;
       return b.lastVisitTs - a.lastVisitTs; // recentes
     });
     return sorted;
-  }, [clients, query, sort]);
+  }, [clients, query, sort, showRevenue]);
 
   const selected = clients.find((c) => c.id === selectedId) ?? null;
 
@@ -78,7 +85,7 @@ export function ClientsList({ clients }: { clients: ClientRow[] }) {
           options={[
             { label: 'Recentes', value: 'recentes' },
             { label: 'A-Z', value: 'az' },
-            { label: 'Mais gastam', value: 'gasto' },
+            ...(showRevenue ? [{ label: 'Mais gastam', value: 'gasto' }] : []),
           ]}
         />
       </div>
@@ -136,12 +143,14 @@ export function ClientsList({ clients }: { clients: ClientRow[] }) {
                   className="w-22.5 hidden md:block"
                   small
                 />
-                <Metric
-                  value={c.totalLabel}
-                  label="no total"
-                  className="w-20"
-                  valueClass="text-green-emph"
-                />
+                {showRevenue && (
+                  <Metric
+                    value={c.totalLabel}
+                    label="no total"
+                    className="w-20"
+                    valueClass="text-green-emph"
+                  />
+                )}
               </button>
             ))
           )}
@@ -172,11 +181,13 @@ export function ClientsList({ clients }: { clients: ClientRow[] }) {
             <div className="flex flex-col gap-2.5 text-[12.5px]">
               <RailStat label="Agendamentos" value={String(selected.count)} />
               <RailStat label="Última visita" value={selected.lastVisitLabel ?? '-'} />
-              <RailStat
-                label="Total gasto"
-                value={selected.totalLabel}
-                valueClass="text-green-bright font-serif text-[15px]"
-              />
+              {showRevenue && (
+                <RailStat
+                  label="Total gasto"
+                  value={selected.totalLabel}
+                  valueClass="text-green-bright font-serif text-[15px]"
+                />
+              )}
               {selected.fav && <RailStat label="Serviço de sempre" value={selected.fav} />}
             </div>
             <div className="border-on-emerald-mut/40 my-3.5 border-t border-dashed" />

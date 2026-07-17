@@ -4,7 +4,7 @@ import { Lock } from 'lucide-react';
 import Link from 'next/link';
 
 import { Button } from '@/components/ui/button';
-import { requireUserAndTenant } from '@/lib/auth';
+import { requireAdmin } from '@/lib/auth';
 import { describeCompensation } from '@/lib/commission-core';
 import { getCommissionReport, type CommissionPeriodKey } from '@/lib/commissions';
 
@@ -42,7 +42,7 @@ export default async function CommissionsPage({
 }: {
   searchParams: Promise<{ period?: string }>;
 }) {
-  const { tenant } = await requireUserAndTenant();
+  const { tenant } = await requireAdmin();
 
   // Descoberta > ocultação: mostra o teaser (upsell), o write já é barrado no servidor.
   if (!hasCommissions(tenant.subscription)) {

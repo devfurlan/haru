@@ -66,7 +66,14 @@ export const NAV_ITEMS: NavItem[] = [
     addonOnly: true,
   },
   { key: 'clientes', label: 'Clientes', href: '/clients', icon: User, group: 'dia', mobile: true },
-  { key: 'servicos', label: 'Serviços', href: '/services', icon: Scissors, group: 'negocio' },
+  {
+    key: 'servicos',
+    label: 'Serviços',
+    href: '/services',
+    icon: Scissors,
+    group: 'negocio',
+    adminOnly: true,
+  },
   {
     key: 'importar',
     label: 'Importar',
@@ -75,7 +82,14 @@ export const NAV_ITEMS: NavItem[] = [
     group: 'negocio',
     adminOnly: true,
   },
-  { key: 'fidelidade', label: 'Fidelidade', href: '/loyalty', icon: Gift, group: 'negocio' },
+  {
+    key: 'fidelidade',
+    label: 'Fidelidade',
+    href: '/loyalty',
+    icon: Gift,
+    group: 'negocio',
+    adminOnly: true,
+  },
   {
     // Avaliações do estabelecimento (todos os planos). adminOnly: responder é ação de dono.
     key: 'avaliacoes',
@@ -95,7 +109,7 @@ export const NAV_ITEMS: NavItem[] = [
     group: 'negocio',
     adminOnly: true,
   },
-  { key: 'equipe', label: 'Equipe', href: '/team', icon: Users, group: 'negocio' },
+  { key: 'equipe', label: 'Equipe', href: '/team', icon: Users, group: 'negocio', adminOnly: true },
   {
     // Comissões/financeiro por profissional (feature Multi+). adminOnly: mostra o corte da
     // casa e o que pagar. A página faz o gate de feature (hasCommissions) com upsell.
@@ -106,8 +120,22 @@ export const NAV_ITEMS: NavItem[] = [
     group: 'negocio',
     adminOnly: true,
   },
-  { key: 'horarios', label: 'Horários', href: '/schedule', icon: Clock, group: 'negocio' },
-  { key: 'pagina', label: 'Página pública', href: '/page', icon: Globe, group: 'negocio' },
+  {
+    key: 'horarios',
+    label: 'Horários',
+    href: '/schedule',
+    icon: Clock,
+    group: 'negocio',
+    adminOnly: true,
+  },
+  {
+    key: 'pagina',
+    label: 'Página pública',
+    href: '/page',
+    icon: Globe,
+    group: 'negocio',
+    adminOnly: true,
+  },
   {
     key: 'config',
     label: 'Configurações',

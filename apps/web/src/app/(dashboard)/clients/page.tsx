@@ -3,19 +3,30 @@ import { formatBRL } from '@haru/shared';
 
 import { requireUserAndTenant } from '@/lib/auth';
 import { isRealized, revenueOf } from '@/lib/metrics/metrics-core';
+import { dataScope, panelRole } from '@/lib/permissions';
 
 import { ClientsList, type ClientRow } from './clients-list';
 
 export default async function ClientsPage() {
-  const { tenant } = await requireUserAndTenant();
+  const user = await requireUserAndTenant();
+  const { tenant } = user;
+  const role = panelRole(user);
+  // Profissional vê só os clientes que ELE atendeu (e o histórico dele com eles); dono/apoio
+  // veem todos. Receita por cliente é dinheiro -> só o dono.
+  const ownProId = dataScope(role) === 'own' ? user.id : undefined;
+  const showRevenue = role === 'OWNER';
   const now = Date.now();
 
   const contacts = await prisma.contact.findMany({
-    where: { tenantId: tenant.id },
+    where: {
+      tenantId: tenant.id,
+      ...(ownProId ? { appointments: { some: { professionalId: ownProId } } } : {}),
+    },
     orderBy: [{ name: 'asc' }, { createdAt: 'desc' }],
     take: 300,
     include: {
       appointments: {
+        where: ownProId ? { professionalId: ownProId } : undefined,
         select: {
           startsAt: true,
           endsAt: true,
@@ -37,11 +48,13 @@ export default async function ClientsPage() {
   const rows: ClientRow[] = contacts.map((c) => {
     const active = c.appointments.filter((a) => a.status !== 'CANCELED');
     const count = active.length;
-    // Receita realizada = tudo que foi realizado (terminou, não cancelado, não faltou), pela
-    // regra canônica do MOTOR (isRealized). Fonte única - o mesmo número do relatório semanal.
-    const totalCents = c.appointments
-      .filter((a) => isRealized(a, nowDate))
-      .reduce((s, a) => s + revenueOf({ priceCents: a.service.priceCents }), 0);
+    // Receita realizada (isRealized, regra canônica do motor) - SÓ pro dono; a equipe não vê
+    // dinheiro, então nem calcula.
+    const totalCents = showRevenue
+      ? c.appointments
+          .filter((a) => isRealized(a, nowDate))
+          .reduce((s, a) => s + revenueOf({ priceCents: a.service.priceCents }), 0)
+      : 0;
 
     // Última visita: agendamento passado mais recente (lista já vem desc por startsAt).
     const lastPast = c.appointments.find(
@@ -64,12 +77,12 @@ export default async function ClientsPage() {
       count,
       lastVisitLabel: lastPast ? dateFmt.format(lastPast.startsAt) : null,
       lastVisitTs: lastPast ? lastPast.startsAt.getTime() : 0,
-      totalLabel: formatBRL(totalCents),
+      totalLabel: showRevenue ? formatBRL(totalCents) : '',
       totalCents,
       fav,
       tag,
     };
   });
 
-  return <ClientsList clients={rows} />;
+  return <ClientsList clients={rows} showRevenue={showRevenue} />;
 }

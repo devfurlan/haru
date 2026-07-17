@@ -3,6 +3,7 @@ import { prisma } from '@haru/database';
 import { formatPhoneBR } from '@haru/shared';
 
 import { requireUserAndTenant } from '@/lib/auth';
+import { dataScope, panelRole } from '@/lib/permissions';
 import {
   getActiveOfferLive,
   getRecoveryMetric,
@@ -20,7 +21,12 @@ import {
 const BRL = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 
 export default async function AppointmentsPage() {
-  const { tenant } = await requireUserAndTenant();
+  const user = await requireUserAndTenant();
+  const { tenant } = user;
+  const role = panelRole(user);
+  // Profissional vê só a PRÓPRIA agenda; dono e apoio veem a de todos.
+  const ownOnly = dataScope(role) === 'own';
+  const scopedPro = ownOnly ? { professionalId: user.id } : {};
   const now = new Date();
 
   // Janela ampla (±12 meses) para o calendário ter dados ao navegar entre meses.
@@ -44,6 +50,7 @@ export default async function AppointmentsPage() {
         tenantId: tenant.id,
         startsAt: { gte: calendarFrom, lte: calendarTo },
         status: { notIn: ['CANCELED'] },
+        ...scopedPro,
       },
       include: {
         service: { select: { name: true, durationMinutes: true, priceCents: true } },
@@ -64,12 +71,12 @@ export default async function AppointmentsPage() {
       orderBy: { startsAt: 'asc' },
     }),
     prisma.user.findMany({
-      where: { tenantId: tenant.id, isProfessional: true },
+      where: { tenantId: tenant.id, isProfessional: true, ...(ownOnly ? { id: user.id } : {}) },
       select: { id: true, name: true },
       orderBy: { name: 'asc' },
     }),
     prisma.appointment.findMany({
-      where: { tenantId: tenant.id, status: 'PENDING', startsAt: { gte: now } },
+      where: { tenantId: tenant.id, status: 'PENDING', startsAt: { gte: now }, ...scopedPro },
       include: {
         service: { select: { name: true, priceCents: true } },
         contact: { select: { name: true, phone: true } },
@@ -146,7 +153,9 @@ export default async function AppointmentsPage() {
       timezone={tenant.timezone}
       today={todayLocal}
       waitlist={{
-        enabled: tenant.waitlistEnabled && hasWaitlist(tenant.subscription),
+        // Fila mostra recuperação em R$ (métrica de negócio) - só o dono. Apoio gerir a fila
+        // fica pra v2 (precisa esconder o dinheiro do painel da fila).
+        enabled: role === 'OWNER' && tenant.waitlistEnabled && hasWaitlist(tenant.subscription),
         metric: recoveryMetric,
         insight: waitlistInsight,
         live: activeOffer,

@@ -8,6 +8,7 @@ import { computeAttendanceStats, getAttendanceRows } from '@/lib/attendance';
 import { requireUserAndTenant } from '@/lib/auth';
 import { getDashboard } from '@/lib/dashboard';
 import { computeLapsed } from '@/lib/lapsed-clients';
+import { panelRole } from '@/lib/permissions';
 import { getRecoveryMetric } from '@/lib/waitlist-panel';
 import { isWhatsappConnected } from '@/lib/whatsapp-status';
 
@@ -15,6 +16,7 @@ import { AttendanceCard } from './attendance-card';
 import { AutoRefresh } from './auto-refresh';
 import { DayCloseCard, type DayCloseGroup } from './day-close-card';
 import { LapsedClientsCard } from './lapsed-clients-card';
+import { TeamHome } from './team-home';
 import {
   DayCountsCard,
   FilaCard,
@@ -67,7 +69,12 @@ function statusPill(status: Status, live: boolean): { bg: string; fg: string; la
 }
 
 export default async function DashboardPage() {
-  const { tenant, name: ownerName } = await requireUserAndTenant();
+  const user = await requireUserAndTenant();
+  const role = panelRole(user);
+  // Equipe (profissional/apoio) vê o Início REDUZIDO, sem dinheiro. Só o dono vê o cockpit cheio.
+  if (role !== 'OWNER') return <TeamHome user={user} role={role} />;
+
+  const { tenant, name: ownerName } = user;
   const tz = tenant.timezone;
   const now = new Date();
 

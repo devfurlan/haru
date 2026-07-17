@@ -1,11 +1,11 @@
 import { prisma } from '@haru/database';
 
-import { requireUserAndTenant } from '@/lib/auth';
+import { requireAdmin } from '@/lib/auth';
 
 import { ServicesPanel } from './services-panel';
 
 export default async function ServicesPage() {
-  const { tenant } = await requireUserAndTenant();
+  const { tenant } = await requireAdmin();
 
   const [services, professionals] = await Promise.all([
     prisma.service.findMany({

@@ -16,6 +16,7 @@ import { createAppointmentSeries } from '@/lib/appointment-series';
 import { isSlotFrozenByWaitlist } from '@/lib/waitlist';
 import { type AvailableSlotWithProfessionals, localWallTimeToUtc } from '@haru/shared';
 import { requireUserAndTenant } from '@/lib/auth';
+import { panelRole } from '@/lib/permissions';
 import {
   getServiceDaySlots,
   getServiceProfessionals,
@@ -116,6 +117,19 @@ async function resolveEncaixeProfessional(
   return offering[0]?.id ?? allIds[0];
 }
 
+/** Profissional só age no PRÓPRIO agendamento; dono/apoio sem restrição. false = bloqueia. */
+async function professionalMayTouch(
+  user: Awaited<ReturnType<typeof requireUserAndTenant>>,
+  where: { id?: string; seriesId?: string },
+): Promise<boolean> {
+  if (panelRole(user) !== 'PROFESSIONAL') return true;
+  const appt = await prisma.appointment.findFirst({
+    where: { ...where, tenantId: user.tenant.id, professionalId: user.id },
+    select: { id: true },
+  });
+  return appt != null;
+}
+
 async function changeStatus(
   appointmentId: string,
   status: AppointmentStatus,
@@ -123,9 +137,11 @@ async function changeStatus(
   // "o dono confirmou" de "o cron fechou sozinho". Confirmar/cancelar não é presença.
   confirmAttendance = false,
 ): Promise<boolean> {
-  const { tenant } = await requireUserAndTenant();
+  const user = await requireUserAndTenant();
+  // Profissional só mexe no PRÓPRIO atendimento: entra no where -> alheio vira no-op.
+  const proScope = panelRole(user) === 'PROFESSIONAL' ? { professionalId: user.id } : {};
   const result = await prisma.appointment.updateMany({
-    where: { id: appointmentId, tenantId: tenant.id },
+    where: { id: appointmentId, tenantId: user.tenant.id, ...proScope },
     data: confirmAttendance ? { status, attendanceConfirmed: true } : { status },
   });
   revalidatePath('/appointments');
@@ -145,7 +161,9 @@ export async function confirmAppointment(appointmentId: string) {
 }
 
 export async function cancelAppointment(appointmentId: string, opts?: { notifyClient?: boolean }) {
-  const { tenant } = await requireUserAndTenant();
+  const user = await requireUserAndTenant();
+  const tenant = user.tenant;
+  if (!(await professionalMayTouch(user, { id: appointmentId }))) return;
   // O core cuida do update + webhook + template (este último opcional: quando o
   // cancelamento faz parte de uma remarcação, o aviso é redundante).
   const changed = await cancelAppointmentCore({
@@ -176,7 +194,9 @@ export async function markNoShow(appointmentId: string) {
  * (não N) - é o mesmo contato em todas as ocorrências.
  */
 export async function cancelAppointmentSeries(seriesId: string, opts?: { notifyClient?: boolean }) {
-  const { tenant } = await requireUserAndTenant();
+  const user = await requireUserAndTenant();
+  const tenant = user.tenant;
+  if (!(await professionalMayTouch(user, { seriesId }))) return;
   const count = await cancelSeriesCore({
     seriesId,
     tenantId: tenant.id,
@@ -247,6 +267,9 @@ export async function createManualAppointment(
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? 'Dados inválidos' };
   }
+
+  // Profissional só agenda pra SI: ignora o profissional pedido e força ele mesmo.
+  if (panelRole(user) === 'PROFESSIONAL') parsed.data.professionalId = user.id;
 
   // Encaixe libera as 24h e a sobreposição de agendamentos. Disponível pra qualquer
   // usuário do painel (OWNER ou STAFF) - o cliente final agenda pelo WhatsApp e nem
@@ -473,7 +496,8 @@ export async function createScheduleException(
   _prev: CreateScheduleExceptionResult,
   formData: FormData,
 ): Promise<CreateScheduleExceptionResult> {
-  const { tenant } = await requireUserAndTenant();
+  const user = await requireUserAndTenant();
+  const tenant = user.tenant;
   const tz = tenant.timezone;
 
   const parsed = blockSchema.safeParse({
@@ -488,6 +512,9 @@ export async function createScheduleException(
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? 'Dados inválidos' };
   }
+
+  // Profissional só bloqueia a PRÓPRIA agenda (nunca o tenant inteiro nem outro pro).
+  if (panelRole(user) === 'PROFESSIONAL') parsed.data.professionalId = user.id;
 
   const { startDate, endDate, allDay, reason } = parsed.data;
 
@@ -551,9 +578,11 @@ export async function createScheduleException(
 
 /** Remove um bloqueio da agenda (escopado ao tenant do usuário). */
 export async function deleteScheduleException(id: string) {
-  const { tenant } = await requireUserAndTenant();
+  const user = await requireUserAndTenant();
+  // Profissional só remove os PRÓPRIOS bloqueios.
+  const proScope = panelRole(user) === 'PROFESSIONAL' ? { professionalId: user.id } : {};
   await prisma.scheduleException.deleteMany({
-    where: { id, tenantId: tenant.id },
+    where: { id, tenantId: user.tenant.id, ...proScope },
   });
   revalidatePath('/appointments');
   revalidatePath('/dashboard');
@@ -575,7 +604,11 @@ export async function rescheduleAppointment(
   _prev: RescheduleResult,
   formData: FormData,
 ): Promise<RescheduleResult> {
-  const { tenant } = await requireUserAndTenant();
+  const user = await requireUserAndTenant();
+  const tenant = user.tenant;
+  if (!(await professionalMayTouch(user, { id: appointmentId }))) {
+    return { error: 'Você só pode remarcar seus próprios atendimentos.' };
+  }
 
   const parsed = rescheduleSchema.safeParse({
     newStartsAtIso: formData.get('newStartsAtIso'),

@@ -131,14 +131,15 @@ export function DashboardShell({
 
         {/* nav agrupada */}
         <nav className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto">
-          {NAV_GROUPS.map((group) => (
-            <React.Fragment key={group.id}>
-              <div className="text-on-emerald-faint px-3 pb-1.5 pt-3 text-[10.5px] font-bold uppercase tracking-[0.14em] first:pt-1">
-                {group.label}
-              </div>
-              {visibleItems
-                .filter((i) => i.group === group.id)
-                .map((item) => (
+          {NAV_GROUPS.map((group) => {
+            const groupItems = visibleItems.filter((i) => i.group === group.id);
+            if (groupItems.length === 0) return null; // não mostra header de grupo vazio (equipe)
+            return (
+              <React.Fragment key={group.id}>
+                <div className="text-on-emerald-faint px-3 pb-1.5 pt-3 text-[10.5px] font-bold uppercase tracking-[0.14em] first:pt-1">
+                  {group.label}
+                </div>
+                {groupItems.map((item) => (
                   <SidebarLink
                     key={item.key}
                     item={item}
@@ -146,8 +147,9 @@ export function DashboardShell({
                     handoffCount={handoffCount}
                   />
                 ))}
-            </React.Fragment>
-          ))}
+              </React.Fragment>
+            );
+          })}
         </nav>
 
         {/* usuário */}

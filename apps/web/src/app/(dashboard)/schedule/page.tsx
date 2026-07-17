@@ -1,11 +1,11 @@
 import { prisma } from '@haru/database';
 
-import { requireUserAndTenant } from '@/lib/auth';
+import { requireAdmin } from '@/lib/auth';
 
 import { ScheduleEditor } from './schedule-editor';
 
 export default async function SchedulePage() {
-  const { tenant } = await requireUserAndTenant();
+  const { tenant } = await requireAdmin();
 
   // Cada profissional (com agenda) tem sua própria grade. No caso solo é só o dono.
   const professionals = await prisma.user.findMany({

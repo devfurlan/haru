@@ -1,11 +1,11 @@
 import { prisma } from '@haru/database';
 
-import { requireUserAndTenant } from '@/lib/auth';
+import { requireAdmin } from '@/lib/auth';
 
 import { PublicPageEditor } from './public-page-editor';
 
 export default async function PublicPagePage() {
-  const { tenant } = await requireUserAndTenant();
+  const { tenant } = await requireAdmin();
 
   const services = await prisma.service.findMany({
     where: { tenantId: tenant.id, active: true },

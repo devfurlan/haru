@@ -5,7 +5,7 @@ import { z } from 'zod';
 
 import { prisma } from '@haru/database';
 
-import { requireUserAndTenant } from '@/lib/auth';
+import { requireAdmin } from '@/lib/auth';
 
 const blockSchema = z.object({
   weekday: z.number().int().min(0).max(6),
@@ -29,7 +29,7 @@ export async function saveSchedule(
   professionalId: string,
   blocks: Array<{ weekday: number; startMinute: number; endMinute: number }>,
 ): Promise<SaveScheduleResult> {
-  const { tenant } = await requireUserAndTenant();
+  const { tenant } = await requireAdmin();
 
   // O alvo precisa ser um profissional (com agenda) deste tenant.
   const professional = await prisma.user.findFirst({
