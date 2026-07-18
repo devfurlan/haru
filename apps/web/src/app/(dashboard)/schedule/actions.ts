@@ -5,7 +5,8 @@ import { z } from 'zod';
 
 import { prisma } from '@haru/database';
 
-import { requireAdmin } from '@/lib/auth';
+import { requireUserAndTenant } from '@/lib/auth';
+import { panelRole } from '@/lib/permissions';
 
 const blockSchema = z.object({
   weekday: z.number().int().min(0).max(6),
@@ -29,11 +30,16 @@ export async function saveSchedule(
   professionalId: string,
   blocks: Array<{ weekday: number; startMinute: number; endMinute: number }>,
 ): Promise<SaveScheduleResult> {
-  const { tenant } = await requireAdmin();
+  const user = await requireUserAndTenant();
+  const tenant = user.tenant;
+  const role = panelRole(user);
+  if (role === 'SUPPORT') return { error: 'Apoio não tem agenda própria.' };
+  // Dono edita a grade de qualquer profissional; o profissional só a PRÓPRIA (ignora o id pedido).
+  const targetId = role === 'PROFESSIONAL' ? user.id : professionalId;
 
   // O alvo precisa ser um profissional (com agenda) deste tenant.
   const professional = await prisma.user.findFirst({
-    where: { id: professionalId, tenantId: tenant.id, isProfessional: true },
+    where: { id: targetId, tenantId: tenant.id, isProfessional: true },
     select: { id: true },
   });
   if (!professional) {
@@ -67,11 +73,11 @@ export async function saveSchedule(
   }
 
   await prisma.$transaction([
-    prisma.scheduleBlock.deleteMany({ where: { tenantId: tenant.id, professionalId } }),
+    prisma.scheduleBlock.deleteMany({ where: { tenantId: tenant.id, professionalId: targetId } }),
     prisma.scheduleBlock.createMany({
       data: parsed.data.map((b) => ({
         tenantId: tenant.id,
-        professionalId,
+        professionalId: targetId,
         weekday: b.weekday,
         startMinute: b.startMinute,
         endMinute: b.endMinute,

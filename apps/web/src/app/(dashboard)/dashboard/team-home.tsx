@@ -9,6 +9,7 @@ import type { PanelRole } from '@/lib/permissions';
 import { dataScope } from '@/lib/permissions';
 
 import { AutoRefresh } from './auto-refresh';
+import { DayCloseCard, type DayCloseGroup } from './day-close-card';
 import { DayCountsCard, OccupancyCard } from './metric-cards';
 
 // Início REDUZIDO da equipe (profissional/apoio): operacional, SEM dinheiro (faturamento,
@@ -62,7 +63,11 @@ export async function TeamHome({
         status: { not: 'CANCELED' },
         ...(professionalId ? { professionalId } : {}),
       },
-      include: { service: { select: { name: true } }, contact: true },
+      include: {
+        service: { select: { name: true } },
+        contact: true,
+        professional: { select: { name: true } },
+      },
       orderBy: { startsAt: 'asc' },
     }),
     prisma.appointment.count({
@@ -74,6 +79,29 @@ export async function TeamHome({
       },
     }),
   ]);
+
+  // Fechar o dia (equipe): os de hoje que já terminaram, sem preço. Profissional só os
+  // próprios (todayAppts já vem escopado); apoio fecha os de todos.
+  const dayEnded = todayAppts.filter((a) => a.endsAt < now);
+  const dayCloseGroups: DayCloseGroup[] = [];
+  const groupIndex = new Map<string, DayCloseGroup>();
+  for (const a of dayEnded) {
+    let g = groupIndex.get(a.professionalId);
+    if (!g) {
+      g = { professionalName: a.professional.name ?? 'Profissional', appts: [] };
+      groupIndex.set(a.professionalId, g);
+      dayCloseGroups.push(g);
+    }
+    g.appts.push({
+      id: a.id,
+      clientName: clientName(a.contact),
+      timeLabel: hm(a.startsAt, tz),
+      serviceName: a.service.name,
+      priceLabel: '', // equipe não vê valores
+      attended: a.status !== 'NO_SHOW',
+    });
+  }
+  const dayAllConfirmed = dayEnded.length > 0 && dayEnded.every((a) => a.attendanceConfirmed);
 
   const greetHour = Number(
     new Intl.DateTimeFormat('pt-BR', { timeZone: tz, hour: 'numeric', hour12: false })
@@ -123,6 +151,8 @@ export async function TeamHome({
           }
         />
       </div>
+
+      <DayCloseCard groups={dayCloseGroups} allConfirmed={dayAllConfirmed} showPrices={false} />
 
       <div className="border-line bg-paper shadow-soft overflow-hidden rounded-[18px] border">
         <div className="px-4.5 flex items-baseline gap-2.5 pb-2.5 pt-4">

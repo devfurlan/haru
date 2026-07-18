@@ -36,6 +36,8 @@ export interface WaitlistViewProps {
   live: ActiveOfferLive;
   groups: WaitlistGroup[];
   totalWaiting: number;
+  /** R$ recuperado + insight de receita: só o dono. Apoio gere a fila sem ver dinheiro. */
+  showRecovery?: boolean;
 }
 
 export function WaitlistView({
@@ -45,6 +47,7 @@ export function WaitlistView({
   live,
   groups,
   totalWaiting,
+  showRecovery = true,
 }: WaitlistViewProps) {
   const [encaixe, setEncaixe] = useState<{ person: WaitlistPerson; group: WaitlistGroup } | null>(
     null,
@@ -52,13 +55,13 @@ export function WaitlistView({
 
   if (!enabled) return <OffCard />;
 
-  const nothingYet = groups.length === 0 && metric.count === 0;
+  const nothingYet = groups.length === 0 && (!showRecovery || metric.count === 0);
   if (nothingYet) return <EmptyState />;
 
   return (
     <div className="flex flex-col gap-4">
-      {metric.count > 0 && <RecoveryCard metric={metric} />}
-      {insight && <InsightCard insight={insight} />}
+      {showRecovery && metric.count > 0 && <RecoveryCard metric={metric} />}
+      {showRecovery && insight && <InsightCard insight={insight} />}
       {live && <LiveCard live={live} />}
 
       {groups.length > 0 ? (

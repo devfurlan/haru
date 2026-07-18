@@ -19,6 +19,8 @@ export interface DashboardShellProps {
   userEmail: string;
   userAvatarUrl: string | null;
   isAdmin: boolean;
+  /** Profissional (tem agenda). Libera itens `proToo` mesmo sendo adminOnly (ex.: Horários). */
+  isProfessional: boolean;
   /** Addon "Atendente IA" ativo. Gate da aba Conversas (sem addon, inbox fica vazio). */
   addonActive: boolean;
   /** Conversas esperando você (badge coral). Populado na fase de Conversas. */
@@ -80,6 +82,7 @@ export function DashboardShell({
   userEmail,
   userAvatarUrl,
   isAdmin,
+  isProfessional,
   addonActive,
   handoffCount = 0,
   notification,
@@ -91,9 +94,10 @@ export function DashboardShell({
 
   const tenantInitials = initialsOf(tenantName, 'D');
   const userInitial = initialsOf(userName || userEmail, 'U');
-  const roleLabel = isAdmin ? 'Administrador' : 'Equipe';
+  const roleLabel = isAdmin ? 'Dono' : isProfessional ? 'Profissional' : 'Apoio';
   const visibleItems = NAV_ITEMS.filter(
-    (i) => (isAdmin || !i.adminOnly) && (addonActive || !i.addonOnly),
+    (i) =>
+      (isAdmin || !i.adminOnly || (i.proToo && isProfessional)) && (addonActive || !i.addonOnly),
   );
   const mobileItems = visibleItems.filter((i) => i.mobile);
   const moreItems = visibleItems.filter((i) => i.group === 'negocio');

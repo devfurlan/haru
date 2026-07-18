@@ -26,6 +26,8 @@ export interface NavItem {
   group: NavGroupId;
   /** Só OWNER vê. */
   adminOnly?: boolean;
+  /** Também visível ao PROFISSIONAL (mesmo sendo adminOnly) - ex.: os próprios horários. */
+  proToo?: boolean;
   /** Só aparece com o addon "Atendente IA" ativo (o inbound do bot é quem cria as
    * conversas; sem o addon a caixa fica vazia). */
   addonOnly?: boolean;
@@ -127,6 +129,7 @@ export const NAV_ITEMS: NavItem[] = [
     icon: Clock,
     group: 'negocio',
     adminOnly: true,
+    proToo: true, // profissional edita a própria grade
   },
   {
     key: 'pagina',

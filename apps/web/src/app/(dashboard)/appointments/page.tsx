@@ -153,9 +153,11 @@ export default async function AppointmentsPage() {
       timezone={tenant.timezone}
       today={todayLocal}
       waitlist={{
-        // Fila mostra recuperação em R$ (métrica de negócio) - só o dono. Apoio gerir a fila
-        // fica pra v2 (precisa esconder o dinheiro do painel da fila).
-        enabled: role === 'OWNER' && tenant.waitlistEnabled && hasWaitlist(tenant.subscription),
+        // Dono e apoio gerem a fila; profissional não (fila por-pro é v2). A recuperação em R$
+        // (métrica de negócio) e o insight de receita só o dono vê (showRecovery).
+        enabled:
+          role !== 'PROFESSIONAL' && tenant.waitlistEnabled && hasWaitlist(tenant.subscription),
+        showRecovery: role === 'OWNER',
         metric: recoveryMetric,
         insight: waitlistInsight,
         live: activeOffer,

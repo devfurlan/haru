@@ -23,9 +23,12 @@ export interface DayCloseGroup {
 export function DayCloseCard({
   groups,
   allConfirmed,
+  showPrices = true,
 }: {
   groups: DayCloseGroup[];
   allConfirmed: boolean;
+  /** Preço por atendimento - só o dono vê; a equipe fecha o dia sem valores. */
+  showPrices?: boolean;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -117,9 +120,11 @@ export function DayCloseCard({
                     {a.serviceName}
                   </span>
                 </span>
-                <span className="text-ink-70 w-[64px] flex-none text-right font-serif text-[13.5px]">
-                  {a.priceLabel}
-                </span>
+                {showPrices && (
+                  <span className="text-ink-70 w-[64px] flex-none text-right font-serif text-[13.5px]">
+                    {a.priceLabel}
+                  </span>
+                )}
                 {/* Atendido é o estado calmo (só o check); só a exceção "faltou" ganha rótulo. */}
                 <span className="text-coral-deep w-[52px] flex-none text-right text-[10.5px] font-bold uppercase tracking-wide">
                   {on ? '' : 'faltou'}

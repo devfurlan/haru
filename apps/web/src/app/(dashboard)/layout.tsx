@@ -39,6 +39,7 @@ export default async function DashboardLayout({
         userEmail={email}
         userAvatarUrl={avatarUrl}
         isAdmin={isAdmin(user)}
+        isProfessional={user.isProfessional}
         addonActive={isAddonActive(subscription)}
         notification={<NotificationBell tenantId={tenant.id} />}
         banners={

@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { panelRole, PANEL_ROLE_LABEL } from '@/lib/permissions';
 import { formatPhoneBR, maskPhoneBRInput } from '@haru/shared';
 
 import { AvatarUploader } from '../account/avatar-uploader';
@@ -47,12 +48,11 @@ interface UsersCardProps {
   currentUserId: string;
 }
 
-function RoleBadge({ role }: { role: UserRow['role'] }) {
-  return role === 'OWNER' ? (
-    <Badge variant="admin">Administrador</Badge>
-  ) : (
-    <Badge variant="neutral">Equipe</Badge>
-  );
+// Papel efetivo (Dono/Profissional/Apoio) num badge só - deriva de role + isProfessional.
+function RoleTag({ user }: { user: Pick<UserRow, 'role' | 'isProfessional'> }) {
+  const role = panelRole(user);
+  const variant = role === 'OWNER' ? 'admin' : role === 'PROFESSIONAL' ? 'success' : 'neutral';
+  return <Badge variant={variant}>{PANEL_ROLE_LABEL[role]}</Badge>;
 }
 
 function StatusBadge({ status }: { status: UserRow['status'] }) {
@@ -60,14 +60,6 @@ function StatusBadge({ status }: { status: UserRow['status'] }) {
     <Badge variant="success">Ativo</Badge>
   ) : (
     <Badge variant="pending">Convite pendente</Badge>
-  );
-}
-
-function TypeBadge({ isProfessional }: { isProfessional: boolean }) {
-  return isProfessional ? (
-    <Badge variant="success">Profissional</Badge>
-  ) : (
-    <Badge variant="neutral">Recepção</Badge>
   );
 }
 
@@ -83,10 +75,10 @@ function TypeField({ defaultProfessional }: { defaultProfessional: boolean }) {
         className="border-input flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-sm"
       >
         <option value="true">Profissional (tem agenda própria)</option>
-        <option value="false">Recepção (sem agenda; só gerencia)</option>
+        <option value="false">Apoio (sem agenda; recepção/gestão)</option>
       </select>
       <p className="text-muted-foreground text-xs">
-        Profissionais recebem agendamentos e têm horários próprios. Recepção acessa e gerencia as
+        Profissionais recebem agendamentos e têm horários próprios. Apoio acessa e gerencia as
         agendas, mas não tem agenda própria.
       </p>
     </div>
@@ -276,8 +268,8 @@ function EditDialog({
               disabled={isSelf}
               className="border-input flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-sm disabled:cursor-not-allowed disabled:opacity-50"
             >
-              <option value="OWNER">Administrador</option>
-              <option value="STAFF">Equipe</option>
+              <option value="OWNER">Dono (acesso total)</option>
+              <option value="STAFF">Equipe (profissional ou apoio)</option>
             </select>
             {isSelf && (
               <p className="text-muted-foreground text-xs">
@@ -431,8 +423,7 @@ export function UsersCard({ users, currentUserId }: UsersCardProps) {
                   )}
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
-                  <TypeBadge isProfessional={u.isProfessional} />
-                  <RoleBadge role={u.role} />
+                  <RoleTag user={u} />
                   <StatusBadge status={u.status} />
                   <RowActions user={u} isSelf={isSelf} onEdit={() => setEditing(u)} />
                 </div>
