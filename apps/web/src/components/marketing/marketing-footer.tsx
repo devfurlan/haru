@@ -90,7 +90,13 @@ export function MarketingFooter() {
           </div>
         </div>
         <div className="text-on-emerald-faint flex flex-wrap justify-between gap-x-6 gap-y-2 pt-6 font-sans text-[12.5px] font-normal leading-[normal]">
-          <span>© {new Date().getFullYear()} Demandaê · Sua agenda, sem enrolação.</span>
+          {/* Razão social + CNPJ no rodapé: a verificação de negócio da Meta (WhatsApp)
+              exige achar o nome legal e o CNPJ no site do domínio verificado. Nos termos e
+              na privacidade já constavam, mas o revisor olha o rodapé. */}
+          <span>
+            © {new Date().getFullYear()} Demandaê · Cuidly Tecnologia Ltda · CNPJ
+            63.813.138/0001-20
+          </span>
           <span>Feito no Brasil · Dados protegidos pela LGPD · Infraestrutura em nuvem</span>
         </div>
       </div>
