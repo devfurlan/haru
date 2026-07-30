@@ -7,5 +7,6 @@ export * from './calendar';
 export * from './comms-channel';
 export * from './format';
 export * from './recurrence';
+export * from './reminder-timing';
 export * from './reserved-slugs';
 export * from './search';

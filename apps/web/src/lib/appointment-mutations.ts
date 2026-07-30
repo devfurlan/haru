@@ -14,7 +14,7 @@ import { insertAppointmentGuarded } from '@/lib/appointment-insert';
 import { notifyCreditsLowIfNeeded } from '@/lib/comms/subscription-events';
 import { refundMembershipCredit } from '@/lib/memberships/credit-core';
 import { resolveCoveredMembership } from '@/lib/memberships/credits';
-import { BOOKING_HORIZON_DAYS, isoDateInTz } from '@haru/shared';
+import { BOOKING_HORIZON_DAYS, isoDateInTz, REMINDER_STAMPS_RESET } from '@haru/shared';
 import {
   notifyAppointmentCanceled,
   notifyAppointmentCreated,
@@ -106,10 +106,10 @@ export async function rescheduleAppointmentCore(args: {
     data: {
       startsAt: newStartsAt,
       endsAt: newEndsAt,
-      // Lembretes já enviados pro horário antigo - zera pra disparar de novo no novo
-      // horário (WhatsApp e push; o e-mail mantém o comportamento atual do código).
-      reminderSentAt: null,
-      reminderPushSentAt: null,
+      // Lembretes já enviados pro horário antigo - zera os TRÊS canais pra disparar de
+      // novo no novo horário (antes o e-mail ficava carimbado: cliente com conta, que
+      // suprime o WhatsApp por own-first, remarcava e não recebia lembrete nenhum).
+      ...REMINDER_STAMPS_RESET,
       // Atendimento moveu: re-arma o convite de avaliação pro novo horário.
       reviewInviteSentAt: null,
     },

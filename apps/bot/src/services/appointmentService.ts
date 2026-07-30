@@ -1,3 +1,5 @@
+import { REMINDER_STAMPS_RESET } from '@haru/shared';
+
 import { sendAppointmentEmails } from '../lib/appointmentEmail.js';
 import prisma from '../lib/prisma.js';
 import {
@@ -606,10 +608,9 @@ export async function rescheduleAppointmentForContact(
       serviceId: targetService.id,
       startsAt: newStartsAt,
       endsAt: newEndsAt,
-      // Lembrete já foi enviado pro horário antigo - zera pra disparar de novo
-      // pro novo horário (se cair dentro da janela). Vale pros dois canais.
-      reminderSentAt: null,
-      reminderEmailSentAt: null,
+      // Lembrete já foi enviado pro horário antigo - zera pra disparar de novo pro novo
+      // horário (se cair dentro da janela). Vale pros TRÊS canais (o push ficava de fora).
+      ...REMINDER_STAMPS_RESET,
       // Atendimento moveu: re-arma o convite de avaliação pro novo horário.
       reviewInviteSentAt: null,
     },

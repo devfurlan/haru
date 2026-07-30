@@ -1,5 +1,5 @@
 import { cycleWindow, getMonthlyWhatsappReminderUsage, isSubscriptionActive } from '@haru/billing';
-import { pickChannels } from '@haru/shared';
+import { pickChannels, reminderDueAt } from '@haru/shared';
 
 import { Sentry } from '../instrument.js';
 import { emailAppointmentReminder } from './appointmentEmail.js';
@@ -27,9 +27,10 @@ function formatWhen(date: Date, timezone: string): string {
 
 /**
  * Confirma na Graph API se o número do tenant está BANIDO. Em caso positivo grava
- * `whatsappBannedAt` (o loop passa a pular o tenant nos próximos ticks), avisa o
- * operador por e-mail e retorna true. Como a query do loop filtra por
- * `whatsappBannedAt: null`, o e-mail é disparado uma única vez por banimento.
+ * `whatsappBannedAt` (o loop passa a pular o CANAL WhatsApp do tenant nos próximos
+ * ticks - e-mail e push seguem), avisa o operador por e-mail e retorna true. Como o
+ * tenant já marcado nem entra no ramo de envio por WhatsApp, esta função não roda de
+ * novo e o e-mail sai uma única vez por banimento.
  * Best-effort: qualquer incerteza (status indisponível) retorna false.
  */
 async function flagIfBanned(tenant: {
@@ -72,10 +73,10 @@ async function processReminders() {
   const tenants = await prisma.tenant.findMany({
     where: {
       reminderMinutesBefore: { gt: 0 },
-      // Sem filtro por whatsappPhoneNumberId: tenants SEM WhatsApp ainda mandam
-      // lembrete por e-mail. A checagem do número é feita por agendamento, abaixo.
-      // Número banido pela Meta recusa todo envio WhatsApp (#135000); o e-mail segue.
-      whatsappBannedAt: null,
+      // Sem filtro por whatsappPhoneNumberId nem por whatsappBannedAt: tenant SEM
+      // WhatsApp (ou com o número banido pela Meta) ainda manda lembrete por e-mail e
+      // push. A checagem do número é feita por agendamento, abaixo - o banimento derruba
+      // só o canal WhatsApp (ver whatsappBlocked), não o lembrete inteiro.
     },
     // Assinatura p/ a cota de lembretes por WhatsApp (pausa o canal a 100%).
     include: { subscription: true },
@@ -110,9 +111,9 @@ async function processReminders() {
 
     if (appts.length === 0) continue;
 
-    // Se o número for detectado banido no meio do tick, paramos o WhatsApp (todo
-    // envio falharia) mas seguimos mandando os lembretes por e-mail.
-    let whatsappBlocked = false;
+    // Número banido (já marcado, ou detectado no meio do tick): paramos o WhatsApp (todo
+    // envio falharia) mas seguimos mandando os lembretes por e-mail e push.
+    let whatsappBlocked = tenant.whatsappBannedAt != null;
 
     // Canal do lembrete por WhatsApp: WABA PRÓPRIA do tenant (variante OWN do addon) ou, no
     // plano base, o número da PLATAFORMA Demandaê (env-gated pelo template aprovado). Sem
@@ -143,6 +144,12 @@ async function processReminders() {
         : 0;
 
     for (const appt of appts) {
+      // Agendamento criado DEPOIS da hora-alvo (marcou pra hoje num tenant que lembra com
+      // muita antecedência): o lembrete sairia junto com a confirmação e queimaria os
+      // carimbos - o cliente não receberia nada perto da hora. reminderDueAt reprograma
+      // pra 30 min antes; até lá o appt volta nos próximos ticks (carimbos seguem nulos).
+      if (now < reminderDueAt({ ...appt, minutesBefore: tenant.reminderMinutesBefore })) continue;
+
       const when = formatWhen(appt.startsAt, tenant.timezone);
       const name = appt.contact.name ?? 'cliente';
 
@@ -180,16 +187,22 @@ async function processReminders() {
         if (waTemplateName) {
           // Caminho oficial: template aprovado pela Meta. Escapa da regra das 24h.
           try {
-            await sendTemplateMessage(waNumberId, appt.contact.phone, waTemplateName, waTemplateLang, [
-              {
-                type: 'body',
-                parameters: [
-                  { type: 'text', text: name },
-                  { type: 'text', text: when },
-                  { type: 'text', text: appt.service.name },
-                ],
-              },
-            ]);
+            await sendTemplateMessage(
+              waNumberId,
+              appt.contact.phone,
+              waTemplateName,
+              waTemplateLang,
+              [
+                {
+                  type: 'body',
+                  parameters: [
+                    { type: 'text', text: name },
+                    { type: 'text', text: when },
+                    { type: 'text', text: appt.service.name },
+                  ],
+                },
+              ],
+            );
             sent = true;
           } catch (err) {
             console.error('[reminders] template falhou', err);
@@ -283,7 +296,9 @@ async function processReminders() {
       // envio, não muda o primário own-first). Fire-and-forget: nunca derruba o tick.
       if (firstTouch) {
         const waEligible =
-          appt.contact.phone != null && waNumberId != null && appt.contact.remindersOptOutAt == null;
+          appt.contact.phone != null &&
+          waNumberId != null &&
+          appt.contact.remindersOptOutAt == null;
         const { primary } = pickChannels({ push: hasPush, email: hasEmail, whatsapp: waEligible });
         await prisma.commsDelivery
           .create({
