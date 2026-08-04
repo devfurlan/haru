@@ -1,7 +1,7 @@
 import { defineConfig } from 'tsup';
 
 export default defineConfig({
-  // `@haru/payments` e `@haru/billing` apontam pra TS cru (`main: ./src/index.ts`)
+  // `@haru/payments`, `@haru/billing` e `@haru/shared` apontam pra TS cru (`main: ./src/index.ts`)
   // e o tsup, por padrão, externaliza toda dependency. Externalizado, o pacote é
   // carregado em runtime pelo Node - que NÃO resolve seus imports relativos sem
   // extensão (`./factory`, `./crypto`, `./types`, `./gating`, `./snapshot`) e mata
@@ -11,5 +11,5 @@ export default defineConfig({
   // `@haru/database` continua external de propósito: precisa do Prisma Client
   // gerado + driver adapter em node_modules no runtime (e payments/billing só
   // importam dele o que resolve via node_modules, então nada cru entra no bundle).
-  noExternal: ['@haru/payments', '@haru/billing'],
+  noExternal: ['@haru/payments', '@haru/billing', '@haru/shared'],
 });
