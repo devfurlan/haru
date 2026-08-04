@@ -497,12 +497,21 @@ const MAP_H = 110;
 const TILE = 256;
 const MAP_ZOOM = 16;
 
+// A política de uso dos tiles do OSM EXIGE um User-Agent válido que identifique o app -
+// requisições com o UA genérico do cliente HTTP (okhttp/SDWebImage) são recusadas com
+// "403 Access blocked". Identificamos o app + contato conforme pede a política.
+// https://operations.osmfoundation.org/policies/tiles/
+const OSM_TILE_HEADERS = {
+  'User-Agent': 'Demandae/1.0 (https://www.demandae.com; contato@demandae.com)',
+};
+
 // Miniatura de mapa real: grade 3x3 de tiles do OpenStreetMap centrada nas coordenadas,
 // deslocada pra o ponto cair no centro do viewport (onde fica o pino). Keyless, sem
 // módulo nativo - <Image> do expo-image (Glide: downsample/cache/memória, evita o aviso
-// de bitmap do Play). ponytail: tiles direto do OSM servem no tamanho atual; se
-// escalar, migrar pra provider com key (MapTiler/Geoapify) ou react-native-maps - a
-// política de uso do OSM desencoraja tráfego alto sem User-Agent identificando o app.
+// de bitmap do Play). As requisições mandam um User-Agent identificando o app
+// (OSM_TILE_HEADERS) - sem ele o OSM recusa com 403. ponytail: tiles direto do OSM
+// servem no tamanho atual; se escalar, migrar pra provider com key (MapTiler/Geoapify)
+// ou react-native-maps - a política do OSM desencoraja tráfego alto.
 function MapThumb({ lat, lng }: { lat: number; lng: number }) {
   const [w, setW] = useState(0);
   const n = 2 ** MAP_ZOOM;
@@ -531,7 +540,10 @@ function MapThumb({ lat, lng }: { lat: number; lng: number }) {
         tiles.map(({ tx, ty }) => (
           <Image
             key={`${tx}-${ty}`}
-            source={{ uri: `https://tile.openstreetmap.org/${MAP_ZOOM}/${tx}/${ty}.png` }}
+            source={{
+              uri: `https://tile.openstreetmap.org/${MAP_ZOOM}/${tx}/${ty}.png`,
+              headers: OSM_TILE_HEADERS,
+            }}
             style={{
               position: 'absolute',
               width: TILE,
