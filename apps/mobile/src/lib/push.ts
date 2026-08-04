@@ -52,11 +52,14 @@ export async function registerForPush(): Promise<void> {
     }
     if (!granted) return;
 
-    // Canal obrigatório no Android pra a notificação aparecer.
+    // Canal obrigatório no Android pra a notificação aparecer. HIGH = banner na tela +
+    // som; com DEFAULT o lembrete só cai calado na gaveta e o cliente não vê a tempo.
+    // Android congela a importância na criação: em aparelho que JÁ criou o canal, a
+    // mudança só vale em instalação nova.
     if (Platform.OS === 'android') {
       await Notifications.setNotificationChannelAsync('default', {
         name: 'Lembretes',
-        importance: Notifications.AndroidImportance.DEFAULT,
+        importance: Notifications.AndroidImportance.HIGH,
       });
     }
 

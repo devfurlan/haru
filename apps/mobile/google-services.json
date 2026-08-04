@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "541409477587",
+    "project_id": "demandae-3d2f0",
+    "storage_bucket": "demandae-3d2f0.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:541409477587:android:d16ea970200771ef7d6526",
+        "android_client_info": {
+          "package_name": "com.demandae.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCHZI5UsbrAcpGLvbfdjfXtcE3fJKj5-84"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

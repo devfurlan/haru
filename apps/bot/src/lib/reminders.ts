@@ -244,8 +244,12 @@ async function processReminders() {
 
       // --- Lembrete por e-mail AO CLIENTE (canal próprio, independente do WhatsApp) ---
       if (appt.reminderEmailSentAt == null) {
+        // Só carimba quando o e-mail REALMENTE saiu (ou quando não há destinatário/opt-out).
+        // Carimbar em falha - Resend fora do ar, env ausente - fazia o lembrete sumir de vez;
+        // sem carimbo o appt volta no próximo tick e tenta de novo até a hora do atendimento.
+        let done = true;
         if (hasEmail) {
-          await emailAppointmentReminder({
+          done = await emailAppointmentReminder({
             to: emailTo!,
             customerName: account?.name ?? appt.contact.name ?? null,
             tenantName: tenant.name,
@@ -254,14 +258,16 @@ async function processReminders() {
           }).catch((err) => {
             console.error('[reminders] e-mail de lembrete falhou', err);
             Sentry.captureException(err, { tags: { component: 'reminders', mode: 'email' } });
+            return false;
           });
         }
-        // Carimba o e-mail como processado (enviado, sem destinatário ou opt-out) pra
-        // não reavaliar todo tick - o carimbo é zerado na remarcação.
-        await prisma.appointment.update({
-          where: { id: appt.id },
-          data: { reminderEmailSentAt: new Date() },
-        });
+        // O carimbo é zerado na remarcação (REMINDER_STAMPS_RESET).
+        if (done) {
+          await prisma.appointment.update({
+            where: { id: appt.id },
+            data: { reminderEmailSentAt: new Date() },
+          });
+        }
       }
 
       // --- Lembrete por PUSH ao cliente (app). Vai pra qualquer aparelho registrado:

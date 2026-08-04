@@ -325,10 +325,10 @@ export async function emailAppointmentReminder(data: {
   tenantName: string;
   when: string;
   serviceName: string;
-}): Promise<void> {
+}): Promise<boolean> {
   const hi = data.customerName ? `Olá, ${data.customerName}!` : 'Olá!';
   const det = detailsBlock(data.when, data.serviceName);
-  await sendEmail(
+  return sendEmail(
     data.to,
     `Lembrete do seu agendamento - ${data.tenantName}`,
     shell(

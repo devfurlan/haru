@@ -22,7 +22,10 @@ export async function sendExpoPush(
   if (messages.length === 0) return { invalidTokens };
 
   for (let i = 0; i < messages.length; i += BATCH_SIZE) {
-    const batch = messages.slice(i, i + BATCH_SIZE);
+    // channelId casa com o canal 'default' (importance HIGH) que o app cria no registro.
+    // Sem ele o Android joga a notificação no canal genérico do expo-notifications, que
+    // é silencioso - a notificação chega mas não aparece na tela.
+    const batch = messages.slice(i, i + BATCH_SIZE).map((m) => ({ channelId: 'default', ...m }));
     try {
       const res = await fetch(EXPO_PUSH_URL, {
         method: 'POST',
@@ -32,10 +35,15 @@ export async function sendExpoPush(
       const json = (await res.json().catch(() => null)) as { data?: ExpoTicket[] } | null;
       const tickets = json?.data ?? [];
       tickets.forEach((ticket, idx) => {
+        if (ticket.status !== 'error') return;
         // Token morto (app desinstalado / permissão revogada): sinaliza pra limpar.
-        if (ticket.status === 'error' && ticket.details?.error === 'DeviceNotRegistered') {
+        if (ticket.details?.error === 'DeviceNotRegistered') {
           invalidTokens.push(batch[idx].to);
+          return;
         }
+        // Qualquer outro erro do ticket era descartado calado - inclusive credencial FCM
+        // errada/ausente no EAS, que reprova TODO push do app sem deixar rastro.
+        console.error('[expoPush] ticket recusado', ticket.details?.error ?? ticket.status, ticket);
       });
     } catch (err) {
       console.error('[expoPush] envio falhou', err);
