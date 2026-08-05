@@ -12,6 +12,7 @@ import { traduzErroSignUp } from '@/lib/auth-errors';
 import { getBaseUrl } from '@/lib/base-url';
 import { TERMS_VERSION } from '@/lib/legal';
 import { parsePlanParam } from '@/lib/plan-query';
+import { withinRateLimitByIp } from '@/lib/ratelimit';
 import { createClient } from '@/lib/supabase/server';
 import { uniqueSlug } from '@/lib/slug';
 
@@ -73,6 +74,15 @@ export async function signUp(_prev: ActionResult, formData: FormData): Promise<A
     return { error: parsed.error.issues[0]?.message ?? 'Dados inválidos' };
   }
   const { email, password, businessName, ownerName } = parsed.data;
+
+  // Farm de contas: bots criam vários painéis do mesmo IP em minutos, variando pontos no
+  // e-mail do Gmail (que os ignora) pra escapar do unique do Supabase. 3/h por IP não
+  // atrapalha cadastro real nem contas de teste.
+  // ponytail: só IP. Se voltarem por IP rotativo, o próximo passo é o CAPTCHA nativo do
+  // Supabase Auth (Turnstile no dashboard + options.captchaToken aqui).
+  if (!(await withinRateLimitByIp('owner-signup', 3, 3600))) {
+    return { error: 'Muitas tentativas. Tente novamente em alguns minutos.' };
+  }
 
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signUp({ email, password });
