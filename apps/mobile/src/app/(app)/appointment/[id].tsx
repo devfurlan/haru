@@ -543,6 +543,11 @@ function MapThumb({ lat, lng }: { lat: number; lng: number }) {
             source={{
               uri: `https://tile.openstreetmap.org/${MAP_ZOOM}/${tx}/${ty}.png`,
               headers: OSM_TILE_HEADERS,
+              // O OSM serve o tile de "Access blocked" com HTTP 200, então ele foi
+              // CACHEADO em disco como imagem boa - e a chave de cache default é a uri,
+              // que não mudou com o User-Agent. Sem versionar a chave, quem já viu o
+              // erro continua vendo pra sempre. Bump o sufixo se acontecer de novo.
+              cacheKey: `osm-v2-${MAP_ZOOM}-${tx}-${ty}`,
             }}
             style={{
               position: 'absolute',
