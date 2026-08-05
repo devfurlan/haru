@@ -3,12 +3,12 @@ import { formatPhoneBR, isoDateInTz, localWallTimeToUtc } from '@haru/shared';
 import { CalendarDays } from 'lucide-react';
 import Link from 'next/link';
 
+import { AutoRefresh } from '@/components/dashboard/auto-refresh';
 import { Button } from '@/components/ui/button';
 import { getMetrics } from '@/lib/metrics/metrics';
 import type { PanelRole } from '@/lib/permissions';
 import { dataScope } from '@/lib/permissions';
 
-import { AutoRefresh } from './auto-refresh';
 import { DayCloseCard, type DayCloseGroup } from './day-close-card';
 import { DayCountsCard, OccupancyCard } from './metric-cards';
 
@@ -119,7 +119,7 @@ export async function TeamHome({
 
   return (
     <div className="mx-auto flex w-full max-w-[1080px] flex-col gap-5">
-      <AutoRefresh />
+      <AutoRefresh table="Appointment" />
 
       <div className="flex flex-wrap items-end gap-4">
         <div className="min-w-[240px] flex-1">

@@ -2,6 +2,7 @@ import { hasWaitlist } from '@haru/billing';
 import { prisma } from '@haru/database';
 import { formatPhoneBR } from '@haru/shared';
 
+import { AutoRefresh } from '@/components/dashboard/auto-refresh';
 import { requireUserAndTenant } from '@/lib/auth';
 import { dataScope, panelRole } from '@/lib/permissions';
 import {
@@ -144,26 +145,30 @@ export default async function AppointmentsPage() {
   }).format(now);
 
   return (
-    <AppointmentsDayView
-      appointments={calendarAppointments}
-      exceptions={calendarExceptions}
-      scheduleBlocks={scheduleBlocks}
-      professionals={professionals.map((p) => ({ id: p.id, name: p.name ?? 'Profissional' }))}
-      pending={pending}
-      timezone={tenant.timezone}
-      today={todayLocal}
-      waitlist={{
-        // Dono e apoio gerem a fila; profissional não (fila por-pro é v2). A recuperação em R$
-        // (métrica de negócio) e o insight de receita só o dono vê (showRecovery).
-        enabled:
-          role !== 'PROFESSIONAL' && tenant.waitlistEnabled && hasWaitlist(tenant.subscription),
-        showRecovery: role === 'OWNER',
-        metric: recoveryMetric,
-        insight: waitlistInsight,
-        live: activeOffer,
-        groups: waitlistGroups,
-        totalWaiting: waitlistTotal,
-      }}
-    />
+    <>
+      {/* Agenda se atualiza sozinha (agendamento novo pelo site/WhatsApp aparece sem F5). */}
+      <AutoRefresh table="Appointment" />
+      <AppointmentsDayView
+        appointments={calendarAppointments}
+        exceptions={calendarExceptions}
+        scheduleBlocks={scheduleBlocks}
+        professionals={professionals.map((p) => ({ id: p.id, name: p.name ?? 'Profissional' }))}
+        pending={pending}
+        timezone={tenant.timezone}
+        today={todayLocal}
+        waitlist={{
+          // Dono e apoio gerem a fila; profissional não (fila por-pro é v2). A recuperação em R$
+          // (métrica de negócio) e o insight de receita só o dono vê (showRecovery).
+          enabled:
+            role !== 'PROFESSIONAL' && tenant.waitlistEnabled && hasWaitlist(tenant.subscription),
+          showRecovery: role === 'OWNER',
+          metric: recoveryMetric,
+          insight: waitlistInsight,
+          live: activeOffer,
+          groups: waitlistGroups,
+          totalWaiting: waitlistTotal,
+        }}
+      />
+    </>
   );
 }

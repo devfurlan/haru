@@ -3,6 +3,7 @@ import { formatPhoneBR, isoDateInTz, localWallTimeToUtc } from '@haru/shared';
 import { CalendarDays, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 
+import { AutoRefresh } from '@/components/dashboard/auto-refresh';
 import { Button } from '@/components/ui/button';
 import { computeAttendanceStats, getAttendanceRows } from '@/lib/attendance';
 import { requireUserAndTenant } from '@/lib/auth';
@@ -13,7 +14,6 @@ import { getRecoveryMetric } from '@/lib/waitlist-panel';
 import { isWhatsappConnected } from '@/lib/whatsapp-status';
 
 import { AttendanceCard } from './attendance-card';
-import { AutoRefresh } from './auto-refresh';
 import { DayCloseCard, type DayCloseGroup } from './day-close-card';
 import { LapsedClientsCard } from './lapsed-clients-card';
 import { TeamHome } from './team-home';
@@ -195,7 +195,7 @@ export default async function DashboardPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-[1240px] flex-col gap-5">
-      <AutoRefresh />
+      <AutoRefresh table="Appointment" />
 
       {/* header */}
       <div className="flex flex-wrap items-end gap-4">
