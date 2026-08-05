@@ -70,6 +70,7 @@
     "start:prod": "EXPO_PUBLIC_SUPABASE_URL=https://rmhlslarbamcqxdxfope.supabase.co EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_SdjvZc43yMaQQzZnB2ysVQ_36ktWfip EXPO_PUBLIC_API_URL=https://www.demandae.com expo start --dev-client --tunnel",
     "start:local": "EXPO_PUBLIC_SUPABASE_URL=http://localhost:54361 EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH EXPO_PUBLIC_API_URL=http://localhost:4361 expo start --dev-client",
     "start:local:tunnel": "bash scripts/start-local-tunnel.sh",
+    "update:prod": "node ./scripts/eas-update-prod.mjs",
     "reset-project": "node ./scripts/reset-project.js",
     "android": "expo start --android",
     "ios": "expo start --ios",
