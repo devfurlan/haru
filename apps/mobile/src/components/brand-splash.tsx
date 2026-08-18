@@ -6,8 +6,8 @@ import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
 // Splash brandada (design Claude "Splash Animacao"). A marca é a bolinha laranja de
 // notificação (do logo Demandaê) com pulse animado, centralizada. O fundo respira
 // (glow verde/coral), o wordmark "Demanda" sobe claro e o "ê" estala em coral (o
-// gesto-assinatura), tagline + pontos. O texto pende por baixo da marca (absoluto),
-// pra a marca não sair do centro. O (app)/_layout segura a tela até o conteúdo carregar.
+// gesto-assinatura), tagline + pontos. Todo o bloco fica centrado como conjunto.
+// O (app)/_layout segura a tela até o conteúdo carregar.
 // NOTA: o splash NATIVO (app.json) ainda usa splash-seal.png (calendário); trocar por
 // uma arte da bolinha laranja pra o handoff nativo->animado não pular.
 const fraunces = { fontFamily: 'Fraunces_600SemiBold', fontSize: 46, letterSpacing: -1 } as const;
@@ -118,12 +118,10 @@ export function BrandSplash({ overlay = false }: { overlay?: boolean }) {
         </Svg>
       </Animated.View>
 
-      {/* Marca centralizada na tela; o texto é absoluto (pende por baixo), então só a
-          marca fica no fluxo e trava no centro exato da tela. */}
-      <View className="flex-1 items-center justify-center">
-        {/* Camada de largura total: a marca (no fluxo) define a altura e trava no centro
-            exato da tela; o texto pende absoluto por baixo, centrado pela largura total
-            - sem transform % (que é frágil no RN). */}
+      {/* Bloco inteiro (marca + texto) no fluxo, centrado: o conjunto é o que precisa
+          ficar no centro óptico da tela. Antes só a bolinha ficava no centro e o texto
+          pendia absoluto por baixo, o que jogava a composição toda pra baixo. */}
+      <View className="flex-1 items-center justify-center px-10">
         <View className="w-full items-center">
           {/* Marca: bolinha laranja de notificação com pulse animado. No SVG do logo o
               pulse era simulado por 2 círculos estáticos; aqui a base sólida fica parada
@@ -134,10 +132,7 @@ export function BrandSplash({ overlay = false }: { overlay?: boolean }) {
             <View style={{ width: BADGE, height: BADGE, borderRadius: BADGE / 2, backgroundColor: '#FF5A18' }} />
           </View>
 
-          {/* Texto pende por baixo do selo: camada de largura total (inset-x-0) centrada
-              por items-center. NÃO usar left:50% + translateX:-50% - percentual em transform
-              não aplica de forma confiável no RN e jogava o texto pra direita, cortado. */}
-          <View className="absolute inset-x-0 items-center px-10" style={{ top: '100%' }}>
+          <View className="w-full items-center">
             {/* Wordmark: "Demanda" sobe firme, o "ê" estala em coral por último */}
             <View className="mt-7 flex-row items-baseline">
               <Animated.Text
@@ -176,7 +171,7 @@ export function BrandSplash({ overlay = false }: { overlay?: boolean }) {
                 transform: [{ translateY: tag.interpolate({ inputRange: [0, 1], outputRange: [14, 0] }) }],
               }}
             >
-              Sua próxima cadeira, num toque.
+              Agende seu horário num toque.
             </Animated.Text>
 
             {/* Pontos verdes piscam enquanto o app carrega */}
