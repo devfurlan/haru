@@ -18,7 +18,7 @@ const at = (iso: string) => new Date(iso);
 assert(
   reminderDueAt({
     startsAt: at('2026-07-30T18:00:00Z'),
-    createdAt: at('2026-07-28T10:00:00Z'),
+    armedAt: at('2026-07-28T10:00:00Z'),
     minutesBefore: 30,
   }).getTime() === at('2026-07-30T17:30:00Z').getTime(),
   'alvo normal = startsAt - antecedência',
@@ -28,7 +28,7 @@ assert(
 // passou na criação - o lembrete NÃO pode sair no ato, tem que ir pra 30 min antes.
 const late = reminderDueAt({
   startsAt: at('2026-07-30T18:00:00Z'),
-  createdAt: at('2026-07-30T08:00:00Z'),
+  armedAt: at('2026-07-30T08:00:00Z'),
   minutesBefore: 1440,
 });
 assert(
@@ -41,7 +41,7 @@ assert(late > at('2026-07-30T08:00:00Z'), 'não dispara no ato do agendamento');
 assert(
   reminderDueAt({
     startsAt: at('2026-07-30T18:00:00Z'),
-    createdAt: at('2026-07-29T09:00:00Z'),
+    armedAt: at('2026-07-29T09:00:00Z'),
     minutesBefore: 1440,
   }).getTime() === at('2026-07-29T18:00:00Z').getTime(),
   'alvo pós-criação segue valendo (recuperação de downtime)',
@@ -51,7 +51,7 @@ assert(
 assert(
   reminderDueAt({
     startsAt: at('2026-07-30T18:00:00Z'),
-    createdAt: at('2026-07-30T17:50:00Z'),
+    armedAt: at('2026-07-30T17:50:00Z'),
     minutesBefore: 10,
   }).getTime() === at('2026-07-30T17:50:00Z').getTime(),
   'lateLead nunca passa da antecedência do tenant',
@@ -60,16 +60,30 @@ assert(
 // Marcou em cima da hora (menos que a antecedência mínima): alvo no passado = próximo tick.
 const now = at('2026-07-30T17:45:00Z');
 assert(
-  reminderDueAt({ startsAt: at('2026-07-30T18:00:00Z'), createdAt: now, minutesBefore: 1440 }) <
+  reminderDueAt({ startsAt: at('2026-07-30T18:00:00Z'), armedAt: now, minutesBefore: 1440 }) <
     now,
   'marcado em cima da hora dispara no próximo tick',
 );
+
+// REMARCAÇÃO pra daqui a pouco: os carimbos são zerados e o relógio re-armado (updatedAt).
+// Com a criação antiga o alvo de 24h "já vencido" fazia o lembrete sair no ato da remarcação
+// e o cliente não recebia nada perto da hora - o caso do agendamento remarcado 18/08.
+const remarcado = reminderDueAt({
+  startsAt: at('2026-08-18T17:30:00Z'),
+  armedAt: at('2026-08-17T21:55:00Z'), // remarcado ontem à noite, appt criado semanas antes
+  minutesBefore: 1440,
+});
+assert(
+  remarcado.getTime() === at('2026-08-18T17:00:00Z').getTime(),
+  'remarcado após o alvo -> 30 min antes do novo horário',
+);
+assert(remarcado > at('2026-08-17T21:55:00Z'), 'não dispara no ato da remarcação');
 
 // Fronteira: criado EXATAMENTE na hora-alvo conta como normal (não reprograma).
 assert(
   reminderDueAt({
     startsAt: at('2026-07-30T18:00:00Z'),
-    createdAt: new Date(at('2026-07-30T18:00:00Z').getTime() - 60 * MIN),
+    armedAt: new Date(at('2026-07-30T18:00:00Z').getTime() - 60 * MIN),
     minutesBefore: 60,
   }).getTime() === at('2026-07-30T17:00:00Z').getTime(),
   'criado no instante do alvo = alvo normal',

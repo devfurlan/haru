@@ -144,11 +144,21 @@ async function processReminders() {
         : 0;
 
     for (const appt of appts) {
-      // Agendamento criado DEPOIS da hora-alvo (marcou pra hoje num tenant que lembra com
+      // Agendamento armado DEPOIS da hora-alvo (marcou pra hoje num tenant que lembra com
       // muita antecedência): o lembrete sairia junto com a confirmação e queimaria os
       // carimbos - o cliente não receberia nada perto da hora. reminderDueAt reprograma
       // pra 30 min antes; até lá o appt volta nos próximos ticks (carimbos seguem nulos).
-      if (now < reminderDueAt({ ...appt, minutesBefore: tenant.reminderMinutesBefore })) continue;
+      // `armedAt` é updatedAt, não createdAt: a REMARCAÇÃO zera os carimbos e re-arma o
+      // lembrete pro horário novo - com createdAt (antigo), remarcar pra daqui a 3h num
+      // tenant de 24h disparava o lembrete no ato da remarcação e nada perto da hora.
+      // ponytail: updatedAt sobe em qualquer update do appt; se algum campo passar a mudar
+      // sem re-armar o lembrete, virar coluna própria (reminderArmedAt) no REMINDER_STAMPS_RESET.
+      const dueAt = reminderDueAt({
+        startsAt: appt.startsAt,
+        armedAt: appt.updatedAt,
+        minutesBefore: tenant.reminderMinutesBefore,
+      });
+      if (now < dueAt) continue;
 
       const when = formatWhen(appt.startsAt, tenant.timezone);
       const name = appt.contact.name ?? 'cliente';
@@ -274,8 +284,13 @@ async function processReminders() {
       // instalar o app e permitir notificações É o opt-in. ponytail: sem pref dedicada;
       // adicionar `pushEnabled` na conta se um dia precisar de controle granular. ---
       if (appt.reminderPushSentAt == null) {
+        // Só carimba quando o push REALMENTE saiu (ou quando não há aparelho). Carimbar em
+        // falha - Expo fora do ar, credencial FCM recusada, todos os tokens mortos - fazia o
+        // lembrete sumir de vez; sem carimbo o appt volta no próximo tick e tenta de novo até
+        // a hora do atendimento. Mesma regra do e-mail logo acima.
+        let done = true;
         if (hasPush) {
-          const { invalidTokens } = await sendExpoPush(
+          const { invalidTokens, sent } = await sendExpoPush(
             devices.map((d) => ({
               to: d.expoPushToken,
               title: 'Lembrete de agendamento',
@@ -283,6 +298,7 @@ async function processReminders() {
               data: { appointmentId: appt.id },
             })),
           );
+          done = sent > 0;
           // Remove tokens mortos que a Expo reportou (app desinstalado / permissão off).
           if (invalidTokens.length > 0) {
             await prisma.pushDevice.deleteMany({
@@ -290,11 +306,17 @@ async function processReminders() {
             });
           }
         }
-        // Carimba como processado (mesmo sem aparelho) pra não reavaliar todo tick.
-        await prisma.appointment.update({
-          where: { id: appt.id },
-          data: { reminderPushSentAt: new Date() },
-        });
+        // O loop só logava em erro: "não recebi o lembrete" virava investigação às cegas
+        // (aparelho registrado? o appt entrou na janela?). Uma linha por lembrete responde.
+        console.log(
+          `[reminders] push appt=${appt.id} devices=${devices.length} enviado=${hasPush && done}`,
+        );
+        if (done) {
+          await prisma.appointment.update({
+            where: { id: appt.id },
+            data: { reminderPushSentAt: new Date() },
+          });
+        }
       }
 
       // Métrica: registra o canal PRIMÁRIO deste lembrete (own-first) uma única vez.

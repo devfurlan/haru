@@ -1,7 +1,8 @@
 // Envio de push via Expo Push API (https://exp.host/--/api/v2/push/send). Sem SDK:
 // o endpoint aceita um array de mensagens (até 100 por request). Best-effort - falha
 // de rede é logada, não derruba o loop. Retorna os tokens que a Expo reportou como
-// inválidos (DeviceNotRegistered) pro caller limpar do banco.
+// inválidos (DeviceNotRegistered) pro caller limpar do banco e `sent` = quantos tickets
+// a Expo ACEITOU (0 = nada saiu; o caller usa isso pra não carimbar o envio como feito).
 
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
 const BATCH_SIZE = 100;
@@ -17,9 +18,10 @@ type ExpoTicket = { status: string; details?: { error?: string } };
 
 export async function sendExpoPush(
   messages: ExpoPushMessage[],
-): Promise<{ invalidTokens: string[] }> {
+): Promise<{ invalidTokens: string[]; sent: number }> {
   const invalidTokens: string[] = [];
-  if (messages.length === 0) return { invalidTokens };
+  let sent = 0;
+  if (messages.length === 0) return { invalidTokens, sent };
 
   for (let i = 0; i < messages.length; i += BATCH_SIZE) {
     // channelId casa com o canal 'default' (importance HIGH) que o app cria no registro.
@@ -35,7 +37,10 @@ export async function sendExpoPush(
       const json = (await res.json().catch(() => null)) as { data?: ExpoTicket[] } | null;
       const tickets = json?.data ?? [];
       tickets.forEach((ticket, idx) => {
-        if (ticket.status !== 'error') return;
+        if (ticket.status !== 'error') {
+          sent++;
+          return;
+        }
         // Token morto (app desinstalado / permissão revogada): sinaliza pra limpar.
         if (ticket.details?.error === 'DeviceNotRegistered') {
           invalidTokens.push(batch[idx].to);
@@ -50,5 +55,5 @@ export async function sendExpoPush(
     }
   }
 
-  return { invalidTokens };
+  return { invalidTokens, sent };
 }
