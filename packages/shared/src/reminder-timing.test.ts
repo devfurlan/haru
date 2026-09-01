@@ -1,7 +1,7 @@
 // Self-check da hora-alvo do lembrete (parte pura). Roda com:
 //   tsx packages/shared/src/reminder-timing.test.ts
 
-import { reminderDueAt } from './reminder-timing';
+import { dueReminderMarks, reminderDueAt } from './reminder-timing';
 
 let passed = 0;
 function assert(cond: boolean, msg: string) {
@@ -88,5 +88,60 @@ assert(
   }).getTime() === at('2026-07-30T17:00:00Z').getTime(),
   'criado no instante do alvo = alvo normal',
 );
+
+// --- Marcos do lembrete por push (24h / 1h / 30min) ---
+const inicio = at('2026-09-02T16:00:00Z');
+const marcosEm = (now: Date, armedAt: Date, sent: number[] = []) =>
+  dueReminderMarks({ startsAt: inicio, armedAt, now, sent }).map((m) => m.minutes);
+
+const cedo = at('2026-08-30T10:00:00Z'); // marcado com folga
+
+assert(marcosEm(at('2026-09-01T15:59:00Z'), cedo).length === 0, 'antes de 24h: nada');
+assert(
+  marcosEm(at('2026-09-01T16:00:00Z'), cedo).join() === '1440',
+  '24h antes: só o marco de 24h',
+);
+assert(marcosEm(at('2026-09-02T15:00:00Z'), cedo, [1440]).join() === '60', '1h antes: marco de 1h');
+assert(
+  marcosEm(at('2026-09-02T15:30:00Z'), cedo, [1440, 60]).join() === '30',
+  '30 min antes: marco de 30 min',
+);
+assert(
+  marcosEm(at('2026-09-02T15:45:00Z'), cedo, [1440, 60, 30]).length === 0,
+  'marco já enviado não repete',
+);
+assert(
+  dueReminderMarks({ startsAt: inicio, armedAt: cedo, now: at('2026-09-02T15:00:00Z'), sent: [1440] })[0]
+    .email === true,
+  'o marco de 1h é o que manda e-mail',
+);
+assert(
+  dueReminderMarks({ startsAt: inicio, armedAt: cedo, now: at('2026-09-01T16:00:00Z'), sent: [] })[0]
+    .email === false,
+  'o marco de 24h não manda e-mail',
+);
+
+// Remarcado pra daqui a 3h: o marco de 24h já tinha passado no rearme -> não dispara.
+const remarcadoEm = at('2026-09-02T13:00:00Z');
+assert(marcosEm(remarcadoEm, remarcadoEm).length === 0, 'remarcação não cospe o marco vencido');
+assert(
+  marcosEm(at('2026-09-02T15:00:00Z'), remarcadoEm).join() === '60',
+  'remarcado: marcos futuros seguem valendo',
+);
+
+// Marcado em cima da hora (15 min antes): todos os marcos ficaram pra trás -> um aviso sai.
+const emCima = at('2026-09-02T15:45:00Z');
+assert(marcosEm(emCima, emCima).join() === '30', 'marcado em cima da hora manda um aviso');
+assert(marcosEm(emCima, emCima, [30]).length === 0, 'e esse aviso não repete');
+
+// Downtime: bot volta 40 min antes com nada enviado -> devolve os vencidos de uma vez
+// (o caller manda UM push só).
+assert(
+  marcosEm(at('2026-09-02T15:20:00Z'), cedo).join() === '1440,60',
+  'downtime devolve os marcos vencidos juntos',
+);
+
+// Atendimento já começou: nada mais sai.
+assert(marcosEm(at('2026-09-02T16:30:00Z'), emCima).length === 0, 'depois do início não sai nada');
 
 console.log(`ok - ${passed} asserts`);

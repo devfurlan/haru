@@ -624,9 +624,14 @@ model Appointment {
   /// não. Separado de `reminderSentAt` (WhatsApp) pra que os dois canais sejam
   /// independentes. Zerado junto na remarcação, pra disparar de novo no novo horário.
   reminderEmailSentAt DateTime?
-  /// Marca de quando o lembrete via PUSH (app) foi enviado. null = ainda não. Mesmo
-  /// padrão dos outros canais - evita reenvio a cada tick do loop; zerado na remarcação.
+  /// Marca de quando o ÚLTIMO marco do lembrete por push saiu (ver LAST_REMINDER_MARK em
+  /// @haru/shared). null = o ciclo de push ainda não terminou - é o que mantém o appt no
+  /// lote do loop. Zerado na remarcação, junto com reminderPushMarks.
   reminderPushSentAt  DateTime?
+  /// Marcos do lembrete por push já enviados, em minutos antes do atendimento (REMINDER_MARKS
+  /// = 1440, 60, 30). Um único aviso 24h antes é cedo demais; o push repete e este array é o
+  /// dedup de cada marco. Zerado na remarcação (REMINDER_STAMPS_RESET).
+  reminderPushMarks   Int[]              @default([])
   /// Marca de quando o CONVITE DE AVALIAÇÃO foi despachado (1h após o fim do atendimento).
   /// null = ainda não. Dedup do cron de convites (evita reenvio); zerado na remarcação pra
   /// re-armar no novo horário. Mesmo padrão dos reminderXxxSentAt.

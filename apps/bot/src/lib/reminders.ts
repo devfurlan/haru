@@ -1,5 +1,5 @@
 import { cycleWindow, getMonthlyWhatsappReminderUsage, isSubscriptionActive } from '@haru/billing';
-import { pickChannels, reminderDueAt } from '@haru/shared';
+import { dueReminderMarks, LAST_REMINDER_MARK, pickChannels, reminderDueAt, REMINDER_MARKS } from '@haru/shared';
 
 import { Sentry } from '../instrument.js';
 import { emailAppointmentReminder } from './appointmentEmail.js';
@@ -83,7 +83,10 @@ async function processReminders() {
   });
 
   for (const tenant of tenants) {
-    const offsetMs = tenant.reminderMinutesBefore * 60_000;
+    // Horizonte do lote: o maior entre a antecedência do WhatsApp (config do dono) e o
+    // primeiro marco de push (24h). Antes era só a config - com ela em 30 min, o appt só
+    // aparecia 30 min antes e os marcos de 24h/1h nunca eram avaliados.
+    const offsetMs = Math.max(tenant.reminderMinutesBefore, REMINDER_MARKS[0].minutes) * 60_000;
     // Hora-alvo do lembrete = startsAt - offset. Janela de startsAt = [agora, agora + offset]:
     //   startsAt <= agora + offset  ⇔  alvo <= agora        (já deu a hora, dispara)
     //   startsAt >= agora           ⇔  agendamento ainda não começou
@@ -144,21 +147,31 @@ async function processReminders() {
         : 0;
 
     for (const appt of appts) {
-      // Agendamento armado DEPOIS da hora-alvo (marcou pra hoje num tenant que lembra com
-      // muita antecedência): o lembrete sairia junto com a confirmação e queimaria os
-      // carimbos - o cliente não receberia nada perto da hora. reminderDueAt reprograma
-      // pra 30 min antes; até lá o appt volta nos próximos ticks (carimbos seguem nulos).
       // `armedAt` é updatedAt, não createdAt: a REMARCAÇÃO zera os carimbos e re-arma o
       // lembrete pro horário novo - com createdAt (antigo), remarcar pra daqui a 3h num
       // tenant de 24h disparava o lembrete no ato da remarcação e nada perto da hora.
       // ponytail: updatedAt sobe em qualquer update do appt; se algum campo passar a mudar
       // sem re-armar o lembrete, virar coluna própria (reminderArmedAt) no REMINDER_STAMPS_RESET.
-      const dueAt = reminderDueAt({
+      const armedAt = appt.updatedAt;
+
+      // WhatsApp segue no marco ÚNICO que o dono configura (canal com quota). O gate era do
+      // appt inteiro; agora é só deste canal - os marcos de push têm agenda própria.
+      const waDueAt = reminderDueAt({
         startsAt: appt.startsAt,
-        armedAt: appt.updatedAt,
+        armedAt,
         minutesBefore: tenant.reminderMinutesBefore,
       });
-      if (now < dueAt) continue;
+
+      // Marcos de push vencidos (24h/1h/30min). Vazio = nada a fazer neste tick.
+      const dueMarks = dueReminderMarks({
+        startsAt: appt.startsAt,
+        armedAt,
+        now,
+        sent: appt.reminderPushMarks,
+      });
+      if (now < waDueAt && dueMarks.length === 0) continue;
+      /** Algo REALMENTE saiu neste tick - o log de canal primário depende disso. */
+      let anySent = false;
 
       const when = formatWhen(appt.startsAt, tenant.timezone);
       const name = appt.contact.name ?? 'cliente';
@@ -173,17 +186,19 @@ async function processReminders() {
       const devices = account?.pushDevices ?? [];
       const hasPush = devices.length > 0;
       const hasOwnChannel = hasPush || hasEmail;
-      // Log do canal primário 1x por lembrete: só na primeira vez que o appt entra no lote
-      // (todos os carimbos nulos). Depois disso ao menos um está setado -> não re-loga.
+      // Log do canal primário 1x por lembrete: só quando NADA saiu ainda (nenhum carimbo,
+      // nenhum marco de push). Depois do primeiro envio ao menos um está setado -> não re-loga.
       const firstTouch =
         appt.reminderSentAt == null &&
         appt.reminderEmailSentAt == null &&
-        appt.reminderPushSentAt == null;
+        appt.reminderPushSentAt == null &&
+        appt.reminderPushMarks.length === 0;
 
       // --- Lembrete por WhatsApp: SÓ como fallback (sem push nem e-mail), se o cliente tem
       // número, o tenant tem número, o cliente não pediu pra sair, cota ok e ainda não enviou.
       // Cliente com app ou e-mail recebe pelos canais próprios - o WhatsApp não sai. ---
       if (
+        now >= waDueAt &&
         !hasOwnChannel &&
         appt.contact.phone != null &&
         waNumberId &&
@@ -245,6 +260,7 @@ async function processReminders() {
 
         if (sent) {
           remindersUsed++;
+          anySent = true;
           await prisma.appointment.update({
             where: { id: appt.id },
             data: { reminderSentAt: new Date() },
@@ -252,8 +268,10 @@ async function processReminders() {
         }
       }
 
-      // --- Lembrete por e-mail AO CLIENTE (canal próprio, independente do WhatsApp) ---
-      if (appt.reminderEmailSentAt == null) {
+      // --- Lembrete por e-mail AO CLIENTE (canal próprio, independente do WhatsApp). Sai no
+      // marco de 1h (REMINDER_MARKS), não na antecedência do WhatsApp: e-mail 24h antes é
+      // cedo demais pra servir de lembrete. ---
+      if (appt.reminderEmailSentAt == null && dueMarks.some((m) => m.email)) {
         // Só carimba quando o e-mail REALMENTE saiu (ou quando não há destinatário/opt-out).
         // Carimbar em falha - Resend fora do ar, env ausente - fazia o lembrete sumir de vez;
         // sem carimbo o appt volta no próximo tick e tenta de novo até a hora do atendimento.
@@ -273,6 +291,7 @@ async function processReminders() {
         }
         // O carimbo é zerado na remarcação (REMINDER_STAMPS_RESET).
         if (done) {
+          anySent = anySent || hasEmail;
           await prisma.appointment.update({
             where: { id: appt.id },
             data: { reminderEmailSentAt: new Date() },
@@ -283,17 +302,27 @@ async function processReminders() {
       // --- Lembrete por PUSH ao cliente (app). Vai pra qualquer aparelho registrado:
       // instalar o app e permitir notificações É o opt-in. ponytail: sem pref dedicada;
       // adicionar `pushEnabled` na conta se um dia precisar de controle granular. ---
-      if (appt.reminderPushSentAt == null) {
-        // Só carimba quando o push REALMENTE saiu (ou quando não há aparelho). Carimbar em
-        // falha - Expo fora do ar, credencial FCM recusada, todos os tokens mortos - fazia o
-        // lembrete sumir de vez; sem carimbo o appt volta no próximo tick e tenta de novo até
-        // a hora do atendimento. Mesma regra do e-mail logo acima.
+      if (dueMarks.length > 0) {
+        // Vários marcos vencidos = o loop ficou parado (downtime). Manda UM push (o do marco
+        // mais perto do atendimento, que é o que ainda importa) e consome todos - a volta do
+        // bot não pode virar rajada de três notificações iguais.
+        const lead = Math.min(...dueMarks.map((m) => m.minutes));
+        const title =
+          lead >= 1440
+            ? 'Seu agendamento é amanhã'
+            : lead >= 60
+              ? 'Seu agendamento é daqui a pouco'
+              : 'Seu agendamento é já já';
+
+        // Só carimba quando o push REALMENTE saiu. Carimbar em falha - Expo fora do ar,
+        // credencial FCM recusada, todos os tokens mortos - fazia o lembrete sumir de vez;
+        // sem carimbo o marco volta no próximo tick. Mesma regra do e-mail acima.
         let done = true;
         if (hasPush) {
           const { invalidTokens, sent } = await sendExpoPush(
             devices.map((d) => ({
               to: d.expoPushToken,
-              title: 'Lembrete de agendamento',
+              title,
               body: `${appt.service.name} · ${when} na ${tenant.name}`,
               data: { appointmentId: appt.id },
             })),
@@ -309,12 +338,19 @@ async function processReminders() {
         // O loop só logava em erro: "não recebi o lembrete" virava investigação às cegas
         // (aparelho registrado? o appt entrou na janela?). Uma linha por lembrete responde.
         console.log(
-          `[reminders] push appt=${appt.id} devices=${devices.length} enviado=${hasPush && done}`,
+          `[reminders] push appt=${appt.id} marcos=${dueMarks.map((m) => m.minutes).join(',')} ` +
+            `devices=${devices.length} enviado=${hasPush && done}`,
         );
         if (done) {
+          anySent = anySent || hasPush;
+          const minutes = dueMarks.map((m) => m.minutes);
           await prisma.appointment.update({
             where: { id: appt.id },
-            data: { reminderPushSentAt: new Date() },
+            data: {
+              reminderPushMarks: { push: minutes },
+              // Último marco = ciclo encerrado; é o carimbo que tira o appt do lote.
+              ...(minutes.includes(LAST_REMINDER_MARK) ? { reminderPushSentAt: new Date() } : {}),
+            },
           });
         }
       }
@@ -322,7 +358,7 @@ async function processReminders() {
       // Métrica: registra o canal PRIMÁRIO deste lembrete (own-first) uma única vez.
       // whatsapp elegível = tem número/tenant-número/não optou por sair (a cota é edge do
       // envio, não muda o primário own-first). Fire-and-forget: nunca derruba o tick.
-      if (firstTouch) {
+      if (firstTouch && anySent) {
         const waEligible =
           appt.contact.phone != null &&
           waNumberId != null &&
