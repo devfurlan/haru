@@ -21,7 +21,12 @@ import {
 
 const BRL = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 
-export default async function AppointmentsPage() {
+export default async function AppointmentsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string }>;
+}) {
+  const { tab } = await searchParams;
   const user = await requireUserAndTenant();
   const { tenant } = user;
   const role = panelRole(user);
@@ -156,6 +161,7 @@ export default async function AppointmentsPage() {
         pending={pending}
         timezone={tenant.timezone}
         today={todayLocal}
+        initialTab={tab === 'fila' ? 'fila' : 'agenda'}
         waitlist={{
           // Dono e apoio gerem a fila; profissional não (fila por-pro é v2). A recuperação em R$
           // (métrica de negócio) e o insight de receita só o dono vê (showRecovery).

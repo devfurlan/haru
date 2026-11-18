@@ -6,6 +6,7 @@ import 'server-only';
 // os deltas (aritmética sobre saídas do motor) e os destaques.
 
 import { prisma } from '@haru/database';
+import { isoDateInTz } from '@haru/shared';
 
 import { dashboardWindows, pickHighlights, trend, type Trend } from '@/lib/dashboard-core';
 import { getMetrics, getRevenue } from '@/lib/metrics/metrics';
@@ -48,7 +49,15 @@ export async function getDashboard(
     getRevenue({ scope, from: w.monthStart, to: now, now }),
     getRevenue({ scope, from: w.prevMonthStart, to: w.prevMonthPoint, now: w.prevMonthPoint }),
     tenant.waitlistEnabled
-      ? prisma.waitlistEntry.count({ where: { tenantId: tenant.id, status: 'WAITING' } })
+      ? prisma.waitlistEntry.count({
+          // Mesmo recorte da aba da fila (getWaitlistGroups): só de hoje em diante. Entrada
+          // WAITING de dia que já passou é lixo e não pode inflar o card.
+          where: {
+            tenantId: tenant.id,
+            status: 'WAITING',
+            date: { gte: new Date(`${isoDateInTz(now, tz)}T00:00:00.000Z`) },
+          },
+        })
       : Promise.resolve(null),
   ]);
 

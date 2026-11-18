@@ -177,7 +177,7 @@ export function MrrCard({ cents, activeCount }: { cents: number; activeCount: nu
 export function FilaCard({ waiting }: { waiting: number }) {
   return (
     <Link
-      href="/appointments"
+      href="/appointments?tab=fila"
       className="border-line bg-paper shadow-soft block rounded-2xl border p-4 no-underline transition-shadow hover:shadow-md"
     >
       <div className="text-ink-50 flex items-center gap-1.5 text-[10.5px] font-bold uppercase tracking-[0.12em]">

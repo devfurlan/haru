@@ -78,6 +78,8 @@ interface AppointmentsDayViewProps {
   today: string;
   /** Dados da aba "Fila de espera" (só leitura; a fila roda sozinha). */
   waitlist: WaitlistViewProps;
+  /** Aba inicial (?tab=fila vem do card "Fila de espera" do Início). */
+  initialTab?: 'agenda' | 'fila';
 }
 
 function localDayKey(iso: string, timezone: string): string {
@@ -108,8 +110,9 @@ export function AppointmentsDayView({
   timezone,
   today,
   waitlist,
+  initialTab = 'agenda',
 }: AppointmentsDayViewProps) {
-  const [tab, setTab] = useState<'agenda' | 'fila'>('agenda');
+  const [tab, setTab] = useState<'agenda' | 'fila'>(initialTab);
   const [selected, setSelected] = useState(today);
   const [active, setActive] = useState<CalendarAppointment | null>(null);
   const [blocking, setBlocking] = useState(false);
