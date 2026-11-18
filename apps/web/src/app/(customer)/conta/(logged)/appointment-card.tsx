@@ -121,7 +121,7 @@ export function AppointmentCard({
         href={`/conta/agendamentos/${item.id}`}
         className="flex min-w-0 flex-1 items-center gap-4"
       >
-        <div className="bg-green-deep shrink-0 rounded-[15px] px-3 py-2.5 text-center">
+        <div className="bg-green-deep w-[58px] shrink-0 rounded-[15px] py-2.5 text-center">
           <p className="text-[10.5px] font-bold tracking-[0.1em] text-[#8fbfa4]">
             {p.weekdayUpper}
           </p>
