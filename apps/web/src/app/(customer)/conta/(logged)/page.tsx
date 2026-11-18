@@ -88,7 +88,7 @@ function NextAppointmentCard({ item }: { item: CustomerAppointmentItem }) {
             {item.professionalName ? ` · com ${item.professionalName}` : ''}
           </p>
         </div>
-        <div className="text-right">
+        <div className="shrink-0 text-right">
           <p className="text-cream font-serif text-[22px] leading-none">
             {timeLabel(item.startsAt, tz)}
           </p>
@@ -98,20 +98,20 @@ function NextAppointmentCard({ item }: { item: CustomerAppointmentItem }) {
 
       <div className="my-4 border-t border-dashed border-[rgba(143,191,164,0.4)]" />
 
-      <div className="flex items-center gap-2.5">
-        <div className="flex-1">
+      <div className="flex flex-wrap items-center gap-2.5">
+        <div className="basis-full sm:flex-1 sm:basis-auto">
           <p className="text-[12px] font-medium text-[#8fbfa4]">valor</p>
           <p className="text-green-bright font-serif text-[19px]">{formatBRL(item.priceCents)}</p>
         </div>
         <Link
           href={`/conta/agendamentos/${item.id}`}
-          className="text-cream rounded-xl border border-[rgba(250,245,234,0.26)] px-4 py-2.5 text-[13px] font-bold transition-colors hover:bg-[rgba(250,245,234,0.08)]"
+          className="text-cream flex-1 whitespace-nowrap rounded-xl border border-[rgba(250,245,234,0.26)] px-4 py-2.5 text-center text-[13px] font-bold transition-colors hover:bg-[rgba(250,245,234,0.08)] sm:flex-none"
         >
           Remarcar
         </Link>
         <Link
           href={`/conta/agendamentos/${item.id}`}
-          className="bg-coral rounded-xl px-4 py-2.5 text-[13px] font-bold text-white transition-transform active:scale-[0.97]"
+          className="bg-coral flex-1 whitespace-nowrap rounded-xl px-4 py-2.5 text-center text-[13px] font-bold text-white transition-transform active:scale-[0.97] sm:flex-none"
         >
           Ver detalhes
         </Link>
