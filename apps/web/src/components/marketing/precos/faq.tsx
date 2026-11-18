@@ -35,7 +35,7 @@ const FAQS = [
   },
   {
     q: 'Como funciona o pagamento anual?',
-    a: 'Você paga 10 meses e usa 12. À vista ou parcelado em até 12x no cartão.',
+    a: 'Você paga o ano de uma vez, com desconto sobre o mensal. À vista ou parcelado em até 12x no cartão.',
   },
 ];
 

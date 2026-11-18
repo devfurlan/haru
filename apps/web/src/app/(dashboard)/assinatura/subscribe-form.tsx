@@ -200,7 +200,7 @@ export function SubscribeForm({
             isAnnual ? 'bg-foreground text-background' : 'bg-background'
           }`}
         >
-          Anual (2 meses grátis)
+          Anual
         </button>
       </div>
 

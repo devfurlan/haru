@@ -1,4 +1,4 @@
-import { brl0, brl2, getActivePlans, type PlanRow } from '../plan-catalog';
+import { annualOffPct, brl0, brl2, getActivePlans, type PlanRow } from '../plan-catalog';
 
 // Monta os "view models" da /precos a partir do catálogo (mesma fonte da home).
 // Nome, preço, nº de profissionais e cota de lembretes vêm do BD; os demais bullets são
@@ -13,6 +13,7 @@ export type PrecosCard = {
   monthly: string; // "R$ 69"
   annualMonthly: string; // "R$ 57,50"
   annualTotal: string; // "R$ 690"
+  annualOff: number; // % off do anual vs 12x mensal
   feats: CardFeat[];
 };
 export type PrecosData = {
@@ -70,7 +71,9 @@ function profCell(max: number | null): string {
   return `Até ${max}`;
 }
 function reminderText(n: number | null): string {
-  return n == null ? 'Lembretes por WhatsApp ilimitados' : `${n.toLocaleString('pt-BR')} lembretes por WhatsApp/mês`;
+  return n == null
+    ? 'Lembretes por WhatsApp ilimitados'
+    : `${n.toLocaleString('pt-BR')} lembretes por WhatsApp/mês`;
 }
 
 function buildCard(plans: PlanRow[], i: number): PrecosCard {
@@ -78,7 +81,8 @@ function buildCard(plans: PlanRow[], i: number): PrecosCard {
   const feats: CardFeat[] = [{ t: profCard(p.maxProfessionals) }];
   for (const item of FEATURE_TMPL[p.tier] ?? []) {
     if (item.reminders) feats.push({ t: reminderText(p.whatsappRemindersPerMonth) });
-    else if (item.heading) feats.push({ t: `Tudo do ${plans[i - 1]?.name ?? 'plano anterior'}, mais:`, heading: true });
+    else if (item.heading)
+      feats.push({ t: `Tudo do ${plans[i - 1]?.name ?? 'plano anterior'}, mais:`, heading: true });
     else feats.push({ t: item.t! });
   }
   return {
@@ -89,6 +93,7 @@ function buildCard(plans: PlanRow[], i: number): PrecosCard {
     monthly: brl0(p.priceMonthlyCents),
     annualMonthly: brl2(p.priceAnnualCents / 12),
     annualTotal: brl0(p.priceAnnualCents),
+    annualOff: annualOffPct(p),
     feats,
   };
 }
@@ -99,7 +104,11 @@ export async function getPrecosData(): Promise<PrecosData> {
   // Colunas da tabela: Solo/Time/Multi do BD + Enterprise "sob medida".
   const profCells = [...plans.map((p) => profCell(p.maxProfessionals)), 'Sob medida'];
   const reminderCells = [
-    ...plans.map((p) => (p.whatsappRemindersPerMonth == null ? 'Ilimitado' : p.whatsappRemindersPerMonth.toLocaleString('pt-BR'))),
+    ...plans.map((p) =>
+      p.whatsappRemindersPerMonth == null
+        ? 'Ilimitado'
+        : p.whatsappRemindersPerMonth.toLocaleString('pt-BR'),
+    ),
     'Sob medida',
   ];
   return { cards, profCells, reminderCells };

@@ -15,6 +15,7 @@ export type PlanVM = {
   monthly: string; // "R$ 79" (ou "Sob consulta")
   annualMonthly: string; // "R$ 65,83"
   annualTotal: string; // "R$ 790"
+  annualOff: number; // % off do anual vs 12x mensal
   feats: { text: string; strong?: boolean }[];
 };
 
@@ -40,7 +41,7 @@ function PlanCard({ plan, annual }: { plan: PlanVM; annual: boolean }) {
   const caption = plan.custom
     ? ''
     : annual
-      ? `${plan.annualTotal}/ano · 2 meses grátis`
+      ? `${plan.annualTotal}/ano${plan.annualOff > 0 ? ` · ${plan.annualOff}% OFF` : ''}`
       : 'cobrado mensalmente';
 
   const c = f
@@ -158,8 +159,9 @@ function PlanCard({ plan, annual }: { plan: PlanVM; annual: boolean }) {
 }
 
 export function PricingPreviewClient({ plans }: { plans: PlanVM[] }) {
-  // Anual é o padrão: é o preço que a gente quer que apareça primeiro (2 meses grátis).
+  // Anual é o padrão: é o preço que a gente quer que apareça primeiro (promoção).
   const [annual, setAnnual] = useState(true);
+  const off = Math.max(0, ...plans.map((p) => p.annualOff));
 
   return (
     <>
@@ -183,14 +185,16 @@ export function PricingPreviewClient({ plans }: { plans: PlanVM[] }) {
             )}
           >
             Anual{' '}
-            <span
-              className={cn(
-                'rounded-full px-2 py-0.5 font-sans text-[9px] font-bold uppercase leading-[normal] tracking-[.05em]',
-                annual ? 'bg-green-bright text-green-card' : 'bg-chip text-[#0C7E41]',
-              )}
-            >
-              2 meses grátis
-            </span>
+            {off > 0 && (
+              <span
+                className={cn(
+                  'rounded-full px-2 py-0.5 font-sans text-[9px] font-bold uppercase leading-[normal] tracking-[.05em]',
+                  annual ? 'bg-green-bright text-green-card' : 'bg-chip text-[#0C7E41]',
+                )}
+              >
+                {off}% OFF
+              </span>
+            )}
           </span>
         </div>
       </div>

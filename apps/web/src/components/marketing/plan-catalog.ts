@@ -64,6 +64,12 @@ export async function getActivePlans(): Promise<PlanRow[]> {
   }
 }
 
+/** % de desconto do anual sobre 12x o mensal (ex.: 60). Vitrine deriva o selo daqui. */
+export const annualOffPct = (p: PlanRow) =>
+  p.priceMonthlyCents > 0
+    ? Math.round((1 - p.priceAnnualCents / (p.priceMonthlyCents * 12)) * 100)
+    : 0;
+
 /** "R$ 69" (sem centavos). */
 export const brl0 = (cents: number) =>
   (cents / 100).toLocaleString('pt-BR', {

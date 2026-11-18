@@ -355,7 +355,7 @@ export function BillingDashboard(props: BillingDashboardProps) {
               <div>
                 <p className="text-sm font-semibold">Economize com o plano anual</p>
                 <p className="text-muted-foreground mt-0.5 text-sm">
-                  No anual você paga 10 meses e leva 12 - 2 meses grátis no mesmo plano.
+                  Pague o ano de uma vez e economize no mesmo plano.
                 </p>
               </div>
             </button>
@@ -399,7 +399,7 @@ export function BillingDashboard(props: BillingDashboardProps) {
                       : 'bg-background'
                   }`}
                 >
-                  {c === 'MONTHLY' ? 'Mensal' : 'Anual (2 meses grátis)'}
+                  {c === 'MONTHLY' ? 'Mensal' : 'Anual'}
                 </button>
               ))}
             </div>

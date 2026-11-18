@@ -47,7 +47,10 @@ function Segmented({ annual, setAnnual }: { annual: boolean; setAnnual: (v: bool
 function PlanCard({ card, annual }: { card: PrecosCard; annual: boolean }) {
   const f = card.featured;
   const price = annual ? card.annualMonthly : card.monthly;
-  const caption = annual ? `${card.annualTotal} por ano · 2 meses grátis` : 'cobrado mensalmente';
+  const promo = annual && card.annualOff > 0;
+  const caption = annual
+    ? `${card.annualTotal} por ano${promo ? ` · ${card.annualOff}% OFF` : ''}`
+    : 'cobrado mensalmente';
   const c = f
     ? {
         bg: 'bg-green-deep',
@@ -104,7 +107,12 @@ function PlanCard({ card, annual }: { card: PrecosCard; annual: boolean }) {
       <div className={cn('mb-4.5 font-sans text-[13.5px] font-medium leading-[normal]', c.sub)}>
         {card.subtitle}
       </div>
-      <div className="flex items-baseline gap-1.5">
+      <div className="flex flex-wrap items-baseline gap-1.5">
+        {promo && (
+          <span className={cn('font-sans text-[15px] font-medium line-through', c.unit)}>
+            {card.monthly}
+          </span>
+        )}
         <span
           className={cn(
             'whitespace-nowrap font-serif text-[clamp(34px,4.6vw,44px)] font-semibold leading-[1] tracking-[-.02em]',
@@ -162,8 +170,9 @@ function PlanCard({ card, annual }: { card: PrecosCard; annual: boolean }) {
 }
 
 export function PrecosPlans({ cards }: { cards: PrecosCard[] }) {
-  // Anual é o padrão: é o preço que a gente quer que apareça primeiro (2 meses grátis).
+  // Anual é o padrão: é o preço que a gente quer que apareça primeiro (promoção).
   const [annual, setAnnual] = useState(true);
+  const off = Math.max(0, ...cards.map((c) => c.annualOff));
   return (
     <>
       {/* toggle de cobrança - continua o hero (centralizado) */}
@@ -171,13 +180,17 @@ export function PrecosPlans({ cards }: { cards: PrecosCard[] }) {
         <div className="flex flex-col items-center gap-3">
           <div className="flex flex-wrap items-center justify-center gap-3">
             <Segmented annual={annual} setAnnual={setAnnual} />
-            <span className="bg-chip inline-flex items-center whitespace-nowrap rounded-full px-3 py-2 font-sans text-[11px] font-bold uppercase leading-[normal] tracking-[.06em] text-[#0C7E41]">
-              2 meses grátis
-            </span>
+            {off > 0 && (
+              <span className="bg-chip inline-flex items-center whitespace-nowrap rounded-full px-3 py-2 font-sans text-[11px] font-bold uppercase leading-[normal] tracking-[.06em] text-[#0C7E41]">
+                {off}% OFF no anual
+              </span>
+            )}
           </div>
-          <span className="text-ink-50 font-sans text-[13px] font-medium leading-[normal]">
-            No anual você paga 10 meses e usa 12.
-          </span>
+          {off > 0 && (
+            <span className="text-ink-50 font-sans text-[13px] font-medium leading-[normal]">
+              Promoção: {off}% de desconto no plano anual.
+            </span>
+          )}
         </div>
       </div>
 

@@ -1,4 +1,4 @@
-import { brl0, brl2, getActivePlans, type PlanRow } from '../plan-catalog';
+import { annualOffPct, brl0, brl2, getActivePlans, type PlanRow } from '../plan-catalog';
 
 import { Guarantees } from './guarantees';
 import { PricingPreviewClient, type PlanVM } from './pricing-preview-client';
@@ -56,6 +56,7 @@ function buildVM(plans: PlanRow[]): PlanVM[] {
       monthly: custom ? 'Sob consulta' : brl0(p.priceMonthlyCents),
       annualMonthly: brl2(p.priceAnnualCents / 12),
       annualTotal: brl0(p.priceAnnualCents),
+      annualOff: custom ? 0 : annualOffPct(p),
       feats,
     };
   });
