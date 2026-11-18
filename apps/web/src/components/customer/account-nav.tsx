@@ -20,19 +20,24 @@ const ITEMS: { href: string; label: string; icon: LucideIcon }[] = [
 ];
 
 // "Início" só ativa na rota exata; os demais também batem em subrotas (ex.: /agendamentos/[id]).
-function activeIndex(pathname: string): number {
-  const i = ITEMS.findIndex((it) =>
+// Mobile espelha o BottomTabBar do app: só Início, Buscar, Agenda e Perfil.
+// Assinaturas/Fidelidade seguem no desktop (top).
+const BOTTOM_ITEMS = ITEMS.filter(
+  (it) => it.href !== '/conta/assinaturas' && it.href !== '/conta/fidelidade',
+);
+
+// -1 = nenhuma aba ativa (ex.: /conta/assinaturas no mobile).
+function activeIndex(items: typeof ITEMS, pathname: string): number {
+  return items.findIndex((it) =>
     it.href === '/conta' ? pathname === '/conta' : pathname.startsWith(it.href),
   );
-  return i === -1 ? 0 : i;
 }
 
 export function AccountNav({ variant }: { variant: 'bottom' | 'top' }) {
   const pathname = usePathname();
-  const idx = activeIndex(pathname);
-
   // Desktop: pílulas soltas (a ativa preenchida), sem barra deslizante.
   if (variant === 'top') {
+    const idx = activeIndex(ITEMS, pathname);
     return (
       <nav className="flex items-center gap-1.5">
         {ITEMS.map((it, i) => {
@@ -60,20 +65,22 @@ export function AccountNav({ variant }: { variant: 'bottom' | 'top' }) {
   }
 
   // Mobile: bottom tab bar com pílula deslizante.
+  const idx = activeIndex(BOTTOM_ITEMS, pathname);
   return (
     <nav className="border-line bg-paper relative flex border-t pb-[calc(env(safe-area-inset-bottom)+8px)] pt-2.5">
       {/* pílula que desliza pra aba ativa */}
       <span
         aria-hidden
+        hidden={idx === -1}
         className="bg-chip absolute rounded-2xl transition-transform duration-[380ms] ease-[cubic-bezier(0.22,1,0.36,1)]"
         style={{
-          width: `${100 / ITEMS.length}%`,
+          width: `${100 / BOTTOM_ITEMS.length}%`,
           top: 8,
           height: 'calc(100% - 16px)',
           transform: `translateX(${idx * 100}%)`,
         }}
       />
-      {ITEMS.map((it, i) => {
+      {BOTTOM_ITEMS.map((it, i) => {
         const Icon = it.icon;
         const active = i === idx;
         return (
