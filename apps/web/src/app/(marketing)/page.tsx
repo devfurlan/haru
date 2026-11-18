@@ -9,6 +9,9 @@ import { HowItWorks } from '@/components/marketing/home/how-it-works';
 import { Niches } from '@/components/marketing/home/niches';
 import { PricingPreview } from '@/components/marketing/home/pricing-preview';
 import { WhatsInside } from '@/components/marketing/home/whats-inside';
+import { getCurrentUserAndTenant } from '@/lib/auth';
+import { getCustomerAccount } from '@/lib/customer-auth';
+import { redirect } from 'next/navigation';
 
 // Home pública redesenhada a partir do protótipo Claude Design ("Melhoria do layout de
 // preços"). A vitrine de preços (PricingPreview) lê o catálogo dinâmico (tabela Plan),
@@ -16,7 +19,12 @@ import { WhatsInside } from '@/components/marketing/home/whats-inside';
 // reflete aqui na hora, sem rebuild.
 export const dynamic = 'force-dynamic';
 
-export default function HomePage() {
+export default async function HomePage() {
+  // Logado não vê a vitrine: vai direto pra área dele (mesma regra do /login).
+  const [owner, customer] = await Promise.all([getCurrentUserAndTenant(), getCustomerAccount()]);
+  if (owner) redirect('/dashboard');
+  if (customer) redirect('/conta');
+
   return (
     <>
       <Hero />
