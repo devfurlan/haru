@@ -1,3 +1,5 @@
+import { prisma } from '@haru/database';
+
 import { advanceWaitlistWaves } from '@/lib/waitlist';
 
 export const runtime = 'nodejs';
@@ -18,6 +20,19 @@ export async function GET(req: Request) {
     return new Response('Unauthorized', { status: 401 });
   }
 
-  const { advanced, closed } = await advanceWaitlistWaves(new Date());
-  return Response.json({ ok: true, advanced, closed });
+  const now = new Date();
+  const { advanced, closed } = await advanceWaitlistWaves(now);
+
+  // Limpeza: inscrição WAITING de dia que já passou nunca vai ser atendida. Cancela em
+  // silêncio (sem aviso ao cliente) pra não inflar contagens nem acumular lixo.
+  // ponytail: corte global = ontem em UTC (folga de 1 dia cobre qualquer fuso do tenant sem
+  // olhar Tenant.timezone); se precisar limpar no minuto em que o dia vira, cortar por fuso.
+  const cutoff = new Date(`${now.toISOString().slice(0, 10)}T00:00:00.000Z`);
+  cutoff.setUTCDate(cutoff.getUTCDate() - 1);
+  const { count: expired } = await prisma.waitlistEntry.updateMany({
+    where: { status: 'WAITING', date: { lt: cutoff } },
+    data: { status: 'CANCELED' },
+  });
+
+  return Response.json({ ok: true, advanced, closed, expired });
 }
